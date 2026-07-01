@@ -1,39 +1,38 @@
-# Propagation Sweep
+# Propagation Sweep Checklist
 
-For each major fact, sweep outward.
+Use after a fact passes the gate.
 
-## Zeroth order
+## Shock cone
 
-- [ ] What exactly is true?
-- [ ] What is not being claimed?
+- [ ] Immediate effects.
+- [ ] Prerequisites exposed.
+- [ ] Domain ripples.
+- [ ] Institutions.
+- [ ] Economies.
+- [ ] Countermeasures.
+- [ ] Historical fossils.
+- [ ] Spatial diffusion.
+- [ ] Character pressure.
+- [ ] Aesthetic residue.
 
-## First order
+## Domain atlas
 
-- [ ] What can now happen directly?
-- [ ] Who can act differently tomorrow?
-
-## Second order
-
-- [ ] Who adapts?
-- [ ] Who resists?
-- [ ] Who profits?
-- [ ] Who is harmed?
-
-## Third order
-
-- [ ] What institutions form or change?
-- [ ] What laws, customs, guilds, rituals, taboos, or markets arise?
-
-## Fourth order
-
-- [ ] What historical residues exist?
-- [ ] What daily-life residues exist?
-- [ ] What language, architecture, tools, songs, jokes, or professions reflect it?
-
-## Fifth order
-
-- [ ] Does this alter identity, metaphysics, religion, or genre promise?
+- [ ] Metaphysics/cosmology.
+- [ ] Physics/material reality.
+- [ ] Ecology/environment.
+- [ ] Geography/infrastructure.
+- [ ] Technology/craft.
+- [ ] Magic/supernatural.
+- [ ] Biology/species/body.
+- [ ] Psychology/agency.
+- [ ] Society/culture.
+- [ ] Politics/law/war.
+- [ ] Economy/resources/labor.
+- [ ] History/memory.
+- [ ] Language/symbols/knowledge.
+- [ ] Aesthetics/tone/genre.
 
 ## Stop condition
 
-- [ ] Has propagation stopped for a justified reason rather than convenience?
+- [ ] Propagation stops because scope, cost, secrecy, novelty, geography, institution, or mystery explains why.
+- [ ] Stopping point is recorded.

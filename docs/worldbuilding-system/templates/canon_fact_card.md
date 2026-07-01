@@ -1,99 +1,74 @@
 # Canon Fact Card
 
-## Fact ID
+A canon fact card records a single world fact and the consequences that make it safe to use.
 
-## Proposed fact
+## Fact statement
 
-## Smallest precise version
+Write the fact in clear prose.
+
+## Working scope
+
+- continuity or branch:
+- time or era:
+- place or region:
+- population or institution:
+- medium or adaptation, if relevant:
 
 ## Fact type
 
-Capability / constraint / entity / institution / event / process / resource / place / belief / law / custom / metaphysical rule / mystery / other.
+Existence / capability / constraint / event / history / institution / relationship / resource / rule / exception / belief / mystery / aesthetic / branch.
 
 ## Truth layer
 
-Objective canon / author-secret / public belief / local belief / elite belief / mythic truth / diegetic claim / propaganda / lie / honest error / disputed / branch-only / mystery boundary.
+Objective canon / author-secret canon / branch canon / mystery boundary / diegetic claim / public belief / local belief / elite belief / mythic truth / propaganda / lie / honest error / disputed claim.
 
-## Status
+## Canon status
 
-Proposed / accepted / accepted with constraints / local / rare / recent / misunderstood / secret / quarantined / branch-only / rejected / deprecated.
+Proposed / under review / accepted / accepted with constraints / localized / contested / quarantined / branch-only / superseded / deprecated / rejected.
 
-## Dependencies
+## Constraint tags
 
-### Hard dependencies
+Local / rare / recent / secret / misunderstood / costly / unstable / seasonal / jurisdictional / class-bound / model-limited / ritual-bound / branch-bound / other.
 
-- 
+## Prerequisites
 
-### Soft dependencies
+- hard dependencies:
+- soft dependencies:
+- economic dependencies:
+- institutional dependencies:
+- temporal dependencies:
+- spatial dependencies:
+- psychological dependencies:
 
-- 
+## Costs and limits
 
-### Social dependencies
+What prevents this from changing everything instantly?
 
-- 
+## Shock-cone summary
 
-### Economic dependencies
+- immediate effects:
+- second-order effects:
+- institutional adaptations:
+- countermeasures:
+- fossils/residue:
+- distant echoes:
 
-- 
+## Evidence and belief
 
-### Epistemic dependencies
+Who knows, believes, denies, misreads, or suppresses it?
 
-- 
+## Contradiction risks
 
-## Access
+What existing fact may conflict?
 
-Who can use, know, control, or experience this fact?
+## Mystery risks
 
-## Cost and scarcity
-
-## Countermeasures
-
-## Affected actors
-
-Actor | Gain | Loss | Likely response
----|---|---|---
- |  |  | 
-
-## Affected domains
-
-- 
-
-## Required institutions
-
-- 
-
-## Economic consequences
-
-- 
-
-## Daily-life residues
-
-1. 
-2. 
-3. 
-4. 
-5. 
-
-## Historical residues
-
-- 
-
-## Contradictions or tensions
-
-- 
-
-## Mystery boundaries
-
-- 
+What protected unknown could this accidentally reveal?
 
 ## Decision
 
-Accept / constrain / localize / historicize / reinterpret / branch / quarantine / reject.
+Accepted / constrained / localized / historicized / reinterpreted / institutionalized / priced / branched / quarantined / superseded / deprecated / rejected.
 
-## Required change package
+## Notes
 
-- 
-
-## Open questions
-
--
+Record human reasoning, not just the result.

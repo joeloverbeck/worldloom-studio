@@ -1,21 +1,37 @@
-# Canon Fact Gate
+# Canon Fact Gate Checklist
 
-Use before accepting a significant fact.
+Use before treating any proposed fact as active canon.
 
-- [ ] Is the fact stated in its smallest precise form?
-- [ ] Is the fact classified?
-- [ ] Is the truth layer assigned?
-- [ ] Are hard dependencies identified?
-- [ ] Are soft, social, economic, and epistemic dependencies identified?
-- [ ] If it is a capability, are access, cost, risk, and countermeasures defined?
-- [ ] Have hostile uses been considered?
-- [ ] Have institutions responded?
-- [ ] Have economic winners and losers been identified?
-- [ ] Has substitution been identified?
-- [ ] Have complementary demands been identified?
-- [ ] Are daily-life residues named?
-- [ ] Are historical residues named or absence explained?
-- [ ] Are contradictions classified?
-- [ ] Are mystery boundaries protected?
-- [ ] Is there a clear decision: accept, constrain, localize, historicize, reinterpret, branch, quarantine, or reject?
-- [ ] Is the required change package recorded?
+- [ ] Fact is stated clearly.
+- [ ] Fact type identified.
+- [ ] Truth layer assigned.
+- [ ] Canon status assigned.
+- [ ] Scope stated: time, place, population, branch.
+- [ ] Prerequisites listed.
+- [ ] Constraints or constraint tags listed.
+- [ ] Costs identified.
+- [ ] First-order consequences listed.
+- [ ] Institutions or informal norms considered.
+- [ ] Economic effects considered.
+- [ ] Enemy/countermeasure response considered.
+- [ ] Timeline implications considered.
+- [ ] Spatial implications considered.
+- [ ] Character psychology implications considered.
+- [ ] Truth/evidence implications considered.
+- [ ] Mystery risks checked.
+- [ ] Contradiction risks checked.
+- [ ] Aesthetic residue considered.
+- [ ] Decision operation recorded.
+
+Decision:
+
+- [ ] Accept.
+- [ ] Accept with constraints.
+- [ ] Localize.
+- [ ] Historicize.
+- [ ] Reinterpret.
+- [ ] Institutionalize/price before use.
+- [ ] Branch.
+- [ ] Quarantine.
+- [ ] Supersede/deprecate older material.
+- [ ] Reject.

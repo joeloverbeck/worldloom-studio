@@ -1,6 +1,6 @@
 # 06. Canon Fact Admission Protocol
 
-Use this every time you add, revise, or import a canon fact.
+Use this every time you add, revise, import, or promote a canon fact.
 
 The protocol may look heavy. It is not meant to generate pages for trivial facts. Its purpose is to prevent powerful facts from entering the world without consequences.
 
@@ -16,6 +16,8 @@ Better:
 
 > In the river cities, licensed flood-callers can redirect seasonal floodwater by singing contracts to river spirits, but only during three weeks of meltwater.
 
+Precision lowers propagation fog.
+
 ## Step 2: Classify the fact
 
 Choose all that apply:
@@ -23,213 +25,178 @@ Choose all that apply:
 - capability;
 - constraint;
 - entity;
+- actor;
 - institution;
 - event;
 - process;
 - resource;
 - place;
+- region;
 - belief;
 - law;
 - custom;
-- technology/magic;
 - metaphysical rule;
-- historical claim;
+- timeline fact;
+- aesthetic rule;
 - mystery;
-- aesthetic premise;
-- game mechanic;
-- narrative premise.
-
-Capability facts require the strictest review.
+- branch fact;
+- other.
 
 ## Step 3: Assign truth layer
 
-Is it:
+Use the canonical order from `03_truth_layers_and_canon_governance.md`:
 
-- objective canon;
-- author-secret canon;
-- public belief;
-- local belief;
-- elite belief;
-- mythic truth;
-- diegetic claim;
-- propaganda;
-- lie;
-- honest error;
-- disputed;
+1. objective canon;
+2. author-secret canon;
+3. branch canon;
+4. mystery boundary;
+5. diegetic claim;
+6. public belief;
+7. local belief;
+8. elite belief;
+9. mythic truth;
+10. propaganda;
+11. lie;
+12. honest error;
+13. disputed claim.
+
+Then assign a status:
+
+- proposed;
+- under review;
+- accepted;
+- accepted with constraints;
+- localized;
+- contested;
+- quarantined;
 - branch-only;
-- mystery boundary?
+- superseded;
+- deprecated;
+- rejected.
 
-If unsure, do not promote it to objective canon yet.
+Use constraint tags for local, rare, recent, secret, misunderstood, dangerous, expensive, seasonal, monopolized, and similar limits. Do not turn every limit into a status.
 
-## Step 4: Identify prerequisites
+## Step 4: Identify dependencies
 
-Ask:
+Ask what must already be true.
 
-- What must exist physically?
-- What knowledge must exist?
-- What tools or infrastructure must exist?
-- What materials must exist?
-- What institutions must exist?
-- What laws or taboos must exist?
-- What ecological conditions must exist?
-- What historical events must have happened?
-- What metaphysical rules must hold?
+Dependency classes:
 
-Classify dependencies as hard, soft, social, economic, epistemic, or aesthetic.
+- hard;
+- soft;
+- social;
+- economic;
+- epistemic;
+- temporal;
+- spatial;
+- aesthetic.
+
+A missing hard dependency means the fact cannot be accepted as stated.
+
+A missing soft dependency means the fact may need support, localization, or reinterpretation.
 
 ## Step 5: Identify capability effects
 
-If the fact lets someone do something, define:
+If the fact lets anyone do something repeatably, it is a capability or creates one.
 
-- effect;
-- range;
-- scale;
-- rate;
-- duration;
-- reliability;
-- repeatability;
-- reversibility;
-- detectability;
-- portability;
-- skill requirement;
-- maintenance requirement;
-- failure modes.
+Ask:
 
-Ask: if a hostile, competent actor had this, what would they do first?
+- What can now be done?
+- Who can do it?
+- How often?
+- At what scale?
+- With what training, tool, body, belief, permission, or resource?
+- What does it replace?
+- What does it make valuable?
+- How does it fail?
+- Who fears it?
+- Who weaponizes it?
 
 ## Step 6: Define access
 
-Who can use it?
+Access is the difference between a world-changing possibility and a contained local fact.
 
-Define access by:
+Track:
 
-- class;
-- profession;
-- species;
-- geography;
-- institution;
-- law;
-- wealth;
-- training;
-- initiation;
-- gender;
-- caste;
-- age;
-- body type;
-- bloodline;
-- license;
-- equipment;
-- moral condition;
-- spiritual status;
-- criminal network;
-- historical accident.
-
-A capability without access limits is a universal social force.
+- who can use it;
+- who can know it;
+- who can teach it;
+- who can detect it;
+- who can prevent it;
+- who can counterfeit it;
+- who can monopolize it;
+- who is excluded;
+- who pays the exclusion cost.
 
 ## Step 7: Define cost and scarcity
 
-Costs may be:
+Every important fact changes scarcity.
+
+Cost may be:
 
 - money;
-- time;
 - labor;
-- attention;
-- training;
+- time;
 - risk;
 - pain;
-- social stigma;
+- attention;
+- social legitimacy;
 - legal exposure;
 - spiritual debt;
 - ecological damage;
-- rare materials;
-- maintenance;
-- opportunity cost;
-- political obligation;
-- corruption;
-- memory loss;
-- aging;
-- reputation;
-- collateral damage.
+- memory;
+- opportunity;
+- moral compromise;
+- aesthetic degradation.
 
-If the cost is low, world transformation must be high.
+If cost is absent, the fact probably needs a constraint or broader propagation.
 
-## Step 8: Define countermeasures
+## Step 8: Define constraints and countermeasures
 
-For every power, ask:
+Use `08_constraint_composition.md`.
 
-- How is it detected?
-- How is it resisted?
-- How is it interrupted?
-- How is it punished?
-- How is it faked?
-- How is it insured against?
-- How is it trained against?
-- How is it forbidden?
-- What cheap counter exists?
-- What expensive counter exists?
-- What social counter exists?
+Ask:
 
-Countermeasures create institutions, professions, laws, and daily habits.
+- What prevents unlimited use?
+- What prevents hostile use?
+- What prevents diffusion everywhere?
+- What happens when multiple constraints interact?
+- What countermeasures are cheap enough to become ordinary?
+- What countermeasures are elite, illegal, sacred, or unreliable?
 
 ## Step 9: Actor sweep
 
-List affected actors:
+Identify actors affected by the fact.
 
-- rulers;
-- households;
-- merchants;
-- criminals;
-- soldiers;
-- priests;
-- scholars;
-- children;
-- farmers;
-- artisans;
-- doctors;
-- couriers;
-- judges;
-- refugees;
-- monsters;
-- machines;
-- gods;
-- outsiders.
-
-For each, ask:
+For each actor:
 
 - What do they gain?
 - What do they lose?
+- What do they know?
+- What do they believe?
 - What do they fear?
-- What do they try to change?
-- What do they misunderstand?
+- What identity or norm shapes their response?
+- What would they try first?
+- What would they fail to notice?
+
+Use `11_agent_character_psychology.md` for high-character-pressure facts.
 
 ## Step 10: Institutional sweep
 
-What recurring problem does the fact create?
+Ask:
 
-Possible institutional responses:
+- What recurring problem does this fact create?
+- What formal rules address it?
+- What rules-in-use differ from the formal rules?
+- Who enforces?
+- Who benefits?
+- Who is excluded?
+- What legitimacy story supports the institution?
+- What corruption or hypocrisy appears?
+- What rival institutions claim authority?
+- What counter-institutions, black markets, or suppression systems arise?
 
-- monopoly;
-- licensing;
-- guild;
-- caste;
-- military branch;
-- police unit;
-- court procedure;
-- inspection regime;
-- temple ritual;
-- university discipline;
-- insurance market;
-- quarantine system;
-- border office;
-- smuggling network;
-- professional oath;
-- taboo;
-- festival;
-- apprenticeship;
-- criminal specialization;
-- countermeasure industry.
-
-If no institution responds, explain why.
+Use `12_institutional_economic_and_suppression_protocol.md`.
 
 ## Step 11: Economic sweep
 
@@ -239,166 +206,227 @@ Ask:
 - What becomes more expensive?
 - What labor is displaced?
 - What new labor appears?
-- What asset appreciates?
-- What asset collapses?
-- What can be taxed?
-- What can be stolen?
-- What can be smuggled?
-- What becomes a public utility?
-- What becomes contraband?
-- What market failure appears?
-- What black market appears?
-- Who captures the surplus?
+- What resource becomes strategic?
+- What can be taxed, smuggled, stolen, insured, hoarded, or monopolized?
+- What externalities appear?
+- What household budget changes?
+- What class conflict appears?
 
-## Step 12: Domain propagation
+## Step 12: Temporal sweep
 
-Run the fact through the domain atlas.
+Ask:
 
-For each affected domain, classify consequence as:
+- When did the fact become true?
+- When was it discovered?
+- When did institutions respond?
+- How long would adaptation take?
+- What residue should exist after one year, one generation, or one century?
+- What came too early or too late?
+- Does the fact require timeline repair?
+
+Use `09_temporal_and_timeline_protocol.md`.
+
+## Step 13: Spatial sweep
+
+Ask:
+
+- Where is the fact true?
+- Where is it known?
+- How does it spread?
+- What terrain, route, border, climate, taboo, monopoly, or infrastructure blocks it?
+- What central places control it?
+- How does it vary by region?
+
+Use `10_spatial_and_geographic_propagation.md`.
+
+## Step 14: Domain propagation
+
+Use `04_domain_atlas.md`.
+
+For major facts, check all fourteen domains. For minor facts, check only the domains under pressure.
+
+Mark consequences as:
 
 - necessary;
 - likely;
 - possible branch;
+- blocked by constraint;
 - delayed;
-- blocked;
 - hidden;
-- false belief;
-- no effect.
+- rejected.
 
-## Step 13: Daily-life residue
+## Step 15: Daily-life residue
 
-If the fact is important or old, define at least five ordinary residues:
+Write at least five ordinary-life residues for major facts.
 
-- object;
-- habit;
-- phrase;
-- job;
-- fear;
-- law;
-- ritual;
-- price;
-- architectural feature;
-- childhood lesson;
-- insult;
-- superstition;
-- bureaucratic form;
-- seasonal practice.
+Residues can be:
 
-If you cannot find residues, the fact is either not important, not old, not known, or not coherent.
+- tools;
+- habits;
+- prices;
+- fears;
+- gestures;
+- slang;
+- architecture;
+- rituals;
+- jokes;
+- toys;
+- household rules;
+- professional routines;
+- food practice;
+- clothing;
+- measurement;
+- signs;
+- etiquette.
 
-## Step 14: Historical residue
+If ordinary people never encounter the fact, explain why.
+
+## Step 16: Historical residue
+
+If the fact has existed for long enough, identify:
+
+- wars;
+- reforms;
+- disasters;
+- scandals;
+- treaties;
+- dynasties;
+- ruins;
+- monuments;
+- laws;
+- migrations;
+- inherited privileges;
+- stigmas;
+- lost professions;
+- place names;
+- trauma;
+- archives;
+- songs.
+
+If there is no residue, the fact may be recent, secret, local, suppressed, or false.
+
+## Step 17: Uncertainty and evidence sweep
 
 Ask:
 
-- Has this caused wars?
-- Has it caused reforms?
-- Has it caused disasters?
-- Has it created ruins?
-- Has it changed borders?
-- Has it made or broken dynasties?
-- Has it caused migrations?
-- Has it created holidays?
-- Has it produced martyrs, saints, villains, or taboos?
-- Has it been forgotten and rediscovered?
+- What evidence supports the fact?
+- What evidence contradicts it?
+- What source made the claim?
+- How reliable is that source?
+- Who has reason to lie or misread?
+- What confidence should the authorial model assign?
+- Is the uncertainty meant to be solved, delayed, or protected as mystery?
 
-If none, explain recency, secrecy, rarity, or suppression.
+Use `14_uncertainty_belief_and_evidence.md`.
 
-## Step 15: Contradiction sweep
+## Step 18: Contradiction sweep
 
-Look for conflicts with:
+Use `13_contradiction_retcon_and_mystery.md`.
 
-- existing facts;
-- existing tone;
-- existing scarcity;
-- existing institutions;
-- existing history;
-- existing map;
-- character backstories;
-- known metaphysics;
-- game mechanics;
-- protected mysteries.
+Check for:
 
-Classify conflicts as hard, soft, aesthetic, epistemic, temporal, scale, or mystery conflicts.
+- hard contradiction;
+- soft contradiction;
+- scale contradiction;
+- access contradiction;
+- institutional contradiction;
+- economic contradiction;
+- historical contradiction;
+- epistemic contradiction;
+- temporal contradiction;
+- spatial contradiction;
+- branch contradiction;
+- mystery contradiction;
+- aesthetic contradiction.
 
-## Step 16: Repair or decide
+## Step 19: Repair or decide
 
-Choose one:
+Decision options:
 
 - accept;
-- accept with constraints;
-- accept as local;
-- accept as rare;
-- accept as recent;
-- accept as secret;
-- accept as misunderstood;
+- constrain;
+- localize;
+- historicize;
+- reinterpret;
+- institutionalize;
+- price;
 - branch;
 - quarantine;
-- reinterpret;
+- supersede;
+- deprecate;
 - reject.
 
-Record required changes before final admission.
+Repairs must be propagated. A constraint that fixes one contradiction may create new institutions, prices, loopholes, and enemies.
 
-## Step 17: Build the change package
+## Step 20: Build the change package
 
-A change package includes:
+A change package records:
 
-- accepted fact;
+- accepted precise fact;
 - truth layer;
-- constraints;
-- prerequisites;
-- affected entities;
-- changed institutions;
-- changed economy;
-- changed history;
-- changed daily life;
-- contradictions resolved;
-- mysteries protected;
-- open questions;
-- rejected consequences;
-- future propagation triggers.
+- status;
+- constraint tags;
+- dependencies;
+- consequences;
+- institutional and economic updates;
+- temporal and spatial limits;
+- branch implications;
+- contradiction repairs;
+- mystery boundaries;
+- daily-life and historical residues;
+- follow-up tasks;
+- rejected or quarantined alternatives.
 
-## Step 18: Run the QA tests
+## Step 21: Run QA
 
-Use `11_quality_assurance_tests.md`.
+Use `18_quality_assurance_tests.md`.
 
-A fact is not fully admitted until it passes the relevant stress tests.
+A major fact should not score 0 on any relevant test.
 
 ## Admission severity levels
 
 ### Level 0: Cosmetic fact
 
-Example: a tavern has blue shutters.
+A name, color, surface detail, or scene texture with no major consequences.
 
-Minimal review.
+Use light notes. Still avoid contradiction.
 
 ### Level 1: Local detail
 
-Example: a village has a winter bell.
+A village custom, minor NPC fact, small object, local rumor, or isolated practice.
 
-Review local culture and history.
+Needs local truth layer, access, and ordinary residue.
 
 ### Level 2: Regional custom or institution
 
-Example: northern courts use oath-stones.
+A law, guild, trade route, cult, profession, disease, migration pattern, dialect, or regional practice.
 
-Review law, religion, class, and neighboring regions.
+Needs institutional, economic, temporal, spatial, and daily-life propagation.
 
 ### Level 3: Capability or strategic resource
 
-Example: some people can bind ghosts.
+A repeatable power, tool, spell, technology, legal procedure, transport method, weapon, cure, or resource.
 
-Full review required.
+Needs full capability, constraint, hostile optimization, institution, economy, diffusion, and countermeasure analysis.
 
 ### Level 4: World premise or metaphysical rule
 
-Example: the dead can return, time loops exist, teleportation is cheap.
+A fact that changes possibility itself.
 
-Full review plus history, institutions, economy, and daily life.
+Needs full propagation across domains, timeline, space, institutions, economy, mystery, and aesthetic identity.
 
-### Level 5: Retcon or contradiction repair
+### Level 5: Retcon, branch, or contradiction repair
 
-Full review plus canon governance record.
+A change to established canon.
+
+Needs contradiction report, branch/diff analysis, reader/player-facing explanation if relevant, and collaboration decision if multiple people are involved.
 
 ## Admission maxim
 
-A powerful fact may enter the world only with its leash attached.
+The more useful a fact is, the more dangerous it is.
+
+The more ancient a fact is, the more residue it owes.
+
+The more secret a fact is, the more secrecy mechanics it owes.
+
+The more beautiful a fact is, the more ruthless the system must be about its consequences.

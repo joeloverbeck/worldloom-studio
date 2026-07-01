@@ -1,12 +1,16 @@
 # Mystery Preservation Checklist
 
-- [ ] Is this mystery intentionally preserved?
-- [ ] Are observable effects defined?
-- [ ] Are competing interpretations assigned to groups?
-- [ ] Are forbidden explanations recorded?
-- [ ] Are forbidden uses recorded?
-- [ ] Does the mystery have cost or risk?
-- [ ] Does it create institutions, rituals, taboos, fraud, or law?
-- [ ] Does it avoid solving problems too conveniently?
-- [ ] Is author knowledge separated from character knowledge?
-- [ ] Are contradictions classified instead of hidden behind mystery?
+- [ ] Mystery question is named.
+- [ ] Mystery type identified.
+- [ ] What is fixed is separated from what is unknown.
+- [ ] Author-secret material marked.
+- [ ] Deliberately undecided material marked.
+- [ ] Partial knowers listed.
+- [ ] False beliefs listed.
+- [ ] Evidence available listed.
+- [ ] Evidence missing listed.
+- [ ] Consequences already visible.
+- [ ] Reveal permissions stated.
+- [ ] Reveal prohibitions stated.
+- [ ] The mystery does not excuse missing propagation.
+- [ ] The mystery would still matter if partly revealed.

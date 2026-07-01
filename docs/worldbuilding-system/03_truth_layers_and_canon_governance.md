@@ -1,6 +1,8 @@
 # 03. Truth Layers and Canon Governance
 
-A coherent world can contain lies, myths, contradictions, propaganda, unreliable narrators, and incomplete knowledge. The authorial system must know what type of uncertainty each statement belongs to.
+A coherent world can contain lies, myths, contradictions, propaganda, unreliable narrators, incomplete knowledge, obsolete drafts, and branch continuities.
+
+The authorial system must know what kind of uncertainty each statement belongs to.
 
 ## Fact versus claim
 
@@ -8,131 +10,233 @@ A fact is accepted into the authorial model.
 
 A claim is a statement made by some source.
 
-Never promote a claim to a fact merely because it is vivid, old, repeated, religiously significant, printed in a sourcebook, or said by an important character.
+Never promote a claim to a fact merely because it is vivid, old, repeated, religiously significant, printed in a sourcebook, spoken by an important character, or useful to a plot.
 
-Every statement should be tagged as one of:
+Claims are still causal. False public belief can redirect trade, justify war, create taboos, or ruin families. A claim does not need to be true to matter.
 
-- objective canon;
-- author-secret canon;
-- diegetic claim;
-- public belief;
-- local belief;
-- elite belief;
-- mythic truth;
-- propaganda;
-- lie;
-- honest error;
-- disputed fact;
-- obsolete canon;
-- branch canon;
-- mystery boundary;
-- rejected proposal.
+## Canonical truth-layer order
 
-## Truth layers
+Use this order whenever assigning a truth layer. It is a classification order, not a value hierarchy.
 
-### Objective canon
+### Authorial layers
+
+#### 1. Objective canon
 
 True in the authorial model.
 
-Use sparingly. Objective canon has the highest propagation burden.
+Use sparingly. Objective canon has the highest propagation burden because it changes what the whole world can do.
 
-### Author-secret canon
+#### 2. Author-secret canon
 
-True in the authorial model but hidden from characters and possibly readers.
+True in the authorial model but hidden from characters and possibly readers or players.
 
-Use for mysteries, later reveals, metaphysics, and causality the story should not yet expose.
+Use for mysteries, later reveals, metaphysics, causality the story should not yet expose, and truths that shape consequences without becoming public knowledge.
 
-### Diegetic claim
+Author-secret canon carries objective consequence burden where it affects reality, but public-knowledge residue only where leaks, institutions, or observable effects exist.
+
+#### 3. Branch canon
+
+True only in one continuity branch, campaign variant, draft fork, adaptation, or possible version.
+
+Branch canon must name its branch and its divergence pressure. It should not silently contaminate the shared baseline.
+
+#### 4. Mystery boundary
+
+A deliberate unknown whose effects are controlled.
+
+The boundary records what may be shown without resolving the mystery, what explanations are forbidden, what uses are forbidden, and what emotional purpose the unknown protects.
+
+### Diegetic knowledge layers
+
+#### 5. Diegetic claim
 
 A statement made inside the world.
 
-It may be true, false, partial, symbolic, or unknowable.
+It may be true, false, partial, symbolic, sincere, coerced, forged, outdated, or unknowable.
 
-### Public belief
+#### 6. Public belief
 
 What most people in a defined population believe.
 
 Public belief matters even when false because people act on it.
 
-### Local belief
+#### 7. Local belief
 
-A belief tied to a place, class, institution, species, profession, religion, or era.
+A belief tied to a place, class, institution, species, profession, religion, language community, household, or era.
 
 Local beliefs create texture and conflict.
 
-### Elite belief
+#### 8. Elite belief
 
-What specialists, rulers, priests, scholars, engineers, spies, or initiated cultists believe.
+What specialists, rulers, priests, scholars, engineers, spies, archive-keepers, or initiated cultists believe.
 
-Elite belief may be more accurate, more corrupt, or more self-serving than public belief.
+Elite belief may be more accurate, more corrupt, more fragmented, or more self-serving than public belief.
 
-### Mythic truth
+#### 9. Mythic truth
 
-A claim that organizes meaning, identity, ritual, morality, or cosmology, even if not literally accurate.
+A claim that organizes meaning, identity, ritual, morality, cosmology, or social memory even when not literally accurate.
 
 Mythic truth must have social consequences.
 
-### Propaganda
+#### 10. Propaganda
 
 A claim engineered to shape behavior.
 
-Track its sponsor, audience, desired action, enemies, symbols, and enforcement.
+Track sponsor, audience, desired action, enemies, symbols, repetition channels, enforcement, and failure modes.
 
-### Lie
+#### 11. Lie
 
 A knowingly false claim.
 
-Track who benefits from the lie and what would happen if it were exposed.
+Track who knows, who benefits, what evidence exists, and what would happen if it were exposed.
 
-### Honest error
+#### 12. Honest error
 
 A false claim believed sincerely.
 
-Track why the error is plausible.
+Track why the error is plausible and what world conditions make correction difficult.
 
-### Disputed fact
+#### 13. Disputed claim
 
-A claim for which evidence, institutions, or factions disagree.
+A claim for which evidence, institutions, factions, or methods of proof disagree.
 
-Disputed facts are story-rich. Do not collapse them too early.
+Disputed claims are story-rich. Do not collapse them too early.
 
-### Obsolete canon
+## Canon statuses
 
-A fact superseded by revision.
+Canon status answers: where is this statement in the authorial governance process?
 
-Retain it for audit history.
+Use statuses separately from truth layers.
 
-### Branch canon
+### Proposed
 
-True only in one continuity branch or possible version.
+Suggested but not admitted.
 
-Useful for exploratory worldbuilding and game variants.
+### Under review
 
-### Mystery boundary
+Being analyzed for dependencies, consequences, contradictions, and fit.
 
-A deliberate unknown whose effects are controlled.
+### Accepted
 
-The mystery boundary records what may be shown without resolving the mystery.
+Admitted as part of the current authorial model.
 
-## Canon status
+### Accepted with constraints
 
-Every proposed fact should receive a status:
+Accepted, but only under recorded limits. The limits are expressed as constraint tags, not as separate statuses.
 
-- proposed;
-- under analysis;
-- accepted;
-- accepted with constraints;
-- accepted as local;
-- accepted as rare;
-- accepted as recent;
-- accepted as misunderstood;
-- accepted as secret;
-- accepted as disputed;
-- quarantined;
-- branch-only;
-- revised;
-- rejected;
-- deprecated.
+### Localized
+
+Accepted only in a specific place, population, era, institution, medium, metaphysical condition, or branch of practice.
+
+### Contested
+
+Accepted as a live dispute in the authorial model. The world contains unresolved disagreement, and the disagreement itself is canon.
+
+### Quarantined
+
+Prevented from propagating until major questions are answered. Quarantine is not rejection; it is controlled suspension.
+
+### Branch-only
+
+Valid only inside one named continuity branch.
+
+### Superseded
+
+Replaced by a newer accepted fact but retained for audit history and possible diegetic residue.
+
+### Deprecated
+
+No longer recommended for use. It may remain as legacy material, obsolete belief, adaptation residue, or a known mistake.
+
+### Rejected
+
+Rejected from the authorial model. It may still exist as a diegetic lie, rumor, dream, abandoned draft, or branch idea if explicitly assigned there.
+
+## Constraint tags
+
+The old “accepted as local / rare / recent / secret / misunderstood” pattern is now handled as constraint tagging.
+
+A fact can be accepted with one or more tags:
+
+- local;
+- rare;
+- recent;
+- secret;
+- misunderstood;
+- disputed;
+- expensive;
+- dangerous;
+- unstable;
+- seasonal;
+- ritual;
+- illegal;
+- sacred;
+- monopolized;
+- class-bound;
+- species-bound;
+- infrastructure-bound;
+- expertise-bound;
+- oath-bound;
+- geography-bound;
+- era-bound;
+- branch-bound;
+- medium-bound.
+
+Tags explain why a fact does not transform everything everywhere.
+
+They must be causal. A tag that exists only to protect the plot is weak until the world shows institutions, habits, costs, or ignorance that make the tag believable.
+
+## Decision operations
+
+Decision operations answer: what do we do with the proposal?
+
+### Accept
+
+The fact fits and its consequences are recorded.
+
+### Constrain
+
+Add limits that preserve coherence.
+
+Common constraints include rarity, cost, danger, illegality, instability, locality, seasonality, recent discovery, expert dependence, infrastructure dependence, side effects, monopoly, taboo, or narrow target scope.
+
+### Localize
+
+Make the fact true only in a specific place, era, faction, ecology, metaphysical condition, social class, species, or ritual context.
+
+### Historicize
+
+Make the fact newly discovered, recently lost, ancient but forgotten, recurring in cycles, or temporally delayed so the world has not adapted uniformly.
+
+### Reinterpret
+
+Move the statement to another truth layer.
+
+Example: “Raiders reprogram robots” becomes “Raiders believe they reprogram robots, but they are using stolen command tokens.”
+
+### Institutionalize
+
+Add institutions that explain why the fact is controlled, normalized, suppressed, priced, licensed, ritualized, or resisted.
+
+### Price
+
+Add economic, social, spiritual, legal, ecological, bodily, temporal, informational, or emotional cost.
+
+### Branch
+
+Keep the idea as a possible world fork.
+
+### Quarantine
+
+Pause propagation until missing prerequisites, contradictions, or mystery risks are resolved.
+
+### Supersede or deprecate
+
+Replace or retire existing canon while preserving audit history and in-world residue where appropriate.
+
+### Reject
+
+Reject if the fact destroys core world identity, cannot be constrained without becoming a different fact, or makes too many foundational facts incoherent.
 
 ## Governance rules
 
@@ -140,15 +244,13 @@ Every proposed fact should receive a status:
 
 The more objective and general a fact is, the more propagation it requires.
 
-"All priests can heal disease" is more dangerous than "one monastery preserves a dangerous ritual that sometimes cures one class of fever."
+“All priests can heal disease” is more dangerous than “one monastery preserves a dangerous ritual that sometimes cures one class of fever.”
 
 ### 2. Public belief is causal
 
 False beliefs still change the world.
 
-If people believe mountains are haunted, trade routes shift.
-If people believe robots are cursed, technicians are ostracized.
-If people believe the dead can sue heirs, wills change.
+If people believe mountains are haunted, trade routes shift. If people believe robots are cursed, technicians are ostracized. If people believe the dead can sue heirs, wills change.
 
 ### 3. Secrets need secrecy mechanics
 
@@ -167,13 +269,13 @@ A secret is plausible only if the system explains:
 
 ### 4. Myths need residue
 
-A myth that matters should affect ritual, politics, law, art, taboo, cuisine, calendars, names, architecture, or violence.
+A myth that matters should affect ritual, politics, law, art, taboo, cuisine, calendars, names, architecture, violence, kinship, burial, oaths, jokes, and shame.
 
 ### 5. Disagreement needs distribution
 
 When people disagree, define who believes what and why.
 
-Avoid "some say" without sociology.
+Avoid “some say” without sociology.
 
 Better:
 
@@ -193,81 +295,25 @@ If two statements conflict, classify the conflict:
 - propaganda versus record;
 - rare exception versus general rule;
 - incomplete information;
+- branch conflict;
 - genuine world contradiction requiring repair.
-
-## Canon-change decisions
-
-A proposed fact can be handled by several operations.
-
-### Accept
-
-The fact fits and consequences are recorded.
-
-### Accept with constraints
-
-The fact works only after limits are added.
-
-Common constraints:
-
-- rare;
-- expensive;
-- dangerous;
-- illegal;
-- unstable;
-- local;
-- seasonal;
-- recent;
-- requires expert;
-- requires infrastructure;
-- requires sacrilege;
-- causes side effects;
-- attracts predators;
-- fails under stress;
-- controlled by monopoly;
-- works only on specific materials or beings.
-
-### Branch
-
-Keep the idea as a possible world fork.
-
-### Quarantine
-
-Do not reject yet, but prevent propagation until major questions are answered.
-
-### Reinterpret
-
-Move the fact to another truth layer.
-
-Example: "raiders reprogram robots" becomes "raiders think they reprogram robots, but they are using stolen command tokens."
-
-### Localize
-
-Make the fact true only in a specific place, era, faction, ecosystem, or metaphysical condition.
-
-### Historicize
-
-Make the fact newly discovered or recently lost so the world has not yet fully adapted.
-
-### Institutionalize
-
-Add institutions that explain why the fact is controlled, normalized, or resisted.
-
-### Price
-
-Add economic, social, spiritual, legal, or ecological cost.
-
-### Reject
-
-Reject if the fact destroys core world identity, cannot be constrained without becoming a different fact, or makes too many foundational facts incoherent.
 
 ## Canon governance board
 
-For serious worlds, judge each proposed fact from five positions:
+For serious worlds, judge each proposed fact from seven positions:
 
-1. Continuity Clerk: does it contradict stated canon?
-2. Causal Analyst: what must change if it is true?
-3. Institutional Economist: who controls, prices, regulates, exploits, or resists it?
-4. Mystery Guardian: what unknowns must remain intact?
-5. Aesthetic Judge: does it deepen the world’s identity or flatten it?
+1. **Continuity Clerk** — does it contradict stated canon?
+2. **Causal Analyst** — what must change if it is true?
+3. **Institutional Economist** — who controls, prices, regulates, exploits, or resists it?
+4. **Temporal Geographer** — when and where does it spread, lag, or fail?
+5. **Agent Advocate** — how do specific people, groups, and identities respond?
+6. **Mystery Guardian** — what unknowns must remain intact?
+7. **Aesthetic Judge** — does it deepen the world’s identity or flatten it?
 
-A single person can play all five roles.
+A single person can play all seven roles.
+
+## Governance maxim
+
+Do not ask whether a claim is interesting before asking what layer it belongs to.
+
+The wrong truth layer can make a brilliant idea incoherent. The right truth layer can make a contradiction fruitful.

@@ -1,42 +1,49 @@
 # Contradiction Report
 
-## Contradiction ID
+Use when two facts, claims, branches, or implications seem incompatible.
 
-## Conflicting facts or claims
+## Contradiction statement
 
-1. 
-2. 
+Quote or summarize the incompatible claims.
 
-## Truth layers involved
+## Affected truth layers
+
+## Affected scope
+
+Time, place, branch, actor, institution, medium.
 
 ## Contradiction type
 
-Hard / soft / scale / access / institutional / economic / historical / epistemic / mystery / aesthetic.
+Direct factual / temporal / spatial / capability / cost / institutional / psychological / aesthetic / truth-layer / branch.
+
+## Who can notice?
+
+Characters, institutions, audience, author only.
 
 ## Severity
 
-Low / medium / high / world-breaking.
+Minor / moderate / major / foundational / catastrophic.
 
-## Why it matters
+## Higher-authority material
 
-## Possible repairs
+Which fact, doctrine, branch, or source has priority?
 
-- constrain:
-- price:
-- localize:
-- historicize:
-- institutionalize:
-- reinterpret:
-- branch:
-- retcon:
-- reject:
+## Mystery relationship
 
-## Recommended repair
+Does the conflict protect a real mystery or merely hide an error?
 
-## Decision
+## Repair operation
 
-## Required canon changes
+Clarify scope / add constraint / price / localize / historicize / institutionalize / diffuse unevenly / reinterpret / split / retcon / quarantine / reject.
 
-## Reader/player-facing explanation
+## Retcon cost
 
-## Open questions
+Continuity, institution, character, mystery, aesthetic, future.
+
+## Propagation required
+
+What else changes because of the repair?
+
+## Decision and status
+
+## Notes

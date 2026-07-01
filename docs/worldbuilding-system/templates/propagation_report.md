@@ -1,80 +1,63 @@
 # Propagation Report
 
+Use this after a fact passes the gate or whenever a high-pressure fact needs a shock-cone scan.
+
 ## Fact
 
-## Truth layer and status
+## Severity level
 
-## Zeroth-order definition
+Minor / moderate / major / foundational / catastrophic.
 
-## First-order consequences
+## Initial scope
 
-- 
+Time, place, population, branch, institution, medium.
 
-## Second-order adaptations
+## Shock-cone order
 
-- 
+### Immediate effects
 
-## Third-order institutions
+What changes first?
 
-- 
+### Prerequisites exposed
 
-## Fourth-order historical and cultural residues
+What must already be true?
 
-- 
+### Domain ripples
 
-## Fifth-order identity/metaphysical implications
+Use the domain atlas. Record only meaningful pressure.
 
-- 
+### Institutional adaptations
 
-## Domain sweep
+Rules, offices, guilds, markets, rituals, laws, taboos, counter-institutions.
 
-Domain | Necessary | Likely | Possible | Blocked | Notes
----|---|---|---|---|---
-Physics/metaphysics |  |  |  |  | 
-Geography/infrastructure |  |  |  |  | 
-Ecology/disease |  |  |  |  | 
-Demography/household |  |  |  |  | 
-Labor/technology/magic |  |  |  |  | 
-Economy/trade |  |  |  |  | 
-Governance/law |  |  |  |  | 
-War/security |  |  |  |  | 
-Religion/myth |  |  |  |  | 
-Culture/language |  |  |  |  | 
-Knowledge/education |  |  |  |  | 
-History/memory |  |  |  |  | 
-Daily life |  |  |  |  | 
-Narrative/game |  |  |  |  | 
+### Economic adaptations
 
-## Actor sweep
+Scarcity, price, labor, rents, externalities, transaction costs, substitution, black markets.
 
-Actor | Incentive | Adaptation | Conflict
----|---|---|---
- |  |  | 
+### Enemy adaptations
 
-## Institutional-economic synthesis
+Theft, imitation, countermeasure, sabotage, propaganda, regulation.
 
-Because [fact] changes [scarcity/capability/risk], [actors] created or adapted [institution] to control [resource/action], producing [economic shift], [winners], [losers], [daily-life residue], and [conflict].
+### Temporal residue
 
-## Branches considered
+First appearance, latency, eras, fossils, old scars, future pressure.
 
-- 
+### Spatial diffusion
 
-## Rejected consequences
+Origin, routes, barriers, clusters, border effects, regional variation.
 
-- 
+### Character pressure
 
-## Contradictions found
+Roles, desires, fears, incentives, misbeliefs.
 
-- 
+### Aesthetic residue
 
-## Repairs required
+Names, symbols, speech, objects, spaces, sounds, rituals.
 
-- 
+## Stopping rule
 
-## Mystery boundaries
+Why does propagation stop here for now?
 
-- 
+## Required follow-up
 
-## Open questions
-
--
+Templates, checklists, contradictions, mysteries, branches, examples.

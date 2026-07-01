@@ -1,59 +1,53 @@
-# World Kernel
+# World Kernel Template
 
-## World name
+Use this to define the smallest version of the world before detailed propagation.
 
-## Essence
+## World premise
 
-What is the world’s generating tension?
+What is the world, in one or two sentences?
 
-## Aesthetic promise
+## Core promise
 
-What should the world feel like?
+What experience should the world reliably create for reader, player, viewer, or collaborator?
 
-## Starting scale
+## Genre and tone commitments
 
-Village / city / region / nation / planet / interstellar / cosmological / other.
+- Primary genre mode:
+- Secondary modes:
+- Tonal boundaries:
+- What the world must never become by accident:
 
-## Reality mode
+## Foundational facts
 
-Realist / mythic / weird / hard speculative / dreamlike / horror / satirical / mixed.
+List the few seed facts that everything else must answer to.
 
-## Primary pressures
+1.
+2.
+3.
 
-- 
-- 
-- 
+## Foundational constraints
 
-## Forbidden easy answers
+What limits keep the premise from becoming shapeless?
 
-What solutions should not be cheap or casual in this world?
+- metaphysical limits:
+- technological or magical limits:
+- institutional limits:
+- geographic limits:
+- temporal limits:
+- aesthetic limits:
 
-- 
-- 
-- 
+## Initial mysteries
 
-## Mystery posture
+What is intentionally unknown or protected?
 
-What kinds of things should remain unknown, disputed, sacred, or terrifying?
+## Initial domains of pressure
 
-## Initial seed facts
+Which domains will be most affected first?
 
-List atomic facts. Each must receive its own canon fact card.
+## Ordinary-life promise
 
-1. 
-2. 
-3. 
+What everyday residue should prove this world has existed before the story begins?
 
-## First ordinary life anchor
+## Frontloaded seed audit
 
-Describe one ordinary person and how the world’s core pressures touch their day.
-
-## Initial factions as adaptations
-
-Faction | Pressure answered | Adaptation | Cost
----|---|---|---
- |  |  | 
-
-## Open questions
-
--
+Run `checklists/frontloaded_seed_audit.md` before treating this kernel as stable.

@@ -6,7 +6,7 @@ It is not an automatic truth machine. It is a disciplined way to ask the questio
 
 ## Input
 
-A proposed or accepted canon fact.
+A proposed, accepted, revised, disputed, branch, or author-secret fact.
 
 ## Output
 
@@ -18,352 +18,337 @@ A propagation report containing:
 - affected actors;
 - institutional adaptations;
 - economic shifts;
+- temporal effects;
+- spatial diffusion;
 - daily-life residues;
 - historical residues;
+- aesthetic residues;
 - contradictions;
 - branches;
 - rejected consequences;
 - protected mysteries;
 - open questions.
 
+Use `templates/propagation_report.md`.
+
 ## The shock-cone model
 
-A fact radiates outward in orders.
+A fact radiates outward in orders. This expanding field is the **shock cone**.
+
+The shock cone is not a promise that every possible implication must be documented. It is a way to distinguish immediate effects from delayed, institutional, historical, and identity-level effects.
 
 ### Zeroth-order: definition
 
 What exactly is true?
 
-Example:
+What is not being claimed?
 
-> Some raider groups can reprogram certain robots under certain conditions.
+What is the smallest precise version?
 
 ### First-order: direct effects
 
-What can now happen immediately?
+What can now happen directly?
 
-- Raiders can redirect robot aggression.
-- Settlements can be attacked by machines.
-- Robot salvage becomes more valuable.
-- Technical knowledge becomes dangerous.
+Who can act differently tomorrow?
+
+What becomes possible, impossible, easier, harder, visible, hidden, or newly risky?
 
 ### Second-order: adaptations
 
-How do actors respond?
+Who adapts?
 
-- Settlements create robot alarms and kill zones.
-- Raider chiefs compete for technicians.
-- Traders charge more for robot-infested routes.
-- Mechanics become protected, enslaved, or licensed.
-- Militias learn disabling tactics.
+Who resists?
+
+Who profits?
+
+Who is harmed?
+
+Who copies, forbids, prices, hides, or counterfeits the fact?
 
 ### Third-order: institutionalization
 
-What durable structures form?
+What laws, customs, guilds, professions, rituals, taboos, markets, records, offices, religions, military doctrines, schools, or criminal networks arise?
 
-- robot mechanic guilds;
-- anti-robot militias;
-- diagnostic-station fortresses;
-- raider warlords with machine retinues;
-- settlement ordinances banning autonomous machines;
-- black markets in firmware keys;
-- rites treating robots as haunted relics.
+What rules-in-use diverge from official rules?
 
 ### Fourth-order: historical and cultural residue
 
-What proves this has shaped the world?
-
-- collapsed settlements known as "steel raids";
-- nursery songs about metal dogs;
-- laws requiring robot cores to be surrendered;
-- scars in city walls from turret rebellions;
-- folk taboos against speaking near dormant machines;
-- veteran slang for hacked robots;
-- pilgrimages to intact repair depots.
+If the fact has existed long enough, what wars, ruins, reforms, disasters, scandals, inherited inequalities, jokes, songs, architecture, names, or holidays prove it?
 
 ### Fifth-order: identity and metaphysics
 
-If the fact touches the deep premise, it may reshape:
+Does the fact alter what people think life, death, selfhood, divinity, nature, history, family, justice, or beauty means?
 
-- cosmology;
-- human identity;
-- class destiny;
-- species relations;
-- moral philosophy;
-- religion;
-- genre promise.
+Does it force cosmology, theology, genre, or aesthetic identity to expand?
 
-Not every fact reaches fifth order.
-
-## Propagation mechanics
+## Propagation mechanisms
 
 ### Mechanism 1: Access
 
-Who can use the fact?
+Consequences follow the channels of access.
 
-Low access creates elites, guilds, cults, licenses, monopolies, and resentment.
-High access creates mass adaptation, commodification, common habits, and regulation.
-Hidden access creates conspiracy, blackmail, and paranoia.
-Illegal access creates black markets and enforcement.
+If only licensed mortuary advocates can bind dead witnesses, courts, guilds, licenses, fees, fraud, and class inequality matter.
 
 ### Mechanism 2: Incentive
 
-What does the fact make rewarding?
+Actors respond to incentives, but not as perfect machines. They respond through belief, fear, identity, norms, and limited knowledge.
 
-People do not need to be rational in a modern economic sense, but incentives matter. If a behavior gives survival, status, wealth, salvation, revenge, or legitimacy, someone will try it.
+Ask what each actor wants enough to risk change.
 
 ### Mechanism 3: Substitution
 
-What old thing does the fact replace?
-
-Examples:
-
-- teleportation replaces roads for some goods;
-- ghost testimony replaces certain witnesses;
-- robots replace guards or pack animals;
-- prophecy replaces some intelligence networks;
-- disease magic replaces doctors for certain classes.
-
-Substitution creates losers.
+If a new fact replaces old labor, transport, proof, violence, medicine, or ritual, then the old system adapts or dies.
 
 ### Mechanism 4: Complementarity
 
-What becomes more useful because of the fact?
+Some facts make other things more valuable.
 
-Examples:
-
-- robot hacking increases value of batteries, parts, shielding, technicians, and command codes;
-- ghosts increase value of identity rituals, corpse preservation, and anti-necromancy law;
-- teleportation increases value of secure arrival chambers and customs inspectors.
-
-Complementarity creates new industries.
+Teleportation makes arrival security valuable. Ghost testimony makes corpse preservation valuable. Robot reprogramming makes diagnostic stations valuable.
 
 ### Mechanism 5: Countermeasure
 
-Every important fact generates opposition.
+Every useful capability invites countermeasures.
 
-Countermeasures can be technical, legal, cultural, spiritual, military, economic, or epistemic.
+Countermeasures may be cheap household practices, elite devices, laws, taboos, religious rites, architectural features, military doctrine, or misinformation.
 
 ### Mechanism 6: Diffusion
 
-How does the fact spread?
+Knowledge, tools, diseases, styles, rumors, rites, and innovations spread through channels.
 
-Track:
+Channels include trade routes, kinship, conquest, pilgrimage, apprenticeship, gossip, schools, fugitives, black markets, scriptures, military campaigns, marriages, and disasters.
 
-- discovery;
-- teaching;
-- imitation;
-- theft;
-- translation;
-- migration;
-- conquest;
-- trade;
-- religious mission;
-- espionage;
-- standardization;
-- decay.
-
-Diffusion can be blocked by secrecy, complexity, danger, taboo, infrastructure, monopoly, or lack of demand.
+Diffusion has friction. Distance, terrain, class, language, cost, law, fear, secrecy, monopoly, and ritual can slow or distort it.
 
 ### Mechanism 7: Path dependence
 
-The first group to institutionalize a capability often shapes how everyone else understands it.
+Earlier choices shape later possibilities.
 
-If temples first control healing magic, medicine becomes sacred.
-If armies first control teleportation, cities become militarized.
-If criminals first control robot reprogramming, robotics becomes stigmatized.
+A bad compromise can become sacred tradition. A temporary emergency office can become permanent bureaucracy. A failed weapon can leave a permanent taboo.
 
 ### Mechanism 8: Uneven development
 
-Worlds become interesting when facts do not spread evenly.
+Consequences do not spread evenly.
 
-A capability may be:
-
-- common in cities, absent in villages;
-- legal in one empire, taboo in another;
-- mastered by one caste, hated by another;
-- reliable in winter, impossible in summer;
-- easy near ruins, impossible elsewhere;
-- known by children but denied by priests.
-
-Unevenness creates story.
+Centers, peripheries, borderlands, colonies, ghettos, monasteries, guild towns, nomad routes, and occupied zones respond differently.
 
 ### Mechanism 9: Feedback
 
-Consequences become new causes.
+Consequences change the conditions that created them.
 
-Example:
+A new market creates demand for training. Training spreads the capability. Spread creates regulation. Regulation creates black markets. Black markets create enforcement. Enforcement creates corruption.
 
-1. Raiders reprogram robots.
-2. Settlements militarize.
-3. Mechanics gain value.
-4. Mechanics are kidnapped.
-5. Settlements create protected technician castes.
-6. Technician castes hoard knowledge.
-7. Black-market manuals become strategic resources.
-8. Raiders raid for manuals.
-9. Manuals become encoded religiously.
-10. A machine cult emerges.
+### Mechanism 10: Suppression
 
-Propagation continues until pressure dissipates.
+Powerful actors may try to prevent propagation.
+
+Suppression creates its own shock cone: records, secrecy costs, informants, taboos, disappearances, rumor ecologies, counter-institutions, and resistance.
+
+### Mechanism 11: Aesthetic pressure
+
+Some consequences are technically plausible but damage the world’s identity.
+
+A grim sacred setting may need resurrection to remain rare, costly, tragic, or taboo. A satirical world may let bureaucratic absurdity propagate farther than physics.
 
 ## The propagation loop
 
-For each proposed fact:
-
 1. Define the fact.
-2. Determine the effect.
-3. Identify prerequisites.
-4. Identify who can access it.
-5. Identify who wants it.
-6. Identify who fears it.
-7. Identify direct consequences.
-8. Identify adaptations.
-9. Identify institutions.
-10. Identify economic shifts.
-11. Identify daily-life residue.
-12. Identify historical residue.
-13. Identify contradictions.
-14. Generate branches.
-15. Select accepted branch.
-16. Record unresolved consequences.
+2. Identify direct effects.
+3. Identify who cares.
+4. Identify who can act.
+5. Identify who blocks action.
+6. Identify what becomes scarce or cheap.
+7. Identify institutions and counter-institutions.
+8. Identify ordinary-life residue.
+9. Identify temporal lag.
+10. Identify spatial diffusion.
+11. Identify history.
+12. Identify contradictions.
+13. Identify branches.
+14. Decide what must be recorded and what can remain implicit.
+
+Repeat only where new pressure appears.
 
 ## Propagation branch types
 
-When consequences are underdetermined, generate branches.
-
 ### Monopoly branch
 
-One institution controls the fact.
+One actor controls access.
+
+Questions:
+
+- How is monopoly enforced?
+- What leaks?
+- Who bribes, steals, or rebels?
+- What happens at the periphery?
 
 ### Commons branch
 
-Many people can access it.
+The capability or resource is widely shared.
+
+Questions:
+
+- What prevents overuse?
+- What local rules govern access?
+- What tragedy, cooperation, or informal norm appears?
 
 ### Black-market branch
 
-The fact is illegal or stigmatized but useful.
+The fact is illegal or restricted but demand persists.
+
+Questions:
+
+- What is the black-market price?
+- Who brokers trust?
+- Who enforces debt?
+- Who gets scapegoated?
 
 ### Sacred branch
 
-The fact is ritualized and controlled by religious authority.
+The fact is controlled by ritual, taboo, priesthood, pilgrimage, or cosmology.
+
+Questions:
+
+- What is sacrilege?
+- What is purification?
+- What happens when secular institutions want control?
 
 ### Military branch
 
-The fact is primarily weaponized.
+The fact changes coercion.
+
+Questions:
+
+- What doctrine changes?
+- What fortifications fail?
+- What arms race begins?
+- What battlefield becomes obsolete?
 
 ### Domestic branch
 
-The fact becomes part of ordinary household life.
+The fact changes ordinary households.
+
+Questions:
+
+- What chores, family structures, inheritance rules, marriage customs, or child training change?
 
 ### Lost branch
 
-The fact exists as ruins, relics, or half-understood practice.
+The fact existed but is now lost.
+
+Questions:
+
+- What fossils remain?
+- Who seeks revival?
+- What institutions persist after function is gone?
 
 ### Recent-discovery branch
 
-The world has not yet fully adapted, creating transition drama.
+The fact is new enough that the world has not fully adapted.
+
+Questions:
+
+- Who knows first?
+- What lag exists?
+- What panic, speculation, or experimental institution appears?
 
 ### Suppressed branch
 
-Powerful actors hide the fact.
+The fact is actively buried.
+
+Questions:
+
+- Who suppresses it?
+- What false explanation circulates?
+- What leaks survive?
+- What does suppression cost?
 
 ### Catastrophic branch
 
-The fact was widely used and caused collapse, taboo, or reform.
+The fact once transformed the world and caused disaster.
 
-A good world often combines branches by region, class, or era.
+Questions:
+
+- What trauma remains?
+- What laws or taboos prevent return?
+- Who wants to reopen the danger?
 
 ## Stopping rules
 
-Propagation does not need to be infinite.
+Stop propagation when:
 
-Stop when:
+- no new major capability, scarcity, actor incentive, institution, contradiction, or aesthetic pressure appears;
+- the fact has reached the natural boundary of access, cost, geography, time, secrecy, or relevance;
+- further analysis would answer questions the story, game, or world does not need;
+- the remaining consequences can be recorded as open questions;
+- mystery boundaries forbid deeper explanation.
 
-- consequences become minor color;
-- no major actor has incentive to respond;
-- costs exceed plausible benefit;
-- access is too narrow;
-- the fact is too recent for full adaptation;
-- mystery boundaries forbid further explanation;
-- the consequence would distract from the world’s purpose;
-- the open question can be recorded for later.
+Do not stop merely because the first explanation is convenient.
 
-Do not stop merely because consequences are inconvenient.
+## The “why not everywhere?” test
 
-## The "why not everywhere?" test
+If a fact is useful, why has it not spread everywhere it plausibly could?
 
-For any useful capability, ask:
+Strong answers include:
 
-> Why is this not everywhere?
-
-Possible answers:
-
-- rare materials;
-- rare training;
-- dangerous side effects;
-- unreliable results;
-- monopoly enforcement;
+- cost;
+- infrastructure;
+- danger;
+- training;
+- monopoly;
 - taboo;
-- legal suppression;
-- ecological limits;
-- divine disapproval;
-- infrastructure needs;
-- high maintenance;
-- knowledge loss;
-- countermeasures;
+- ecology;
+- law;
+- secrecy;
+- unreliability;
+- regional variation;
 - recent discovery;
-- low demand;
-- hidden cost;
-- incompatibility with local conditions.
+- suppression;
+- moral refusal;
+- incompatible aesthetic identity.
 
-At least one answer must be strong.
+## The “why not used by enemies?” test
 
-## The "why not used by enemies?" test
+If a fact gives advantage, why do enemies not use it constantly?
 
-For any useful capability, ask:
+Strong answers include:
 
-> Why do hostile actors not use this constantly?
+- countermeasures;
+- access failure;
+- moral taboo;
+- strategic cost;
+- unreliable outcomes;
+- detection risk;
+- escalation risk;
+- resource scarcity;
+- cultural identity;
+- dependency on institutions they lack;
+- the enemy uses it and the world shows that.
 
-Possible answers:
+## The “where are the fossils?” test
 
-- too visible;
-- too risky;
-- too expensive;
-- countered by cheap defenses;
-- requires captives or specialists;
-- politically destabilizing;
-- invites divine or military retaliation;
-- produces uncontrollable collateral effects;
-- only works under conditions enemies cannot create;
-- enemies use it, and the world reflects that.
+If a fact has existed for a long time, where are its fossils?
 
-The last answer is often the most interesting.
+Look for:
 
-## The "where are the fossils?" test
-
-If the fact has existed for decades or centuries, name its fossils:
-
-- laws;
 - ruins;
-- professions;
-- jokes;
-- scars;
-- taboos;
+- laws;
+- measurements;
+- titles;
+- architecture;
 - rituals;
+- jokes;
 - songs;
-- tools;
-- insurance clauses;
-- border posts;
-- festival dates;
-- court precedents;
-- saints and villains;
-- architectural adaptations.
-
-No fossils means the fact is recent, hidden, rare, or underdeveloped.
+- scars;
+- inherited privilege;
+- inherited resentment;
+- obsolete professions;
+- weird infrastructure;
+- place names;
+- old countermeasures;
+- taboo topics.
 
 ## The propagation report
 
-Use `templates/propagation_report.md`.
+A good propagation report does not list everything.
 
-The report is the canonical record of why the world changed the way it did.
+It records the consequential paths that must be remembered so future additions do not cheat.

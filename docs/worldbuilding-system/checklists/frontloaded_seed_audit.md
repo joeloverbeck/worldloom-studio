@@ -1,42 +1,37 @@
 # Frontloaded Seed Audit
 
-Use this after creating a world from an initial premise.
+Use after drafting a world kernel. Seed facts are dangerous because they feel already accepted. Audit them as rigorously as later additions.
 
-## Seed inventory
+## Seed fact inventory
 
-- [ ] List every seed fact separately.
-- [ ] Split broad facts into atomic facts.
-- [ ] Identify all capability seeds.
-- [ ] Identify all metaphysical rule seeds.
-- [ ] Identify all institutional seeds.
-- [ ] Identify all historical event seeds.
+- [ ] Each seed fact is written as a claim, not a vibe.
+- [ ] Each seed fact has a truth layer.
+- [ ] Each seed fact has an initial scope.
+- [ ] Each seed fact has obvious constraints or a note that constraints are missing.
 
-## Per-seed propagation
+## Consequence audit
 
-For each seed:
+For each seed fact:
 
-- [ ] Run the canon fact gate.
-- [ ] Identify prerequisites.
-- [ ] Identify access, cost, risk, and countermeasures.
-- [ ] Propagate causal consequences.
-- [ ] Propagate institutional consequences.
-- [ ] Propagate economic consequences.
-- [ ] Add daily-life residue.
-- [ ] Add historical residue or explain absence.
-- [ ] Classify contradictions.
-- [ ] Protect mystery boundaries.
+- [ ] What must already be true?
+- [ ] What changes immediately?
+- [ ] What institutions form around it?
+- [ ] What economies respond?
+- [ ] What ordinary-life residue exists?
+- [ ] What enemies or skeptics adapt?
+- [ ] What historical fossils exist?
+- [ ] What mysteries are protected?
 
-## Cross-seed audit
+## Drift audit
 
-- [ ] Do any seeds contradict each other?
-- [ ] Does one seed make another unnecessary?
-- [ ] Does one seed imply institutions missing from another?
-- [ ] Does one seed change the economy assumed by another?
-- [ ] Does one seed overexplain a protected mystery?
-- [ ] Does the initial world behave as if its own premise is true?
+- [ ] The kernel does not imply a different genre than intended.
+- [ ] Aesthetic commitments match the causal premise.
+- [ ] No seed fact silently grants world-breaking power.
+- [ ] No seed mystery is used to avoid consequence.
 
-## Completion
+## Decision
 
-- [ ] Every major seed has a change package.
-- [ ] Unresolved questions are recorded.
-- [ ] No seed is accepted merely because it was in the premise.
+- [ ] Accept kernel.
+- [ ] Accept with constraints.
+- [ ] Rewrite kernel.
+- [ ] Split into branches.

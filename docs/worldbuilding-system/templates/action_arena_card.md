@@ -1,43 +1,51 @@
 # Action Arena Card
 
-## Arena name
+An action arena is a recurring situation where actors interact under rules and incentives.
 
-## Recurring situation
+## Arena
 
-## Participants
+Example: inheritance hearing, gate crossing, corpse-binding, guild exam, raider negotiation, water allocation, quarantine checkpoint.
 
-- 
+## Trigger
 
-## Stakes
+When does the arena occur?
 
-## Available actions
+## Actors
 
-- 
+Who enters? Who is barred? Who watches?
 
-## Information available
+## Positions
 
-Who knows what? Who is misinformed?
+Roles available in the arena.
 
-## Formal rules
+## Actions
 
-- 
+What can each role do?
+
+## Information
+
+Who knows what? What is hidden, costly, false, or disputed?
+
+## Control
+
+Who can authorize, veto, punish, delay, certify, or reinterpret?
+
+## Costs and incentives
+
+What does each actor gain or lose?
 
 ## Rules-in-use
 
-- 
+Formal rules and informal practices.
 
-## Enforcement
+## Outcomes
 
-## Payoffs
+Common outcomes, rare outcomes, catastrophic outcomes.
 
-Participant | Benefit | Cost | Risk
----|---|---|---
- |  |  | 
+## Externalities
 
-## Likely outcomes
+Who pays costs while not participating?
 
-## Feedback into world
+## Repair questions
 
-## Resulting institutions or customs
-
-## Story/game pressure
+What would change if a new canon fact entered this arena?

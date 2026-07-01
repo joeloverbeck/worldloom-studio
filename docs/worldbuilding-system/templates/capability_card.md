@@ -1,63 +1,51 @@
 # Capability Card
 
-## Capability name
+Use for a repeatable action permission: magic, technology, skill, biology, office, ritual, weapon, transport, communication, healing, resurrection, surveillance, fabrication, travel, memory, prophecy, law, or social authority.
 
-## Effect
+## Capability
 
 What can be done?
 
-## Scope
+## Users
 
-Range / scale / duration / rate / reliability / reversibility.
+Who can use it? Who falsely claims to use it?
 
-## Who can use it?
+## Access requirements
 
-## Prerequisites
+Training, tools, body, species, lineage, license, oath, place, season, cost, material, institution, knowledge.
 
-- knowledge:
-- tools:
-- materials:
-- infrastructure:
-- training:
-- social permission:
-- metaphysical conditions:
+## Limits
 
-## Cost
+What it cannot do.
 
-## Risks and failure modes
+## Failure modes
 
-## Maintenance
+How use fails, backfires, corrupts, attracts attention, injures, degrades, or creates debt.
 
-## Detectability
+## Costs
+
+Material, time, attention, legal, social, spiritual, bodily, emotional, political, ecological.
 
 ## Countermeasures
 
-## Legal status
+How enemies, states, markets, and ordinary people adapt.
 
-## Cultural or religious interpretation
+## Institutions
 
-## Diffusion history
+Who teaches, regulates, monopolizes, taxes, forbids, blesses, certifies, insures, or punishes it?
 
-How was it discovered, taught, stolen, spread, suppressed, or lost?
+## Economy
 
-## Access bottlenecks
+What becomes valuable, cheap, obsolete, illegal, counterfeit, or dangerous?
 
-## Hostile uses
+## Distribution
 
-## Mundane substitutes
+Where is it common, rare, secret, misunderstood, recent, or banned?
 
-## What it makes obsolete
+## Repeated-use test
 
-## What it makes more valuable
+What happens if this capability is used a hundred times by ordinary actors?
 
-## Institutions around it
+## Aesthetic residue
 
-## Black markets around it
-
-## Daily-life residue
-
-## Historical residue
-
-## Why not everywhere?
-
-## Why not used constantly by enemies?
+What symbols, tools, gestures, buildings, phrases, jokes, uniforms, scars, sounds, or rituals show it exists?

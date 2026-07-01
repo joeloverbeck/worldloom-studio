@@ -1,6 +1,8 @@
 # 04. Domain Atlas
 
-This atlas lists the world domains that facts can affect. It is not a questionnaire to fill out exhaustively for every minor detail. It is a map for deciding where propagation pressure goes.
+This atlas lists the world domains that facts can affect.
+
+It is not a questionnaire to fill out exhaustively for every minor detail. It is a map for deciding where propagation pressure goes.
 
 ## How to use the atlas
 
@@ -10,7 +12,8 @@ For each major fact, ask:
 2. Which domains are indirectly affected?
 3. Which domains should show residue if the fact has existed for a long time?
 4. Which domains would contradict the fact if they remain unchanged?
-5. Which domains are protected by mystery or ignorance?
+5. Which domains are protected by mystery, ignorance, distance, cost, taboo, or branch boundaries?
+6. Which domains should remain quiet because Law 10 says coherence is not maximal explanation?
 
 ## Domain 1: Physics, metaphysics, and cosmology
 
@@ -23,17 +26,18 @@ Includes:
 - fate, time, causality;
 - souls, spirits, dreams;
 - cosmic beings;
-- metaphysical boundaries.
+- metaphysical boundaries;
+- laws of attention, memory, omen, luck, or story if they are real in-world.
 
 Propagation questions:
 
 - What is possible?
 - What is impossible?
 - Who knows the rules?
-- Are rules universal, local, negotiated, or person-dependent?
+- Are rules universal, local, negotiated, person-dependent, era-dependent, or ritual-dependent?
 - Can the rules be exploited?
 - Can they be measured?
-- Do religions, states, or scholars agree on them?
+- Do religions, states, scholars, or ordinary people agree on them?
 - What daily practices exist because of them?
 
 ## Domain 2: Geography, climate, and infrastructure
@@ -50,7 +54,10 @@ Includes:
 - settlements;
 - communications;
 - energy;
-- sanitation.
+- sanitation;
+- logistics;
+- sacred geography;
+- inaccessible zones.
 
 Propagation questions:
 
@@ -60,6 +67,7 @@ Propagation questions:
 - What places are strategic?
 - What infrastructure has been built because of recurring needs?
 - What hazards shape architecture and law?
+- Where does distance, terrain, weather, border, or taboo block diffusion?
 
 ## Domain 3: Ecology, food, disease, and nonhuman life
 
@@ -75,7 +83,8 @@ Includes:
 - invasive species;
 - forests, reefs, deserts, wetlands;
 - waste cycles;
-- medicinal organisms.
+- medicinal organisms;
+- magical or technological ecologies.
 
 Propagation questions:
 
@@ -85,7 +94,7 @@ Propagation questions:
 - What diseases shape culture?
 - What animals or monsters force defensive habits?
 - What ecological consequences follow from magic, industry, war, or divine intervention?
-- What species are sacred, vermin, tools, or kin?
+- What species are sacred, vermin, tools, kin, livestock, criminals, or citizens?
 
 ## Domain 4: Population, demography, and household life
 
@@ -102,7 +111,10 @@ Includes:
 - age structure;
 - disability;
 - gender systems;
-- household production.
+- household production;
+- death practice;
+- adoption;
+- elder authority.
 
 Propagation questions:
 
@@ -111,7 +123,7 @@ Propagation questions:
 - What kills people?
 - What work happens inside households?
 - What does family mean under the world’s constraints?
-- How do supernatural or technological facts affect reproduction, aging, death, and inheritance?
+- How do supernatural or technological facts affect reproduction, aging, death, inheritance, disability, adoption, and care?
 
 ## Domain 5: Production, labor, and technology/magic
 
@@ -128,7 +140,9 @@ Includes:
 - supply chains;
 - skilled labor;
 - apprenticeships;
-- automation.
+- automation;
+- repair cultures;
+- guild secrets.
 
 Propagation questions:
 
@@ -136,7 +150,7 @@ Propagation questions:
 - Who can make it?
 - What skills are scarce?
 - What tools are bottlenecks?
-- What work has been automated, degraded, ritualized, or forbidden?
+- What work has been automated, degraded, ritualized, gendered, licensed, or forbidden?
 - What trade secrets matter?
 - What maintenance regimes are needed?
 - What breaks often?
@@ -159,7 +173,10 @@ Includes:
 - property;
 - commons;
 - luxury goods;
-- strategic materials.
+- strategic materials;
+- bribery;
+- patronage;
+- subsistence.
 
 Propagation questions:
 
@@ -170,7 +187,7 @@ Propagation questions:
 - Who profits?
 - Who loses status or livelihood?
 - What new professions emerge?
-- What is taxed, smuggled, counterfeited, insured, hoarded, or rationed?
+- What is taxed, smuggled, counterfeited, insured, hoarded, rationed, or made sacred?
 
 ## Domain 7: Governance, law, and bureaucracy
 
@@ -188,7 +205,10 @@ Includes:
 - borders;
 - citizenship;
 - surveillance;
-- punishment.
+- punishment;
+- legibility;
+- censorship;
+- dispute resolution.
 
 Propagation questions:
 
@@ -200,6 +220,7 @@ Propagation questions:
 - What public goods are provided?
 - What rights or privileges depend on the fact?
 - What offices or bureaucracies exist because of it?
+- What does the state want to make legible, and what does that flatten or erase?
 
 ## Domain 8: War, coercion, and security
 
@@ -216,18 +237,21 @@ Includes:
 - prisons;
 - bodyguards;
 - countermeasures;
-- strategic doctrine.
+- strategic doctrine;
+- hostage systems;
+- irregular warfare;
+- deterrence;
+- terror.
 
 Propagation questions:
 
-- How can the fact be weaponized?
-- Who has already tried?
-- What defenses exist?
-- What arms races follow?
-- What tactics become obsolete?
-- What new military professions emerge?
-- What makes settlements defensible?
-- How do criminals adapt?
+- How does violence change?
+- What becomes easier to attack or defend?
+- What can a ruthless enemy do?
+- What countermeasures become routine?
+- What military professions or doctrines emerge?
+- What is impossible to keep secure now?
+- Who monopolizes force and who works around that monopoly?
 
 ## Domain 9: Religion, ritual, myth, and meaning
 
@@ -236,54 +260,57 @@ Includes:
 - gods;
 - spirits;
 - temples;
-- cults;
+- heresies;
+- rites;
 - pilgrimage;
-- taboo;
-- purity;
-- sacrifice;
-- festivals;
-- burial;
+- funerary practice;
+- sacred law;
+- taboos;
 - prophecy;
-- saints;
-- heresy.
+- festivals;
+- religious economies;
+- cults;
+- blasphemy;
+- moral interpretation.
 
 Propagation questions:
 
 - How is the fact interpreted spiritually?
-- What rituals manage it?
-- Does it prove or threaten doctrine?
-- Who claims authority over it?
-- What myths arise around it?
-- What moral obligations follow?
-- What taboos protect society from misuse?
+- What rituals form around it?
+- Who calls it holy, cursed, demonic, ancestral, fraudulent, or mundane?
+- What priesthoods, heresies, pilgrimages, and taboos appear?
+- What daily practice changes because meaning has changed?
 
 ## Domain 10: Culture, custom, language, and identity
 
 Includes:
 
 - etiquette;
+- food;
+- dress;
+- idioms;
+- naming;
+- humor;
+- art;
+- music;
+- education;
+- class markers;
+- dialects;
+- scripts;
+- body norms;
+- gestures;
 - honor;
 - shame;
-- cuisine;
-- clothing;
-- naming;
-- art;
-- slang;
-- humor;
-- education;
-- sports;
 - festivals;
-- class markers;
-- regional identity.
+- kin terms.
 
 Propagation questions:
 
-- What does ordinary politeness look like under these conditions?
-- What metaphors enter language?
-- What foods, clothes, jokes, or gestures reflect the fact?
-- Which professions gain prestige?
-- Which people become stigmatized?
-- What would children learn early?
+- What phrases, jokes, insults, and proverbs arise?
+- What customs mark insiders and outsiders?
+- What forms of speech belong to class, profession, region, species, faith, or trauma?
+- What signs, symbols, icons, and styles carry social meaning?
+- What aesthetic texture proves the fact is lived, not merely known?
 
 ## Domain 11: Knowledge, education, science, and records
 
@@ -291,113 +318,130 @@ Includes:
 
 - schools;
 - universities;
-- guild training;
+- apprenticeships;
 - archives;
-- oral tradition;
+- laboratories;
+- oral traditions;
+- libraries;
+- memory systems;
+- classification;
+- credentials;
+- research methods;
+- proof standards;
 - censorship;
-- maps;
-- measurement;
-- calendars;
-- experiments;
-- manuals;
-- professional certification.
+- propaganda;
+- credential fraud.
 
 Propagation questions:
 
-- Who knows how this works?
-- How is knowledge transmitted?
-- What is secret, public, sacred, forbidden, or lost?
-- What records are trusted?
-- What methods distinguish truth from rumor?
-- What credentials matter?
+- Who knows how the fact works?
+- Who teaches it?
+- Who certifies it?
+- What records exist?
+- What errors persist?
+- What evidence standards matter?
+- What knowledge is forbidden, classified, sacred, hereditary, or sold?
+- What happens to people who know too much?
 
 ## Domain 12: History, memory, and path dependence
 
 Includes:
 
 - wars;
+- disasters;
 - migrations;
 - reforms;
-- disasters;
-- golden ages;
-- collapsed empires;
-- revolutions;
-- inherited trauma;
+- dynasties;
+- ruins;
+- borders;
+- historical trauma;
 - monuments;
-- border changes;
-- legal precedents.
+- anniversaries;
+- revisionism;
+- lost technologies;
+- inherited institutions;
+- contested archives;
+- generational memory.
 
 Propagation questions:
 
-- If the fact has existed for generations, what historic events should it have caused?
-- What old institutions survive even after conditions changed?
-- What customs are fossils of past pressures?
-- What do different groups remember differently?
-- What ruins, songs, grudges, treaties, and holidays remain?
+- What past events should have happened if this fact has long been true?
+- What residues remain?
+- What has been forgotten, rewritten, or mythologized?
+- What institutions exist only because an old adaptation never fully disappeared?
+- What old compromise now blocks a better solution?
 
 ## Domain 13: Daily life and material residue
 
 Includes:
 
-- housing;
 - tools;
+- household objects;
+- routines;
 - chores;
-- meals;
-- travel;
-- markets;
 - games;
-- weather precautions;
-- medical habits;
-- household shrines;
-- locks;
-- furniture;
-- street layout;
-- waste disposal.
+- superstitions;
+- street signs;
+- work songs;
+- toys;
+- clothing;
+- architecture;
+- food storage;
+- hygiene;
+- measurement;
+- bodily habits;
+- ordinary fears;
+- small luxuries.
 
 Propagation questions:
 
-- How would an ordinary person encounter the fact?
-- What habits exist because of it?
-- What objects sit on shelves because of it?
-- What jobs become common?
-- What jokes do people tell?
-- What precautions are automatic?
+- How does an ordinary person encounter the fact before the plot begins?
+- What does a child learn?
+- What does a worker carry?
+- What does a house include?
+- What does a market sell?
+- What habit has become so normal no one explains it?
+- What tiny residue would make the world feel lived-in?
 
 ## Domain 14: Aesthetics, tone, and narrative use
 
 Includes:
 
 - genre promise;
-- wonder;
-- dread;
-- mystery;
-- thematic pressure;
-- conflict;
-- character roles;
-- reader-facing exposition;
-- game mechanics.
+- mood;
+- pacing;
+- symbolic vocabulary;
+- color and texture;
+- moral atmosphere;
+- level of wonder;
+- comic versus tragic handling;
+- horror boundaries;
+- heroic scale;
+- beauty and ugliness;
+- narrative focus;
+- player experience;
+- medium affordances.
 
 Propagation questions:
 
-- Does the consequence deepen the world’s essence?
-- Does it produce story pressure?
-- Does it flatten mystery by overexplaining?
-- Does it create player choices or merely lore?
-- Does it support the emotional contract of the world?
+- Does the fact deepen the world’s intended identity?
+- Does it change the genre contract?
+- Does it make the world feel cheaper, flatter, sillier, crueler, or more convenient than intended?
+- What images, sounds, gestures, metaphors, and rituals should carry the fact aesthetically?
+- Does a mechanical or narrative use of the fact betray the world’s emotional promise?
 
 ## Domain priority
 
-For the user’s stated goals, the highest-priority sweep is:
+For high-impact facts, sweep in this order:
 
-1. capability;
-2. access;
-3. institutions;
-4. economy;
-5. hostile optimization;
-6. daily life;
-7. historical residue;
-8. truth layers;
-9. mystery protection;
-10. narrative/game extraction.
+1. Capability and constraint.
+2. Access, cost, scarcity, and countermeasures.
+3. Actors and hostile optimization.
+4. Institutions, economy, and suppression.
+5. Time and history.
+6. Space and diffusion.
+7. Daily life and material residue.
+8. Truth layers, uncertainty, and mystery.
+9. Aesthetic identity and medium use.
 
-Do not let decorative lore substitute for these.
+This order catches the most dangerous failures early without forcing equal attention on every domain.

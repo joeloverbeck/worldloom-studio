@@ -1,67 +1,55 @@
 # Institution Card
 
+Institutions may be formal or informal. Use this for courts, guilds, families, markets, taboos, rites, armies, temples, schools, clans, bureaucracies, kin systems, black markets, and customs.
+
 ## Institution name
 
-## Type
+Plain-language name.
 
-State / guild / temple / court / family / clan / army / market / school / cult / taboo / custom / criminal network / other.
+## Purpose
 
-## Problem it solves
+What problem, scarcity, risk, belief, or opportunity does it govern?
 
-## Pressure that created it
+## Origin
 
-## Formal rules
-
-- 
+What fact, event, trauma, resource, or conflict created it?
 
 ## Rules-in-use
 
-- 
+What people actually do, not just what law says.
 
-## Positions and roles
+## Roles
 
-- 
-
-## Boundary rules
-
-Who may enter or leave?
-
-## Choice rules
-
-What may each role do?
-
-## Information rules
-
-Who knows what?
-
-## Payoff rules
-
-Who receives costs and benefits?
-
-## Scope rules
-
-What outcomes are allowed or forbidden?
-
-## Enforcement
-
-## Legitimacy story
-
-## Beneficiaries
-
-## Excluded or harmed groups
+Who participates? Who has authority? Who is excluded?
 
 ## Resources controlled
 
-## Relation to major capabilities
+What does the institution allocate, protect, tax, forbid, certify, interpret, or destroy?
+
+## Enforcement
+
+Sanctions, rewards, shame, violence, ritual, debt, reputation, bureaucracy, oath, market access.
+
+## Information
+
+What does it know, record, conceal, forget, distort, or require as proof?
+
+## Economy
+
+Fees, rents, labor, bribes, insurance, transaction costs, black markets, substitutes.
+
+## Legitimacy
+
+Why do people obey, tolerate, fear, love, mock, or evade it?
 
 ## Failure modes
 
-## Corruption or hypocrisy
+Corruption, capture, rigidity, overload, secrecy, predation, exclusion, ritual drift, irrelevance.
 
-## Institutional rivals
+## Counter-institutions
 
-## Historical origin
+What rival or underground structures grow around it?
 
-## Daily-life touchpoints
+## Aesthetic residue
 
-How does an ordinary person encounter this institution?
+Buildings, uniforms, phrases, seals, gestures, schedules, rituals, sounds, documents, scars, jokes.

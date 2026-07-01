@@ -1,51 +1,49 @@
 # Mystery Ledger Entry
 
-## Mystery name
+Use for governed unknowns.
+
+## Mystery question
 
 ## Mystery type
 
-Epistemic / mythic / cosmic / political / personal / procedural / sacred.
+Epistemic / metaphysical / moral / historical / identity / motive / system / authorial mystery boundary.
 
-## Observable effects
+## What is fixed
 
-- 
+What is already true, even if hidden?
 
-## What is known by author
+## What is author-secret
 
-## What is known by characters
+What is known to the creator but not the world or audience?
 
-## Competing interpretations
+## What is deliberately undecided
 
-Group | Interpretation | Why they believe it
----|---|---
- |  | 
+What should remain open?
 
-## Forbidden explanations
+## Truth-layer boundaries
 
-- 
+Objective canon, secret canon, beliefs, propaganda, lies, errors, disputes.
 
-## Forbidden uses
+## Who knows partial truth
 
-The mystery must not be used to:
+## False beliefs
 
-- 
+## Evidence available
 
-## Institutions around the mystery
+## Evidence missing
 
-- 
+## Consequences already visible
 
-## Daily-life residue
+## Reveal permissions
 
-- 
+What can be shown now?
 
-## Protected emotional purpose
+## Reveal prohibitions
 
-Wonder / dread / sacredness / grief / ambiguity / paranoia / humility / other.
+What must not be revealed yet?
 
-## Reveal conditions
+## What would break if solved
 
-If any.
+## Preservation checks
 
-## Continuity constraints
-
-What must remain consistent even if the truth is unknown?
+Run `checklists/mystery_preservation.md`.

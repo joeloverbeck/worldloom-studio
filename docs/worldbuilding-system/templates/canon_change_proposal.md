@@ -1,57 +1,43 @@
 # Canon Change Proposal
 
-## Proposal ID
+Use before admitting, changing, retiring, or branching a significant fact.
 
 ## Proposed change
 
-## Reason for proposal
+## Reason for change
 
-## Smallest precise version
+What does this improve?
 
-## Assumptions
+## Affected scope
 
-- 
+Continuity, branch, time, place, population, institution, medium.
 
-## Consequences
+## Fact type and severity
 
-### Necessary
+## Proposed truth layer
 
-- 
+## Proposed status
 
-### Likely
+## Constraints proposed
 
-- 
+## Prerequisites
 
-### Possible branches
+## Expected consequences
 
-- 
-
-## Institutional and economic effects
-
-- 
-
-## Contradictions
-
-- 
+## Contradiction risks
 
 ## Mystery risks
 
-- 
+## Branch implications
 
-## Repair options
+## Alternatives considered
 
-1. 
-2. 
-3. 
+Accept / constrain / localize / historicize / reinterpret / institutionalize / price / branch / quarantine / supersede / deprecate / reject.
 
-## Recommendation
+## Review notes
 
-Accept / accept with constraints / localize / historicize / reinterpret / branch / quarantine / reject.
+## Decision
 
-## Human decision
+## Required propagation
 
-## Accepted change package
-
-## Rejected branches
-
-## Follow-up tasks
+## Follow-up records
