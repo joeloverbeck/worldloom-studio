@@ -1,0 +1,137 @@
+---
+name: research-brief
+description: "Use when you need to hand a research task to an external deep researcher (ChatGPT-Pro) and want the comprehensive prompt authored here, with full repo access, instead of in a throwaway ChatGPT-Pro session. Interviews you to ~95% confidence, then emits a self-contained, paste-ready requirements prompt and refreshes the upload manifest. Triggers: needing a next spec/feature, a thorny fix, a hardening pass, or a foundational/doc overhaul deep-researched externally. Produces: reports/<topic>-research-brief.md + a refreshed reports/manifest_<date>_<shortsha>.txt. Mutates: only reports/ on user approval."
+user-invocable: true
+arguments:
+  - name: research_target
+    description: "What the external deep researcher (ChatGPT-Pro) should produce — the thing to be deep-researched (string). A sentence is fine; the skill sharpens it through exploration and interview."
+    required: true
+  - name: reference_path
+    description: "Optional path to a report, finding-set, or analysis to fold into the brief as established context."
+    required: false
+---
+
+# Research Brief
+
+Author the comprehensive, paste-ready prompt for an **external deep-research session** (ChatGPT-Pro) — here, where Claude has direct access to the whole repository — instead of reconstructing it interactively in ChatGPT-Pro.
+
+This skill replaces **"Session 1"** of a two-stage routine:
+
+- **Session 1 (replaced by this skill)**: explore the repo, interview the user to ~95% confidence about their *actual* intent, then author a requirements-style prompt.
+- **Session 2 (ChatGPT-Pro, the actual deep researcher)**: receives the uploaded manifest + the emitted prompt, explores and researches online as deeply as needed, and **produces the deliverable directly** — it does not re-interview.
+
+The emitted brief is **self-contained**: ChatGPT-Pro Session 2 has none of this session's context, so everything it needs must live in the prompt plus the uploaded manifest.
+
+<HARD-GATE>
+Do NOT Write the brief file or refresh the manifest until BOTH hold:
+(a) confidence has reached ~95% — via the interview, OR via an early-exit "just go" (remaining gaps written into the brief as explicit, labeled assumptions), OR because scope arrived pre-settled from exploration alone (Step 4 §Interview-skip; carry any residual gaps as labeled assumptions); AND
+(b) the Step 5 brief outline + settled-intentions summary has been presented in chat and the user has approved it (silence on a section while answering other questions counts as approval; an explicit objection re-opens that section and requires re-presenting the correction first).
+The skill mutates only `reports/`. It NEVER edits `docs/`, `specs/`, `.claude/skills/`, or source code.
+</HARD-GATE>
+
+## Invocation
+
+```
+/research-brief "<what ChatGPT-Pro should deep-research>"   [reference_path]
+```
+
+## Step 1: Classify the research target
+
+First, read `references/brief-template.md` in full — §A is the canonical brief anatomy you author to in Step 6, and §B is the target-type→reads map you apply in this step. Read the template directly so the brief is anchored to the canonical anatomy.
+
+Then read `research_target` (and `reference_path` in full if given). Classify into one type — this selects the load-bearing "read in full" set for Session 2 (the type→reads map is §B of `references/brief-template.md`):
+
+- **new-spec / new-feature** — what to build/create next for the repo.
+- **thorny-fix** — diagnose and resolve a stubborn defect or design knot.
+- **hardening** — strengthen an existing system against drift, regression, or weak proof.
+- **foundational / doc-overhaul** — overhaul a doc/design tier (or the cascade from an upstream change).
+- **other** — anything else; build the read set from exploration alone.
+
+Announce the classification on its own line as your **first user-facing output** — after reading the template but **before any Step 2 repo-content exploration** — emit `Classification: <type>` so the audit trail records it. (The template read is the prerequisite for classifying and is exempt. Read-only baseline git calls — `git rev-parse`, `git status`, `date` — are setup, not repo-content exploration, and may run before the line. Reading the **seed/reference file itself** — the positional `reference_path` or a file cited by path inside `research_target` — is also exempt.) When ambiguous, give a one-sentence justification.
+
+A target may carry a **dominant type plus a secondary** (e.g. a hardening pass whose deliverable is a new spec). When so, classify by the dominant type to pick the primary read-set, union in the secondary type's load-bearing reads, and name both: `Classification: <dominant> (secondary: <type>)`. When exploration later surfaces a secondary the first announcement could not have named, you may emit a single `Classification refined: …` line once, after the relevant Step 2 reads and before the Step 5 gate. Refine at most once.
+
+## Step 2: Explore the repo to ground the brief
+
+The point of authoring here is that Claude can read the repo directly — so the *user never types out what the researcher should read*. Build, from exploration:
+
+- the **authority-ordered read list**. If the repo defines an explicit authority order among its docs, order §2 by it; otherwise infer a sensible root→detail order (README / overview → architecture / design → specs / roadmap → reference), then relevant `reports/`, `specs/`, `archive/`. Each entry gets a one-line reason it is load-bearing for *this* target.
+- the **relevant code seams** Session 2 should inspect (name files/modules, don't paste them — Session 2 reads them itself);
+- any **prior report / spec / archived work** that already bears on the target, so the brief frames the task as a delta rather than a cold start. When the target is a follow-up to an earlier brief, name the predecessor `reports/<...>-research-brief.md` explicitly and state what it already delivered (see `references/brief-template.md` §1) so Session 2 does not re-commission completed work.
+
+Launch Explore agents for broad surveys; read individual files directly. Verify any repo claim in `research_target` or `reference_path` against the actual tree; flag contradictions prominently.
+
+**Greenfield note.** This repo may have little or no code/docs yet. When the read list would be near-empty, say so plainly in the brief and lean §5's exploration/online-research mandate harder — the brief then commissions *design from first principles* grounded in the repo's stated purpose (its README), not a delta over existing structure.
+
+## Step 3: Light online research (optional)
+
+Only to **sharpen scope and interview questions** — surface the named techniques, prior art, or decision axes the interview should resolve. The *deep* research is Session 2's job; do not do it here. Announce run-or-skip as a one-liner (e.g. "Online research: skipped — repo-internal realignment" / "Online research: run — sharpening prior-art on continuity graphs"). **The research is optional; the run-or-skip announcement is not** — emit it either way, as a peer of the Step 1 `Classification:` line.
+
+The announcement is a binary `run`/`skip` **committed at emit time**, never a hedge. If you cannot commit at Step 3, emit nothing yet and defer the line until after exploration, then emit the committed line — but it must precede the Step 5 gate. ✗ "will decide after exploration" ✓ "skipped — repo-internal" / "run — sharpening prior art".
+
+## Step 4: Interview to ~95% confidence
+
+Reach **~95% confidence about what the user actually wants** — not what they think they should want — before drafting. Display this block after each answer. When sending a batched `AskUserQuestion`, emit the block immediately before the batch and again after the answers (the after-block is subsumed only when the answers reach threshold, in which case the "95% — drafting the brief" announcement replaces it):
+
+```
+Confidence: X%
+Gaps: [specific remaining unknowns]
+```
+
+**Which path (pick before drafting):** (a) *Full discovery interview* — scope is open; ask sequential/batched questions to 95%. (b) *Tight bounded round* — scope is largely pre-settled but residual decisions still materially shape the deliverable; pre-settle what is fixed and ask only those decisions as one `AskUserQuestion` batch. (c) *Skip straight to the Step 5 gate* — scope is fully pre-settled and no shaping decision remains. The Step 5 present-and-approve gate fires regardless of path. A blend is normal.
+
+Rules: ask one *conceptual* question at a time when probing motivation or uncertainty sequentially, where each answer reshapes the next; but batch independent, already-scoped bounded choices into a single `AskUserQuestion` call (≤4 questions). A reshaping conceptual question may ride in a batch with bounded ones only when the bounded options stay valid across every plausible answer to it (with recommendations supplied); otherwise ask the reshaping question standalone first. Prefer bounded multiple-choice. Probe motivation before solution; challenge premature specificity; name uncertainty specifically; respect demonstrated expertise and "you decide" delegation (re-evaluate and recommend, don't re-ask). Confidence rises from both answers and exploration findings; note which gaps each closes. Between every two consecutive question rounds, re-display the `Confidence / Gaps` block first. Announce "95% — drafting the brief" when reached.
+
+**Early exit**: if the user says "just go," announce current confidence, list remaining gaps, and carry them into the brief as labeled assumptions (`assumption: X`) so Session 2 — which will not ask — treats them as decisions the user can later correct.
+
+**Interview-skip (exploration-settled).** When exploration alone brings confidence to ≥95% before any question, skip the discovery interview: announce the confidence level on its own line (e.g. `Confidence: 95% — drafting the brief`), carry any residual gaps as labeled assumptions, and proceed straight to the Step 5 outline gate. Re-confirm only a gap that materially changes the deliverable's shape, and do so inside the Step 5 outline. The Step 5 present-and-approve gate still fires and remains the real checkpoint; skipping the interview never skips it.
+
+## Step 5: Present the brief outline (HARD-GATE)
+
+Before writing, present in chat:
+
+1. the **settled intentions** — the resolved decisions the interview produced (these become §3 of the brief and are what make Session 2 "locked");
+2. the **deliverable spec** — exactly which downloadable markdown docs Session 2 must produce (replace vs. new, filenames); for *determination-plus-conditional* targets ("decide if X is needed, and if so produce X"), state both the required verdict and which of the three production modes governs the artifact (see `references/brief-template.md` §7);
+3. the **read-in-full list** (authority-ordered, with the one-line reasons).
+
+Before presenting, confirm both audit-trail announcements were emitted earlier this run: the Step 1 `Classification:` line and the Step 3 online-research run-or-skip one-liner. If either was missed, emit it now. Also confirm every path in the read-in-full list resolves at the fetch-baseline commit (`git ls-tree <baseline> <path>` / `git cat-file -e <baseline>:<path>`): drop or correct any that don't, so the list you present is the list Session 2 can actually fetch.
+
+**Equivalence check (run it, don't paraphrase it).** When a seed or predecessor pins a **different commit** than the fetch baseline and you carry its findings forward (seam maps, `file:line` citations), run `git diff --stat <seed-commit> <baseline> -- <the §2 seam paths>` and write the carry-forward/equivalence sentence **directly from that output** — never from memory. An empty diff is the clean result: state plainly the seam files are unchanged across the range, and scope any carried claim to the files the diff confirms unchanged. If the diff is non-empty, scope the carried claim to the unchanged files and flag the rest.
+
+Get approval (per the HARD-GATE). Revise on pushback before writing.
+
+## Step 6: Write the brief and refresh the manifest
+
+On approval, do BOTH:
+
+1. **Write the brief** to `reports/<topic>-research-brief.md`, following the canonical anatomy in `references/brief-template.md` §A (read in Step 1). `<topic>` is a short kebab-case slug of the target. Mind the one-word gap from the deliverable: the brief you write now is `<topic>-research-brief.md`, while the §7 deliverable Session 2 writes is often `<topic>-research-report.md` (same slug, `brief` vs. `report`). Do not conflate them when choosing the file path you Write, the §1 manifest pointer, or §7. Create `reports/` if it does not exist.
+2. **Refresh the manifest**: write the current repository path inventory to `reports/manifest_<today>_<shortsha>.txt`, where `<today>` is the real current date (`date +%F`), `<shortsha>` is the fetch-baseline commit's short hash (`git rev-parse --short HEAD`), and the inventory is that exact commit's tree — `git ls-tree -r --name-only HEAD` (use the same `<baseline>` you pin in the brief's §1, not `git ls-files`, so the manifest provably equals the commit Session 2 fetches from). Name this exact file in the brief's §1 manifest pointer so Session 2 uploads the matching inventory. Leave older manifests in place for the user to clean; regenerate only when one already exists for this exact `<today>_<shortsha>`.
+
+**Baseline-commit rule.** The brief instructs Session 2 to fetch every file from one exact commit, so the manifest must list exactly that commit's tree. Derive the fetch-baseline commit from verified repo HEAD (`git rev-parse HEAD`) at manifest-refresh time, and generate the manifest from that same commit (`git ls-tree -r --name-only HEAD`) — do NOT use `git ls-files`, which reflects the staged index and silently diverges from HEAD under any uncommitted add/delete/rename. If you do fall back to `git ls-files`, first confirm `git status --porcelain` is clean (or reconcile every listed delta) and note the check in the Step 7 summary. NEVER adopt a commit string copied from a report, doc, or `research_target` without confirming it contains every file in the §2 read-in-full list (`git ls-tree <commit> <path>` / `git cat-file -e <commit>:<path>`) — a "commit of record" cited inside a report is that report's *own* baseline and often predates later work. If a referenced source cites a different commit, call out the divergence inside the brief rather than propagating it.
+
+**§2-completeness check.** Confirm every file in the §2 read-in-full list — including files discovered transitively, e.g. a predecessor report's own cross-references — actually exists at the baseline before presenting the list (Step 5) and before writing. A path present in your working tree but absent at the baseline (never committed, or cleaned up in an earlier commit) would ship as a dangling §2 reference and break Session 2's fetch — self-containment is the contract. Drop or correct any that do not resolve, and flag the contradiction. **Untracked load-bearing input:** a §2 path that is *untracked* (`??` in `git status`, fails `git cat-file -e HEAD:<path>`) cannot be fetched from the baseline. Do not reflexively drop it: if it is load-bearing (e.g. the seed the brief triages), reproduce it **verbatim inline in the brief** (an appendix) so it travels with the pasted prompt, and note in §1/§2 that it is inlined-because-untracked; if it is non-essential, drop it or ask the user to commit it and re-baseline.
+
+Resolve both paths against the worktree root if in a worktree. Do NOT commit.
+
+**Re-baseline an existing brief (HEAD moved).** When a brief authored earlier this session must be re-issued because HEAD has since changed (the user committed, merged, or pushed), do **not** re-run the Step 1–4 interview — reuse the settled intentions verbatim. Instead: (a) regenerate the manifest at the new HEAD (new `<shortsha>` → new filename, so it never overwrites the old one); (b) replace every commit string in the brief's §1, §7, and §8 with the new baseline; (c) re-resolve every §2 path against the new baseline (a committed rename may have relocated files; a previously-untracked inlined input may now be fetchable — add it as a normal §2 read); (d) re-run the §2-completeness check and grep the brief for the stale shortsha; (e) leave the superseded manifest in place.
+
+## Step 7: Summarize
+
+Report:
+
+- the two written files (brief + refreshed manifest) — the **upload bundle** for ChatGPT-Pro Session 2;
+- a one-line reminder that Session 2 is **locked / no-questions**: paste the brief, upload the manifest, and ChatGPT-Pro should produce the deliverable directly;
+- any labeled assumptions carried from an early exit, so the user can correct them before pasting;
+- the brief + manifest you just wrote always leave `git status` dirty (two new untracked files); this is **benign** and does **not** invalidate the §1 baseline — the manifest is `git ls-tree HEAD`, which excludes untracked files, so it still equals the pinned commit. Only a later commit/merge/push that moves HEAD does;
+- if `git status` is otherwise dirty at write time — pending moves/renames affecting §2 paths, an untracked load-bearing input reproduced inline, or any other uncommitted change (pre-existing or appeared mid-session) — proactively warn the user that committing (or merging/pushing) will move HEAD and invalidate the §1 baseline, triggering the **re-baseline** sequence in Step 6.
+
+This is an inline-completion deliverable — no next-steps menu. Surface any adjacent improvement spotted during exploration as a flagged note with a concrete trigger, not as scope creep.
+
+## Guardrails
+
+- **Self-containment is the contract.** Session 2 has none of this session's context. Every path, decision, constraint, and acceptance check it needs lives in the brief or the uploaded manifest — never implied.
+- **Claude authors; ChatGPT-Pro researches.** Don't perform the deep research here. The brief *commissions* it.
+- **Locked, no questions.** The emitted brief instructs Session 2 to produce directly and NOT interview or ask clarifying questions — the interview already happened here.
+- **Mutates only `reports/`.** Never touch `docs/`, `specs/`, `.claude/skills/`, or source.
+- **No scope inflation.** The brief commissions what was asked. Resist "while we're at it" additions to the deliverable spec.
+- **Ground constraints in this repo, not a template.** Derive §6 doctrine & constraints from what exploration actually finds (this repo's own authority docs, invariants, conventions) — do not import constraints from another project.
