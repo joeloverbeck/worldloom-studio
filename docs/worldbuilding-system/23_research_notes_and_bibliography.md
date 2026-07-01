@@ -165,3 +165,38 @@ The original package used exemplar settings as craft inspiration rather than aut
 ## What this bibliography is not
 
 It is not a demand for realism. It is not a reading list required before worldbuilding. It is not a substitute for judgment. Its job is to give the methodology sharper questions.
+
+## Version 0.4 research additions
+
+Iteration 4 did not replace the package's research roots. It tightened how those roots are translated into craft procedure.
+
+### Added translation emphasis
+
+- Meadows's leverage-point framing supports a bounded consequence rule: identify high-pressure causal places rather than simulating every detail.
+- Rogers's diffusion model reinforces that spread depends on innovation, communication channels, time, and social system, not distance alone.
+- North, Ostrom, Williamson, and Scott reinforce the institutional/economic/suppression loop: rules-in-use, transaction costs, legibility, and informal order are inseparable.
+- Simon reinforces actor-local rationality: characters need bounded, situated intelligence, not omniscient optimization.
+- Stanford Encyclopedia treatments of Bayesian epistemology and belief revision sharpen uncertainty governance without requiring formal probability math.
+- Jenkins and Klastrup/Tosca reinforce transmedia discipline: continuity, multiplicity, worldness, mythos, topos, ethos, and invariants must be governed rather than blended.
+- Hunicke, LeBlanc, and Zubek's MDA framework sharpens game extraction: mechanics imply repeated permissions; repeated permissions imply world consequences.
+- Peirce and Silverstein strengthen aesthetic/semiotic residue: signs, speech, symbols, and style carry social meaning and causal evidence.
+- NIST and OECD AI governance materials support the package's AI stance: AI may propose and audit, but human stewards own canon decisions.
+
+### Additional sources consulted or promoted
+
+- Donella H. Meadows, "Leverage Points: Places to Intervene in a System", https://donellameadows.org/archives/leverage-points-places-to-intervene-in-a-system/
+- Everett M. Rogers, *Diffusion of Innovations*, searchable excerpt, https://eli.johogo.com/Class/DOI.pdf
+- Elinor Ostrom, "Background on the Institutional Analysis and Development Framework", *Policy Studies Journal*, https://gpde.direito.ufmg.br/wp-content/uploads/2019/03/Ostrom-2011-Policy_Studies_Journal.pdf
+- Douglass C. North, "Institutions", *Journal of Economic Perspectives* 5(1), 1991, https://www.aeaweb.org/articles?id=10.1257/jep.5.1.97
+- Oliver E. Williamson, "Transaction-Cost Economics: The Governance of Contractual Relations", *Journal of Law and Economics* 22(2), 1979, https://chicagounbound.uchicago.edu/jle/vol22/iss2/3/
+- James C. Scott, *Seeing Like a State*, Yale University Press, 1998, https://books.google.com/books/about/Seeing_Like_a_State.html?id=Qe_RDwAAQBAJ
+- Herbert A. Simon, "Rational Decision Making in Business Organizations", Nobel Prize lecture, https://www.nobelprize.org/uploads/2018/06/simon-lecture.pdf
+- Hanti Lin, "Bayesian Epistemology", Stanford Encyclopedia of Philosophy, https://plato.stanford.edu/entries/epistemology-bayesian/
+- Sven Ove Hansson, "Logic of Belief Revision", Stanford Encyclopedia of Philosophy, https://plato.stanford.edu/entries/logic-belief-revision/
+- Henry Jenkins, "Transmedia Education: The 7 Principles Revisited", https://henryjenkins.org/blog/2010/06/transmedia_education_the_7_pri.html
+- Lisbeth Klastrup and Susana Tosca, "Transmedial Worlds—Rethinking Cyberworld Design", https://www.itu.dk/people/klastrup/klastruptosca_transworlds.pdf
+- Robin Hunicke, Marc LeBlanc, and Robert Zubek, "MDA: A Formal Approach to Game Design and Game Research", https://www.cs.northwestern.edu/~hunicke/pubs/MDA.pdf
+- Albert Atkin, "Peirce’s Theory of Signs", Stanford Encyclopedia of Philosophy, https://plato.stanford.edu/entries/peirce-semiotics/
+- Michael Silverstein, "Indexical Order and the Dialectics of Sociolinguistic Life", https://web.stanford.edu/~eckert/Courses/ParisPapers/Silverstein2003.pdf
+- National Institute of Standards and Technology, "AI Risk Management Framework", https://www.nist.gov/itl/ai-risk-management-framework
+- OECD, "OECD AI Principles overview", https://oecd.ai/en/ai-principles

@@ -214,3 +214,28 @@ It does not require software.
 It does not require an LLM.
 
 It requires consequences.
+
+## Version 0.4 reinforcement: consequence without over-simulation
+
+The system now treats consequence as a **bounded craft obligation**, not as a demand to simulate an entire universe. Systems thinking is useful because it asks about feedback, delays, stocks, flows, and leverage; it is dangerous when it tempts the steward to solve every variable before making art. Meadows's leverage-point framing supports the useful half of this habit: look for the few places where a fact changes incentives, information, rules, goals, or paradigms, rather than multiplying trivia.[^i4-meadows]
+
+Use this rule:
+
+> Propagate until the fact has no ungoverned high-pressure consequences, not until every possible consequence is listed.
+
+A consequence is high-pressure when it changes access, scarcity, legitimacy, violence, identity, memory, reproduction, inheritance, evidence, geography, daily routine, mystery boundaries, or aesthetic identity. Low-pressure details can remain implied, local, or unwritten.
+
+### The four anti-failure questions
+
+Before accepting any major fact, answer these in plain language:
+
+1. **Dominance** — If this is repeatable, why does it not dominate every relevant arena?
+2. **Distribution** — Who gets it first, late, never, secretly, illegally, or in distorted form?
+3. **Counter-pressure** — Who adapts against it, prices it, suppresses it, ritualizes it, or exploits it?
+4. **Residue** — What would a child, cook, soldier, priest, clerk, smuggler, patient, lover, debtor, or exile notice because this has been true?
+
+### The craft ceiling
+
+Stop expanding when additional answers become decorative rather than load-bearing. A decorative answer is one that does not change choice, cost, conflict, memory, mystery, or tone. Decorative answers may still be beautiful, but they are not required for canon admission.
+
+[^i4-meadows]: Donella H. Meadows, "Leverage Points: Places to Intervene in a System" (1999), https://donellameadows.org/archives/leverage-points-places-to-intervene-in-a-system/

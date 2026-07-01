@@ -81,3 +81,16 @@ Leave this blank unless a contradiction, instability, or mystery-risk required r
 ## Notes
 
 Record human reasoning, not just the result.
+
+## Version 0.4 traceability note
+
+Parent protocol: `03_truth_layers_and_canon_governance.md` and `06_canon_fact_admission_protocol.md`.
+
+This card is a human reasoning instrument, not a database schema or implementation contract. Record one fact, not a bundle of related lore.
+
+## Minimum completion
+
+- State the affected fact, scope, branch, or world section.
+- Record the decision-relevant pressure, not every possible detail.
+- Name unresolved canon debt if the card exposes it.
+- Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.

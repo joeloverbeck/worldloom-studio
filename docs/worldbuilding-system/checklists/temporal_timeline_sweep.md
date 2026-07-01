@@ -29,3 +29,16 @@ Serves `09_temporal_and_timeline_protocol.md`. Use when a fact has causal order,
 - [ ] Temporal mysteries have boundaries.
 - [ ] Retcon cost assessed.
 - [ ] Timeline card needed or not needed decision recorded.
+
+## Version 0.4 completion rule
+
+Parent protocol: `09_temporal_and_timeline_protocol.md`.
+
+A completed sweep must leave `sequence, latency band, competing chronology, and residue`. If the sweep is skipped for a major fact, record why the parent protocol did not apply.
+
+## Red flags
+
+- The checklist is used as a yes/no ritual without recording consequences.
+- A box is checked because the author likes the idea rather than because the world now answers it.
+- The sweep discovers canon debt but no follow-up is named.
+- The sweep changes canon status, constraint tags, or repair operations without using the proper parent protocol.

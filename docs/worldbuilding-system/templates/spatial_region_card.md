@@ -43,3 +43,16 @@ Materials, colors, buildings, clothing, accents, food, sounds, rituals, place na
 ## Negative space
 
 What expected consequence is absent here, and why?
+
+## Version 0.4 traceability note
+
+Parent protocol: `10_spatial_and_geographic_propagation.md`.
+
+This card is a human reasoning instrument, not a database schema or implementation contract. Record routes and barriers even when no map exists.
+
+## Minimum completion
+
+- State the affected fact, scope, branch, or world section.
+- Record the decision-relevant pressure, not every possible detail.
+- Name unresolved canon debt if the card exposes it.
+- Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.

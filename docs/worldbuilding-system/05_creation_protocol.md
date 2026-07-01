@@ -214,3 +214,43 @@ If an event shaped the world, it should remain visible somewhere.
 Trying to answer every domain before the world has pressure will bury the useful questions.
 
 Start small. Propagate what matters. Expand when forced.
+
+## Version 0.4 reinforcement: the thin-start rule
+
+Start thinner than feels comfortable. A strong kernel does not name every continent, dynasty, god, currency, weapon, and cuisine. It names the smallest set of facts that force the world to become itself.
+
+A first kernel is too thick when:
+
+- seed facts are being accepted as decoration rather than processed;
+- every region receives equal detail before pressure asks for it;
+- mysteries are explained before their boundaries are known;
+- institutions are named before their recurring problem exists;
+- aesthetic details appear without causal residue;
+- the author cannot state which three facts would break the world if removed.
+
+### Seed fact admission order
+
+Process seed facts in this order:
+
+1. foundational constraints;
+2. repeatable capabilities;
+3. strategic resources;
+4. public institutions;
+5. historical traumas;
+6. protected mysteries;
+7. aesthetic promises.
+
+This order prevents spectacle from outrunning limits. A world can begin with a gorgeous image, but admission should still ask what constraint, capability, resource, institution, trauma, mystery, or promise that image implies.
+
+### First playable / readable world
+
+A minimal viable world needs only:
+
+- one core promise;
+- two to five admitted seed facts;
+- one ordinary-life residue for each seed fact;
+- one institution or custom responding to the strongest fact;
+- one contradiction or mystery boundary under governance;
+- one pressure line for expansion.
+
+Everything else can wait.

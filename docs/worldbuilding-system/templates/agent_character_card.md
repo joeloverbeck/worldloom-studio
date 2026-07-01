@@ -51,3 +51,16 @@ How would they respond without authorial convenience?
 ## Contradiction check
 
 What behavior would violate established psychology unless repaired?
+
+## Version 0.4 traceability note
+
+Parent protocol: `11_agent_character_psychology.md`.
+
+This card is a human reasoning instrument, not a database schema or implementation contract. Record what this actor plausibly notices, misreads, wants, fears, and can actually do.
+
+## Minimum completion
+
+- State the affected fact, scope, branch, or world section.
+- Record the decision-relevant pressure, not every possible detail.
+- Name unresolved canon debt if the card exposes it.
+- Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.

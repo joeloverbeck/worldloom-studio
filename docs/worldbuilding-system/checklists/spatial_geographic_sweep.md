@@ -29,3 +29,16 @@ Serves `10_spatial_and_geographic_propagation.md`. Use when a fact changes where
 - [ ] Map implications recorded, even if no map exists yet.
 - [ ] Aesthetic geography residue noted.
 - [ ] Smugglers, tolls, forts, dead roads, quarantine markers, local legends, or other barrier residues considered.
+
+## Version 0.4 completion rule
+
+Parent protocol: `10_spatial_and_geographic_propagation.md`.
+
+A completed sweep must leave `diffusion channels, barriers, regional inequality, and spatial residue`. If the sweep is skipped for a major fact, record why the parent protocol did not apply.
+
+## Red flags
+
+- The checklist is used as a yes/no ritual without recording consequences.
+- A box is checked because the author likes the idea rather than because the world now answers it.
+- The sweep discovers canon debt but no follow-up is named.
+- The sweep changes canon status, constraint tags, or repair operations without using the proper parent protocol.

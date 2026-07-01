@@ -222,3 +222,36 @@ Use `templates/canon_branch_diff.md` for branch comparison and `templates/collab
 - Retconning mysteries because a contributor is impatient.
 - Treating templates as paperwork rather than argument.
 - Forgetting that a collaborator’s table, draft, or adaptation may be valid within its own branch.
+
+## Version 0.4 reinforcement: invariant anchors
+
+Before creating or merging a branch, name the invariants: the facts, tone, relationships, moral pressures, aesthetic signals, and mysteries that must remain recognizable for the world to still be itself.
+
+Invariant anchors may include:
+
+- one foundational constraint;
+- one historical wound;
+- one social bargain;
+- one aesthetic promise;
+- one mystery boundary;
+- one relationship geometry;
+- one domain of ordinary-life residue.
+
+### Branch compatibility matrix
+
+When comparing branches, classify each difference:
+
+| Difference type | Merge risk |
+|---|---|
+| expression only | usually safe; no canon change. |
+| viewpoint emphasis | safe if facts unchanged. |
+| scope/localization | safe if constraints recorded. |
+| timeline shift | medium risk; requires temporal card. |
+| institution/economy change | high risk; requires propagation. |
+| truth-layer change | high risk; can damage mystery/evidence. |
+| foundational constraint change | branch-separating by default. |
+| aesthetic contract change | may be branch-separating even if facts match. |
+
+### Collaboration dissent
+
+Open dissent is not disorder. Record dissent when it preserves a valid interpretation, warns about audience trust, identifies lost content, or protects a branch. Suppressed dissent often returns as continuity damage.

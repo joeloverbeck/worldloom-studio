@@ -224,3 +224,32 @@ Run `checklists/uncertainty_evidence_sweep.md` for disputed claims, rumors, prop
 Uncertainty is not a fog machine. Too much undifferentiated uncertainty destroys consequence.
 
 Use protected unknowns where they matter. Elsewhere, choose a working truth layer, confidence band, and action threshold so the world can respond.
+
+## Version 0.4 reinforcement: credence as world pressure
+
+Bayesian epistemology treats degrees of belief, or credences, as central to how beliefs should respond to evidence.[^i4-bayes] The system does not require formal probability math, but it should preserve the craft insight: belief strength matters. A rumor believed at 10%, 50%, and 95% creates different behavior.
+
+### Belief pressure bands
+
+When a claim matters, record how each community behaves at its confidence level:
+
+| Confidence behavior | World effect |
+|---|---|
+| dismisses | jokes, neglect, stigma, heresy charges. |
+| entertains | rumors, wagers, private tests, gossip. |
+| prepares | stockpiles, rituals, insurance, contingency plans. |
+| commits | law, violence, migration, investment, worship, revolt. |
+| enforces | censorship, orthodoxy, oath tests, education, punishment. |
+
+### Evidence habitat
+
+Evidence survives only when something hosts it. Hosts include archives, bodies, ruins, songs, prices, court records, scars, fossils, rituals, instruments, machine logs, dreams, weather, inherited property, debt, taboos, and absences.
+
+If a claim matters but has no evidence habitat, either explain the suppression or downgrade the claim’s social power.
+
+### Belief revision without omniscience
+
+Formal belief revision studies how beliefs can change when new information arrives.[^i4-beliefrevision] Fictional communities are messier: they resist, reinterpret, forget, punish, ritualize, and politicize evidence. A believable evidence update must pass through institutions, identity, incentives, and fear.
+
+[^i4-bayes]: Hanti Lin, "Bayesian Epistemology", Stanford Encyclopedia of Philosophy, https://plato.stanford.edu/entries/epistemology-bayesian/
+[^i4-beliefrevision]: Sven Ove Hansson, "Logic of Belief Revision", Stanford Encyclopedia of Philosophy, https://plato.stanford.edu/entries/logic-belief-revision/

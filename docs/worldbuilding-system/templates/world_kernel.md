@@ -51,3 +51,16 @@ What everyday residue should prove this world has existed before the story begin
 ## Frontloaded seed audit
 
 Run `checklists/frontloaded_seed_audit.md` before treating this kernel as stable.
+
+## Version 0.4 traceability note
+
+Parent protocol: `05_creation_protocol.md`.
+
+This card is a human reasoning instrument, not a database schema or implementation contract. Keep the kernel small enough that every seed fact can be admitted individually.
+
+## Minimum completion
+
+- State the affected fact, scope, branch, or world section.
+- Record the decision-relevant pressure, not every possible detail.
+- Name unresolved canon debt if the card exposes it.
+- Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.

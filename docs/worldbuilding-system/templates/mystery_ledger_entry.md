@@ -51,3 +51,16 @@ What must not be revealed yet?
 ## Preservation checks
 
 Run `checklists/mystery_preservation.md`.
+
+## Version 0.4 traceability note
+
+Parent protocol: `13` and `14`.
+
+This card is a human reasoning instrument, not a database schema or implementation contract. Protect what is unknown while recording visible consequences.
+
+## Minimum completion
+
+- State the affected fact, scope, branch, or world section.
+- Record the decision-relevant pressure, not every possible detail.
+- Name unresolved canon debt if the card exposes it.
+- Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.

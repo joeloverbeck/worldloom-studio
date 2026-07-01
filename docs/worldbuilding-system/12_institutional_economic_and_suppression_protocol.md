@@ -382,3 +382,32 @@ Example:
 > Because dead testimony changes legal proof, mortuary courts and licensed advocates control corpse access, producing preservation markets, noble advantage, poor-family debt, anti-ghost fraud squads, delayed funerals, and inheritance violence.
 
 If you cannot write this sentence for a major fact, the fact is under-institutionalized.
+
+## Version 0.4 reinforcement: arena-to-economy loop
+
+Iteration 4 makes explicit that institutional and economic analysis are one loop, not two separate passes. Institutions structure transaction costs; transaction costs reshape institutions.[^i4-north][^i4-williamson]
+
+Use this loop:
+
+1. Define the recurring action arena.
+2. Name the rules-in-use.
+3. Identify what exchange, proof, enforcement, or trust costs are high.
+4. Identify who lowers those costs and captures the surplus.
+5. Identify who is excluded or harmed by the new arrangement.
+6. Identify the counter-institution, black market, informal custom, or rebellion that answers the exclusion.
+7. Re-check legitimacy and suppression residue.
+
+### Legibility warning
+
+State-like institutions often simplify local realities to govern them; that simplification changes the world and can create blind spots, resistance, and invisible expertise.[^i4-scott] In worldbuilding terms, every census, license, map, rank, oath, uniform, standardized language, official calendar, approved genealogy, or credential system is both a tool of order and a source of distortion.
+
+Ask:
+
+- What becomes easier to tax, conscript, punish, certify, or erase?
+- What local knowledge becomes illegible?
+- Who learns to perform legibility while hiding the real practice?
+- What resistance uses the gap between official categories and lived reality?
+
+[^i4-north]: Douglass C. North, "Institutions", *Journal of Economic Perspectives* 5(1), 1991, https://www.aeaweb.org/articles?id=10.1257/jep.5.1.97
+[^i4-williamson]: Oliver E. Williamson, "Transaction-Cost Economics: The Governance of Contractual Relations", *Journal of Law and Economics* 22(2), 1979, https://chicagounbound.uchicago.edu/jle/vol22/iss2/3/
+[^i4-scott]: James C. Scott, *Seeing Like a State*, Yale University Press, 1998; overview: https://books.google.com/books/about/Seeing_Like_a_State.html?id=Qe_RDwAAQBAJ

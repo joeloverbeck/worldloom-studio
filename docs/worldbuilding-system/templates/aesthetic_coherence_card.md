@@ -41,3 +41,16 @@ Gestures, ceremonies, games, songs, alarms, court actions, daily routines.
 ## Aesthetic anti-patterns to avoid
 
 Decorative clutter, arbitrary words, uncaused style shifts, genre rupture without framing.
+
+## Version 0.4 traceability note
+
+Parent protocol: `17_aesthetic_coherence_and_semiosis.md`.
+
+This card is a human reasoning instrument, not a database schema or implementation contract. Tie style to cause: icon, index, symbol, propaganda, counter-symbol, fossil, taboo, or branch marker.
+
+## Minimum completion
+
+- State the affected fact, scope, branch, or world section.
+- Record the decision-relevant pressure, not every possible detail.
+- Name unresolved canon debt if the card exposes it.
+- Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.

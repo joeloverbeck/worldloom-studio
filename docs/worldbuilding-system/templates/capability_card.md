@@ -49,3 +49,16 @@ What happens if this capability is used a hundred times by ordinary actors?
 ## Aesthetic residue
 
 What symbols, tools, gestures, buildings, phrases, jokes, uniforms, scars, sounds, or rituals show it exists?
+
+## Version 0.4 traceability note
+
+Parent protocol: `06`, `07`, and `08`.
+
+This card is a human reasoning instrument, not a database schema or implementation contract. Treat the capability as repeatable; ask what happens after a hundred ordinary uses.
+
+## Minimum completion
+
+- State the affected fact, scope, branch, or world section.
+- Record the decision-relevant pressure, not every possible detail.
+- Name unresolved canon debt if the card exposes it.
+- Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.

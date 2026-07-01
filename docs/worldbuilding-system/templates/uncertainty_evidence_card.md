@@ -41,3 +41,16 @@ New witness, artifact, ritual, experiment, confession, map, body, fossil, price 
 ## Mystery boundary
 
 What must not be settled accidentally?
+
+## Version 0.4 traceability note
+
+Parent protocol: `14_uncertainty_belief_and_evidence.md`.
+
+This card is a human reasoning instrument, not a database schema or implementation contract. Record confidence behavior and evidence habitat, not just source names.
+
+## Minimum completion
+
+- State the affected fact, scope, branch, or world section.
+- Record the decision-relevant pressure, not every possible detail.
+- Name unresolved canon debt if the card exposes it.
+- Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.

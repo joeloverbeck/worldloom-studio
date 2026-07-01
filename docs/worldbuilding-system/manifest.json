@@ -1,9 +1,12 @@
 {
   "name": "Causal Canon Worldbuilding System",
-  "version": "0.3",
+  "version": "0.4",
   "created": "2026-07-01",
   "updated": "2026-07-01",
-  "purpose": "A storage-agnostic worldbuilding methodology for coherent canon fact propagation, consequence tracking, contradiction repair, mystery preservation, uncertainty governance, branch collaboration, and continuity stewardship.",
+  "purpose": "A storage-agnostic worldbuilding methodology for coherent canon fact propagation, consequence tracking, contradiction repair, mystery preservation, uncertainty governance, branch collaboration, transmedia extraction, aesthetic coherence, and continuity stewardship.",
+  "baseline_repository": "joeloverbeck/worldloom-studio",
+  "baseline_commit": "a27ab313fff16a2953ffb97b7810a7b20dfce652",
+  "freshness_claim": "user-supplied target commit only; not independently verified as latest main",
   "files": [
     "00_overhaul_notes.md",
     "01_core_theory.md",

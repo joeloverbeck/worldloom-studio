@@ -42,3 +42,16 @@ Serves `07_propagation_engine.md`. Use after a fact passes the gate or whenever 
 - [ ] Propagation stops because scope, cost, secrecy, novelty, geography, institution, suppression, branch, or mystery explains why.
 - [ ] Stopping point is recorded.
 - [ ] Follow-up protocols or templates assigned.
+
+## Version 0.4 completion rule
+
+Parent protocol: `07_propagation_engine.md`.
+
+A completed sweep must leave `shock-cone summary, relevant domain ripples, stop condition, and canon debt`. If the sweep is skipped for a major fact, record why the parent protocol did not apply.
+
+## Red flags
+
+- The checklist is used as a yes/no ritual without recording consequences.
+- A box is checked because the author likes the idea rather than because the world now answers it.
+- The sweep discovers canon debt but no follow-up is named.
+- The sweep changes canon status, constraint tags, or repair operations without using the proper parent protocol.

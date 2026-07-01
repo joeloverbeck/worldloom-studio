@@ -27,3 +27,16 @@ Serves `14_uncertainty_belief_and_evidence.md`. Use when a claim, rumor, prophec
 - [ ] Protected unknowns marked.
 - [ ] Evidence does not accidentally settle what should remain protected.
 - [ ] Needed mystery ledger entry identified.
+
+## Version 0.4 completion rule
+
+Parent protocol: `14_uncertainty_belief_and_evidence.md`.
+
+A completed sweep must leave `claim, confidence behavior, evidence habitat, belief communities, and mystery boundary`. If the sweep is skipped for a major fact, record why the parent protocol did not apply.
+
+## Red flags
+
+- The checklist is used as a yes/no ritual without recording consequences.
+- A box is checked because the author likes the idea rather than because the world now answers it.
+- The sweep discovers canon debt but no follow-up is named.
+- The sweep changes canon status, constraint tags, or repair operations without using the proper parent protocol.

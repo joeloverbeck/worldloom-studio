@@ -445,3 +445,28 @@ For high-impact facts, sweep in this order:
 9. Aesthetic identity and medium use.
 
 This order catches the most dangerous failures early without forcing equal attention on every domain.
+
+## Version 0.4 reinforcement: domain triage
+
+The atlas is not a requirement to write fourteen essays for every fact. It is a pressure detector. Use three passes:
+
+1. **Direct domain** — where the fact acts first.
+2. **Dependency domains** — what must already exist for the fact to work.
+3. **Reaction domains** — where people, institutions, ecologies, markets, and symbols adapt.
+
+A domain is relevant if the fact changes one of these: access, cost, risk, authority, belief, movement, inheritance, labor, violence, reproduction, evidence, identity, ordinary life, or aesthetics.
+
+### Domain minimum
+
+For a major fact, name at least:
+
+- one material or environmental domain;
+- one social or institutional domain;
+- one belief/evidence domain;
+- one daily-life or aesthetic domain.
+
+If one of these is absent, say why. The absence itself may be worldbuilding: a society that never institutionalizes a miracle, a culture that refuses to aestheticize a trauma, or a fact that remains hidden from ordinary life needs an explanation.
+
+### Negative domains
+
+A **negative domain** is a domain that seems unaffected but should not be. Record it when the absence of effect is suspicious. Example: cheap resurrection exists, but inheritance law is unchanged. That is not a neutral omission; it is a contradiction candidate.

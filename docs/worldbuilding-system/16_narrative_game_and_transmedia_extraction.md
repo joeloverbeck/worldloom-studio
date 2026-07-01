@@ -262,3 +262,29 @@ For any canon fact, write:
 > Because **[fact]** exists, characters can want **[desire]**, fear **[risk]**, exploit **[opportunity]**, be blocked by **[constraint]**, fight **[institution]**, uncover **[evidence]**, misunderstand **[belief]**, pay **[cost]**, and change **[world residue]**.
 
 Then decide which medium makes that pressure most visible.
+
+## Version 0.4 reinforcement: extraction is not canon admission
+
+A story beat, game mechanic, scene requirement, budget solution, or medium affordance may suggest a world fact, but it does not automatically become one. Extraction asks what pressure the world can support; admission decides what canon accepts.
+
+### Medium pressure matrix
+
+| Medium pressure | Worldbuilding response |
+|---|---|
+| Novel interiority | Check belief, memory, evidence, and voice. |
+| Screen compression | Check what can be shown as residue rather than exposition. |
+| Tabletop improvisation | Check branch policy, unresolved debt, and canon authority at the table. |
+| Game mechanics | Check repeatable capabilities, failure modes, exploit loops, and ordinary-life consequences. |
+| Audio drama | Check soundscape, testimony, rumor, and unseen evidence. |
+| Comic / visual serial | Check iconography, spatial staging, costume/body residue, and visual continuity. |
+| Transmedia expansion | Check invariants, branch boundaries, and audience-facing mystery discipline. |
+
+The MDA framework separates mechanics, dynamics, and aesthetics in game analysis; for this system, that means a mechanic is a repeatable permission, a dynamic is what repeated use does to the world, and an aesthetic is the experience created by those consequences.[^i4-mda]
+
+Transmedia theory also distinguishes continuity, multiplicity, immersion, extractability, and worldbuilding; the system translates that into branch discipline and invariant anchors rather than assuming every medium must share one undifferentiated canon.[^i4-jenkins]
+
+Klastrup and Tosca’s transmedial-world model of mythos, topos, and ethos maps cleanly to this package’s historical, spatial, and normative pressures; use it as a reminder that a world is more than a plot exported across media.[^i4-klastrup]
+
+[^i4-mda]: Robin Hunicke, Marc LeBlanc, and Robert Zubek, "MDA: A Formal Approach to Game Design and Game Research", https://www.cs.northwestern.edu/~hunicke/pubs/MDA.pdf
+[^i4-jenkins]: Henry Jenkins, "Transmedia Education: The 7 Principles Revisited", https://henryjenkins.org/blog/2010/06/transmedia_education_the_7_pri.html
+[^i4-klastrup]: Lisbeth Klastrup and Susana Tosca, "Transmedial Worlds—Rethinking Cyberworld Design", https://www.itu.dk/people/klastrup/klastruptosca_transworlds.pdf

@@ -276,3 +276,39 @@ For every major fact:
 - [ ] Regional variation exists where geography demands it.
 - [ ] Diffusion speed is plausible.
 - [ ] Local beliefs and institutions reflect place.
+
+## Version 0.4 reinforcement: diffusion is social as well as geographic
+
+A fact does not spread only by distance. Rogers's diffusion model emphasizes innovation, communication channels, time, and social system; worldbuilding should therefore ask who can hear, trust, afford, imitate, and legitimize a fact, not merely who lives nearby.[^i4-rogers]
+
+### Diffusion channel inventory
+
+For any mobile capability, rumor, disease, tool, religion, style, institution, or taboo, identify the likely channels:
+
+- trade route;
+- migration;
+- conquest;
+- pilgrimage;
+- marriage;
+- apprenticeship;
+- schooling;
+- smuggling;
+- exile;
+- epidemic;
+- military service;
+- entertainment;
+- bureaucracy;
+- prophecy;
+- machine network;
+- nonhuman migration;
+- weather or ecology.
+
+### Spatial inequality
+
+A fact that spreads unevenly creates inequality. Ask who becomes peripheral, extractive, exoticized, protected, polluted, obsolete, sacred, or strategically important because of location.
+
+### Map-optional spatial reasoning
+
+A map helps, but is not required. What is required is spatial friction: routes, barriers, choke points, centers, peripheries, border zones, safe houses, forbidden zones, resource basins, and places where distance changes meaning.
+
+[^i4-rogers]: Everett M. Rogers, *Diffusion of Innovations*, 5th ed.; searchable excerpt defining diffusion through innovation, channels, time, and social system: https://eli.johogo.com/Class/DOI.pdf

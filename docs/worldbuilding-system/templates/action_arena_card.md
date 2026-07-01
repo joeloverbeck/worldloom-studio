@@ -49,3 +49,16 @@ Who pays costs while not participating?
 ## Repair questions
 
 What would change if a new canon fact entered this arena?
+
+## Version 0.4 traceability note
+
+Parent protocol: `12_institutional_economic_and_suppression_protocol.md`.
+
+This card is a human reasoning instrument, not a database schema or implementation contract. Use for recurring choice situations, not one-off scenes.
+
+## Minimum completion
+
+- State the affected fact, scope, branch, or world section.
+- Record the decision-relevant pressure, not every possible detail.
+- Name unresolved canon debt if the card exposes it.
+- Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.

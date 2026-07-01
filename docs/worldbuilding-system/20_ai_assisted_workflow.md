@@ -147,3 +147,34 @@ Label AI suggestions as one of:
 Do not ask AI to fill every template for every fact. That creates bureaucracy and false confidence.
 
 Use AI where it finds pressure the human might miss. Stop when the world has enough consequence to live.
+
+## Version 0.4 reinforcement: AI outputs as untrusted proposals
+
+AI may accelerate brainstorming, contradiction hunting, and variant generation, but it must not become canon authority. AI governance frameworks emphasize risk management, transparency, accountability, and human oversight; this package translates that into a simple craft rule: a human steward must decide, record, and own every canon change.[^i4-nist][^i4-oecd]
+
+### AI-use risk bands
+
+| Use | Risk | Required control |
+|---|---|---|
+| generating questions | low | human selects useful questions. |
+| proposing consequences | medium | human verifies against doctrine and existing canon. |
+| summarizing records | medium | human checks omissions and distortions. |
+| resolving contradictions | high | human uses contradiction protocol and records decision. |
+| creating new canon | high | AI proposal must pass admission like any other proposal. |
+| rewriting doctrine | highest | requires deliberate human review against authority order. |
+
+### Prompt discipline
+
+When using AI, ask for pressure, not answers:
+
+- "What consequences am I missing?"
+- "What institutions would adapt?"
+- "What would poor actors do differently from elites?"
+- "What mystery boundary might this damage?"
+- "What contradiction would a hostile continuity editor notice?"
+- "What ordinary-life residue should exist?"
+
+Then reject most of it. The value is in the challenge, not in obedience.
+
+[^i4-nist]: National Institute of Standards and Technology, "AI Risk Management Framework", https://www.nist.gov/itl/ai-risk-management-framework
+[^i4-oecd]: OECD, "OECD AI Principles overview", https://oecd.ai/en/ai-principles

@@ -587,3 +587,29 @@ Replace or explain:
 ### Key lesson
 
 Absence is a canon fact. Missing animals, metals, gods, stars, diseases, or writing systems propagate as powerfully as presences.
+
+## Version 0.4 reinforcement: how to use the examples
+
+Do not copy the surface details of these examples. Copy the pressure moves:
+
+| Example | Pressure move to reuse |
+|---|---|
+| Raider-programmed robots | A capability becomes coherent only after access, maintenance, countermeasures, institutions, economy, and raider incentives are governed. |
+| Dead witnesses | A metaphysical fact becomes legal, economic, religious, evidentiary, and corruptible. |
+| Alien visitation near a village | Scale expands only when local facts force external domains. |
+| Cheap teleportation | A too-powerful premise must be constrained, branched, historicized, or allowed to transform the world. |
+| Visible lies | An epistemic capability changes law, intimacy, politics, aesthetics, and oppression. |
+| No horses | Absence is a fact; missing animals, resources, or technologies reshape war, trade, language, class, and myth. |
+
+### Example audit exercise
+
+For each example, run this quick audit:
+
+1. Identify the first institution that changes.
+2. Identify the first household routine that changes.
+3. Identify the first black market or counter-institution.
+4. Identify one regional variation.
+5. Identify one phrase, symbol, joke, or taboo that becomes possible.
+6. Identify one mystery or contradiction the fact could accidentally damage.
+
+If an example feels too complete, deliberately remove one constraint and watch the world break. That exercise teaches more than the polished answer.

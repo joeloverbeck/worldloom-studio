@@ -260,3 +260,41 @@ A major fact is weak if:
 - institutions adapt but characters do not;
 - characters change but institutions do not;
 - trauma, memory, identity, or belief would matter but remain absent.
+
+## Version 0.4 reinforcement: bounded agency is not stupidity
+
+Bounded rationality means actors face limits in information, alternatives, foresight, computation, time, status, and emotional capacity; it does not mean they are foolish.[^i4-simon] Strong worlds give actors local intelligence. They adapt plausibly from where they stand.
+
+### Actor-local rationality
+
+Before calling an actor irrational, ask:
+
+1. What do they know?
+2. What do they think they know?
+3. What are they forbidden or ashamed to know?
+4. What do they value more than survival, profit, efficiency, or truth?
+5. What action would be rational inside their identity, trauma, role, class, religion, oath, family, species, or institution?
+
+### Character pressure from world facts
+
+A world fact becomes character pressure when it changes:
+
+- what the actor can safely desire;
+- what they can admit knowing;
+- what they owe;
+- what they fear becoming;
+- what they can prove;
+- what they can inherit;
+- what community they can remain part of;
+- what betrayal would cost.
+
+### Anti-optimization rule
+
+For every major capability, identify both:
+
+- the ruthless optimizer’s move;
+- the culturally plausible move most actors actually make.
+
+The gap between them is often where story lives.
+
+[^i4-simon]: Herbert A. Simon, Nobel Prize lecture, "Rational Decision Making in Business Organizations", https://www.nobelprize.org/uploads/2018/06/simon-lecture.pdf

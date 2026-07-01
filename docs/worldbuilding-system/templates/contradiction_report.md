@@ -49,3 +49,16 @@ What else changes because of the repair?
 ## Resulting canon status or branch decision
 
 ## Notes
+
+## Version 0.4 traceability note
+
+Parent protocol: `13_contradiction_retcon_and_mystery.md`.
+
+This card is a human reasoning instrument, not a database schema or implementation contract. End with a disposition: not contradiction, diegetic conflict, mystery-preserving conflict, repair, branch, deprecation, or rejection.
+
+## Minimum completion
+
+- State the affected fact, scope, branch, or world section.
+- Record the decision-relevant pressure, not every possible detail.
+- Name unresolved canon debt if the card exposes it.
+- Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.

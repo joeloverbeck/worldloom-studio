@@ -109,3 +109,30 @@ Use:
 ## Field discipline
 
 Do not turn the system into paperwork. Fill only the fields that prevent world damage, preserve a decision, or reveal a consequence worth keeping.
+
+## Version 0.4 reinforcement: instrument traceability matrix
+
+| Instrument | Parent protocol | Use when |
+|---|---|---|
+| `templates/world_kernel.md` | `05_creation_protocol.md` | starting or refocusing a world. |
+| `templates/canon_change_proposal.md` | `06_canon_fact_admission_protocol.md` | proposing admission, change, retirement, or branch. |
+| `templates/canon_fact_card.md` | `06` / `07` / `03` | recording a fact and its governance. |
+| `templates/capability_card.md` | `06` / `07` / `08` | repeatable permissions need limits and consequences. |
+| `templates/constraint_card.md` | `08_constraint_composition.md` | a limit must be made visible and stress-tested. |
+| `templates/propagation_report.md` | `07_propagation_engine.md` | a fact needs shock-cone analysis. |
+| `templates/temporal_timeline_card.md` | `09_temporal_and_timeline_protocol.md` | time, latency, eras, or retcons matter. |
+| `templates/spatial_region_card.md` | `10_spatial_and_geographic_propagation.md` | geography or diffusion matters. |
+| `templates/agent_character_card.md` | `11_agent_character_psychology.md` | an actor carries world pressure. |
+| `templates/action_arena_card.md` | `12_institutional_economic_and_suppression_protocol.md` | recurring choices happen under rules. |
+| `templates/institution_card.md` | `12` | formal or informal institutions adapt. |
+| `templates/counter_institution_card.md` | `12` | official order creates underground order. |
+| `templates/contradiction_report.md` | `13_contradiction_retcon_and_mystery.md` | incompatibility or repair is needed. |
+| `templates/mystery_ledger_entry.md` | `13` / `14` | an unknown must be preserved. |
+| `templates/uncertainty_evidence_card.md` | `14_uncertainty_belief_and_evidence.md` | belief, proof, rumor, propaganda, or evidence matters. |
+| `templates/canon_branch_diff.md` | `15_branching_versioning_and_collaboration.md` | continuities diverge. |
+| `templates/collaboration_decision_record.md` | `15` / `03` | humans decide contested canon. |
+| `templates/aesthetic_coherence_card.md` | `17_aesthetic_coherence_and_semiosis.md` | tone, symbol, language, or sensory texture carries consequence. |
+
+### Instrument skipping rule
+
+Skipping an instrument is allowed. Silent skipping is not. For major facts, record why omitted instruments were not needed.

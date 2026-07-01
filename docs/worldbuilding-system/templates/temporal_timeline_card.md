@@ -39,3 +39,16 @@ Does any branch place this differently?
 ## Retcon risk
 
 What earlier or later facts depend on this order?
+
+## Version 0.4 traceability note
+
+Parent protocol: `09_temporal_and_timeline_protocol.md`.
+
+This card is a human reasoning instrument, not a database schema or implementation contract. Separate event date, discovery date, public date, institutional date, and ordinary-life date where relevant.
+
+## Minimum completion
+
+- State the affected fact, scope, branch, or world section.
+- Record the decision-relevant pressure, not every possible detail.
+- Name unresolved canon debt if the card exposes it.
+- Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.

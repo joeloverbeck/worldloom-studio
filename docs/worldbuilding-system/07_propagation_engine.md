@@ -358,3 +358,37 @@ The sweep is not extra paperwork. It is the compact operational form of this doc
 A good propagation report does not list everything.
 
 It records the consequential paths that must be remembered so future additions do not cheat.
+
+## Version 0.4 reinforcement: propagation triage and stop rules
+
+Propagation should be deep where pressure is high and ruthless where pressure is low. Use this triage:
+
+| Pressure | Required action |
+|---|---|
+| Local, reversible, private | Record immediate effects and one ordinary-life residue if any. |
+| Repeatable or tradable | Add access, cost, countermeasure, institution, black-market, and diffusion checks. |
+| Public and old | Add historical residue, law/custom, language, profession, and inequality checks. |
+| Secret but useful | Add suppression, leakage, rumors, counter-institutions, and evidence habitat. |
+| Foundational | Run full domain, temporal, spatial, agent, institution/economy, mystery, branch, aesthetic, and QA passes. |
+
+### Stop when governed
+
+Stop a propagation pass when every high-pressure consequence is in one of four states:
+
+- answered;
+- intentionally scoped out;
+- assigned as canon debt;
+- protected as a mystery boundary.
+
+Do not stop merely because the document is long. Do not continue merely because more details are possible.
+
+### Shock-cone anti-patterns
+
+Watch for these:
+
+- **protagonist cone** — only main characters react;
+- **capital cone** — only governments react;
+- **market cone** — prices change but belief, class, and ordinary life do not;
+- **lore cone** — history changes but no living practice changes;
+- **aesthetic cone** — symbols appear but no institution, cost, or memory supports them;
+- **omniscient cone** — every actor instantly understands the fact.

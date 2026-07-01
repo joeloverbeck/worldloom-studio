@@ -205,3 +205,28 @@ Run `checklists/aesthetic_coherence_sweep.md` when a fact changes naming, tone, 
 > Because **[fact]** has shaped **[history/institution/ecology/body/faith]**, people now show it through **[names/materials/space/speech/symbol/ritual]**, with different meanings for **[groups]**, creating **[mood/genre pressure]** and **[ordinary-life residue]**.
 
 If this sentence cannot be written, the fact may exist intellectually but not aesthetically.
+
+## Version 0.4 reinforcement: signs as consequences
+
+Aesthetic coherence is semiotic governance. Peirce’s icon/index/symbol distinction is useful craft shorthand: some details resemble, some physically or causally point, and some mean by convention.[^i4-peirce] Strong worlds use all three.
+
+Examples:
+
+- **Icon** — a temple roof shaped like the extinct sea-beast it worships.
+- **Index** — blue stains on debtors’ fingers because the oath ink reacts to unpaid interest.
+- **Symbol** — a white ribbon that means safe passage only because institutions enforce the convention.
+
+### Indexical residue
+
+Sociolinguistic indexicality shows that language features can carry social meaning through use, class, region, ideology, and context.[^i4-silverstein] In worldbuilding terms, accents, honorifics, taboos, slogans, jokes, and euphemisms are not flavor only. They reveal who has power, who is local, who is pretending, who is stigmatized, and what history people are forced to perform.
+
+### Aesthetic audit question
+
+For every striking style choice, ask:
+
+> Is this an icon, an index, a symbol, propaganda, counter-symbol, fossil, taboo, imitation, or branch marker?
+
+If the answer is "none," the detail may be decorative clutter. Keep it only if it serves rhythm, beauty, comedy, dread, or wonder without pretending to be causal evidence.
+
+[^i4-peirce]: Albert Atkin, "Peirce’s Theory of Signs", Stanford Encyclopedia of Philosophy, https://plato.stanford.edu/entries/peirce-semiotics/
+[^i4-silverstein]: Michael Silverstein, "Indexical Order and the Dialectics of Sociolinguistic Life", *Language & Communication* 23(3–4), 2003, https://web.stanford.edu/~eckert/Courses/ParisPapers/Silverstein2003.pdf

@@ -444,3 +444,44 @@ The more ancient a fact is, the more residue it owes.
 The more secret a fact is, the more secrecy mechanics it owes.
 
 The more beautiful a fact is, the more ruthless the system must be about its consequences.
+
+## Version 0.4 reinforcement: severity-scaled evidence
+
+Do not use the same burden of work for every change.
+
+| Severity | Required admission work |
+|---|---|
+| Minor | Precise statement, scope, truth layer, status, one consequence check. |
+| Moderate | Minor work plus cost/access/constraint check and one domain ripple. |
+| Major | Full fact gate, shock-cone summary, institution/economy pass, contradiction check, follow-up debt. |
+| Foundational | Major work plus temporal/spatial passes, branch implications, mystery/aesthetic checks, QA profile. |
+| Catastrophic | Foundational work plus explicit decision record and rollback/branch plan. |
+
+### Admission package completeness
+
+A major or higher fact is not admitted until the package contains:
+
+1. fact statement;
+2. scope;
+3. type;
+4. truth layer;
+5. canon status;
+6. constraint tags, if any;
+7. dependencies;
+8. costs, access, and bottlenecks;
+9. shock-cone summary;
+10. affected institutions or explanation for their absence;
+11. evidence/belief note;
+12. contradiction and mystery risk note;
+13. follow-up debt.
+
+### Rejection is productive
+
+Rejecting a fact is not failure. It preserves the world from unpayable causal debt. A rejected fact should leave one of these useful outputs:
+
+- a narrower replacement;
+- a branch candidate;
+- a mystery boundary;
+- a future-era possibility;
+- an aesthetic-only motif;
+- a note explaining why the world resists it.

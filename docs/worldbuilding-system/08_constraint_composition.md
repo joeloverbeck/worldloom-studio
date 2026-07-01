@@ -243,3 +243,31 @@ For any major constraint:
 - [ ] It leaves daily-life residue.
 - [ ] It leaves institutional or economic residue.
 - [ ] It does not exist only to protect the plot.
+
+## Version 0.4 reinforcement: constraint budgets
+
+A constraint is strong when it creates story pressure while preventing domination. It is weak when it exists only to excuse why a world-breaking fact does not matter.
+
+Use a **constraint budget** for every major capability:
+
+- one access constraint;
+- one cost constraint;
+- one failure or risk constraint;
+- one social or institutional constraint;
+- one countermeasure or loophole.
+
+More constraints may be needed, but too many unrelated constraints make the fact feel patched rather than designed.
+
+### Constraint stress test
+
+Ask five hostile questions:
+
+1. What does a rich actor do to bypass this?
+2. What does a desperate actor do to bypass this?
+3. What does a state, temple, guild, army, corporation, clan, or criminal network do to monopolize this?
+4. What does a child, servant, dissident, exile, disabled person, prisoner, or nonhuman actor discover that elites miss?
+5. What loophole becomes common enough to create a profession, taboo, punishment, black market, or myth?
+
+### Constraint residues
+
+A real constraint leaves residue. It changes tools, warnings, pricing, ceremonies, training, architecture, slang, jokes, scars, insurance, law, or superstition. If a constraint leaves no residue, it may be authorial duct tape.

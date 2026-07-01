@@ -281,3 +281,30 @@ A mystery is weak when:
 Do not use “it is mysterious” to avoid consequence.
 
 Unknown origins still create cults, sciences, frauds, taboos, laws, markets, fears, rituals, and politics. The world may not know what the lights in the quarry are, but the quarry road still changes.
+
+## Version 0.4 reinforcement: contradiction disposition
+
+A contradiction report must end in one of these dispositions:
+
+- **not a contradiction** — layers, branches, or scope explain the apparent conflict;
+- **diegetic conflict** — characters or institutions disagree, but authorial model is stable;
+- **mystery-preserving conflict** — the conflict is allowed because boundaries protect it;
+- **repair required** — authorial model is unstable and a repair operation is needed;
+- **branch required** — both versions are valid but cannot share one continuity;
+- **deprecation required** — prior material remains historically visible but no longer governs active canon;
+- **rejection required** — proposed material damages more valid content than it adds.
+
+### Mystery-preserving contradiction test
+
+A contradiction may protect mystery only if:
+
+1. observable effects remain consistent;
+2. the unresolved part is named;
+3. the contradiction cannot be exploited to solve unrelated problems conveniently;
+4. evidence and belief layers are separated;
+5. future reveals have guardrails;
+6. the contradiction creates pressure rather than authorial escape.
+
+### Retcon kindness rule
+
+Retcon as little as possible, but not less than coherence requires. Preserve valid emotional, thematic, and aesthetic content even when factual scaffolding changes.

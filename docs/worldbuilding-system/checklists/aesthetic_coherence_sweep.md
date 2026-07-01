@@ -27,3 +27,16 @@ Serves `17_aesthetic_coherence_and_semiosis.md`. Use when a fact, region, instit
 - [ ] Propaganda and counter-symbols show who fights over meaning.
 - [ ] Decorative details without cause removed or given cause.
 - [ ] Aesthetic drift is either repaired or deliberately governed.
+
+## Version 0.4 completion rule
+
+Parent protocol: `17_aesthetic_coherence_and_semiosis.md`.
+
+A completed sweep must leave `a named aesthetic pressure, at least one causal residue, and a drift decision`. If the sweep is skipped for a major fact, record why the parent protocol did not apply.
+
+## Red flags
+
+- The checklist is used as a yes/no ritual without recording consequences.
+- A box is checked because the author likes the idea rather than because the world now answers it.
+- The sweep discovers canon debt but no follow-up is named.
+- The sweep changes canon status, constraint tags, or repair operations without using the proper parent protocol.

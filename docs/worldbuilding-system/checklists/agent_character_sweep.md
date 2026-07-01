@@ -32,3 +32,16 @@ Serves `11_agent_character_psychology.md`. Use when a world fact changes actor b
 - [ ] No actor changes only because the plot needs it.
 - [ ] Contradictory behavior repaired, assigned to truth layers, or made deliberately motivated.
 - [ ] Psychological residue recorded: habits, trauma, pride, shame, denial, superstition, gallows humor, identity politics.
+
+## Version 0.4 completion rule
+
+Parent protocol: `11_agent_character_psychology.md`.
+
+A completed sweep must leave `one actor-local rationality note, one identity pressure, and one bounded-knowledge limit`. If the sweep is skipped for a major fact, record why the parent protocol did not apply.
+
+## Red flags
+
+- The checklist is used as a yes/no ritual without recording consequences.
+- A box is checked because the author likes the idea rather than because the world now answers it.
+- The sweep discovers canon debt but no follow-up is named.
+- The sweep changes canon status, constraint tags, or repair operations without using the proper parent protocol.

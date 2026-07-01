@@ -228,3 +228,44 @@ For every major fact:
 - [ ] Existing canon does not ignore the fact retroactively.
 - [ ] Branches have divergence points.
 - [ ] Mysteries have temporal boundaries.
+
+## Version 0.4 reinforcement: latency ladder
+
+Use a latency ladder to keep history from feeling instantaneous:
+
+| Latency band | Typical residues |
+|---|---|
+| Immediate | panic, injury, first use, first rumor, first failure. |
+| Days/weeks | emergency rules, opportunists, local improvisation, witness distortion. |
+| Months/years | licensing, training, countermeasures, prices, migrations, professions. |
+| Generations | inheritance, class structure, myths, architecture, calendars, family names. |
+| Eras | ruins, borders, sacred history, obsolete law, fossilized metaphors, old resentments. |
+
+A fact that is old but has only immediate residues has failed the temporal test.
+
+### Chronology pluralism
+
+The world may contain multiple chronologies:
+
+- official chronology;
+- local memory;
+- ritual calendar;
+- academic reconstruction;
+- suppressed archive;
+- branch chronology;
+- mythic time;
+- personal trauma time.
+
+Do not collapse these into one timeline unless the world’s institutions have the power and motive to enforce a single calendar.
+
+### Retcon temporal rule
+
+A retcon must state whether it changes:
+
+- what objectively happened;
+- what was known;
+- what was recorded;
+- what was believed;
+- what was hidden;
+- what branch applies;
+- what the audience was allowed to infer.

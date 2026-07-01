@@ -464,3 +464,45 @@ An unhealthy world state has:
 - identical regions despite different constraints;
 - characters who behave like plot machinery;
 - aesthetic drift disguised as variety.
+
+## Version 0.4 reinforcement: primitive discipline
+
+The primitives in this document are **handles for thought**, not storage units. A single world element may be handled as more than one primitive depending on the question. A royal archive may be an institution when asking who controls evidence, a resource when asking who can exploit it, a constraint when asking what cannot be known without it, and an aesthetic residue when asking how authority looks and sounds.
+
+Use the primitive that exposes the strongest causal pressure. Do not create a new primitive merely because a detail feels unique. Create or name a special case only when it changes propagation, governance, or repair.
+
+### Relation verbs before relation nouns
+
+Prefer active relation verbs during analysis:
+
+- enables;
+- blocks;
+- prices;
+- legitimizes;
+- conceals;
+- misreads;
+- inherits;
+- routes;
+- contaminates;
+- sanctions;
+- ritualizes;
+- remembers;
+- erases;
+- translates;
+- fractures;
+- preserves.
+
+A static relation label is useful only after the active pressure is understood. If two facts are merely "related," the world model has not yet done its job.
+
+### Minimum model record for any major fact
+
+For a major fact, record at least one item in each row:
+
+| Handle | Question |
+|---|---|
+| Entity / actor / institution | Who or what carries the pressure? |
+| Capability / constraint | What can be done, and what prevents domination? |
+| Resource / cost | What becomes scarce, valuable, or wasted? |
+| Claim / evidence / belief | Who thinks what, and why? |
+| Event / process / residue | What happened, what keeps happening, and what remains? |
+| Aesthetic signal | How does the world show this without exposition? |

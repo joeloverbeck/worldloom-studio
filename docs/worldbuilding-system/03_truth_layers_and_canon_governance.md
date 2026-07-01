@@ -353,3 +353,43 @@ A single person can play all seven roles.
 Do not ask whether a claim is interesting before asking what layer it belongs to.
 
 The wrong truth layer can make a brilliant idea incoherent. The right truth layer can make a contradiction fruitful.
+
+## Version 0.4 reinforcement: decision jurisdiction
+
+Governance failures usually happen when a steward uses the wrong operation family. Use this jurisdiction rule:
+
+| Situation | Use | Do not use |
+|---|---|---|
+| A new or changed fact is being admitted | Admission decision operation | Repair operation as a status substitute |
+| A conflict, instability, or mystery leak must be fixed | Repair operation | Admission operation as a patch label |
+| A fact is true only in a limited way | Constraint tag | Canon status |
+| A fact's governance standing changes | Canon status | Constraint tag |
+| Two continuities diverge | Branch status and branch diff | Mystery boundary |
+| Characters disagree inside the world | Truth layer and belief ecology | Retcon unless authorial model is broken |
+
+### Canon debt
+
+A fact may be accepted while carrying **canon debt**: unresolved propagation, incomplete evidence ecology, missing ordinary-life residue, or unresolved branch impact. Canon debt is allowed only when it is named, scoped, assigned to a follow-up, and not used to conceal a contradiction.
+
+Canon debt categories:
+
+- **Propagation debt** — consequences not yet traced.
+- **Evidence debt** — sources, proof standards, or belief communities not yet governed.
+- **Residue debt** — old facts lack historical or daily-life traces.
+- **Branch debt** — continuity divergence not yet isolated.
+- **Mystery debt** — protected unknown lacks boundaries.
+- **Aesthetic debt** — tone or symbolic residue not yet aligned.
+
+A fact with unmanaged canon debt should not become a foundation for another major fact.
+
+### Governance minimum for collaboration
+
+When more than one human contributes, every major decision needs:
+
+1. a named proposer;
+2. a named decider or stewardship rule;
+3. a statement of affected truth layers;
+4. a status result;
+5. constraint tags, if any;
+6. follow-up debt, if any;
+7. a note explaining why valid prior content was preserved, superseded, or deprecated.

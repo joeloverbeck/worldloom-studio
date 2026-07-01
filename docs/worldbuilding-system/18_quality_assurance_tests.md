@@ -206,3 +206,34 @@ Use a simple worksheet:
 4. Propagate only as far as necessary.
 5. Record the result.
 6. Stop before the world becomes more explained than alive.
+
+## Version 0.4 reinforcement: regression profile
+
+A QA pass should produce a regression profile, not just a score. Record:
+
+- strongest domain;
+- weakest domain;
+- most dangerous under-propagated fact;
+- most likely contradiction;
+- most fragile mystery;
+- most overloaded constraint;
+- most suspicious absence of institution/economy response;
+- most at-risk aesthetic drift;
+- canon debt that must be resolved before new foundational facts are added.
+
+### Red-team prompts
+
+Use these after ordinary QA:
+
+1. What fact would a hostile reader exploit to break the world?
+2. What fact would a ruthless state monopolize first?
+3. What fact would poor or excluded people use differently from elites?
+4. What fact would create a black market even if the author does not want one?
+5. What secret would leak through price, slang, ritual, disease, migration, or architecture?
+6. What beautiful detail has no cause?
+7. What mystery is doing the work of an omitted constraint?
+8. What branch difference is being smuggled into main continuity?
+
+### Pass/fail floor
+
+A world section fails QA if it contains a repeatable high-impact capability with no access limits, cost, countermeasure, institution/economy response, actor adaptation, temporal residue, and distribution pattern. Style cannot compensate for that failure.

@@ -29,3 +29,16 @@ Serves `13_contradiction_retcon_and_mystery.md`. Use whenever a contradiction re
 - [ ] The mystery does not excuse missing propagation.
 - [ ] The mystery would still matter if partly revealed.
 - [ ] The repair does not accidentally solve what should remain protected.
+
+## Version 0.4 completion rule
+
+Parent protocol: `13_contradiction_retcon_and_mystery.md`.
+
+A completed sweep must leave `fixed/unknown boundary, reveal permissions, reveal prohibitions, and consequence record`. If the sweep is skipped for a major fact, record why the parent protocol did not apply.
+
+## Red flags
+
+- The checklist is used as a yes/no ritual without recording consequences.
+- A box is checked because the author likes the idea rather than because the world now answers it.
+- The sweep discovers canon debt but no follow-up is named.
+- The sweep changes canon status, constraint tags, or repair operations without using the proper parent protocol.

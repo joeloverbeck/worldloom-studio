@@ -41,3 +41,16 @@ What other constraints strengthen, weaken, conflict with, cancel, gate, or chain
 ## Residue
 
 How do ordinary people know this limit is real?
+
+## Version 0.4 traceability note
+
+Parent protocol: `08_constraint_composition.md`.
+
+This card is a human reasoning instrument, not a database schema or implementation contract. Record why the limit exists and what residue proves it.
+
+## Minimum completion
+
+- State the affected fact, scope, branch, or world section.
+- Record the decision-relevant pressure, not every possible detail.
+- Name unresolved canon debt if the card exposes it.
+- Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.

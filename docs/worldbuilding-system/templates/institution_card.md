@@ -53,3 +53,16 @@ What rival or underground structures grow around it?
 ## Aesthetic residue
 
 Buildings, uniforms, phrases, seals, gestures, schedules, rituals, sounds, documents, scars, jokes.
+
+## Version 0.4 traceability note
+
+Parent protocol: `12_institutional_economic_and_suppression_protocol.md`.
+
+This card is a human reasoning instrument, not a database schema or implementation contract. Record rules-in-use, legitimacy, enforcement, information, and failure modes.
+
+## Minimum completion
+
+- State the affected fact, scope, branch, or world section.
+- Record the decision-relevant pressure, not every possible detail.
+- Name unresolved canon debt if the card exposes it.
+- Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.

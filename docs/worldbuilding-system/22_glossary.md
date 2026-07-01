@@ -181,3 +181,39 @@ The smallest set of premises, commitments, constraints, tone, and seed facts tha
 ## World-state health
 
 The degree to which a world’s facts have prerequisites, constraints, consequences, institutions, contradictions, mysteries, uncertainty, costs, latencies, path dependence, and residue in healthy relation.
+
+## Authority tier
+
+A document's position in the package's decision order. Doctrine governs primitives; primitives and governance govern protocols; protocols govern checklists and templates.
+
+## Canon debt
+
+Named, scoped, unresolved work attached to an accepted or under-review fact: propagation debt, evidence debt, residue debt, branch debt, mystery debt, or aesthetic debt. Canon debt is allowed only when visible and scheduled.
+
+## Decision jurisdiction
+
+The rule determining which operation family applies: canon status, constraint tag, admission decision operation, repair operation, branch decision, or truth-layer assignment.
+
+## Invariant anchor
+
+A fact, constraint, relationship, mystery boundary, tone, symbol, or ordinary-life pressure that must remain stable across branches or adaptations for the world to still feel like itself.
+
+## Negative domain
+
+A domain that appears unaffected by a fact even though causal pressure suggests it should be affected. Negative domains are contradiction candidates.
+
+## Pressure line
+
+A causal path along which the world must expand because a fact creates dependencies, adaptations, costs, beliefs, institutions, or residues.
+
+## Regression profile
+
+A QA output naming the strongest and weakest parts of a world section, its most dangerous under-propagated fact, fragile mystery, overloaded constraint, branch risk, and unresolved canon debt.
+
+## Thin-start rule
+
+The creation discipline of beginning with the smallest set of seed facts that force the world to become itself, then expanding only along pressure lines.
+
+## Traceability
+
+The ability to show which doctrine, protocol, checklist, template, or decision record supports a fact, instrument, repair, or branch result.

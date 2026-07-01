@@ -63,3 +63,16 @@ Why does propagation stop here for now?
 Name the specific templates or checklists required; do not write “TBD” if the missing work is load-bearing.
 
 Templates, checklists, contradictions, mysteries, branches, examples.
+
+## Version 0.4 traceability note
+
+Parent protocol: `07_propagation_engine.md`.
+
+This card is a human reasoning instrument, not a database schema or implementation contract. Stop only when high-pressure consequences are answered, scoped out, assigned as debt, or protected as mystery.
+
+## Minimum completion
+
+- State the affected fact, scope, branch, or world section.
+- Record the decision-relevant pressure, not every possible detail.
+- Name unresolved canon debt if the card exposes it.
+- Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.
