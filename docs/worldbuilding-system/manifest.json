@@ -1,9 +1,9 @@
 {
   "name": "Causal Canon Worldbuilding System",
-  "version": "0.2",
+  "version": "0.3",
   "created": "2026-07-01",
   "updated": "2026-07-01",
-  "purpose": "A storage-agnostic worldbuilding methodology for coherent canon fact propagation, consequence tracking, contradiction repair, mystery preservation, and continuity governance.",
+  "purpose": "A storage-agnostic worldbuilding methodology for coherent canon fact propagation, consequence tracking, contradiction repair, mystery preservation, uncertainty governance, branch collaboration, and continuity stewardship.",
   "files": [
     "00_overhaul_notes.md",
     "01_core_theory.md",
@@ -42,6 +42,7 @@
     "checklists/spatial_geographic_sweep.md",
     "checklists/temporal_timeline_sweep.md",
     "checklists/uncertainty_evidence_sweep.md",
+    "manifest.json",
     "templates/action_arena_card.md",
     "templates/aesthetic_coherence_card.md",
     "templates/agent_character_card.md",

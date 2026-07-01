@@ -1,6 +1,6 @@
 # Canon Fact Card
 
-A canon fact card records a single world fact and the consequences that make it safe to use.
+A canon fact card records a single world fact and the consequences that make it safe to use. It is a thinking instrument, not a software record.
 
 ## Fact statement
 
@@ -28,7 +28,7 @@ Proposed / under review / accepted / accepted with constraints / localized / con
 
 ## Constraint tags
 
-Local / rare / recent / secret / misunderstood / costly / unstable / seasonal / jurisdictional / class-bound / model-limited / ritual-bound / branch-bound / other.
+Local / rare / recent / secret / misunderstood / costly / dangerous / unstable / seasonal / jurisdictional / class-bound / model-limited / ritual-bound / geography-bound / branch-bound / other.
 
 ## Prerequisites
 
@@ -39,6 +39,7 @@ Local / rare / recent / secret / misunderstood / costly / unstable / seasonal / 
 - temporal dependencies:
 - spatial dependencies:
 - psychological dependencies:
+- aesthetic dependencies:
 
 ## Costs and limits
 
@@ -47,15 +48,17 @@ What prevents this from changing everything instantly?
 ## Shock-cone summary
 
 - immediate effects:
+- prerequisites exposed:
 - second-order effects:
 - institutional adaptations:
+- economic adaptations:
 - countermeasures:
 - fossils/residue:
 - distant echoes:
 
 ## Evidence and belief
 
-Who knows, believes, denies, misreads, or suppresses it?
+Who knows, believes, denies, misreads, disputes, profits from, or suppresses it?
 
 ## Contradiction risks
 
@@ -65,9 +68,15 @@ What existing fact may conflict?
 
 What protected unknown could this accidentally reveal?
 
-## Decision
+## Admission decision operation
 
-Accepted / constrained / localized / historicized / reinterpreted / institutionalized / priced / branched / quarantined / superseded / deprecated / rejected.
+Accept / constrain / localize / historicize / reinterpret / institutionalize / price / branch / quarantine / supersede / deprecate / reject.
+
+## Repair operation, if any
+
+Clarify scope / add constraint / price / localize / historicize / institutionalize / diffuse unevenly / reinterpret / split / retcon / quarantine / reject.
+
+Leave this blank unless a contradiction, instability, or mystery-risk required repair.
 
 ## Notes
 

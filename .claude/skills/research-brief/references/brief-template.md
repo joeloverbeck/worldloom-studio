@@ -41,6 +41,13 @@ name it here in §1) from a **structural precedent** (a prior brief reused only 
 model* — list it in §2 as a structural-model read, not a delta seed). A single pass can carry
 both; keep their roles separate.
 
+**Stable-slug iterations overwrite their own predecessor.** When the deliverable is an iterative
+overhaul whose topic slug is stable (e.g. `<topic>-research-brief.md` re-issued each iteration),
+this run's Write *overwrites* the prior brief — so there is no distinct predecessor file left to
+name. In that case the durable lineage record is the **repo's own changelog/overhaul doc** (e.g.
+a package's `00_overhaul_notes.md`) that captures what the last iteration delivered; cite *that*
+in §1 as the delta seed, not a prior brief filename that no longer exists after this write.
+
 **Greenfield / cold-start.** When the repo has little existing structure, say so plainly here
 and frame the task as *design from first principles* grounded in the repo's stated purpose (its
 README) rather than a delta over prior work. There is no shame in a short §2 — lean §5's

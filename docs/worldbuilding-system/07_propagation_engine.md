@@ -347,6 +347,12 @@ Look for:
 - old countermeasures;
 - taboo topics.
 
+## Propagation sweep instrument
+
+Run `checklists/propagation_sweep.md` after any Level 2 or higher fact, and after any lower-level fact that unexpectedly creates a shock cone. Use `templates/propagation_report.md` when the sweep produces enough consequences that they need a stable record.
+
+The sweep is not extra paperwork. It is the compact operational form of this document: immediate effects, prerequisites, domains, institutions, economies, countermeasures, historical fossils, spatial diffusion, character pressure, aesthetic residue, and stopping condition.
+
 ## The propagation report
 
 A good propagation report does not list everything.

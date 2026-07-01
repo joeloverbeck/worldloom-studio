@@ -353,7 +353,7 @@ Examples:
 - pirate radio;
 - counterfeit license makers;
 - exile universities;
-- shadow markets;
+- black markets;
 - folk law.
 
 For each counter-institution, ask:
@@ -364,6 +364,12 @@ For each counter-institution, ask:
 - How does it enforce?
 - What does it cost?
 - When does it become predatory?
+
+## Instrument use
+
+Use `templates/action_arena_card.md` for recurring choice situations, `templates/institution_card.md` for formal or informal institutions, and `templates/counter_institution_card.md` for black markets, outlaw schools, underground clinics, rebel courts, and other unofficial orders.
+
+Run `checklists/institutional_economic_suppression_sweep.md` whenever a fact changes access, scarcity, legitimacy, enforcement, transaction costs, exclusion, secrecy, or suppression. A major fact that does not create at least one institutional or economic question is probably under-propagated.
 
 ## Institutional-economic synthesis
 

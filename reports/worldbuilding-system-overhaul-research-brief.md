@@ -1,115 +1,151 @@
-# Deep-Research Brief — Causal Canon Worldbuilding System: Second-Iteration Overhaul
+# Research brief — Causal Canon Worldbuilding System, iteration three
 
-*Paste this entire document into a fresh ChatGPT-Pro deep-research session and upload the manifest named below. You (the researcher) have none of the context in which this brief was authored; everything you need is in this prompt plus the uploaded manifest. Produce the deliverables directly — do not interview or ask clarifying questions.*
+*Paste this entire document into a fresh ChatGPT-Pro deep-research session, and upload the manifest file named below. You (that session) have none of the context in which this brief was authored — everything you need is in this prompt plus the uploaded manifest. Produce the deliverable directly. Do not interview or ask clarifying questions.*
 
 ---
 
 ## 1. Context
 
-The uploaded manifest (`reports/manifest_2026-07-01_1bf6689.txt`) is the exact path inventory of the `joeloverbeck/worldloom-studio` repository — a web app "to create and maintain fictional worlds from a continuity and causality perspective." **Fetch every file you read from commit `1bf66899004c24e3d737c2daaa70ef30fb524f21` (short `1bf6689`); the uploaded manifest reflects that exact tree.**
+The uploaded manifest (`reports/manifest_2026-07-01_37eed34.txt`) is the exact path inventory of the `joeloverbeck/worldloom-studio` repository — a project whose root `README.md` describes it as "a web app to create and maintain fictional worlds from a continuity and causality perspective." **The web app is downstream and irrelevant to this task** (see §3.4). The object of this work is the storage- and software-agnostic methodology package under `docs/worldbuilding-system/**`: the **Causal Canon Worldbuilding System**.
 
-The subject of this overhaul is the documentation package under **`docs/worldbuilding-system/`** — a self-contained, storage-agnostic worldbuilding methodology titled the **"Causal Canon Worldbuilding System."** It is a 32-file set (~5,160 lines): a 16-document numbered spine plus `README.md`, `manifest.json`, a `templates/` folder (9 reusable Markdown card/report schemas), and a `checklists/` folder (5 operational checklists).
+**Fetch every file from commit `37eed3442fbc7ea0afe88139e84396e20da5ffaf` (`37eed34`, "Second iteration of worldbuilding system") — the uploaded manifest reflects exactly that commit's tree.** Use exact raw URLs of the form
+`https://raw.githubusercontent.com/joeloverbeck/worldloom-studio/37eed3442fbc7ea0afe88139e84396e20da5ffaf/<path>`.
 
-**This is the second iteration of the package's authoring** — the docs already exist and are mature; you are overhauling them, not creating them from scratch. There is **no prior research brief** on this line (this is the first externally-commissioned research pass), so treat the *existing docs themselves* as the seed you are improving, not a delta over earlier research.
+**Provenance caveat — do not propagate a stale commit.** The package's own `00_overhaul_notes.md` (lines 5–9) records its target commit as `1bf66899004c24e3d737c2daaa70ef30fb524f21` (`1bf6689`). That is the commit of the *first* iteration, which the current package already overhauled; it is **not** your baseline. Read every file from `37eed34` as instructed above. When you regenerate `00_overhaul_notes.md` (§7), record provenance against `37eed34`, not `1bf6689`.
 
-Authority order within the package (root → detail): the package `README.md` (overview + recommended-use flow) governs orientation; `01_core_theory.md` states the philosophy and operating laws that everything else must serve; the numbered spine `02`–`16` moves from conceptual model → protocols → QA → examples → workflow → reference; `templates/` and `checklists/` are the operational instruments that instantiate the spine. The repo-root `README.md` (two lines) establishes only that this package will *eventually* underpin a software app — but see the hard constraint in §3.1: **the package itself must stay agnostic of that fact.**
+**Authority order among the docs.** The package presents itself in a numbered spine (`00`–`23`) with doctrine at the top and reference at the bottom. Treat that as the working authority order: `01_core_theory.md` and the world-model / governance primitives (`02`, `03`, `04`) govern the protocol docs below them, which govern the extraction/quality/reference tier, which govern the `checklists/` and `templates/` (the craft instruments that operationalize the docs). Higher-tier doctrine wins conflicts; a lower-tier instrument must never contradict the doctrine it serves.
+
+**This is iteration three of a lineage, not a cold start.** Iteration two (recorded in the current `00_overhaul_notes.md`) preserved the consequence-first doctrine and expanded a 16-document spine into the current 24-document spine plus expanded templates and checklists. Your job is a *delta* over that: converge the system toward "done," not rebuild it from scratch. Preserve iteration two's gains; do not re-litigate settled reconciliations (e.g. the canon-status / decision-operation / repair-operation separation, the 13-entry truth-layer order, the adoption of "shock cone") except where §5 identifies them as unresolved.
+
+---
 
 ## 2. Read in full (authority order)
 
-Read every file below completely before producing anything. The **entire package is load-bearing** because the deliverable replaces the whole set; there are no boundary-awareness-only reads here.
+This is a whole-tier overhaul, so **read the entire package** before producing anything. All 56 paths below resolve at baseline `37eed34`. Read in this order:
 
-```
-README.md                                                    — repo identity: this is the app repo, but the package stays app-agnostic (see §3.1).
-docs/worldbuilding-system/README.md                          — package overview, recommended-use flow (new world / existing world), package map, "most important rule."
-docs/worldbuilding-system/manifest.json                      — file inventory + version/created metadata to regenerate.
-docs/worldbuilding-system/01_core_theory.md                  — philosophy + 10 operating laws + the Causal Canon cycle + smell tests. The doctrine all other docs serve.
-docs/worldbuilding-system/02_world_model.md                  — the conceptual primitives (entity, actor, institution, capability, constraint, event, process, resource, claim, source, consequence, mystery), relation verbs, dependency classes, world-state health.
-docs/worldbuilding-system/03_truth_layers_and_canon_governance.md — truth-layer ontology, canon-status labels, governance roles. The classification backbone.
-docs/worldbuilding-system/04_domain_atlas.md                 — the 14 world domains facts ripple through + priority sweep order.
-docs/worldbuilding-system/05_creation_protocol.md            — 10-phase world-bootstrap pipeline from kernel to factional coherence; antipatterns.
-docs/worldbuilding-system/06_canon_fact_admission_protocol.md — the 18-step gate every new fact passes; fact types, severity levels, accept/constrain/branch/quarantine/reject decisions.
-docs/worldbuilding-system/07_propagation_engine.md          — the shock-cone ripple algorithm, propagation mechanisms, branch types, stopping rules, the "why not everywhere / why not enemies / where are the fossils" tests.
-docs/worldbuilding-system/08_institutional_and_economic_ripple_protocol.md — dual institutional + economic analysis protocol (Ostrom IAD + institutional economics), action arenas, synthesis sentence.
-docs/worldbuilding-system/09_contradiction_retcon_and_mystery.md — contradiction taxonomy, repair operations, retcon types, mystery ledger.
-docs/worldbuilding-system/10_narrative_and_game_extraction.md — deriving conflict types, character roles, and game mechanics from world facts without breaking the world.
-docs/worldbuilding-system/11_quality_assurance_tests.md     — 22 QA tests with 0–3 scoring + green/yellow/red rubric.
-docs/worldbuilding-system/12_worked_examples.md             — 4 full worked examples (raider-robots, dead-witnesses, alien visitation, cheap teleportation).
-docs/worldbuilding-system/13_ai_assisted_workflow.md        — 8 AI analyst roles + prompt templates + failure-mode checklist (AI as proposer, never canonizer).
-docs/worldbuilding-system/14_templates_index.md             — how the 9 templates fit together; field lists.
-docs/worldbuilding-system/15_glossary.md                    — ~40 shared-terminology entries.
-docs/worldbuilding-system/16_research_notes_and_bibliography.md — research provenance (systems thinking, institutional analysis/economics, social-ecological systems, storyworld theory, knowledge representation/belief revision, magic-system & game-design craft), exemplar settings, research→system translation rules.
-docs/worldbuilding-system/templates/world_kernel.md         — world seed schema.
-docs/worldbuilding-system/templates/canon_fact_card.md      — per-fact record.
-docs/worldbuilding-system/templates/capability_card.md      — capability record.
-docs/worldbuilding-system/templates/institution_card.md     — institution record.
-docs/worldbuilding-system/templates/action_arena_card.md    — Ostrom action-arena record.
-docs/worldbuilding-system/templates/propagation_report.md   — canonical propagation output.
-docs/worldbuilding-system/templates/contradiction_report.md — contradiction record.
-docs/worldbuilding-system/templates/mystery_ledger_entry.md — mystery record.
-docs/worldbuilding-system/templates/canon_change_proposal.md — change-proposal record.
-docs/worldbuilding-system/checklists/frontloaded_seed_audit.md      — ensures seed facts propagate as deeply as later facts.
-docs/worldbuilding-system/checklists/canon_fact_gate.md             — quick fact-admission gate.
-docs/worldbuilding-system/checklists/propagation_sweep.md           — propagation completeness sweep.
-docs/worldbuilding-system/checklists/institutional_economic_sweep.md — institution/economy sweep.
-docs/worldbuilding-system/checklists/mystery_preservation.md        — mystery-protection sweep.
-```
+**Orientation**
+- `README.md` — repo identity; confirms the downstream web app is out of scope for the package.
+- `docs/worldbuilding-system/README.md` — package overview, recommended-use flows, package map, the "if this has been true, why is the world not already different?" rule.
+- `docs/worldbuilding-system/00_overhaul_notes.md` — iteration-two changelog, old→new mapping, retention audit, drift reconciliation. This is the record you extend; it also tells you what iteration two *deliberately* did (read it to avoid undoing settled decisions). Note its stale target-commit (§1).
+- `docs/worldbuilding-system/manifest.json` — canonical file inventory and version (`0.2`).
+
+**Doctrine & primitives (top authority tier)**
+- `docs/worldbuilding-system/01_core_theory.md` — the 12 operating laws, the Causal Canon cycle, smell tests, non-requirements. The doctrine everything else must satisfy.
+- `docs/worldbuilding-system/02_world_model.md` — conceptual primitives and relation verbs (thinking tools, not database tables).
+- `docs/worldbuilding-system/03_truth_layers_and_canon_governance.md` — truth layers, canon statuses, constraint tags, **decision operations**, governance roles.
+- `docs/worldbuilding-system/04_domain_atlas.md` — the fourteen world domains facts ripple through.
+
+**Core protocols**
+- `docs/worldbuilding-system/05_creation_protocol.md`
+- `docs/worldbuilding-system/06_canon_fact_admission_protocol.md`
+- `docs/worldbuilding-system/07_propagation_engine.md`
+- `docs/worldbuilding-system/08_constraint_composition.md`
+- `docs/worldbuilding-system/09_temporal_and_timeline_protocol.md`
+- `docs/worldbuilding-system/10_spatial_and_geographic_propagation.md`
+- `docs/worldbuilding-system/11_agent_character_psychology.md`
+- `docs/worldbuilding-system/12_institutional_economic_and_suppression_protocol.md`
+- `docs/worldbuilding-system/13_contradiction_retcon_and_mystery.md` — **repair operations**, mystery ledger.
+- `docs/worldbuilding-system/14_uncertainty_belief_and_evidence.md`
+- `docs/worldbuilding-system/15_branching_versioning_and_collaboration.md`
+
+**Extraction, quality, workflow, reference**
+- `docs/worldbuilding-system/16_narrative_game_and_transmedia_extraction.md`
+- `docs/worldbuilding-system/17_aesthetic_coherence_and_semiosis.md`
+- `docs/worldbuilding-system/18_quality_assurance_tests.md`
+- `docs/worldbuilding-system/19_worked_examples.md`
+- `docs/worldbuilding-system/20_ai_assisted_workflow.md`
+- `docs/worldbuilding-system/21_templates_index.md`
+- `docs/worldbuilding-system/22_glossary.md`
+- `docs/worldbuilding-system/23_research_notes_and_bibliography.md`
+
+**Craft instruments (must be consistent with, and referenced by, the docs above)**
+- All 12 files under `docs/worldbuilding-system/checklists/`:
+  `aesthetic_coherence_sweep.md`, `agent_character_sweep.md`, `branching_collaboration_sweep.md`, `canon_fact_gate.md`, `constraint_composition_sweep.md`, `frontloaded_seed_audit.md`, `institutional_economic_suppression_sweep.md`, `mystery_preservation.md`, `propagation_sweep.md`, `spatial_geographic_sweep.md`, `temporal_timeline_sweep.md`, `uncertainty_evidence_sweep.md`.
+- All 18 files under `docs/worldbuilding-system/templates/`:
+  `action_arena_card.md`, `aesthetic_coherence_card.md`, `agent_character_card.md`, `canon_branch_diff.md`, `canon_change_proposal.md`, `canon_fact_card.md`, `capability_card.md`, `collaboration_decision_record.md`, `constraint_card.md`, `contradiction_report.md`, `counter_institution_card.md`, `institution_card.md`, `mystery_ledger_entry.md`, `propagation_report.md`, `spatial_region_card.md`, `temporal_timeline_card.md`, `uncertainty_evidence_card.md`, `world_kernel.md`.
+
+---
 
 ## 3. Settled intentions (final — do not re-open)
 
-These decisions are fixed. They pre-empt every clarifying question you might otherwise ask.
+These decisions are locked. They pre-empt every clarifying question you might otherwise ask.
 
-**3.1 — Storage- and software-agnostic (HARD, NEGATIVE constraint).** The package must remain *completely* agnostic of the fact that it will later underpin a software app. **Do not** introduce data schemas, database tables, JSON/YAML data models, class diagrams, state machines, formal grammars, ID/primary-key conventions, API surfaces, or any formalization aimed at software implementation. The many controlled vocabularies already present (truth layers, canon statuses, fact types, domains, contradiction/retcon/mystery types, propagation branch types, relation verbs, AI roles, etc.) **stay exactly as what they already are — conceptual thinking-tools expressed in prose/lists**, not typed enums for a program. Software formalization is a deliberately deferred, *separate future pass*; this overhaul must not pre-empt or bias it. When you improve rigor, improve it as **worldbuilding craft and theory**, never as software specification. (The current package already models this stance — e.g. `02_world_model.md`: "These are not database tables"; `01_core_theory.md`: "It does not require software. It does not require an LLM." Preserve that stance.)
+1. **Full discretion to converge.** You decide what "done" means for this system. You are free to **merge, split, tighten, correct, add, or remove** documents, checklists, and templates — and to renumber/rename files — to optimize for a coherent *finished* methodology rather than a larger one. You are **not** obligated to keep the 24-document spine; consolidation is welcome where docs overlap, and expansion is welcome only where it adds real craft value. Judge for quality of the finished system, and stop when further change would not improve it.
 
-**3.2 — Full restructuring authorized.** You may renumber, merge, split, re-partition, delete, and add files across the whole set; regenerate `manifest.json` and the package `README.md` to match. You are not bound to the current 16-doc numbering or file boundaries — reorganize wherever it produces a cleaner, more coherent, more complete system. (This is latitude, not an obligation to churn: restructure where it genuinely improves the set, not for its own sake.)
+2. **Full regenerated replacement set.** The deliverable is a complete, self-contained bundle: **every file in the package re-emitted** — changed *and* unchanged — so the download can replace `docs/worldbuilding-system/**` wholesale. This includes a regenerated `manifest.json` (bump `version` to `0.3`, update `updated`, and list the final file set) and a rewritten `00_overhaul_notes.md` for iteration three.
 
-**3.3 — Add new subsystem docs for genuine gaps.** Where your reading and external research reveal a real, load-bearing gap, author new documents to fill it. The survey of the current set flags these thin/absent areas as strong candidates (treat as leads to evaluate, not a mandated list): **temporal/timeline modeling** (no dedicated timeline/era-branching/causality-ordering protocol); **spatial/geographic propagation** (terrain → settlement → institution; spatial diffusion; regional variation); **character/agent psychology** (no character card or individual-psychology propagation guidance to complement institution-level modeling); **canon versioning & branching mechanics** (branch canon is a repair option but has no branch-tracking/continuity-diff protocol); **multi-author collaboration governance** (only AI workflow is addressed; no human propose/approve/dispute/merge-conflict process); **probability/uncertainty** (qualitative "disputed"/binary mystery only — no credence/degree-of-belief treatment); **aesthetic-coherence propagation** (Domain 14 is the thinnest; tone/genre/mood coherence is heuristic); **constraint composition semantics** (can constraints compose, conflict, chain?); **transmedial/context adaptation** (fiction vs. RPG vs. tabletop propagation differences); **counter-institution / suppression politics** (how factions actively distort or bury canon facts). Add only what earns its place; each new doc must serve `01_core_theory.md`'s doctrine.
+3. **Extraordinary preservation — a downgrade is the one unacceptable outcome.** Take exceptional care not to lose already-valid information. No valid conceptual content from the current set may be silently dropped. Anything you remove, merge, or relocate must be **accounted for in the iteration-three overhaul notes** (old→new mapping + retention audit), exactly as the current `00_overhaul_notes.md` accounts for iteration two's changes. If in doubt about whether content is valid, preserve it (relocated or tightened) rather than cut it.
 
-**3.4 — Retention guarantee (HARD constraint).** Every piece of *valid* content in the originals must survive into the new set — preserved verbatim, relocated, or merged — never silently dropped or degraded. If you judge some content genuinely wrong or obsolete and remove it, that is allowed, but it must be *named and justified* in the changelog (§7). Ambiguous cases default to retention.
+4. **Stay downstream-agnostic** *(negative intention — do not re-open).* The package must remain agnostic of storage medium, file format, database, graph engine, web app, API, and LLM workflow. It must **not** be tailored to the `worldloom-studio` web app or to any particular tool. Templates and checklists remain **human craft/thinking instruments**, not data schemas or implementation specs. Do not introduce software-primary-key semantics, API shapes, or tool-specific assumptions. Reinforced as a scope guard in §6.
 
-**3.5 — Maximize completeness & comprehensiveness.** The explicit goal is the most complete, comprehensive version of this system achievable, grounded in deep external research. Expand depth, close gaps, sharpen protocols, enrich examples, and strengthen the bibliography — while keeping the package usable (see §6 on not drowning craft in bureaucracy).
+5. **Preserve the rigor strengths.** Keep intact and, where possible, deepen: the consequence-first doctrine ("Once the world says a thing is possible, the rest of the world must respond"; "if this has been true, why is the world not already different?"); the citation/bibliography discipline (`23_research_notes_and_bibliography.md` and the inline footnote citations in the doctrine docs); and the governed treatment of mystery, contradiction, false belief, and suppression. Deepen, do not dilute.
 
-**3.6 — Reconcile known internal drift.** The survey found low-severity terminology drift to fix without losing meaning: (a) canon-status labels vs. repair/decision operations diverge across `03` (statuses incl. "revised"/"deprecated"), `06` (accept/constrain/branch/quarantine/reject), and `09` (repair ops incl. "split"/"diffuse unevenly") — unify the vocabulary or explicitly relate the vocabularies; (b) the glossary defines "shock cone" but the term appears nowhere else though the *concept* (propagation orders) is used throughout — either adopt the term across the propagation docs or retire it; (c) truth-layer ordering differs between `03` and `06` Step 3 — pick one canonical ordering; (d) the "accepted as local/rare/recent/secret/misunderstood" status proliferation reads as constraint-variants rather than distinct statuses — resolve the categorical redundancy. Fixing drift must not erase any distinction that is actually meaningful.
+6. `assumption:` The regenerated `00_overhaul_notes.md` records provenance against baseline `37eed34` (not the stale `1bf6689` currently cited). Correct this as part of the pass.
+
+---
 
 ## 4. The task
 
-This is a **foundational / doc-overhaul** pass. Analyze the entire Causal Canon Worldbuilding System package, then **produce a new, complete, self-consistent replacement for `docs/worldbuilding-system/**`** that is as correct, comprehensive, deep, and internally coherent as you can make it — retaining all valid original content, closing the gaps in §3.3, reconciling the drift in §3.6, and enriching the whole with deep external research into worldbuilding theory, comparable systems, and relevant scholarship. The result must stay a **storage- and software-agnostic worldbuilding methodology** (§3.1): a better version of what it already is, not a software spec.
+Perform a **foundational doc-overhaul (iteration three)** of the Causal Canon Worldbuilding System and produce a full replacement document set that you judge to be a finished, converged version of the methodology. Preserve every valid idea from the current package; correct the concrete defects named in §5; reconcile internal inconsistencies; consolidate genuine redundancy; wire every craft instrument into the doctrine that invokes it; and add or deepen only where research and craft judgment show a real gap. The system must remain a disciplined, medium-agnostic worldbuilding *craft* — usable by a solo author with paper cards or by a writing room — and it must not regress in scope, rigor, or coverage relative to iteration two.
+
+---
 
 ## 5. Exploration + online-research mandate
 
-Explore the repository as deeply as needed beyond the files listed above. **Research online as deeply as needed** — worldbuilding craft literature, comparable methodologies and toolkits (fiction bibles, RPG setting-design frameworks, wiki/canon-management practices), and the academic traditions the package already leans on and adjacent ones (systems thinking, institutional analysis & economics, social-ecological systems, storyworld/possible-worlds theory, narratology, knowledge representation & belief revision, historical anthropology, sociolinguistics/semiotics, game design). Bring in prior art and research papers wherever they sharpen a protocol, close a gap, or correct a claim. **Cite sources** for any external claim that shapes content (the current `16_research_notes_and_bibliography.md` is strong but has incomplete citations and is thin on linguistics/semiotics — improve it). Keep all research in service of worldbuilding craft, per §3.1.
+Explore the repository as deeply as needed beyond the files listed in §2. **Research online as deeply as you judge beneficial** — comparable worldbuilding methodologies and "story bible" / continuity-management practices; the systems-thinking, institutional-economics, diffusion, social-psychology, epistemology, and semiotics literatures the package already draws on (Meadows; Ostrom, North, Williamson; Rogers, Tobler, Hägerstrand; Simon, Ajzen, Tajfel/Turner; belief revision / Bayesian epistemology; Peirce, Hymes; MDA; Scott); and any prior art that sharpens the deliverable. **Cite every external claim that shapes a decision**, and fold new citations into the bibliography using the package's existing citation style. Keep external research in its own lane: it informs craft, it does not assert anything about the repository's state.
+
+A consistency sweep of the current package already surfaced these **concrete, load-bearing defects** — treat them as a floor, not a ceiling (find and fix more):
+
+- **Seven orphaned checklists.** `constraint_composition_sweep.md`, `temporal_timeline_sweep.md`, `spatial_geographic_sweep.md`, `agent_character_sweep.md`, `uncertainty_evidence_sweep.md`, `branching_collaboration_sweep.md`, and `aesthetic_coherence_sweep.md` exist but are referenced by no parent doc. Wire each into the workflow of the doc it serves (`08`, `09`, `10`, `11`, `14`, `15`, `17` respectively) — or justify removal in the overhaul notes.
+- **Decision-operations vs. repair-operations divergence.** `03_truth_layers_and_canon_governance.md` (decision operations) and `13_contradiction_retcon_and_mystery.md` (repair operations) list materially different operation sets, and `22_glossary.md` does not say which governs when. `03` includes `branch, supersede, deprecate` absent from `13`; `13` includes `clarify scope, add constraint, diffuse unevenly, split, retcon` absent from `03`. Reconcile deliberately — a clarifying matrix of which operation applies in which context (admission vs. contradiction repair), or a unified vocabulary — and make the glossary authoritative. (Iteration two *intended* these as distinct categories; preserve that intent while removing the ambiguity.)
+- **Constraint tags vs. statuses ambiguity** across `03`, `06_canon_fact_admission_protocol.md`, and `00_overhaul_notes.md` — clarify whether constraint tags fully replace the old "accepted as X" status modifiers or coexist with statuses, and state it once, authoritatively.
+- **Vocabulary drift.** `12_institutional_economic_and_suppression_protocol.md` uses "shadow markets" where every other doc uses "black market(s)"; standardize and add a glossary entry. Add missing glossary entries for load-bearing terms used but undefined: **cost, latency, residue/fossil, path dependence** (and audit for others).
+- **Redundant mystery coverage** spread across `01` (Law 6), `13` (mystery ledger / mystery types), and `14` (uncertainty overlapping the mystery boundary) — assign each its governed place and cross-reference rather than repeat.
+
+You are expected to find additional issues (gaps, redundancy, contradictions, agnosticism leaks) through your own reading and research; the above is what one pass already confirmed.
+
+---
 
 ## 6. Doctrine & constraints
 
-- **Authority flows from `01_core_theory.md`.** Its premise ("once the world says a thing is possible, the rest of the world must respond"), its 10 operating laws, and "the most important rule" ("If this has been true, why is the world not already different?") govern the whole set. No new or revised content may weaken or contradict that doctrine; if research suggests amending the doctrine itself, do so explicitly and propagate the change downward, never design against it silently.
-- **The package's self-description is a constraint**, not just prose: storage-agnostic, does not require realism / exhaustive simulation / a map before a story / hard magic / software / an LLM. It "requires consequences." Preserve this identity (§3.1).
-- **Coherence over completeness-for-its-own-sake.** `01`'s Law 10 ("Coherence is not maximal explanation") applies to the *methodology itself*: added rigor and new docs must not bloat the system into unusable bureaucracy. Every protocol should stay a disciplined way to ask a living world's questions. Comprehensiveness (§3.5) means *covering what matters well*, not maximal formalism.
-- **Internal consistency is mandatory.** Cross-references (docs cite each other by number/filename; templates and checklists reference protocols) must all resolve in the new set. Controlled vocabularies must be used consistently across every doc that references them.
-- **Retention is auditable** (§3.4): the changelog must let a reader confirm nothing valid was lost.
+Honor these, all derived from the package's own stated commitments:
+
+- **Authority flows downward (§1).** Doctrine (`01`–`04`) governs protocols (`05`–`15`), which govern extraction/quality/reference (`16`–`23`), which govern the `checklists/` and `templates/`. A genuine improvement to a lower tier that contradicts a higher tier requires amending the higher tier explicitly (and recording it in the overhaul notes) — never a silent divergence. No craft instrument may state a rule its parent doc contradicts.
+- **Consequence-first is the constitution.** Every change must satisfy the core doctrine of `01_core_theory.md`: facts are interventions; no free capabilities; consequences must leave residue; coherence is not maximal explanation; mystery, contradiction, false belief, and suppression are *governed*, not ignored. Do not weaken any of the 12 operating laws; sharpen them if you touch them.
+- **Medium-agnostic craft (hard scope guard, from §3.4).** No storage/software/database/API/web-app/LLM assumptions. Templates and checklists stay human thinking instruments. Preserve the existing plain-language framing (e.g. "record label"/"name"/"reference" rather than "ID") that iteration two adopted precisely to avoid software-primary-key implications.
+- **Preservation over cleverness (from §3.3).** When consolidating, the retention audit must show that every merged/removed idea landed somewhere or was deliberately and defensibly cut. A leaner set that quietly loses a valid distinction is a downgrade and is unacceptable.
+- **Cite what shapes a decision (from §5).** Any external source that changes a design choice is cited in the bibliography in the package's existing style.
+
+There is no separate engineering/test-coverage regime to honor — this is a documentation package, and its "tests" are the QA rubric in `18_quality_assurance_tests.md` and the `checklists/`, which are themselves in scope.
+
+---
 
 ## 7. Deliverable specification
 
-Produce, as **downloadable files**, a **complete replacement set** for the `docs/worldbuilding-system/` package — i.e. the full overhauled system, ready to drop in wholesale. This is a **full replacement set**, not a recommendation report: author finished documents, not "suggested edits."
+Produce, **as downloadable markdown documents**, a **complete replacement set** for `docs/worldbuilding-system/**`. Because §3.2 fixes the deliverable as a *full regenerated set*, emit **every file the finished package contains** — those you changed and those you left unchanged — so the bundle can replace the directory wholesale. Concretely:
 
-The set must include:
+- **Every numbered doctrine/protocol/reference document** in your final spine (whatever numbering you converge on), each as its own markdown file.
+- **`README.md`** for the package — regenerated to match the final structure, recommended-use flows, and package map.
+- **`manifest.json`** — regenerated: `version` → `0.3`, `updated` set to the current date, `files` listing the exact final set (keep the schema shape of the current manifest).
+- **`00_overhaul_notes.md`** (or your renamed equivalent, kept as file `00`) — the iteration-three changelog. It **must** contain: provenance against baseline `37eed34`; a structural summary of what changed since iteration two; a complete **old→new mapping** table (every current file → its fate: kept / merged-into / split-into / renamed / removed); a **retention audit** proving no valid content was lost (§3.3); a drift-reconciliation section for every inconsistency you resolved (decision/repair operations, constraint tags, vocabulary); and a research-driven-rationale section.
+- **All `checklists/**`** and **all `templates/**`** in your final set — each wired into (and referenced by) the doc it serves.
 
-1. **The full document spine** — every numbered/topic document of the overhauled system, as downloadable Markdown, corrected + expanded + restructured per §3. You choose the final file names, numbering, and partition (§3.2); keep names descriptive and the numbering (if retained) contiguous.
-2. **New subsystem documents** for the gaps you decide to fill (§3.3), as downloadable Markdown.
-3. **The `templates/` set and `checklists/` set** — preserved and extended (add templates/checklists for any new subsystem docs, e.g. a character/agent card, a timeline/era entry, a branch-tracking or collaboration-decision record, if you author those subsystems).
-4. **A regenerated `README.md`** (package overview, package map, recommended-use flow) reflecting the new structure, and a **regenerated `manifest.json`** listing every file in the new set with updated `version` and a `created`/`updated` date. (Bump `version` from `0.1`; keep the field set compatible with the existing manifest shape. Note: the manifest is JSON, everything else Markdown — this JSON file is a permitted, expected exception to "Markdown," not a violation of §3.1, since it is package metadata, not a software data model.)
-5. **A changelog / old→new mapping document** (`CHANGELOG.md` or `00_overhaul_notes.md` — you choose) that makes the **retention guarantee auditable**: for each original file, where its content went in the new set; every merge, split, rename, addition, and (justified) deletion; and a short rationale for each significant structural or substantive change, with citations for research-driven changes. This is the artifact that proves §3.4 was honored.
+Numbering, filenames, and the count of files may differ from the current set at your discretion (§3.1), but the old→new mapping must make every such change traceable, and every internal cross-reference (README flows, templates index, glossary, inter-doc references, checklist/template invocations) must resolve within the delivered set.
 
-Deliver the files so they can be downloaded and committed directly into `docs/worldbuilding-system/`.
+**If, in your judgment, a current file should cease to exist** (merged or cut), do not emit it — but record its disposition in the overhaul notes. Every file you *do* emit must be complete and final, not a diff or a placeholder.
 
-**Locked / no-questions instruction:** Produce the deliverables directly as downloadable documents. Do not interview, do not ask clarifying questions — the requirements above are final. If a genuine contradiction makes a requirement impossible, state it inside the changelog and proceed with the most faithful interpretation.
+> Produce the deliverables directly as downloadable markdown documents. Do not interview, do not ask clarifying questions — the requirements above are final. If a genuine contradiction makes a requirement impossible, state it in the deliverable and proceed with the most faithful interpretation.
+
+---
 
 ## 8. Self-check (run against your own output before returning)
 
-- [ ] Every file listed in §2 was read in full from commit `1bf6689`, and every piece of valid original content is preserved, relocated, or merged into the new set — with the changelog documenting where each went (§3.4).
-- [ ] No introduced content assumes or specifies a software implementation: no schemas, tables, JSON/YAML data models, state machines, IDs/enums-for-code, or APIs. The package still reads as a storage- and software-agnostic worldbuilding methodology (§3.1). (The regenerated `manifest.json` is package metadata, not a data model — permitted.)
-- [ ] The overhaul honors `01_core_theory.md`'s doctrine; any doctrine change is explicit and propagated downward, not silent (§6).
-- [ ] The §3.6 drift items are reconciled (canon-status vs. repair vocab; "shock cone"; truth-layer ordering; "accepted as X" proliferation) without erasing any meaningful distinction.
-- [ ] New subsystem docs (§3.3) each earn their place and serve the core doctrine; the system did not bloat into unusable bureaucracy (§6, Law 10).
-- [ ] Every cross-reference between docs, templates, and checklists resolves in the new set; controlled vocabularies are used consistently across all docs.
-- [ ] Every external claim that shaped content is cited; the bibliography is expanded and its citations completed.
-- [ ] `README.md` and `manifest.json` are regenerated to match the new file set exactly; the changelog/mapping document is present and complete.
-- [ ] The deliverable set matches this §7 exactly and is downloadable.
+- **Baseline integrity.** Every file named in §2 was read from commit `37eed34`; the regenerated overhaul notes cite `37eed34`, not `1bf6689`.
+- **No downgrade.** Every valid idea in the current package survives in the new set (relocated/tightened is fine); the retention audit accounts for every removal or merge. Scope and coverage do not regress relative to iteration two.
+- **Completeness of the bundle.** The deliverable is a full replacement set — every file the final package needs is emitted, including a regenerated `manifest.json` (`version` `0.3`) and `00`-numbered overhaul notes.
+- **Reference integrity.** No dangling cross-references; the seven previously-orphaned checklists (and any others) are wired into or explicitly retired by their parent docs; README flows, templates index, and glossary all resolve within the delivered set.
+- **Consistency resolved.** Decision-vs-repair operations reconciled with an authoritative glossary; constraint-tags-vs-statuses stated once; "black market" vocabulary standardized; named glossary gaps filled.
+- **Doctrine preserved and un-weakened.** The 12 operating laws and consequence-first constitution are intact or sharpened; no lower-tier instrument contradicts higher-tier doctrine.
+- **Agnosticism held.** No storage/software/database/API/web-app/LLM assumptions anywhere; templates/checklists remain human craft instruments.
+- **Citations.** Every external claim that shaped a decision is cited in the package's existing bibliography style.
+- **Deliverable matches §7 exactly.**

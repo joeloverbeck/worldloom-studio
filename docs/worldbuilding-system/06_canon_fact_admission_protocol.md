@@ -4,6 +4,14 @@ Use this every time you add, revise, import, or promote a canon fact.
 
 The protocol may look heavy. It is not meant to generate pages for trivial facts. Its purpose is to prevent powerful facts from entering the world without consequences.
 
+## Admission instruments
+
+Use `templates/canon_change_proposal.md` when a change needs alternatives, review, or a recorded admission decision. Use `checklists/canon_fact_gate.md` before treating any proposal as active canon. Use `templates/canon_fact_card.md` to preserve an accepted or constrained fact and its consequences.
+
+Use `templates/capability_card.md` whenever the fact grants a repeatable action permission: magic, technology, office, biology, legal authority, transport, communication, healing, resurrection, surveillance, fabrication, or any similar ability. Repeatable permission is the highest-risk category because hostile actors and ordinary people will optimize it.
+
+Use `templates/constraint_card.md` when the fact survives only because a limit, cost, bottleneck, taboo, or access rule keeps it from changing everything.
+
 ## Step 1: State the fact precisely
 
 Write the smallest possible version.
@@ -75,6 +83,8 @@ Then assign a status:
 - rejected.
 
 Use constraint tags for local, rare, recent, secret, misunderstood, dangerous, expensive, seasonal, monopolized, and similar limits. Do not turn every limit into a status.
+
+Status and tags are separate. A fact can be `accepted with constraints` and carry `rare`, `costly`, and `seasonal` tags. A fact can be `localized` and carry `geography-bound` or `jurisdictional` tags. The status records governance standing; the tags record the causal limits that make the standing believable.
 
 ## Step 4: Identify dependencies
 
@@ -341,7 +351,9 @@ Check for:
 
 ## Step 19: Repair or decide
 
-Decision options:
+First decide which context applies.
+
+Use **admission decision operations** when judging the proposed fact itself:
 
 - accept;
 - constrain;
@@ -356,7 +368,9 @@ Decision options:
 - deprecate;
 - reject.
 
-Repairs must be propagated. A constraint that fixes one contradiction may create new institutions, prices, loopholes, and enemies.
+Use **repair operations** from `13_contradiction_retcon_and_mystery.md` only when the admission sweep has exposed an incompatibility that must be treated: clarify scope, add constraint, price, localize, historicize, institutionalize, diffuse unevenly, reinterpret, split, retcon, quarantine, or reject.
+
+Repairs must be propagated. A constraint that fixes one contradiction may create new institutions, prices, loopholes, enemies, residues, and new admission decisions.
 
 ## Step 20: Build the change package
 

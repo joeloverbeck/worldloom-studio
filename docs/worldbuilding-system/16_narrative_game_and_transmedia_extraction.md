@@ -249,6 +249,12 @@ Common invariants:
 
 Variable elements may include timeline compression, character composites, localized geography, simplified institutions, alternate branch outcomes, or different truth-layer revelation.
 
+## Extraction instruments
+
+Use `templates/propagation_report.md` when story or play pressure comes from the shock cone of a major fact. Use `templates/agent_character_card.md` for characters whose wants, fears, identity, or ignorance are created by that pressure. Use `templates/action_arena_card.md` when the pressure repeats as a scene type: a trial, market, border crossing, guild test, ritual, negotiation, raid, audit, confession, or other recurring arena.
+
+Use `templates/canon_branch_diff.md` when a medium, campaign, adaptation, or alternate outcome changes continuity rather than merely changing expression. Use `templates/aesthetic_coherence_card.md` when a medium-specific version must preserve the world’s symbolic and sensory identity.
+
 ## Extraction worksheet
 
 For any canon fact, write:

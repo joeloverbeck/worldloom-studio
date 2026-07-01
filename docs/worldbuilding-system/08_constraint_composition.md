@@ -230,6 +230,8 @@ The repair does not merely block consequences. It redirects them into institutio
 
 ## Constraint checklist
 
+Run `checklists/constraint_composition_sweep.md` whenever two or more limits govern the same fact, or whenever a proposed constraint is doing heavy plot-protection work. Use `templates/constraint_card.md` when a limit becomes load-bearing enough to need its own record.
+
 For any major constraint:
 
 - [ ] It states what is limited.

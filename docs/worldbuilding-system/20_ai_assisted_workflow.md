@@ -124,6 +124,10 @@ AI often fails by:
 - proposing maximal explanation rather than coherence;
 - using “ancient,” “rare,” “secret,” or “taboo” without mechanisms.
 
+## Vocabulary guardrail for AI assistance
+
+When asking an AI system for canon help, require it to label whether it is proposing a truth layer, canon status, constraint tag, admission decision operation, or repair operation. Reject outputs that blur those categories. AI may suggest repairs; it may not quietly change canon standing.
+
 ## AI output labels
 
 Label AI suggestions as one of:

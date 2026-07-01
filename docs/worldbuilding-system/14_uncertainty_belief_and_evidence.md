@@ -6,6 +6,14 @@ This protocol adds qualitative uncertainty without turning the package into stat
 
 ## What uncertainty is for
 
+## Boundary with mystery governance
+
+Use this document when the question is evidential: who claims what, why they believe it, what sources exist, what confidence band fits, what institutions require as proof, and how belief survives.
+
+Use `13_contradiction_retcon_and_mystery.md` when the question is protective: what unknown must remain unresolved, what consequences are fixed, what reveal is forbidden, what retcon cost applies, or whether a contradiction is being mislabeled as mystery.
+
+A protected unknown can have evidence. Evidence does not automatically destroy mystery; it only changes what can be known, believed, disputed, suppressed, or misread.
+
 Use uncertainty to:
 
 - keep mysteries alive without making everything vague;
@@ -206,6 +214,10 @@ Uncertainty should leave visible residue:
 - folk warnings;
 - joke cycles;
 - forged relic markets.
+
+## Evidence sweep instruments
+
+Run `checklists/uncertainty_evidence_sweep.md` for disputed claims, rumors, prophecy, legal testimony, historical uncertainty, public belief, propaganda, lies, honest errors, and evidence conflicts. Use `templates/uncertainty_evidence_card.md` when the claim has enough social life that sources, confidence, proof standards, and belief communities matter.
 
 ## Do not overuse uncertainty
 

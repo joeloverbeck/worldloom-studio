@@ -20,7 +20,7 @@ Which operating laws or package protocols mattered?
 
 ## Options considered
 
-Accept, constrain, localize, historicize, reinterpret, institutionalize, price, branch, quarantine, reject, other.
+Accept, constrain, localize, historicize, reinterpret, institutionalize, price, branch, quarantine, supersede, deprecate, reject, other.
 
 ## Consequences of each option
 
@@ -30,7 +30,13 @@ What prior material survives and where?
 
 ## Decision
 
-## Conditions or constraints
+## Canon status / branch effect
+
+## Constraint tags or conditions
+
+## Repair operation, if any
+
+Only if a contradiction, instability, or mystery-risk required repair.
 
 ## Branch implications
 

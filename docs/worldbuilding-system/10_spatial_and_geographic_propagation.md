@@ -264,6 +264,8 @@ Do not draw map detail that implies logistics you are unwilling to honor.
 
 ## Spatial audit
 
+Run `checklists/spatial_geographic_sweep.md` for any fact whose operation, knowledge, legality, access, residue, diffusion, or absence varies by place. Use `templates/spatial_region_card.md` when a region, route, borderland, or diffusion zone becomes load-bearing.
+
 For every major fact:
 
 - [ ] Spatial scope is defined.
