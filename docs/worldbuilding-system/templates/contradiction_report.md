@@ -52,7 +52,7 @@ What else changes because of the repair?
 
 ## Notes
 
-## Version 0.6 traceability note
+## Traceability note
 
 Parent protocol: `13_contradiction_retcon_and_mystery.md`.
 

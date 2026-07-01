@@ -38,13 +38,13 @@ Serves `06_canon_fact_admission_protocol.md`. Use before treating any proposed f
 - [ ] Quarantined or rejected alternatives preserved where useful as branch, rumor, lie, or deprecated note.
 
 
-## Version 0.6 point-of-use non-naturalistic gate
+## Point-of-use non-naturalistic gate
 
 - [ ] For non-naturalistic facts, the gate identifies the consequence route: recurrence, motif, taboo, ritual condition, associative dream return, comic reversal, dread, or symbolic residue.
 - [ ] The fact is not accepted merely because it is beautiful, strange, sacred, or funny.
 - [ ] **Micro-example:** “The third knock opens any tomb” passes only if thirdness, tomb scope, false knocks, profanation cost, and witness consequences are recorded.
 
-## Version 0.6 completion rule
+## Completion rule
 
 Parent protocol: `06_canon_fact_admission_protocol.md`.
 

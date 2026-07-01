@@ -43,7 +43,7 @@ Serves `12_institutional_economic_and_suppression_protocol.md`. Use when a fact 
 - [ ] At least one daily-life residue recorded.
 - [ ] At least one power conflict recorded.
 
-## Version 0.6 completion rule
+## Completion rule
 
 Parent protocol: `12_institutional_economic_and_suppression_protocol.md`.
 

@@ -221,10 +221,6 @@ These modes are not excuses to skip cause. They are different forms of cause. Vl
 
 A non-naturalistic world may refuse institutional plausibility only by replacing it with a stricter mode of recurrence. If promises turn into birds, the world need not develop a ministry of avian contracts unless its mode wants one. But the birds must recur according to recognizable pressure: vows, shame, marriage rites, childhood games, songs, omens, comic reversals, sacred prohibitions, and fear of dawn. The fact must still leave residue.
 
-### Institutional rigor is not downgraded
-
-For worlds that present themselves as politically, economically, technologically, or socially naturalistic, the older tests remain hard gates. A repeatable capability with no access limit, cost, countermeasure, institution/economy response, actor adaptation, temporal residue, and distribution pattern still fails. Mode-awareness protects myth, dream, comedy, sacred contradiction, and symbolic excess from flattening; it does not protect lazy realism from consequence.
-
 [^i5-propp]: Vladimir Propp, *Morphology of the Folktale*, first Russian edition 1928; English translation, University of Texas Press, 1968. See also structural summaries emphasizing recurrent functions and positions.
 [^i5-burke]: Edmund Burke, *A Philosophical Enquiry into the Origin of Our Ideas of the Sublime and Beautiful*, 1757.
 [^i5-kant]: Immanuel Kant, *Critique of Judgment*, 1790; see contemporary summaries of aesthetic judgment and the sublime.
@@ -232,11 +228,11 @@ For worlds that present themselves as politically, economically, technologically
 [^i5-bennett]: Jane Bennett, *The Enchantment of Modern Life*, Princeton University Press, 2001.
 
 
-## Version 0.6 reinforcement: equal-weight non-naturalistic pressure
+## Equal-weight non-naturalistic pressure
 
-The system now treats non-naturalistic consequence as a first-class stress test, not as a decorative exception. A realist or strategic fact still owes institutional, economic, access, suppression, and ordinary-life consequences. A mythic, fairy-tale, absurd-comic, dream-logic, sacred, horror, or lyrical fact owes consequences just as strictly, but the consequence may travel through recurrence, motif, taboo, transformation, ritual condition, tonal inevitability, dread, comic reversal, or symbolic residue rather than through law courts, markets, or bureaucracies.
+The system treats non-naturalistic consequence as a first-class stress test, not as a decorative exception. A realist or strategic fact still owes institutional, economic, access, suppression, and ordinary-life consequences. A mythic, fairy-tale, absurd-comic, dream-logic, sacred, horror, or lyrical fact owes consequences just as strictly, but the consequence may travel through recurrence, motif, taboo, transformation, ritual condition, tonal inevitability, dread, comic reversal, or symbolic residue rather than through law courts, markets, or bureaucracies.
 
-The practical lesson from folktale morphology is not that every tale must share the same functions; it is that a non-naturalistic world can be coherent because functions, prohibitions, helpers, tests, recognitions, transformations, and returns recur in patterned relation.[^v06-propp-01] Version 0.6 extends that lesson beyond fairy tale: mythic worlds test origin, rite, and taboo; absurd-comic worlds test reversal, rhythm, and trapped routine; dream worlds test condensation, displacement, associative return, and image logic; sacred/horror worlds test ritual cost, boundary violation, dread, and profanation residue.
+The practical lesson from folktale morphology is not that every tale must share the same functions; it is that a non-naturalistic world can be coherent because functions, prohibitions, helpers, tests, recognitions, transformations, and returns recur in patterned relation.[^v06-propp-01] The same lesson extends beyond fairy tale: mythic worlds test origin, rite, and taboo; absurd-comic worlds test reversal, rhythm, and trapped routine; dream worlds test condensation, displacement, associative return, and image logic; sacred/horror worlds test ritual cost, boundary violation, dread, and profanation residue.
 
 ### Equal-weight mode smell bank
 
@@ -264,9 +260,11 @@ These are as serious as “no black market,” “no enemy use,” or “no inst
 - Symbolic excess is used to protect an image from critique instead of letting the image generate residue.
 - A non-naturalistic mode is declared only after a failed realist audit, rather than governing admission from the start.
 
-### No downgrade to institutional rigor
+### Institutional rigor is not downgraded
 
-Equal-weight non-naturalistic testing does not soften the institutional hard edge. If a fact creates repeatable capability, scarcity, access advantage, enforceable power, extractable value, or suppressible knowledge, the institutional/economic/suppression protocols still apply. “Dreamlike,” “mythic,” “sacred,” “comic,” or “lyrical” changes the route of consequence; it never cancels consequence.
+For worlds that present themselves as politically, economically, technologically, or socially naturalistic, the older tests remain hard gates. A repeatable capability with no access limit, cost, countermeasure, institution/economy response, actor adaptation, temporal residue, and distribution pattern still fails. Mode-awareness protects myth, dream, comedy, sacred contradiction, and symbolic excess from flattening; it does not protect lazy realism from consequence.
+
+Equal-weight non-naturalistic testing does not soften the institutional hard edge either. If a fact creates repeatable capability, scarcity, access advantage, enforceable power, extractable value, or suppressible knowledge, the institutional/economic/suppression protocols still apply. “Dreamlike,” “mythic,” “sacred,” “comic,” or “lyrical” changes the route of consequence; it never cancels consequence.
 
 [^v06-propp-01]: Vladimir Propp, *Morphology of the Folktale: Second Edition*, University of Texas Press, 1968, publisher record: https://www.degruyterbrill.com/document/doi/10.7560/783911/html.
 
@@ -288,9 +286,9 @@ It does not require an LLM.
 
 It requires consequences.
 
-## Version 0.6 reinforcement: consequence without over-simulation
+## Consequence without over-simulation
 
-The system now treats consequence as a **bounded craft obligation**, not as a demand to simulate an entire universe. Systems thinking is useful because it asks about feedback, delays, stocks, flows, and leverage; it is dangerous when it tempts the steward to solve every variable before making art. Meadows's leverage-point framing supports the useful half of this habit: look for the few places where a fact changes incentives, information, rules, goals, or paradigms, rather than multiplying trivia.[^i4-meadows]
+The system treats consequence as a **bounded craft obligation**, not as a demand to simulate an entire universe. Systems thinking is useful because it asks about feedback, delays, stocks, flows, and leverage; it is dangerous when it tempts the steward to solve every variable before making art. Meadows's leverage-point framing supports the useful half of this habit: look for the few places where a fact changes incentives, information, rules, goals, or paradigms, rather than multiplying trivia.[^i4-meadows]
 
 Use this rule:
 

@@ -56,7 +56,7 @@ What everyday residue should prove this world has existed before the story begin
 
 Run `checklists/frontloaded_seed_audit.md` before treating this kernel as stable.
 
-## Version 0.6 traceability note
+## Traceability note
 
 Parent protocol: `05_creation_protocol.md`.
 
@@ -70,7 +70,7 @@ This card is a human reasoning instrument, not a database schema or implementati
 - Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.
 
 
-## Version 0.6 non-naturalistic kernel prompt
+## Non-naturalistic kernel prompt
 
 If the world kernel declares mythic, fairy-tale, absurd-comic, dream-logic, sacred/horror, or lyrical consequence, state one first pressure line now.
 

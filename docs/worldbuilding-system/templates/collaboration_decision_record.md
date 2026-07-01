@@ -46,7 +46,7 @@ Only if a contradiction, instability, or mystery-risk required repair.
 
 Templates, examples, contradictions, mysteries, QA checks.
 
-## Version 0.6 traceability note
+## Traceability note
 
 Parent protocol: `15` and `03`.
 

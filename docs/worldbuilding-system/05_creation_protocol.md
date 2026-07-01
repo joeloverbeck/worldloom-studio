@@ -23,7 +23,7 @@ Define:
 1. **Essence** — the world’s generating tension.
 2. **Aesthetic promise** — what the world should feel like.
 3. **Starting scale** — village, city, region, nation, planet, interstellar, cosmological, dreamlike, or other.
-4. **Reality mode** — realist, mythic, weird, hard speculative, horror, satirical, mixed, or other.
+4. **Reality and consequence mode** — realist, mythic, weird, hard speculative, horror, satirical, mixed, or other, plus the primary consequence mode from `01_core_theory.md` that will govern which smell tests carry most weight.
 5. **Primary pressures** — three to seven forces that drive adaptation.
 6. **Forbidden easy answers** — powers, shortcuts, or explanations that would collapse the desired world.
 7. **Mystery posture** — what should remain unknown, disputed, sacred, or terrifying.
@@ -31,6 +31,12 @@ Define:
 9. **Ordinary-life anchor** — one ordinary person touched by the world’s core pressures.
 
 Use `templates/world_kernel.md`.
+
+### Mode declaration discipline
+
+Do not let the first beautiful seed silently choose the world’s coherence rules. Name the mode early. If the world is realist, institutional and economic propagation are hard tests. If the world is mythic or dreamlike, recurrence, ritual logic, symbolic transformation, tonal inevitability, sacred opacity, and dread become equally hard tests. A hybrid must say where each mode applies.
+
+A mode declaration may be revised, but revision is a canon-level change to the creation brief because it changes what counts as a satisfying consequence.
 
 ## Phase 2: Seed decomposition
 
@@ -177,12 +183,6 @@ Use severity levels from `06_canon_fact_admission_protocol.md`:
 
 A mature world is not one that stops changing. It is one that knows how to change without becoming arbitrary.
 
-### Mode declaration discipline
-
-During creation, do not let the first beautiful seed silently choose the world’s coherence rules. Name the mode early. If the world is realist, institutional and economic propagation are hard tests. If the world is mythic or dreamlike, recurrence, ritual logic, symbolic transformation, tonal inevitability, sacred opacity, and dread become equally hard tests. A hybrid must say where each mode applies.
-
-A mode declaration may be revised, but revision is a canon-level change to the creation brief because it changes what counts as a satisfying consequence.
-
 ## Creation anti-patterns
 
 ### Map-first sprawl
@@ -222,13 +222,13 @@ Trying to answer every domain before the world has pressure will bury the useful
 Start small. Propagate what matters. Expand when forced.
 
 
-## Version 0.6 micro-examples: thin starts in non-naturalistic modes
+## Micro-examples: thin starts in non-naturalistic modes
 
 - **Mythic kernel:** “The first fire was stolen from a sleeping whale.” Do not begin with a pantheon encyclopedia. Decompose the seed into taboo (never light lamps with whale oil), recurrence (winter fire rites imitate theft), residue (coastal children are born with ash-gray palms), and first pressure line (what happens when a city breaks the taboo during a famine?).
 - **Dream-logic kernel:** “Every locked door opens into the room where the opener last lied.” The first audit is not institutional realism; it is associative recurrence. Which lie condenses into which room? What object returns each time the same shame returns?
 - **Comic kernel:** “All official titles migrate to whoever sneezed most recently.” The thin start is not a full civil service; it is the repeatable reversal, the trapped routine, and the way status becomes impossible to stabilize.
 
-## Version 0.6 reinforcement: the thin-start rule
+## The thin-start rule
 
 Start thinner than feels comfortable. A strong kernel does not name every continent, dynasty, god, currency, weapon, and cuisine. It names the smallest set of facts that force the world to become itself.
 

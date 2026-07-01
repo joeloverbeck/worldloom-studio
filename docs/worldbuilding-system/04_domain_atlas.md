@@ -450,7 +450,7 @@ For high-impact facts, sweep in this order:
 
 This order catches the most dangerous failures early without forcing equal attention on every domain.
 
-## Version 0.6 reinforcement: domain triage
+## Domain triage
 
 The atlas is not a requirement to write fourteen essays for every fact. It is a pressure detector. Use three passes:
 

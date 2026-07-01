@@ -27,7 +27,7 @@ Serves `15_branching_versioning_and_collaboration.md`. Use when continuity diver
 - [ ] Dissent or open questions recorded.
 - [ ] Follow-up propagation, branch diff, contradiction report, or QA check assigned.
 
-## Version 0.6 completion rule
+## Completion rule
 
 Parent protocol: `15_branching_versioning_and_collaboration.md`.
 

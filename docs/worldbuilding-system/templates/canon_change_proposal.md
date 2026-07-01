@@ -50,7 +50,7 @@ Accept / constrain / localize / historicize / reinterpret / institutionalize / p
 
 Templates, checklists, examples, contradiction reports, mystery ledger entries, branch diffs, collaboration decision records.
 
-## Version 0.6 traceability note
+## Traceability note
 
 Parent protocol: `06_canon_fact_admission_protocol.md`.
 
@@ -64,7 +64,7 @@ This card is a human reasoning instrument, not a database schema or implementati
 - Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.
 
 
-## Version 0.6 mode-impact prompt
+## Mode-impact prompt
 
 - **Does the change rely on mythic, fairy-tale, absurd-comic, dream-logic, sacred/horror, or lyrical consequence?**
 - **Point-of-use micro-example of the consequence route:**

@@ -33,13 +33,13 @@ Serves `08_constraint_composition.md`. Use when multiple limits govern the same 
 - [ ] The constrained fact still remains worth keeping.
 
 
-## Version 0.6 point-of-use non-naturalistic constraints
+## Point-of-use non-naturalistic constraints
 
 - [ ] Aesthetic or sacred constraints are written as constraints, not vibes.
 - [ ] The sweep names what the constraint blocks, permits, costs, and leaves as residue.
 - [ ] **Micro-example:** “The river answers only barefoot questions” is checked for access, season, counterfeit rituals, injury, hierarchy, and refusal cases.
 
-## Version 0.6 completion rule
+## Completion rule
 
 Parent protocol: `08_constraint_composition.md`.
 

@@ -112,7 +112,7 @@ Use:
 
 Do not turn the system into paperwork. Fill only the fields that prevent world damage, preserve a decision, or reveal a consequence worth keeping.
 
-## Version 0.6 reinforcement: instrument traceability matrix
+## Instrument traceability matrix
 
 | Instrument | Parent protocol | Use when |
 |---|---|---|

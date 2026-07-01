@@ -44,13 +44,13 @@ Serves `07_propagation_engine.md`. Use after a fact passes the gate or whenever 
 - [ ] Follow-up protocols or templates assigned.
 
 
-## Version 0.6 point-of-use non-naturalistic propagation
+## Point-of-use non-naturalistic propagation
 
 - [ ] The sweep includes a mode-equivalent shock cone, not only institutional spread.
 - [ ] Recurring images, rituals, taboos, comic reversals, sacred boundaries, and dread residues are followed across domains.
 - [ ] **Micro-example:** If dreams arrive before trains, propagation follows ticket practice, interpreter status, platform geography, sleep avoidance, and recurring dream-objects.
 
-## Version 0.6 completion rule
+## Completion rule
 
 Parent protocol: `07_propagation_engine.md`.
 

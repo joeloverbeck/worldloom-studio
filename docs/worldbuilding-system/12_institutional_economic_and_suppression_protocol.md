@@ -384,13 +384,13 @@ Example:
 If you cannot write this sentence for a major fact, the fact is under-institutionalized.
 
 
-## Version 0.6 micro-example: preserving the hard edge while shifting mode
+## Micro-example: preserving the hard edge while shifting mode
 
 A mythic city where names can be stolen in dreams still has action arenas when the stolen name grants inheritance, marriage rights, office, or sanctuary. Dream logic explains the channel of theft; institutional analysis still tracks claims, enforcement, counterfeit names, black markets, suppression, and household impact. Non-naturalistic mode changes the mechanism, not the obligation to follow power and value where they exist.
 
-## Version 0.6 reinforcement: arena-to-economy loop
+## Arena-to-economy loop
 
-Iteration 4 makes explicit that institutional and economic analysis are one loop, not two separate passes. Institutions structure transaction costs; transaction costs reshape institutions.[^i4-north][^i4-williamson]
+Institutional and economic analysis are one loop, not two separate passes. Institutions structure transaction costs; transaction costs reshape institutions.[^i4-north][^i4-williamson]
 
 Use this loop:
 

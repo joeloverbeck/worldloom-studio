@@ -372,13 +372,13 @@ A good propagation report does not list everything.
 It records the consequential paths that must be remembered so future additions do not cheat.
 
 
-## Version 0.6 micro-examples: shock cones without realist institutions
+## Micro-examples: shock cones without realist institutions
 
 - **Mythic shock cone:** If a moon eats one oath each month, first-order effects are broken vows; second-order effects are ritual timing and oath-hoarding; fourth-order fossils are calendars, lullabies, and legal metaphors that call promises “moon-fruit.”
 - **Dream shock cone:** If mirrors show the room the viewer is avoiding, propagation follows association: bedrooms, trial rooms, confession rooms, and empty kitchens become linked by avoided truth rather than by geography alone.
 - **Comic shock cone:** If every queue rearranges by embarrassment, the consequence is not efficient administration. It is repeated public reversal, new etiquette, black-market shame coaches, and escalating attempts to appear shameless.
 
-## Version 0.6 reinforcement: propagation triage and stop rules
+## Propagation triage and stop rules
 
 Propagation should be deep where pressure is high and ruthless where pressure is low. Use this triage:
 

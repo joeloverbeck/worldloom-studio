@@ -1,0 +1,52 @@
+# Eighth-Iteration Outlook — Causal Canon Worldbuilding System
+
+*Written 2026-07-02 by the session that performed the seventh iteration (Claude Code, Fable model, working from HEAD `2b3e38a`, leaving the version-0.7 working tree uncommitted). Because the author is also the executor, this outlook is written adversarially against its own pass: the question is not "was effort spent" but "what would a hostile reviewer find, and what is actually left to do."*
+
+## 1. Warnings and weaknesses of the seventh iteration
+
+### 1.1 The de-stratification is shallow in the tail
+
+Iteration 7's central move was converting version-tagged strata ("Version 0.6 reinforcement: …") into content-titled sections and merging the clearest duplicates (`01`'s double institutional-rigor guard, `08`'s double constraint-residues, `18`'s double mode-scoring note, `19`'s double introduction). But for roughly 35 of the 56 files the pass was heading-renames only. The sediment's *titles* are gone; its *shape* partially remains: most protocols still end with a "reinforcement tail" (triage tables, extra rules, micro-examples) that a from-scratch author would have woven into the main body — e.g. `07`'s propagation triage could sit beside the stopping rules it refines, and `01`'s two mode tables (coherence-proof/failure-smell vs. asks/failure/strong-answer) still cover overlapping ground from different angles. I chose retitle-over-integrate deliberately, because deep weaving risks violating the no-downgrade constraint for marginal gain — but a reviewer should know the package now *reads* unified more than it *is* unified. I judge the remaining overlap benign (the tables genuinely serve different moments of use), but I did not prove that; I asserted it.
+
+### 1.2 The fixes I am least confident in
+
+- **`03`'s mystery-governance operation row.** I amended the governance spine to name `13`'s preservation operations (reveal, delay, forbid, consecrate, dread-preserve, excess-preserve, translate) in place of the older ad hoc list ("preserve, prohibit use"). This is argued in `00_overhaul_notes.md` as an upward harmonization, and I believe it is correct — but it is a *higher-tier edit made to match a lower tier*, which is exactly the direction the package's own authority doctrine says to treat with suspicion. If the original `03` list was intended as a deliberately looser, admission-side vocabulary, my change erased that intent. A reviewer should read the row and decide.
+- **The severity-scale mapping in `06`.** The package carried two severity vocabularies (admission Levels 0–5; the minor→catastrophic work scale). I mapped them explicitly rather than unifying them, and the Level 5 ↔ "foundational-to-catastrophic" cell is a judgment call, since Level 5 (retcon/branch/repair) classifies a *kind* of change, not a *magnitude*. The mapping removes the silent drift but leaves two scales in one document. Unification would be cleaner and I did not attempt it because it ripples through `07`, `09`, and two templates.
+- **Breadth of mechanical edits.** All 56 files were touched, mostly by scripted heading renames. I verified by pattern-searching that no stale version markers remain and that the glossary lost no entries, but wide mechanical edits carry wide mechanical risk. The user should skim `git diff --stat` and spot-check a few retitle-only files before committing.
+
+### 1.3 The unfixed and the untested
+
+- **The system has never been validated by use.** Seven iterations have edited documents; none has *run* the methodology — nobody has built a world end-to-end with only this package and logged where it helps, where it drags, and which instruments go unused. Every QA claim in `18` about what "strong" looks like is untested against a real steward's practice. This is now the dominant risk: document-editing has hit diminishing returns while use-quality remains unmeasured. My own diagnosis this pass found *no substantive doctrine defects*, only coherence debt — which either means the doctrine is converged, or means a document-reading pass can no longer see its faults. Only use can distinguish those.
+- **No newcomer on-ramp.** The package is 24 documents plus 30 instruments (~10,000 lines). The README's recommended-use flows are good, but there is no single-page quick-start or operating card a first-time user can hold while working. I did not add one because adding files was gated behind the high-bar restructure threshold and, more honestly, because designing a good one-pager *is* a usability question that should be answered by observing a real first use, not by more armchair authorship.
+- **No longitudinal worked example.** `19`'s eleven examples are all snapshots of a fact being admitted and propagated. None shows the governance lifecycle over time: a fact admitted with canon debt, a later contradiction, a repair, a branch, a QA regression profile, a retirement. The instruments for that lifecycle exist and are wired, but no example exercises them in sequence.
+- **Least-exercised documents.** `16` (extraction) and `20` (AI workflow) have no dedicated sweep instruments and appear in no worked example. That may be fine — both are reference-shaped — but they are the least battle-tested parts of the package.
+- **Residual vocabulary looseness.** Mode names still vary slightly by context ("Theological / sacred" in `01`'s table; "sacred / horror" combined in cards and examples). I judged this harmless natural language rather than drift and left it; a stricter pass could normalize it.
+
+### 1.4 Agnosticism risks
+
+The hosting repository is a web app, and the pressure to bend the methodology toward the product will recur with every iteration performed inside this repo. Iteration 7 held the line: the executor's identity appears only in provenance records; `20`'s doctrine (AI is never canon authority) is untouched; no storage/software/API coupling was introduced. Two standing risks: (a) `manifest.json` is inherently software-shaped — it is grandfathered as a file inventory, but future passes should resist growing it into a schema; (b) as the web app matures, a future contributor may be tempted to "align" the primitives in `02` with database entities. The package's own defense (`02`: "not database tables") is explicit; keep it.
+
+### 1.5 Usability friction observed while working
+
+Reading all 56 files as this pass's executor, the frictions a real user would hit: the authority-order rule is stated three times (README, `01` implicitly, `06`/`13` jurisdiction notes) but a user resolving a concrete conflict must still assemble the answer from `03` + `13` + `22`; the checklists' identical red-flag blocks make them feel boilerplate at the exact moment a tired user needs signal; and the glossary, though now alphabetized, is 71 entries — a "ten terms you must not confuse" preface would serve better than more entries. None of these was severe enough to justify invasive edits this pass; all are cheap to fix once field data says which ones actually bite.
+
+## 2. Convergence assessment
+
+**The system is close to converged as a document set.** The evidence: iterations 3–6 each kept all 56 files and improved in place; this pass's independent, hostile read of the whole package found no doctrinal error, no missing protocol, no unwired instrument, and no vocabulary blur — only self-inflicted coherence debt (version sediment, duplicated strata, a handful of editing scars) and small tier inconsistencies, all now repaired. When a full adversarial read of a methodology finds mostly *editorial* faults, the content curve has flattened.
+
+**What "converged / 1.0-ready" would look like:**
+
+1. **A full iteration passes with doctrine untouched.** If the next substantive pass changes only examples, phrasing, or instruments — never `01`–`04` — the constitution is stable.
+2. **At least one end-to-end field trial.** A steward (human, or a fresh session with no stake in the package) builds a small world using only the package — kernel through QA, including one contradiction repair and one protected effect — and the friction log produces only minor edits. This is the single hardest requirement and the only one that cannot be satisfied by more editing.
+3. **The severity question settled by use.** Either the two scales prove workable with the new mapping, or the field trial shows confusion and they get unified.
+4. **An on-ramp shaped by observed need.** A quick-start exists (or is proven unnecessary) based on how the field-trial steward actually entered the package.
+
+**What blocks 1.0 today:** item 2, entirely. Nothing in the documents blocks it; the absence of evidence does. The version number should stay below 1.0 not because the text is unfinished but because "1.0" would assert fitness for use that has never been demonstrated. That call is the user's (per the brief, graduation to 1.0 is explicitly reserved to them).
+
+## 3. Verdict: is an eighth iteration warranted?
+
+**As another document-editing convergence pass: no.** Six of seven iterations have now been editing passes, and this one — with full repo access and a mandate to find real weaknesses — surfaced mostly editorial debt that previous editing passes themselves created. An eighth editing pass would predictably find still less, while adding its own churn risk across 56 files. The marginal token spent on re-editing these documents is now worth less than the same token spent using them.
+
+**As a validation pass: yes — and that is the recommendation.** The highest-value eighth iteration is a **field trial, not an overhaul**: have a steward with no authorship stake build a small world end-to-end using only the package (seed kernel → decomposition → admission → propagation → one constraint composition → one contradiction repair → one protected effect under the opacity accountability test → QA regression profile), logging every point of friction, every instrument skipped, and every question the documents failed to answer. Then make *only* the changes that log demands. Secondary candidates, in priority order if the trial confirms them: a one-page operating card; a longitudinal worked example showing the governance lifecycle; unification of the two severity scales; deeper weaving of the remaining reinforcement tails.
+
+If the user instead wants the package left as-is until it is actually used in anger inside the product workflow, that is also defensible — the trial will happen implicitly. What is not warranted is an eighth pass of the same shape as the seventh.

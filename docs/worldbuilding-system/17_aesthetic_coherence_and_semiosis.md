@@ -256,7 +256,7 @@ Run `checklists/aesthetic_coherence_sweep.md` when a fact changes naming, tone, 
 If this sentence cannot be written, the fact may exist intellectually but not aesthetically.
 
 
-## Version 0.6 reinforcement: protected-effect accountability in aesthetics
+## Protected-effect accountability in aesthetics
 
 Aesthetic protection is not immunity from craft judgment. Wonder, sublimity, sacred opacity, horror/dread, uncanny recurrence, and symbolic excess can legitimately exceed paraphrase; they cannot be used to escape consequence, pattern, cost, tonal discipline, or audience-facing intelligibility.
 
@@ -274,7 +274,7 @@ Aesthetic protection is not immunity from craft judgment. Wonder, sublimity, sac
 - **Uncanny/dread:** The same nursery rhyme appears in unrelated mouths before disappearances; dread grows because recurrence threatens reality's reliability, not because the source is finally named.
 - **Absurd comedy:** A crown shaped like a receipt turns kingship into endless accounting jokes; the object works aesthetically because every ceremony is forced back into bookkeeping language.
 
-## Version 0.6 reinforcement: signs as consequences
+## Signs as consequences
 
 Aesthetic coherence is semiotic governance. Peirce’s icon/index/symbol distinction is useful craft shorthand: some details resemble, some physically or causally point, and some mean by convention.[^i4-peirce] Strong worlds use all three.
 

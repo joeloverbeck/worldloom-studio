@@ -224,13 +224,13 @@ Use `templates/canon_branch_diff.md` for branch comparison and `templates/collab
 - Forgetting that a collaborator’s table, draft, or adaptation may be valid within its own branch.
 
 
-## Version 0.6 micro-examples: branch governance for protected modes
+## Micro-examples: branch governance for protected modes
 
 - **Mystery-answer branch:** One branch may answer what lives in the well, while the main branch preserves sacred opacity; the diff records which consequences remain invariant even when explanation changes.
 - **Absurd-comic branch:** If an adaptation makes the migrating-title rule less cruel and more slapstick, the branch record notes which reversals, repetitions, and status traps remain load-bearing.
 - **Sacred/horror collaboration:** The mystery guardian protects the refused explanation; the contradiction challenger still tests cost, recurrence, and profanation residue.
 
-## Version 0.6 reinforcement: invariant anchors
+## Invariant anchors
 
 Before creating or merging a branch, name the invariants: the facts, tone, relationships, moral pressures, aesthetic signals, and mysteries that must remain recognizable for the world to still be itself.
 

@@ -1,14 +1,19 @@
 {
   "package": "docs/worldbuilding-system",
   "name": "Causal Canon Worldbuilding System",
-  "version": "0.6",
-  "iteration": 6,
-  "generated_date": "2026-07-01",
-  "source_repository": "joeloverbeck/worldloom-studio",
-  "source_commit": "8d6f0a8de1bbe2da649386283ddd7475fe01649f",
-  "freshness_claim": "user-supplied target commit only; not independently verified as latest main",
+  "version": "0.7",
+  "iteration": 7,
+  "generated_date": "2026-07-02",
+  "repository": "joeloverbeck/worldloom-studio",
+  "provenance": {
+    "executor": "Claude Code (model: Fable / claude-fable-5), local session with direct working-tree access",
+    "worked_from_commit": "2b3e38a1ff6be1c223f336bd4ecf81950066748f",
+    "baseline_divergence": "none; HEAD matched the seventh-iteration brief's pinned baseline",
+    "acquisition": "direct file reads of the working tree; no URL fetching",
+    "edits": "applied in place to the working tree; not committed by the executor"
+  },
   "file_count": 56,
-  "structural_change": "none; all version-0.5 package files kept and updated in place",
+  "structural_change": "none; all version-0.6 package files kept and updated in place; iteration history de-stratified into 00_overhaul_notes.md",
   "files": [
     "docs/worldbuilding-system/00_overhaul_notes.md",
     "docs/worldbuilding-system/01_core_theory.md",
@@ -68,10 +73,8 @@
     "docs/worldbuilding-system/templates/world_kernel.md"
   ],
   "notes": {
-    "root_readme": "README.md was read only for boundary awareness and is not part of this package.",
-    "external_research_lane": "External sources informed craft distinctions but were not used as target-repository evidence.",
-    "priority_a": "non-naturalistic worked cases, smell tests, red flags, and QA anchors rebalanced",
-    "priority_b": "earned sacred opacity versus sacred-opacity cheat guard added",
-    "priority_c": "point-of-use non-naturalistic micro-examples added across protocols and selected instruments"
+    "root_readme": "The repository root README.md was read only for boundary awareness and is not part of this package.",
+    "external_research_lane": "No new research-shaped changes in iteration 7; all prior research lanes and citations retained.",
+    "iteration_7_focus": "De-stratification of version-tagged section layers, duplicate-guidance merges, tier and vocabulary consistency repairs, editing-scar fixes, glossary unification, and honest local-session stewardship records."
   }
 }

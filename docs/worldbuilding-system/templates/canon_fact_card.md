@@ -86,7 +86,7 @@ Leave this blank unless a contradiction, instability, or mystery-risk required r
 
 Record human reasoning, not just the result.
 
-## Version 0.6 traceability note
+## Traceability note
 
 Parent protocol: `03_truth_layers_and_canon_governance.md` and `06_canon_fact_admission_protocol.md`.
 
@@ -100,7 +100,7 @@ This card is a human reasoning instrument, not a database schema or implementati
 - Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.
 
 
-## Version 0.6 non-naturalistic consequence prompt
+## Non-naturalistic consequence prompt
 
 - **Declared non-naturalistic route, if any:** recurrence / motif / taboo / ritual condition / comic reversal / dream association / dread / symbolic residue / other.
 - **Mode-equivalent consequence:**

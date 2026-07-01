@@ -243,13 +243,13 @@ For every major fact:
 - [ ] Mysteries have temporal boundaries.
 
 
-## Version 0.6 micro-examples: non-naturalistic time
+## Micro-examples: non-naturalistic time
 
 - **Mythic time:** “The first dawn is still happening under the mountain” is a temporal rule only if it has recurrence, access windows, ritual calendars, and fossils in language or law.
 - **Dream time:** A person may remember tomorrow before yesterday, but the audit asks what image triggers the inversion, what residue remains, and whether repeated inversions obey the same associative pressure.
 - **Horror/dread time:** A bell that rings three days before anyone dies creates latency, dread ecology, false positives, witness conflict, and exploitation attempts; it is not merely an omen.
 
-## Version 0.6 reinforcement: latency ladder
+## Latency ladder
 
 Use a latency ladder to keep history from feeling instantaneous:
 

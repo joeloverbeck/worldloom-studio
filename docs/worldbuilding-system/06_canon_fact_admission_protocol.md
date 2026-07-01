@@ -408,7 +408,7 @@ A change package records:
 
 ## Step 21: Run QA
 
-Use `18_quality_assurance_tests.md`, including the calibrated exemplar anchors and the mode-aware scoring note.
+Use `18_quality_assurance_tests.md`, including the calibrated exemplar anchors and the mode-aware scoring calibration.
 
 A major fact should not score 0 on any relevant test.
 
@@ -461,13 +461,13 @@ The more secret a fact is, the more secrecy mechanics it owes.
 The more beautiful a fact is, the more ruthless the system must be about its consequences.
 
 
-## Version 0.6 micro-examples: mode-equivalent admission
+## Micro-examples: mode-equivalent admission
 
 - **Fairy-tale admission:** “A third apology opens the iron gate” is not admitted because it is charming. It is admitted only after the gate rule, the number-three recurrence, false-apology constraint, helper/opponent behavior, and transformation residue are stated.
 - **Sacred/horror admission:** “No one may count the chapel's steps twice” may refuse an origin explanation, but admission still requires the cost of counting, the ritual boundary, witness consequences, and contradiction repair if a prior scene counted them safely.
 - **Absurd-comic admission:** “The town minutes correct themselves to insult the speaker” must specify recurrence, escalation, social consequence, and the stable comic trap; “the minutes do random funny things” is not enough.
 
-## Version 0.6 reinforcement: severity-scaled evidence
+## Severity-scaled evidence
 
 Do not use the same burden of work for every change.
 
@@ -478,6 +478,8 @@ Do not use the same burden of work for every change.
 | Major | Full fact gate, shock-cone summary, institution/economy pass, contradiction check, follow-up debt. |
 | Foundational | Major work plus temporal/spatial passes, branch implications, mystery/aesthetic checks, QA profile. |
 | Catastrophic | Foundational work plus explicit decision record and rollback/branch plan. |
+
+The two severity vocabularies in this document answer different questions and map onto each other. The admission levels classify **what kind of fact** is entering; the work scale classifies **how much admission work** it owes. Level 0–1 facts normally owe minor work; Level 2 owes moderate work; Level 3 owes major work; Level 4 owes foundational work; Level 5 changes to established canon owe foundational-to-catastrophic work depending on how much prior material they disturb. Instruments that ask for a severity (`templates/propagation_report.md`, `templates/contradiction_report.md`) use the work scale; protocols that trigger on “Level 2 or higher” (`07`, `09`) use the levels.
 
 ### Admission package completeness
 

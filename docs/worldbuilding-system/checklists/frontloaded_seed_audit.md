@@ -42,13 +42,13 @@ For each seed fact:
 - [ ] Quarantine until missing constraints or contradictions are repaired.
 
 
-## Version 0.6 point-of-use non-naturalistic check
+## Point-of-use non-naturalistic check
 
 - [ ] If the seed is mythic, fairy-tale, dreamlike, comic, sacred, horror, or lyrical, the seed names its mode before expansion.
 - [ ] The seed includes at least one mode-equivalent pressure line: recurrence, taboo, ritual cost, motif, transformation, comic reversal, dream association, dread, or symbolic residue.
 - [ ] **Micro-example:** “A town's shadows applaud lies” is not ready as a seed until the audit asks when shadows applaud, who hears it, how people adapt, and what residue follows.
 
-## Version 0.6 completion rule
+## Completion rule
 
 Parent protocol: `05_creation_protocol.md`.
 

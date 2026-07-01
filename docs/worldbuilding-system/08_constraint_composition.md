@@ -213,6 +213,8 @@ Look for:
 - myths explaining the limit;
 - children’s rules.
 
+A real constraint changes tools, warnings, pricing, ceremonies, training, architecture, slang, jokes, scars, insurance, law, or superstition. If a constraint leaves no residue, it may be authorial duct tape.
+
 ## Constraint abuse
 
 Institutions use constraints to create power.
@@ -257,13 +259,13 @@ For any major constraint:
 - [ ] It does not exist only to protect the plot.
 
 
-## Version 0.6 micro-examples: constraints in non-naturalistic modes
+## Micro-examples: constraints in non-naturalistic modes
 
 - **Ritual gate constraint:** A river answers only questions asked barefoot. The constraint is not “soft mood”; it limits access, shapes pilgrimage behavior, creates seasonal risk, and produces counterfeit barefoot rites.
 - **Dream tradeoff constraint:** A key opens any door but replaces one remembered face with the door's color. The cost composes with memory, identity, evidence, and character agency rather than with money.
 - **Sacred preservation constraint:** The saint's name cannot be spoken inside the chapel. This may protect opacity, but it cannot protect contradictions: records, gestures, substitutes, and consequences of violation still need governance.
 
-## Version 0.6 reinforcement: constraint budgets
+## Constraint budgets
 
 A constraint is strong when it creates story pressure while preventing domination. It is weak when it exists only to excuse why a world-breaking fact does not matter.
 
@@ -286,7 +288,3 @@ Ask five hostile questions:
 3. What does a state, temple, guild, army, corporation, clan, or criminal network do to monopolize this?
 4. What does a child, servant, dissident, exile, disabled person, prisoner, or nonhuman actor discover that elites miss?
 5. What loophole becomes common enough to create a profession, taboo, punishment, black market, or myth?
-
-### Constraint residues
-
-A real constraint leaves residue. It changes tools, warnings, pricing, ceremonies, training, architecture, slang, jokes, scars, insurance, law, or superstition. If a constraint leaves no residue, it may be authorial duct tape.

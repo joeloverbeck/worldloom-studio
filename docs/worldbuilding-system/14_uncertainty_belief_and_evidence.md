@@ -6,14 +6,6 @@ This protocol adds qualitative uncertainty without turning the package into stat
 
 ## What uncertainty is for
 
-## Boundary with mystery governance
-
-Use this document when the question is evidential: who claims what, why they believe it, what sources exist, what confidence band fits, what institutions require as proof, and how belief survives.
-
-Use `13_contradiction_retcon_and_mystery.md` when the question is protective: what unknown must remain unresolved, what consequences are fixed, what reveal is forbidden, what retcon cost applies, or whether a contradiction is being mislabeled as mystery.
-
-A protected unknown can have evidence. Evidence does not automatically destroy mystery; it only changes what can be known, believed, disputed, suppressed, or misread.
-
 Use uncertainty to:
 
 - keep mysteries alive without making everything vague;
@@ -22,6 +14,14 @@ Use uncertainty to:
 - explain why reasonable actors disagree;
 - prevent omniscient worldbuilding from flattening culture;
 - preserve rumors, myths, frauds, propaganda, science, law, theology, journalism, oral history, and memory as different truth practices.
+
+## Boundary with mystery governance
+
+Use this document when the question is evidential: who claims what, why they believe it, what sources exist, what confidence band fits, what institutions require as proof, and how belief survives.
+
+Use `13_contradiction_retcon_and_mystery.md` when the question is protective: what unknown must remain unresolved, what consequences are fixed, what reveal is forbidden, what retcon cost applies, or whether a contradiction is being mislabeled as mystery.
+
+A protected unknown can have evidence. Evidence does not automatically destroy mystery; it only changes what can be known, believed, disputed, suppressed, or misread.
 
 ## Boundary with non-instrumental opacity
 
@@ -240,13 +240,13 @@ Uncertainty is not a fog machine. Too much undifferentiated uncertainty destroys
 Use protected unknowns where they matter. Elsewhere, choose a working truth layer, confidence band, and action threshold so the world can respond.
 
 
-## Version 0.6 micro-examples: evidence without disenchanting the mode
+## Micro-examples: evidence without disenchanting the mode
 
 - **Sacred opacity:** A relic's origin may remain protected, but witnesses can still disagree about when it glowed, who touched it, what injury followed, and which testimony is reliable.
 - **Dream logic:** A witness who saw a staircase turn into a throat is not automatically useless; the evidence card records image recurrence, trigger conditions, emotional displacement, and corroborating residues.
 - **Horror/dread:** Dread often depends on incomplete confirmation, but incomplete confirmation is still evidence ecology, not a license to avoid source reliability.
 
-## Version 0.6 reinforcement: credence as world pressure
+## Credence as world pressure
 
 Bayesian epistemology treats degrees of belief, or credences, as central to how beliefs should respond to evidence.[^i4-bayes] The system does not require formal probability math, but it should preserve the craft insight: belief strength matters. A rumor believed at 10%, 50%, and 95% creates different behavior.
 

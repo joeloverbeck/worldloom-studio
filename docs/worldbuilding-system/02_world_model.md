@@ -316,7 +316,7 @@ Aesthetic promise is not decoration. It governs which consequences strengthen th
 
 ## Mode-aware primitives
 
-Version `0.6` adds these as thinking primitives, not storage requirements.
+These are thinking primitives, not storage requirements.
 
 ### Consequence mode
 
@@ -491,7 +491,7 @@ An unhealthy world state has:
 - characters who behave like plot machinery;
 - aesthetic drift disguised as variety.
 
-## Version 0.6 reinforcement: primitive discipline
+## Primitive discipline
 
 The primitives in this document are **handles for thought**, not storage units. A single world element may be handled as more than one primitive depending on the question. A royal archive may be an institution when asking who controls evidence, a resource when asking who can exploit it, a constraint when asking what cannot be known without it, and an aesthetic residue when asking how authority looks and sounds.
 

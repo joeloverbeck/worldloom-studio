@@ -37,7 +37,7 @@ Serves `13_contradiction_retcon_and_mystery.md`. Use whenever a contradiction re
 - [ ] The preservation boundary does not hide an ordinary contradiction that should be repaired.
 
 
-## Version 0.6 sacred-opacity accountability guard
+## Sacred-opacity accountability guard
 
 Use this section whenever the protected effect is sacred opacity or adjacent sacred/horror opacity.
 
@@ -49,7 +49,7 @@ Use this section whenever the protected effect is sacred opacity or adjacent sac
 - [ ] **Legitimate-vs-cheat comparison:** The entry can be placed beside a cheat version and explain why it is not using “sacred” to dodge work.
 - [ ] **Micro-example:** “The mouth in the chapel is sacred” is insufficient. “Its origin is unexplained, but its noon/sunset speech, shadow cost, candle-voice profanation, and witness records are fixed” earns protection.
 
-## Version 0.6 completion rule
+## Completion rule
 
 Parent protocol: `13_contradiction_retcon_and_mystery.md`.
 

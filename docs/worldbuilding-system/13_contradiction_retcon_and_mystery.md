@@ -13,7 +13,7 @@ Do not collapse these four categories:
 3. **Mystery** — the canon intentionally protects an unresolved question.
 4. **Ignorance** — characters, institutions, or publics do not know something that may already be objective canon.
 
-Version `0.6` adds a fifth distinction that must not be folded back into mystery:
+A fifth distinction must not be folded back into mystery:
 
 5. **Non-instrumental effect** — wonder, awe, sublimity, sacred opacity, horror, terror, dread, or symbolic excess whose purpose is not to hide a solvable answer.
 
@@ -339,7 +339,7 @@ Do not use “it is mysterious,” “it is sacred,” “it is dreamlike,” �
 Unknown origins still create cults, sciences, frauds, taboos, laws, markets, fears, rituals, politics, songs, repeated images, avoidance habits, profanation penalties, and dreams. The world may not know what the lights in the quarry are, and the steward may decide nobody ever should, but the quarry road still changes.
 
 
-## Version 0.6 reinforcement: earned sacred opacity versus opacity cheat
+## Earned sacred opacity versus opacity cheat
 
 Sacred opacity is legitimate only when it refuses explanation while accepting consequence. The steward may protect the origin, essence, or ultimate meaning of a sacred presence, but may not protect the presence from cost, recurrence, ritual constraint, contradiction repair, evidence-bound witness handling, aesthetic critique, or audience-facing stewardship.
 
@@ -379,7 +379,7 @@ Failure on any answer does not automatically destroy the sacred effect, but it d
 [^v06-carroll-13]: Noël Carroll, *The Philosophy of Horror*, Routledge, https://www.routledge.com/The-Philosophy-of-Horror-or-Paradoxes-of-the-Heart/Carroll/p/book/9780415902168.
 [^v06-windsor-13]: Mark Windsor, “Tales of Dread,” *Estetika* 56(1), 2019, https://philpapers.org/rec/WINTOD-3.
 
-## Version 0.6 reinforcement: contradiction disposition
+## Contradiction disposition
 
 A contradiction report must end in one of these dispositions:
 

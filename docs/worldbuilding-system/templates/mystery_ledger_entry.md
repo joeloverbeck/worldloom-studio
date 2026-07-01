@@ -90,7 +90,7 @@ Name emotional, symbolic, sacred, horror, continuity, gameplay, or thematic dama
 - Wonder, sacredness, horror, or symbolic excess is not converted into a puzzle unless that is the deliberate branch.
 - A reveal, if allowed, creates new consequence rather than merely closing a file.
 
-## Version 0.6 traceability note
+## Traceability note
 
 Parent protocol: `13_contradiction_retcon_and_mystery.md`.
 

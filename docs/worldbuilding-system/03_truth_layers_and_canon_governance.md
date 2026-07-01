@@ -108,16 +108,19 @@ Canon status answers: where is this statement in the authorial governance proces
 
 Use statuses separately from truth layers.
 
-### Status, tag, and operation separation
+### Label separation
 
-These four labels answer different questions and must not be collapsed:
+These labels answer different questions and must not be collapsed:
 
 | Label type | Question answered | Examples | Governing use |
 |---|---|---|---|
 | Truth layer | What kind of truth or claim is this? | objective canon, public belief, lie, disputed claim | Classifies relation to authorial truth and in-world knowledge. |
 | Canon status | Where is this statement in governance? | proposed, accepted with constraints, localized, branch-only, deprecated | Records standing in the current continuity or branch. |
 | Constraint tag | What limits an accepted or reviewable fact? | rare, costly, secret, class-bound, seasonal, geography-bound | Explains why the fact does not transform everything everywhere. |
-| Operation | What action is being taken now? | accept, constrain, clarify scope, retcon | Records an admission decision or contradiction repair. |
+| Admission decision operation | What does governance do with this proposal? | accept, constrain, localize, branch, reject | Records an admission decision (this document). |
+| Repair operation | How is an existing incompatibility treated? | clarify scope, add constraint, split, retcon | Records contradiction or instability treatment (`13_contradiction_retcon_and_mystery.md`). |
+| Consequence mode | What form of consequence proves this fact matters? | material/institutional, mythic, fairy-tale, dream, comic, sacred, horror, lyrical | Declares which smell tests carry most weight (`01`, `02`). |
+| Preservation boundary | What must a reveal, repair, or adaptation not destroy? | forbidden explanation, protected dread, unmapped shrine | Guards protected effects; never substitutes for the labels above. |
 
 Constraint tags **coexist with** statuses. They do not replace statuses. The status says whether and where the statement stands; the tags say what limits make that standing coherent. `Accepted with constraints` is a status. `rare`, `costly`, `secret`, `ritual-bound`, and `geography-bound` are tags that explain the constraint.
 
@@ -263,7 +266,7 @@ Use this matrix when deciding which vocabulary governs.
 |---|---|---|---|
 | Fact admission | Should this proposal enter canon, and how? | accept, constrain, localize, historicize, reinterpret, institutionalize, price, branch, quarantine, supersede, deprecate, reject | `templates/canon_change_proposal.md`, `templates/canon_fact_card.md`, `checklists/canon_fact_gate.md` |
 | Contradiction repair | What kind of incompatibility exists, and how is it repaired? | clarify scope, add constraint, price, localize, historicize, institutionalize, diffuse unevenly, reinterpret, split, retcon, quarantine, reject | `templates/contradiction_report.md`, `13_contradiction_retcon_and_mystery.md` |
-| Mystery governance | What unknown is protected, fixed, author-secret, or deliberately undecided? | define boundary, preserve, delay, reveal, prohibit use, reclassify claim, quarantine if unsafe | `templates/mystery_ledger_entry.md`, `checklists/mystery_preservation.md` |
+| Mystery governance | What unknown is protected, fixed, author-secret, or deliberately undecided? | define boundary; then the preservation operations of `13`: reveal, delay, forbid, consecrate, dread-preserve, excess-preserve, translate; reclassify claim or quarantine if unsafe | `templates/mystery_ledger_entry.md`, `checklists/mystery_preservation.md` |
 | Branch governance | What continuity contains the divergence? | branch, compare, isolate, merge, retire, deprecate | `templates/canon_branch_diff.md`, `templates/collaboration_decision_record.md` |
 
 Some words appear in both admission and repair because they do similar causal work. `price`, `localize`, `historicize`, `institutionalize`, `reinterpret`, `quarantine`, and `reject` can be either admission decisions or repair operations. Record the context explicitly.
@@ -354,13 +357,15 @@ For serious worlds, judge each proposed fact from seven positions:
 
 A single person can play all seven roles.
 
+These are judgment perspectives applied to a single proposed fact. They are distinct from the collaboration workflow roles in `15_branching_versioning_and_collaboration.md` (proposer, steward, domain reviewer, contradiction challenger, mystery guardian, audience advocate, decider, recorder), which govern who does what in a multi-human process. The two sets overlap in spirit; only the workflow roles assign human accountability.
+
 ## Governance maxim
 
 Do not ask whether a claim is interesting before asking what layer it belongs to.
 
 The wrong truth layer can make a brilliant idea incoherent. The right truth layer can make a contradiction fruitful.
 
-## Version 0.6 reinforcement: decision jurisdiction
+## Decision jurisdiction
 
 Governance failures usually happen when a steward uses the wrong operation family. Use this jurisdiction rule:
 

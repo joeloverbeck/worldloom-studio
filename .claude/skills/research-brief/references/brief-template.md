@@ -1,16 +1,20 @@
 # Brief template & target-type reads
 
-This file defines (A) the canonical anatomy of the emitted ChatGPT-Pro prompt and (B) the
-research-target → load-bearing-reads map. The SKILL.md flow references both.
+This file defines (A) the canonical anatomy of the emitted prompt, (B) the
+research-target → load-bearing-reads map, and (C) the channel adaptations for a
+local-session executor. The SKILL.md flow references all three.
 
 ---
 
 ## A. Canonical brief anatomy
 
-The emitted file `reports/<topic>-research-brief.md` is the *prompt the user pastes into
-ChatGPT-Pro Session 2*. It is self-contained: Session 2 sees only this prompt plus the
-uploaded manifest. Use these eight sections, in order. Scale each to the target; omit a
-section only when genuinely N/A and say so.
+The emitted file `reports/<topic>-research-brief.md` is the *prompt the user hands to
+Session 2* — pasted into ChatGPT-Pro for a remote-fetch executor, or pointed at directly
+for a local-session executor (whose channel deltas are in §C; everything not named there
+applies unchanged). It is self-contained: Session 2 sees only this prompt plus the
+uploaded manifest (remote-fetch) or the repository itself (local-session). Use these
+eight sections, in order. Scale each to the target; omit a section only when genuinely
+N/A and say so.
 
 ### 1. Context
 
@@ -189,3 +193,44 @@ taxonomy — describe the *kinds* of reads to seek out and resolve them against 
 | **hardening** | the invariants / constraints the system must uphold; the subsystem's design + code seams; prior hardening notes or reports; the validation / test coverage. A hardening pass can deliver *either* a recommendation report or a numbered implementation spec — the ask decides (§7); for a spec deliverable, union in the **new-spec** row's reads via a `(secondary: new-spec)` classification. |
 | **foundational / doc-overhaul** | the doc tier being overhauled plus every tier above it in the repo's authority order (authority flows downward); the doc index / authority map; cross-references in lower tiers that the overhaul will invalidate (read as **boundary-awareness** to run the tier-fit test — what belongs at this altitude vs. elsewhere — and route out-of-scope findings forward rather than amending them here). |
 | **other** | derive entirely from exploration; default to README plus whatever the target names. |
+
+---
+
+## C. Local-session executor adaptations
+
+When Step 1 classified the executor as **local-session** (Session 2 is another Claude/Claude
+Code session with direct repo read/write access), apply these deltas to §A. Everything not
+named here — the eight-section anatomy, settled intentions, locked/no-questions, the
+self-check discipline — carries over unchanged.
+
+**Preamble.** Replace the "paste this prompt / upload the manifest" framing: state plainly
+that Session 2 is a local session (name the model if the target named one) with direct
+access to the repository working tree — it reads files with its own tools, fetches nothing,
+and uploads nothing.
+
+**§1 Context — authored-against baseline, live-tree semantics.** There is no manifest
+pointer and no fetch-from commit. Instead, pin the commit this brief was *authored against*
+(verified repo HEAD at write time) and instruct Session 2 to verify HEAD when it starts
+(`git rev-parse HEAD`), work from the live working tree, and note any divergence from the
+authored-against baseline in its deliverable. The pin exists for honest provenance, not for
+fetching. If the repo's own files carry provenance records shaped by a previous remote-fetch
+workflow (fetch ledgers, stale `source_commit` strings), instruct Session 2 to rewrite them
+as an honest local-session record rather than carry them forward.
+
+**§2 Read in full.** Unchanged in substance — the authority-ordered path list with one-line
+reasons. Paths are repo paths Session 2 Reads directly. The §2-completeness check still
+applies; the untracked-input problem relaxes (a local session *can* read an untracked file,
+but say so explicitly if a §2 entry is untracked, since it is invisible in git history).
+
+**§5 / §6.** Unchanged — a local Claude session can research online; the mandate and
+doctrine sections apply as written.
+
+**§7 Deliverable specification — files, not downloads.** Replace "downloadable markdown
+documents" framing: deliverables are files Session 2 Writes or edits in place, named by
+repo path. State explicitly whether Session 2 commits or leaves the working tree for the
+user's review (settle this in the interview; default: leave uncommitted). Scope precisely
+what it may and may not touch.
+
+**§8 Self-check.** Recast fetch-oriented checks as working-tree checks (e.g. "every §2 path
+was read", "nothing outside the named scope was modified", "nothing was committed" when
+uncommitted is the settled default).

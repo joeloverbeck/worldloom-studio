@@ -16,7 +16,7 @@ Ask:
 
 ## Deriving conflict from facts
 
-For a major fact, extract conflict by domain:
+For a major fact, extract conflict by domain. This list is a dramatic-pressure lens for extraction; the authoritative propagation domains remain the fourteen in `04_domain_atlas.md`. Extract along:
 
 - **Metaphysics:** who can define what is real?
 - **Physics/materiality:** who can exploit or survive the physical rule?
@@ -277,13 +277,13 @@ For any canon fact, write:
 Then decide which medium makes that pressure most visible.
 
 
-## Version 0.6 micro-examples: extracting non-naturalistic pressure
+## Micro-examples: extracting non-naturalistic pressure
 
 - **Mythic plot pressure:** A hero is not chosen because of destiny alone; the rite requires the hero to repeat the first theft, pay the old cost, and leave a new origin scar.
 - **Absurd-comic scene engine:** Every attempt to file a complaint produces a new office whose only job is to complain about the complaint. The playable pressure is repetition-with-escalation, not random nonsense.
 - **Dream-game mechanic warning:** A dream association mechanic works only if recurring images have stable triggers and costs; arbitrary surreal effects are spectacle, not extraction.
 
-## Version 0.6 reinforcement: extraction is not canon admission
+## Extraction is not canon admission
 
 A story beat, game mechanic, scene requirement, budget solution, or medium affordance may suggest a world fact, but it does not automatically become one. Extraction asks what pressure the world can support; admission decides what canon accepts.
 

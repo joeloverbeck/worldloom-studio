@@ -58,7 +58,7 @@ Gestures, ceremonies, games, songs, alarms, court actions, daily routines, refus
 
 Decoration without cause; monotony; over-explanation; sacred flattening; dread domestication; one-to-one symbol decoding; accidental genre drift.
 
-## Version 0.6 traceability note
+## Traceability note
 
 Parent protocol: `17_aesthetic_coherence_and_semiosis.md`.
 

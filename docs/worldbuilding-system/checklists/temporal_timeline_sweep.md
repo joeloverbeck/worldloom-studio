@@ -31,13 +31,13 @@ Serves `09_temporal_and_timeline_protocol.md`. Use when a fact has causal order,
 - [ ] Timeline card needed or not needed decision recorded.
 
 
-## Version 0.6 point-of-use non-naturalistic time
+## Point-of-use non-naturalistic time
 
 - [ ] Mythic, dream, sacred, horror, or comic time names its recurrence trigger and residue.
 - [ ] Protected mystery does not erase chronology; it only limits explanation.
 - [ ] **Micro-example:** A bell that rings three days before death needs bell-date, death-date, first-known-case, false positive, and dread-latency entries.
 
-## Version 0.6 completion rule
+## Completion rule
 
 Parent protocol: `09_temporal_and_timeline_protocol.md`.
 

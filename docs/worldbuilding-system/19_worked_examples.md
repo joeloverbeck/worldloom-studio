@@ -1,9 +1,6 @@
 # 19. Worked Examples
 
-These examples preserve the original package’s four worked examples and extend them through the overhauled protocols. They are not exhaustive models. They show how a fact becomes stronger when it is constrained, priced, institutionalized, localized, historicized, and made visible in ordinary life.
-
-
-These examples show how canon facts propagate.
+These examples show how canon facts propagate. The first four descend from the package’s original worked examples; later passes added further realist and non-naturalistic cases. They are not exhaustive models. They show how a fact becomes stronger when it is constrained, priced, institutionalized, localized, historicized, and made visible in ordinary life.
 
 ## Example A: Raider-programmed robots
 
@@ -590,7 +587,7 @@ Absence is a canon fact. Missing animals, metals, gods, stars, diseases, or writ
 
 ## Seventh example: The village where broken promises become birds
 
-This is the non-naturalistic stress test for Version `0.6`. It shows that Causal Canon does not require institutional plausibility in every mode. The world is fairy-tale / lyrical with sacred undertones. Its coherence proof is recurrence, symbolic transformation, taboo, ritual, tonal inevitability, and ordinary-life residue, not bureaucracy.
+This is the package’s full-length non-naturalistic stress test. It shows that Causal Canon does not require institutional plausibility in every mode. The world is fairy-tale / lyrical with sacred undertones. Its coherence proof is recurrence, symbolic transformation, taboo, ritual, tonal inevitability, and ordinary-life residue, not bureaucracy.
 
 ### Proposed fact
 
@@ -933,7 +930,7 @@ A weaker steward note says, “The mouth is sacred, so it can name anyone, alter
 
 Sacred/horror opacity is strongest when it refuses the ultimate answer and accepts every other audit.
 
-## Version 0.6 reinforcement: how to use the examples
+## How to use the examples
 
 Do not copy the surface details of these examples. Copy the pressure moves:
 

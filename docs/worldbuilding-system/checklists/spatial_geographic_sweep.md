@@ -31,13 +31,13 @@ Serves `10_spatial_and_geographic_propagation.md`. Use when a fact changes where
 - [ ] Smugglers, tolls, forts, dead roads, quarantine markers, local legends, or other barrier residues considered.
 
 
-## Version 0.6 point-of-use non-naturalistic space
+## Point-of-use non-naturalistic space
 
 - [ ] Impossible, symbolic, sacred, or comic geography has access conditions and spatial residues.
 - [ ] The map may be metaphorical, but the pressure line is not optional.
 - [ ] **Micro-example:** A shrine that is near only to the unbargaining still generates routes, failed maps, pilgrim inequality, and avoidance behavior.
 
-## Version 0.6 completion rule
+## Completion rule
 
 Parent protocol: `10_spatial_and_geographic_propagation.md`.
 

@@ -50,7 +50,7 @@ What happens if this capability is used a hundred times by ordinary actors?
 
 What symbols, tools, gestures, buildings, phrases, jokes, uniforms, scars, sounds, or rituals show it exists?
 
-## Version 0.6 traceability note
+## Traceability note
 
 Parent protocol: `06`, `07`, and `08`.
 

@@ -1,10 +1,10 @@
 # Causal Canon Worldbuilding System
 
-Version `0.6` is a storage- and software-agnostic methodology for creating and maintaining fictional worlds whose canon facts propagate through the world instead of sitting as isolated lore. It does not assume Markdown, a database, a graph engine, a web app, an API, an LLM workflow, or any particular publishing medium. A solo author, writing room, tabletop group, game team, or setting steward can use it with paper, notebooks, cards, documents, wikis, spreadsheets, index cards, wall charts, conversation, or any other medium.
+Version `0.7` is a storage- and software-agnostic methodology for creating and maintaining fictional worlds whose canon facts propagate through the world instead of sitting as isolated lore. It does not assume Markdown, a database, a graph engine, a web app, an API, an LLM workflow, or any particular publishing medium. A solo author, writing room, tabletop group, game team, or setting steward can use it with paper, notebooks, cards, documents, wikis, spreadsheets, index cards, wall charts, conversation, or any other medium.
 
 The records in `templates/` and the sweeps in `checklists/` are human thinking instruments, not implementation instructions. They name the questions that must be answered; they do not prescribe a storage model.
 
-Version `0.6` keeps the existing 56-file architecture because every original file remained load-bearing and already had a clear authority tier. The improvement is internal: equal-weight non-naturalistic consequence tests, compact worked cases for myth, absurd comedy, dream logic, and sacred/horror, an adversarial earned-sacred-opacity guard, point-of-use micro-examples across the protocols, calibrated QA anchors, sharper aesthetic and symbolic propagation, and updated instruments that preserve sacred opacity, horror, awe, and symbolic excess without weakening institutional rigor.
+Version `0.7` keeps the 56-file architecture because every file remains load-bearing with a clear authority tier. The improvement is coherence: documents are organized by what they teach rather than by the iteration that added each layer, duplicate guidance is merged, label separations and operation vocabularies are consistent across tiers, the glossary is unified and alphabetized, and the two severity vocabularies are explicitly mapped. All substance delivered by earlier versions — equal-weight non-naturalistic consequence tests, worked cases for myth, absurd comedy, dream logic, and sacred/horror, the adversarial earned-sacred-opacity guard, point-of-use micro-examples, calibrated QA anchors, and the institutional hard edge — is retained.
 
 ## Core idea
 
@@ -39,12 +39,14 @@ Use the package downward:
 4. `18`–`23` provide quality control, examples, AI-use boundaries, instrument index, vocabulary, and research rationale.
 5. `checklists/` and `templates/` operationalize the protocols. If an instrument appears to contradict a protocol, the protocol wins and the instrument should be repaired.
 
-The package distinguishes four concepts that must not be blurred:
+The package distinguishes six concepts that must not be blurred:
 
 - **canon status** — governance standing of a fact;
 - **constraint tag** — a causal limit on a fact;
 - **admission decision operation** — what the steward decides during fact admission;
-- **repair operation** — what the steward does to fix contradiction, instability, or mystery damage.
+- **repair operation** — what the steward does to fix contradiction, instability, or mystery damage;
+- **consequence mode** — the form of consequence that proves a fact matters in this world;
+- **preservation boundary** — what a reveal, repair, or adaptation must not destroy.
 
 ## Recommended use
 
@@ -132,7 +134,7 @@ A tiny local detail may need only a fact card and a short propagation note. A ne
 - `21_templates_index.md` — how all templates and checklists fit together.
 - `22_glossary.md` — authoritative shared vocabulary.
 - `23_research_notes_and_bibliography.md` — research roots and translation rules.
-- `00_overhaul_notes.md` — iteration-six provenance, mapping, retention audit, priority-resolution notes, and research rationale.
+- `00_overhaul_notes.md` — iteration-seven provenance, diagnosis, fate mapping, retention audit, and research rationale. The single changelog: iteration history lives here, not in the doctrine and protocol files.
 
 ## Operating stance
 

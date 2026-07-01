@@ -42,7 +42,7 @@ What other constraints strengthen, weaken, conflict with, cancel, gate, or chain
 
 How do ordinary people know this limit is real?
 
-## Version 0.6 traceability note
+## Traceability note
 
 Parent protocol: `08_constraint_composition.md`.
 

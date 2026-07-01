@@ -166,7 +166,7 @@ The original package used exemplar settings as craft inspiration rather than aut
 
 It is not a demand for realism. It is not a reading list required before worldbuilding. It is not a substitute for judgment. Its job is to give the methodology sharper questions.
 
-## Retained Version 0.5 research additions
+## Research additions from iteration 5 (version 0.5)
 
 Iteration 5 keeps the existing research roots and adds three lanes: mode-aware non-naturalistic coherence, preservation of wonder/sacred opacity/horror/symbolic excess, and calibrated QA exemplars.
 
@@ -192,7 +192,7 @@ Rubric literature on calibrated exemplars and scoring guides supports Version `0
 
 Translation rule: QA exemplars are calibration aids, not new doctrine. They improve consistency only if teams actually compare their ratings against them.
 
-### Added sources consulted or promoted for retained Version 0.5 material
+### Sources added in iteration 5
 
 - Vladimir Propp, *Morphology of the Folktale*, University of Texas Press English translation, 1968; publisher record and structural summaries: https://www.degruyterbrill.com/document/doi/10.7560/783911/html and https://dokumen.pub/morphology-of-the-folktale-revised-edition-0292783760-9780292783768.html
 - Edmund Burke, *A Philosophical Enquiry into the Origin of Our Ideas of the Sublime and Beautiful*, 1757; overview: https://www.rct.uk/collection/themes/publications/canova-in-four-dimensions/edmund-burke-a-philosophical-enquiry-into-the-origin-of-our-ideas-of-the-sublime-and-beautiful
@@ -207,7 +207,7 @@ Translation rule: QA exemplars are calibration aids, not new doctrine. They impr
 - Amanda M. Heldsinger and Stephen Humphry, “Using Calibrated Exemplars in the Teacher-Assessment of Writing,” ERIC record, https://eric.ed.gov/?id=EJ918794
 - Deborah Allen and Kimberly Tanner, “Rubrics: Tools for Making Learning Goals and Evaluation Criteria Explicit for Both Teachers and Learners,” *CBE Life Sciences Education*, https://pmc.ncbi.nlm.nih.gov/articles/PMC2330295/
 
-### Retained Version 0.5 translation summary
+### Iteration-5 translation summary
 
 - Propp strengthens non-institutional consequence tests through function, recurrence, and motif.
 - Burke, Kant, Otto, Bennett, Freud, Carroll, Windsor, Peirce, and Ricoeur strengthen the distinction between mystery and wonder/sacredness/horror/symbolic excess.
@@ -215,9 +215,9 @@ Translation rule: QA exemplars are calibration aids, not new doctrine. They impr
 - None of these sources override the package doctrine. They sharpen the questions the doctrine already asks.
 
 
-## Version 0.6 research additions
+## Research additions from iteration 6 (version 0.6)
 
-Iteration 6 adds research support for two targeted craft moves: broader non-naturalistic consequence tests and adversarial sacred-opacity accountability. These sources shape the additions in `01`, `13`, `17`, `18`, `19`, `22`, the mystery-preservation checklist, the mystery-ledger template, and the standalone seventh-iteration outlook.
+Iteration 6 adds research support for two targeted craft moves: broader non-naturalistic consequence tests and adversarial sacred-opacity accountability. These sources shape the additions in `01`, `13`, `17`, `18`, `19`, `22`, the mystery-preservation checklist, and the mystery-ledger template. (A standalone seventh-iteration outlook report was also commissioned from iteration 6 but was never committed to the repository.)
 
 ### Non-naturalistic coherence
 
@@ -243,7 +243,7 @@ The crucial craft caveat is explicit: these works help distinguish effects, but 
 
 The Version 0.5 calibrated anchors are retained and extended because behaviorally anchored examples reduce interpretation drift better than abstract labels alone. Version 0.6 adds non-naturalistic anchors beside institutional ones and distributes short point-of-use micro-examples across the protocols, so users learn the operation where they apply it rather than only in the large example gallery.
 
-### Version 0.6 translation summary
+### Iteration-6 translation summary
 
 - Propp and structural folktale logic translate into recurrence/function/prohibition/helper/test checks in `01`, `18`, and the fairy-tale worked example.
 - Myth translates into rite/taboo/origin-scar/seasonal-return checks in `01`, `18`, and the new mythic worked example.
@@ -261,3 +261,7 @@ The Version 0.5 calibrated anchors are retained and extended because behaviorall
 [^v06-freud-uncanny-23]: Freud Museum London, “The Uncanny,” https://www.freud.org.uk/education/resources/the-uncanny/.
 [^v06-carroll-23]: Noël Carroll, *The Philosophy of Horror*, Routledge, https://www.routledge.com/The-Philosophy-of-Horror-or-Paradoxes-of-the-Heart/Carroll/p/book/9780415902168.
 [^v06-windsor-23]: Mark Windsor, “Tales of Dread,” *Estetika* 56(1), 2019, https://philpapers.org/rec/WINTOD-3.
+
+## Research note for iteration 7 (version 0.7)
+
+Iteration 7 was a coherence and stewardship pass: it de-stratified version-tagged section layers into content-titled sections, repaired tier inconsistencies and editing scars, and harmonized vocabulary. No change in this pass was shaped by new external research, so no new sources are cited. All prior research lanes and citations are retained unchanged.
