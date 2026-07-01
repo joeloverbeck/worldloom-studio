@@ -1,6 +1,6 @@
 # Canon Change Proposal
 
-Use before admitting, changing, retiring, or branching a significant fact.
+Use before admitting, changing, retiring, or branching a significant fact. This is a human governance instrument, not a workflow state machine.
 
 ## Proposed change
 
@@ -10,19 +10,23 @@ What does this improve?
 
 ## Affected scope
 
-Continuity, branch, time, place, population, institution, medium.
+Continuity, branch, time, place, population, institution, medium/adaptation.
 
 ## Fact type and severity
 
 ## Proposed truth layer
 
-## Proposed status
+## Proposed canon status
 
-## Constraints proposed
+## Proposed constraint tags
+
+Do not use tags as status substitutes. Tags explain limits.
 
 ## Prerequisites
 
 ## Expected consequences
+
+## Cost, access, and constraints
 
 ## Contradiction risks
 
@@ -36,8 +40,10 @@ Accept / constrain / localize / historicize / reinterpret / institutionalize / p
 
 ## Review notes
 
-## Decision
+## Admission decision operation
 
 ## Required propagation
 
 ## Follow-up records
+
+Templates, checklists, examples, contradiction reports, mystery ledger entries, branch diffs, collaboration decision records.

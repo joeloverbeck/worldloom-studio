@@ -216,6 +216,8 @@ Still record observable boundaries and forbidden uses.
 
 ## Timeline audit
 
+Run `checklists/temporal_timeline_sweep.md` for any Level 2 or higher fact with first appearance, discovery, public knowledge, institutional reaction, branch divergence, retcon, prophecy, inheritance, war, migration, law, aging, or evidence implications. Use `templates/temporal_timeline_card.md` when the timing itself becomes load-bearing.
+
 For every major fact:
 
 - [ ] It has a first-true date or relative sequence.

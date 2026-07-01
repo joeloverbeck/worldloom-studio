@@ -10,7 +10,7 @@ Quote or summarize the incompatible claims.
 
 ## Affected scope
 
-Time, place, branch, actor, institution, medium.
+Time, place, branch, actor, institution, medium/adaptation.
 
 ## Contradiction type
 
@@ -36,6 +36,8 @@ Does the conflict protect a real mystery or merely hide an error?
 
 Clarify scope / add constraint / price / localize / historicize / institutionalize / diffuse unevenly / reinterpret / split / retcon / quarantine / reject.
 
+This is a repair operation, not an admission decision. If the repair creates a new proposal, branch, supersession, or deprecation, record that separately.
+
 ## Retcon cost
 
 Continuity, institution, character, mystery, aesthetic, future.
@@ -44,6 +46,6 @@ Continuity, institution, character, mystery, aesthetic, future.
 
 What else changes because of the repair?
 
-## Decision and status
+## Resulting canon status or branch decision
 
 ## Notes

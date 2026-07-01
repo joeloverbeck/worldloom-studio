@@ -196,6 +196,10 @@ Repair operations:
 - turn tonal violation into a deliberate branch or genre rupture;
 - remove aesthetic clutter that carries no causal load.
 
+## Aesthetic sweep instrument
+
+Run `checklists/aesthetic_coherence_sweep.md` when a fact changes naming, tone, symbols, genre contract, sensory texture, ritual, architecture, language, costume, class signs, propaganda, or counter-symbols. Use `templates/aesthetic_coherence_card.md` for load-bearing facts, regions, institutions, or branches whose aesthetic residue must stay coherent across scenes or collaborators.
+
 ## Aesthetic synthesis sentence
 
 > Because **[fact]** has shaped **[history/institution/ecology/body/faith]**, people now show it through **[names/materials/space/speech/symbol/ritual]**, with different meanings for **[groups]**, creating **[mood/genre pressure]** and **[ordinary-life residue]**.

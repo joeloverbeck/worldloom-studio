@@ -1,6 +1,6 @@
 # Mystery Ledger Entry
 
-Use for governed unknowns.
+Use for governed unknowns. This instrument serves `13_contradiction_retcon_and_mystery.md` and may draw evidence notes from `14_uncertainty_belief_and_evidence.md`.
 
 ## Mystery question
 
@@ -22,7 +22,7 @@ What should remain open?
 
 ## Truth-layer boundaries
 
-Objective canon, secret canon, beliefs, propaganda, lies, errors, disputes.
+Objective canon, author-secret canon, mystery boundary, diegetic claims, public belief, local belief, elite belief, mythic truth, propaganda, lies, honest errors, disputed claims.
 
 ## Who knows partial truth
 
@@ -31,6 +31,10 @@ Objective canon, secret canon, beliefs, propaganda, lies, errors, disputes.
 ## Evidence available
 
 ## Evidence missing
+
+## Evidence habitat
+
+What institutions, rituals, records, taboos, punishments, jokes, songs, or absences keep the uncertainty alive?
 
 ## Consequences already visible
 

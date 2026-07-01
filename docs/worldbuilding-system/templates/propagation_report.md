@@ -60,4 +60,6 @@ Why does propagation stop here for now?
 
 ## Required follow-up
 
+Name the specific templates or checklists required; do not write “TBD” if the missing work is load-bearing.
+
 Templates, checklists, contradictions, mysteries, branches, examples.

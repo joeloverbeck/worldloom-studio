@@ -15,6 +15,14 @@ Do not collapse these four categories:
 
 Most cheap repairs fail because they call a contradiction a mystery, or call an error a retcon without paying the cost.
 
+## Operation jurisdiction
+
+Use `03_truth_layers_and_canon_governance.md` for admission decisions and statuses. Use this document for contradiction repair and mystery preservation.
+
+A repair operation treats an instability that already exists or is exposed by admission. A decision operation admits, rejects, branches, supersedes, or deprecates material. The same word can be legal in both contexts only when its context is recorded. For example, `localize` as admission means “accept only in this scope”; `localize` as repair means “restrict the conflicting claim so it no longer collides with higher-authority material.”
+
+When a repair creates branch-only material, the repair operation is usually `split`, `reinterpret`, or `retcon`; the resulting canon status or governance decision may be `branch-only` or `branch`.
+
 ## Contradiction taxonomy
 
 ### Direct factual contradiction
@@ -183,6 +191,16 @@ Every retcon should pay at least one cost.
 - **Aesthetic cost:** does it break tone, genre, or trust?
 - **Future cost:** what later stories become harder or easier?
 
+## Mystery jurisdiction
+
+Mystery coverage is divided deliberately:
+
+- `01_core_theory.md` states the law: mystery is governed, not ignored.
+- This document governs protected unknowns, reveal boundaries, contradiction/mystery triage, retcon cost, and the mystery ledger.
+- `14_uncertainty_belief_and_evidence.md` governs sources, evidence, confidence bands, belief communities, propaganda, lies, honest error, and disputed claims.
+
+Do not use mystery to avoid consequence. A mystery may protect the explanation; it may not erase observable effects, actor behavior, institutions, evidence habitats, or costs.
+
 ## Mystery ledger
 
 A mystery is a governed unknown. It is not a gap.
@@ -236,6 +254,8 @@ The rules behind a capability, ecology, magic, institution, or prophecy are not 
 The creator deliberately refuses to settle the truth because uncertainty is part of the work’s power.
 
 ## Mystery preservation tests
+
+Run `checklists/mystery_preservation.md` for any retcon, contradiction repair, reveal, branch, adaptation, or evidence update that touches a protected unknown. Use `templates/mystery_ledger_entry.md` when the unknown has fixed consequences, author-secret material, deliberate undecided material, or reveal prohibitions.
 
 A mystery is healthy when:
 

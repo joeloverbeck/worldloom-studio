@@ -248,6 +248,8 @@ Do not fill a card for every person. Use it where world facts and character stak
 
 ## Agent audit
 
+Run `checklists/agent_character_sweep.md` when a fact changes what a character or intentional actor can know, want, fear, afford, misread, or ethically tolerate. Use `templates/agent_character_card.md` only for actors whose psychology carries world pressure; do not card every person.
+
 A major fact is weak if:
 
 - no ordinary person changes behavior;

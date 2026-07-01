@@ -34,6 +34,17 @@ Craft translation:
 - black markets and counter-institutions are normal responses to scarcity, prohibition, and exclusion;
 - environmental and social systems co-produce each other.
 
+## Story bibles and continuity craft
+
+Story-bible and production-bible practice supports the package’s craft stance: continuity records matter because they capture established commitments, but the record should serve creation rather than become bureaucracy. Production-bible practice in transmedia also shows why medium-specific expression must be distinguished from storyworld invariants.
+
+Craft translation:
+
+- record what the world has committed to, not every possible note;
+- continuity systems are strongest when they preserve consequences, not merely names and dates;
+- cross-medium work needs branch and adaptation governance rather than silent contradiction;
+- the tool matters less than the habit of updating authoritative commitments.
+
 ## Storyworld theory and subcreation
 
 Wolf and Ryan support treating fictional worlds as more than plot containers: they have structures, histories, objects, rules, and audience-inferable depth.
@@ -135,6 +146,10 @@ Craft translation:
 - Icek Ajzen, "The Theory of Planned Behavior", Organizational Behavior and Human Decision Processes 50(2), 1991; overview: https://www.sciencedirect.com/science/article/abs/pii/074959789190020T
 - Henri Tajfel and John C. Turner, "The Social Identity Theory of Intergroup Behaviour", 1986; bibliographic record: https://search.gesis.org/publication/zis-TajfelTurner1986The
 - James C. Scott, Seeing Like a State, Yale University Press, 1998; publisher page: https://www.jstor.org/stable/j.ctvxkn7ds
+- Henry Jenkins, "Transmedia Storytelling 101" (2007), http://henryjenkins.org/blog/2007/03/transmedia_storytelling_101.html
+- Henry Jenkins, "Transmedia 202: Further Reflections" (2011), http://henryjenkins.org/blog/2011/08/defining_transmedia_further_re.html
+- Gary P. Hayes, How to Write a Transmedia Production Bible, Screen Australia resource, overview: https://cineuropa.org/en/newsdetail/217318/
+- Lubomír Doležel, Heterocosmica: Fiction and Possible Worlds, Johns Hopkins University Press, 1998; overview in the Living Handbook of Narratology: https://www-archiv.fdm.uni-hamburg.de/lhn/node/54.html
 
 ## Exemplar setting craft traditions
 

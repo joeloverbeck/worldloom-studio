@@ -108,6 +108,21 @@ Canon status answers: where is this statement in the authorial governance proces
 
 Use statuses separately from truth layers.
 
+### Status, tag, and operation separation
+
+These four labels answer different questions and must not be collapsed:
+
+| Label type | Question answered | Examples | Governing use |
+|---|---|---|---|
+| Truth layer | What kind of truth or claim is this? | objective canon, public belief, lie, disputed claim | Classifies relation to authorial truth and in-world knowledge. |
+| Canon status | Where is this statement in governance? | proposed, accepted with constraints, localized, branch-only, deprecated | Records standing in the current continuity or branch. |
+| Constraint tag | What limits an accepted or reviewable fact? | rare, costly, secret, class-bound, seasonal, geography-bound | Explains why the fact does not transform everything everywhere. |
+| Operation | What action is being taken now? | accept, constrain, clarify scope, retcon | Records an admission decision or contradiction repair. |
+
+Constraint tags **coexist with** statuses. They do not replace statuses. The status says whether and where the statement stands; the tags say what limits make that standing coherent. `Accepted with constraints` is a status. `rare`, `costly`, `secret`, `ritual-bound`, and `geography-bound` are tags that explain the constraint.
+
+Use `localized` as a status when the fact is admitted only within a defined scope. Use `local` or `geography-bound` as tags when the fact is accepted but its operation, access, evidence, or impact is locally limited.
+
 ### Proposed
 
 Suggested but not admitted.
@@ -188,6 +203,8 @@ They must be causal. A tag that exists only to protect the plot is weak until th
 
 ## Decision operations
 
+Decision operations are **admission operations**. They answer what governance does with a proposed fact or change package. They are not the same as repair operations, which are used when an already-detected contradiction, instability, or mystery-risk needs treatment.
+
 Decision operations answer: what do we do with the proposal?
 
 ### Accept
@@ -237,6 +254,25 @@ Replace or retire existing canon while preserving audit history and in-world res
 ### Reject
 
 Reject if the fact destroys core world identity, cannot be constrained without becoming a different fact, or makes too many foundational facts incoherent.
+
+## Operation-context matrix
+
+Use this matrix when deciding which vocabulary governs.
+
+| Context | Primary question | Use these operations | Typical records |
+|---|---|---|---|
+| Fact admission | Should this proposal enter canon, and how? | accept, constrain, localize, historicize, reinterpret, institutionalize, price, branch, quarantine, supersede, deprecate, reject | `templates/canon_change_proposal.md`, `templates/canon_fact_card.md`, `checklists/canon_fact_gate.md` |
+| Contradiction repair | What kind of incompatibility exists, and how is it repaired? | clarify scope, add constraint, price, localize, historicize, institutionalize, diffuse unevenly, reinterpret, split, retcon, quarantine, reject | `templates/contradiction_report.md`, `13_contradiction_retcon_and_mystery.md` |
+| Mystery governance | What unknown is protected, fixed, author-secret, or deliberately undecided? | define boundary, preserve, delay, reveal, prohibit use, reclassify claim, quarantine if unsafe | `templates/mystery_ledger_entry.md`, `checklists/mystery_preservation.md` |
+| Branch governance | What continuity contains the divergence? | branch, compare, isolate, merge, retire, deprecate | `templates/canon_branch_diff.md`, `templates/collaboration_decision_record.md` |
+
+Some words appear in both admission and repair because they do similar causal work. `price`, `localize`, `historicize`, `institutionalize`, `reinterpret`, `quarantine`, and `reject` can be either admission decisions or repair operations. Record the context explicitly.
+
+Some words intentionally do **not** appear in both sets:
+
+- `branch`, `supersede`, and `deprecate` are admission/governance decisions about where material stands.
+- `clarify scope`, `add constraint`, `diffuse unevenly`, `split`, and `retcon` are repair moves for an existing incompatibility or instability.
+- A repair may lead to a branch, supersession, or deprecation, but that downstream governance status is recorded separately from the repair operation.
 
 ## Governance rules
 

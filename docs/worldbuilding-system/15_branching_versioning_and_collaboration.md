@@ -207,6 +207,12 @@ Deprecated material is not trash. It may be:
 
 When retiring a fact, state whether it is superseded, deprecated, rejected, or branch-only. Do not let old assumptions linger invisibly.
 
+## Branching and collaboration instruments
+
+Run `checklists/branching_collaboration_sweep.md` when a change creates a branch, compares continuities, involves multiple contributors, creates a dispute, retires material, or risks leakage between continuities.
+
+Use `templates/canon_branch_diff.md` for branch comparison and `templates/collaboration_decision_record.md` for human governance decisions. These are accountability instruments, not software workflow states.
+
 ## Collaboration anti-patterns
 
 - Treating approval as taste voting.

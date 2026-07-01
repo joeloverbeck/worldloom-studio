@@ -36,7 +36,7 @@ What workarounds exist? Are they rare, costly, dangerous, illegal, or branch-onl
 
 ## Composition
 
-What other constraints strengthen, weaken, conflict with, or chain from this one?
+What other constraints strengthen, weaken, conflict with, cancel, gate, or chain from this one?
 
 ## Residue
 
