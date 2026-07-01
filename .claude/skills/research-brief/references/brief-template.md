@@ -50,7 +50,12 @@ overhaul whose topic slug is stable (e.g. `<topic>-research-brief.md` re-issued 
 this run's Write *overwrites* the prior brief — so there is no distinct predecessor file left to
 name. In that case the durable lineage record is the **repo's own changelog/overhaul doc** (e.g.
 a package's `00_overhaul_notes.md`) that captures what the last iteration delivered; cite *that*
-in §1 as the delta seed, not a prior brief filename that no longer exists after this write.
+in §1 as the delta seed, not a prior brief filename that no longer exists after this write. When
+the line also produces a durable **companion outlook/assessment report** (per §7's
+iterative-overhaul clause), cite it as a co-equal delta seed alongside the changelog — it names
+the residues, warnings, and recommended next-pass shape the new pass should target. If the
+expected outlook is missing (e.g. it was never committed), say so plainly in §1 and instruct
+Session 2 to derive its own priorities from a full read instead.
 
 **Greenfield / cold-start.** When the repo has little existing structure, say so plainly here
 and frame the task as *design from first principles* grounded in the repo's stated purpose (its
@@ -178,6 +183,11 @@ replacement preserves the load-bearing content of the original; no new doctrine 
 upstream doc tier; every external claim is cited; the deliverable set matches §7 exactly; the §1
 fetch-baseline commit contains every file named in the §2 read-in-full list.
 
+Derive every self-check item from a §3 intention, §6 constraint, or §7 requirement. An item that
+introduces a new obligation — or tenses against a settled intention (e.g. an intention forbids
+churn that a check item would force) — signals the intentions need restating before the brief
+ships, not that Session 2 should reconcile the conflict itself.
+
 ---
 
 ## B. Target-type → load-bearing reads
@@ -232,5 +242,8 @@ user's review (settle this in the interview; default: leave uncommitted). Scope 
 what it may and may not touch.
 
 **§8 Self-check.** Recast fetch-oriented checks as working-tree checks (e.g. "every §2 path
-was read", "nothing outside the named scope was modified", "nothing was committed" when
-uncommitted is the settled default).
+was read", "this session modified nothing outside the named scope", "nothing was committed"
+when uncommitted is the settled default). Scope tree checks to the session's *own actions*: a
+live working tree is shared, so instruct Session 2 to verify against its own edit log rather
+than raw `git status`, and to surface — not own — pre-existing or concurrent changes made by
+other writers during the run.

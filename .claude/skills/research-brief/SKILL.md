@@ -130,7 +130,7 @@ Resolve both paths against the worktree root if in a worktree. Do NOT commit.
 **Disambiguating multiple candidate predecessors.** When more than one prior brief in `reports/` could be the slug predecessor (e.g. `<topic>-research-brief.md` *and* `<topic>-overhaul-research-brief.md` both plausibly continue the line), do not guess — and keep two distinct roles separate, because they can point at different files:
 
 - *File to overwrite* = the file whose slug **this run will write**. That is the only file this run's Write replaces.
-- *Lineage seed* = the record that frames the delta. For a **stable-slug iterative overhaul** the lineage seed is the repo's own changelog (e.g. `00_overhaul_notes.md`) regardless of which brief is freshest — see the stable-slug note in `references/brief-template.md` §1; otherwise it is the freshest prior brief in the chain.
+- *Lineage seed* = the record that frames the delta. For a **stable-slug iterative overhaul** the lineage seed is the repo's own changelog (e.g. `00_overhaul_notes.md`) plus any durable companion outlook report the prior pass left in `reports/`, regardless of which brief is freshest — see the stable-slug note in `references/brief-template.md` §1; otherwise it is the freshest prior brief in the chain.
 
 When the *slug to write* is itself ambiguous across candidates, resolve it by pairing each candidate brief with its manifest (mtime + the `manifest_<date>_<shortsha>.txt` baseline it names) and picking the most recent lineage step. Overwrite the slug file; surface any orphaned sibling brief explicitly in the Step 7 summary (so it is not left as a false lineage cue), and do not treat it as a second predecessor to reconcile.
 
@@ -138,7 +138,7 @@ When the *slug to write* is itself ambiguous across candidates, resolve it by pa
 
 Report:
 
-- the written files — remote-fetch: brief + refreshed manifest, the **upload bundle** for ChatGPT-Pro Session 2; local-session: the brief alone;
+- the written files — remote-fetch: brief + refreshed manifest, the **upload bundle** for ChatGPT-Pro Session 2; local-session: the brief alone. When a local-session run's slug line previously ran remote-fetch, also name any manifest left over from that channel (especially one at the same baseline) as **now-orphaned** — the user can clean it or keep it deliberately, rather than a future reader taking it as a live workflow cue;
 - a one-line reminder that Session 2 is **locked / no-questions** — remote-fetch: paste the brief, upload the manifest, and ChatGPT-Pro should produce the deliverable directly; local-session: start a fresh session and point it at the brief file;
 - any labeled assumptions carried from an early exit, so the user can correct them before handing off — and, on an **implicit** early exit, a prominent flag that the outline was presented as record only and never approved;
 - the `reports/` files you just wrote always leave `git status` dirty (one or two new/modified `reports/` files — the manifest is a new untracked file, and the brief is untracked on a first run but shows as **modified** when a repeat run overwrites an existing brief at the same slug); this is **benign** and does **not** invalidate the §1 baseline — the manifest is `git ls-tree HEAD`, which excludes untracked files, so it still equals the pinned commit. Only a later commit/merge/push that moves HEAD does;
