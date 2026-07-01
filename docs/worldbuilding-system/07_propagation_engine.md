@@ -371,6 +371,8 @@ A good propagation report does not list everything.
 
 It records the consequential paths that must be remembered so future additions do not cheat.
 
+The report is the **master record of the shock cone**. The fact card's shock-cone summary is a digest of, or pointer to, this report, and the sweep's shock-cone boxes are worked here — one cone, recorded once. The report itself is audit trail: it is not edited after the pass, and repairs that change its conclusions produce new records (`03`, record lifecycle).
+
 
 ## Micro-examples: shock cones without realist institutions
 

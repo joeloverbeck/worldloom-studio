@@ -2,6 +2,8 @@
 
 These examples show how canon facts propagate. The first four descend from the package’s original worked examples; later passes added further realist and non-naturalistic cases. They are not exhaustive models. They show how a fact becomes stronger when it is constrained, priced, institutionalized, localized, historicized, and made visible in ordinary life.
 
+The final example is different in kind: it follows the **records** rather than the world — which instrument gets filled at each step of a new-world build, how the labor divides between cards, and what a fact card looks like before and after a repair supersedes part of it.
+
 ## Example A: Raider-programmed robots
 
 ### Proposed fact
@@ -930,6 +932,58 @@ A weaker steward note says, “The mouth is sacred, so it can name anyone, alter
 
 Sacred/horror opacity is strongest when it refuses the ultimate answer and accepts every other audit.
 
+## Twelfth example: the records of Saltmarrow — a lifecycle walkthrough
+
+Every other example in this file follows a fact through the world. This one follows the **paperwork**: a small world built end-to-end along the README's new-world path, shown as the sequence of instruments actually filled, so a steward can see the record chain before living it. The world — Saltmarrow, a cold estuary country whose economy runs on memory-holding salt cut from a sacred sea-cliff — was built in a real end-to-end use of this package; only the records are summarized here.
+
+### Step 1 — one kernel
+
+`templates/world_kernel.md`, filled once. It commits the modes (material/institutional primary; sacred secondary, scoped to the cliff called the Weeping Shelf), the tonal boundaries ("never a puzzle-box; memory-salt never behaves like recorded media"), and four foundational facts: SF-1, a capability (a dying person can seal one chosen memory into a grain of Shelf salt; one taster may dissolve it once); SF-2, an institution (the Assay of Griefs certifies, registers, and taxes memory-salts; uncertified salt is contraband); SF-3, a historical trauma (the Pan Wars, ninety years past, stripped the Lee Shore towns of harvest rights); SF-4, a protected effect (the Shelf weeps and no one knows why; divers who pass beneath it return mute for exactly nine days).
+
+### Step 2 — a decomposition list, not a template
+
+`05` Phase 2 needs no instrument of its own; its output is a working list that feeds every later record. The four kernel facts split into fifteen atomic seeds (S1a–S4d), each independently rejectable — SF-1 alone yields six (sealing works only at death; one memory per death, spoken-witnessed; only unrefined Shelf salt works; one taster, once; the taster's recall decays like any lived memory; a grain keeps indefinitely if dry). The list also fixes the admission order per `05`: constraints → capability → resource → institutions → trauma → mysteries → aesthetic promises.
+
+### Step 3 — one seed audit
+
+`checklists/frontloaded_seed_audit.md`, run once over the whole seed list, after decomposition and before any admission. Its completion outputs: the seed list; the admission order; named seed debt (nothing yet limits *harvest volume* — flagged as propagation debt and assigned to the admission stage); and the minimal-viable-world decision (proceed).
+
+### Step 4 — severity-scaled admission records
+
+The gate (`checklists/canon_fact_gate.md`) runs per cluster, but the *records* scale with severity:
+
+- **SF-1 (Level 3 capability, major work)** gets full instruments: a canon fact card and a capability card, with the labor divided rather than duplicated. The **fact card** holds the governance record — objective canon; accepted with constraints; tags `rare, costly, geography-bound, ritual-bound, monopolized, unstable`; admission operations `constrain` (primary) with `price` and `institutionalize` as component moves; contradiction and mystery risks; and a shock-cone *digest*. The **capability card** holds the causal analysis — users and false claimants, access, limits, failure modes, costs, countermeasures, institutions, economy, distribution, the repeated-use test. Each cross-references the other for the sections it does not own.
+- **The eleven minor seeds** get one `templates/admission_ledger.md` row each — no cards. A sample row:
+
+  | Fact | Truth layer | Status | Constraint tags | Admission operation(s), primary first | One consequence check |
+  |---|---|---|---|---|---|
+  | S2b — uncertified memory-salt is contraband: possession fined, sale criminal | objective canon | accepted | jurisdictional, illegal (for uncertified salts) | institutionalize | black market defined by its legal edge; Lee Shore enforcement weaker |
+
+- **SF-4's protected complex** is admitted through the mystery-governance path: a mystery ledger entry (`templates/mystery_ledger_entry.md`) with the full sacred-opacity accountability block, and one fact card for the nine-day silence (the observable phenomenon is objective canon; its meaning stays behind the boundary).
+- The audit's harvest-volume debt is resolved *during* admission by `constrain` + `price` (licensed neap-tide cutting yields enough for roughly one death in twenty), recorded as a ledger addendum.
+
+### Step 5 — one propagation report as the master shock-cone record
+
+`templates/propagation_report.md` for SF-1 (major work): the full fourteen-domain pass, quiet domains declared, follow-ups assigned. The fact card's shock-cone summary is now a digest of this report — the cone is recorded once. The sweep's mandatory contradiction check pays for itself here: S2b ("possession of any uncertified salt is finable, since the Concession era") collides with S3b ("Lee Shore pre-war salts are legal to keep") — pre-war salts predate the registry and *cannot* be certified, so every Lee Shore heirloom cellar is simultaneously legal and finable. Contradiction C-1, sent to `13`.
+
+### Step 6 — one contradiction report, and the card before and after
+
+`templates/contradiction_report.md` for C-1. Repair operations, primary first: **clarify scope** (S2b is reworded to "possession of a memory-salt sealed after the founding of the registry without certification is finable; sale of any uncertified salt is criminal") and **institutionalize** as component (lawful pre-registry salts are defined by the Concession Rolls — the treaty's own enrollment of then-existing family cellars). The Rolls are a *new fact*, so they go back through **admission** — a fresh ledger row — rather than riding in on the repair.
+
+Now the record lifecycle does its work. **Before the repair**, the S2b row states the old wording with status `accepted`. **After the repair**, the living record is updated in place: the body states the *new* wording (S2b′, accepted, tags jurisdictional), and a history note holds the old wording — status `superseded`, with a pointer to contradiction report C-1. The contradiction report itself is never edited; it remains the audit trail. A steward asking "what is the law today?" reads the row; a steward asking "why did the wording change?" follows the pointer to the report. Neither has to replay anything.
+
+### Step 7 — one QA scorecard and regression profile
+
+`18`, scored against the declared modes with the calibrated anchors. Branch and collaboration tests are marked **n/a with reasons** (single continuity, solo steward) rather than scored 0. The 2-scores land exactly on the specialized passes deliberately deferred (temporal, spatial, agent, deep-institutional, evidence) — recorded as named canon debt, which is the condition of the world's "first stable candidate" verdict. The regression profile names the most dangerous under-propagated fact (the newest institution), the most fragile protected element (the divers' uniform silence), and the debt to resolve before any new foundational fact.
+
+### The complete record set
+
+One kernel; one decomposition list; one seed audit; one admission ledger (eleven rows, plus addenda); two full cards for the capability (governance + causal analysis, cross-referenced); one mystery ledger entry; one propagation report; one contradiction report; one QA profile. Roughly ten instruments for a whole small world — because the severity scale, not habit, decided which facts owed cards.
+
+### Key lesson
+
+The records are not the world, but they are how the world survives its own growth. Cards state the present tense and are repaired in place; reports accumulate, unedited, as the audit trail; the ledger keeps minor facts governed without bureaucracy. When a repair supersedes a fact, the wording moves — body to history note — and nothing goes stale.
+
 ## How to use the examples
 
 Do not copy the surface details of these examples. Copy the pressure moves:
@@ -947,6 +1001,7 @@ Do not copy the surface details of these examples. Copy the pressure moves:
 | Every law becomes a hat | Absurd-comic consequence is proved through repeated reversal, materialized language, institutional contact, escalating adaptation, and object culture. |
 | Dreams arrive before trains | Dream-logic consequence is proved through condensation, displacement, image-return, false coherence, evidence pressure, and associative geography. |
 | Chapel saint is a mouth in the wall | Sacred/horror consequence is proved through scoped opacity, ritual boundary, dread ecology, witness conflict, profanation cost, and contradiction repair. |
+| The records of Saltmarrow | The record chain of a whole new-world build: severity-scaled instruments, ledger rows for minor facts, card division of labor, the propagation report as master shock-cone record, and a living card updated in place when a repair supersedes it. |
 
 ### Example audit exercise
 

@@ -10,9 +10,17 @@ A recurring situation where actors interact under rules, incentives, information
 
 An entity capable of intention or meaningful action: person, group, institution, species, spirit, AI-like mind, deity, faction, household, corporation, cult, or swarm.
 
+## Admission ledger
+
+The lightweight batch record for minor-work facts: one row per fact holding the precise statement, scope, truth layer, status with tags, admission operation(s), and one consequence check. Rows follow the record lifecycle like any card and are promoted to full cards when a fact turns out to be load-bearing.
+
 ## Aesthetic residue
 
 Visible, audible, linguistic, symbolic, material, tonal, recurrent, sacred, horrific, dreamlike, comic, or sensory evidence that a fact has shaped the world.
+
+## Audit trail
+
+The accumulated, unedited sequence of governance reports — propagation reports, contradiction reports, change proposals, decision records — that shows how canon changed. Reports are not rewritten after the fact; a correction is a new record. The audit trail answers "how did canon get here?"; living records answer "what is canon today?"
 
 ## Authority tier
 
@@ -133,6 +141,10 @@ A fact, constraint, relationship, mystery boundary, tone, symbol, or ordinary-li
 ## Latency
 
 The delay between a fact becoming true and the world adapting to it. Latency may arise from discovery, proof, travel, training, manufacturing, adoption, law, generation, taboo, suppression, ecology, or aesthetic reveal.
+
+## Living record
+
+A card — fact, capability, constraint, institution, or any other — maintained in the present tense and updated in place as canon changes. Outgoing wording moves to the card's history note with its retirement status (`superseded`, `deprecated`) and a pointer to the report that changed it. The set of live cards is the current state of canon.
 
 ## Localized fact
 

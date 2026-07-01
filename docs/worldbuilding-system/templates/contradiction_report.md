@@ -20,7 +20,7 @@ Direct factual / temporal / spatial / capability / cost / institutional / psycho
 
 Characters, institutions, audience, author only.
 
-## Severity
+## Severity (work scale)
 
 Minor / moderate / major / foundational / catastrophic.
 
@@ -34,11 +34,11 @@ Does this conflict protect a mystery, wonder, sacred opacity, horror/dread, or s
 
 Does the conflict protect a real mystery or merely hide an error?
 
-## Repair operation
+## Repair operation(s), primary first
 
 Clarify scope / add constraint / price / localize / historicize / institutionalize / diffuse unevenly / reinterpret / split / retcon / quarantine / reject.
 
-This is a repair operation, not an admission decision. If the repair creates a new proposal, branch, supersession, or deprecation, record that separately.
+Real repairs often compose; record the primary operation first and the others as component moves, all from this repair list. These are repair operations, not admission decisions. If the repair creates a new proposal, branch, supersession, or deprecation, record that separately.
 
 ## Retcon cost
 
@@ -49,6 +49,8 @@ Continuity, institution, character, mystery, aesthetic, future.
 What else changes because of the repair?
 
 ## Resulting canon status or branch decision
+
+If the repair supersedes or rewords an existing fact, update that fact's living card in place: the new wording becomes the card's present tense, the old wording moves to the card's history section with its new status, and this report remains the unedited audit trail (`03`, record lifecycle).
 
 ## Notes
 

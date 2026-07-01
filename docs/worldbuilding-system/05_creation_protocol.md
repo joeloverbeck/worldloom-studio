@@ -30,7 +30,7 @@ Define:
 8. **Initial seed facts** — atomic facts, not encyclopedia paragraphs.
 9. **Ordinary-life anchor** — one ordinary person touched by the world’s core pressures.
 
-Use `templates/world_kernel.md`.
+Use `templates/world_kernel.md`. The template is the instrument form of this list, and the two correspond section by section: essence → world premise; aesthetic promise → core promise; starting scale → starting scale; reality and consequence mode → genre, tone, and consequence-mode commitments; primary pressures → primary pressures and initial domains; forbidden easy answers → tonal boundaries, "never become by accident," and the foundational constraints; mystery posture → initial mysteries and protected effects; initial seed facts → foundational facts; ordinary-life anchor → the anchor prompt in the ordinary-life promise. If the template and this list ever disagree, this protocol governs and the template is repaired.
 
 ### Mode declaration discipline
 
@@ -57,9 +57,11 @@ Better decomposition:
 
 Each seed receives its own fact treatment.
 
+**Granularity rule:** split until each seed could be independently rejected without destroying its siblings. If rejecting one part of a seed would force rewording the rest, the seed is still a bundle. The thin-start rule supplies the opposite bound: stop splitting when further division produces facts too small to owe consequences.
+
 ## Phase 3: Seed admission
 
-Run the fact gate for every seed.
+Run `checklists/frontloaded_seed_audit.md` first — after decomposition, before any seed is treated as accepted — then run the fact gate for every seed.
 
 For each seed:
 
@@ -71,7 +73,7 @@ For each seed:
 6. Propagate through directly affected domains.
 7. Record contradictions and mystery boundaries.
 
-Use `06_canon_fact_admission_protocol.md` and `checklists/frontloaded_seed_audit.md`.
+Use `06_canon_fact_admission_protocol.md`, with severity-scaled records: full cards for major seeds, `templates/admission_ledger.md` rows for minor ones.
 
 ## Phase 4: Minimal viable world
 
@@ -109,7 +111,7 @@ Expansion triggers:
 
 ## Phase 6: Establish ordinary life
 
-Before adding more spectacular lore, define one day in the life of an ordinary person.
+Before adding more spectacular lore, define one day in the life of an ordinary person. Start from the ordinary-life anchor named in the kernel — this phase is where that person earns their place in the record.
 
 Ask:
 
@@ -254,6 +256,8 @@ Process seed facts in this order:
 7. aesthetic promises.
 
 This order prevents spectacle from outrunning limits. A world can begin with a gorgeous image, but admission should still ask what constraint, capability, resource, institution, trauma, mystery, or promise that image implies.
+
+**Where aesthetic promises are admitted.** Aesthetic promises have no gate pass of their own. They are admitted as the kernel's aesthetic commitments (aesthetic limits, tonal boundaries, "never become by accident"), and the QA aesthetic-residue test (`18`) is what checks them. When an aesthetic promise becomes load-bearing — when it functions as a constraint on other facts or must survive collaborators and adaptations — give it a record: a fact card typed `aesthetic rule`, or `templates/aesthetic_coherence_card.md` under `17`. Deferring the rest of the aesthetic seeds to the aesthetic pass is the correct disposal, not a skip.
 
 ### First playable / readable world
 

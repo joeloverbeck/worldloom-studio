@@ -8,9 +8,15 @@ The protocol may look heavy. It is not meant to generate pages for trivial facts
 
 Use `templates/canon_change_proposal.md` when a change needs alternatives, review, or a recorded admission decision. Use `checklists/canon_fact_gate.md` before treating any proposal as active canon. Use `templates/canon_fact_card.md` to preserve an accepted or constrained fact and its consequences.
 
+Use `templates/admission_ledger.md` when a decomposition or a burst of small ideas produces many minor-work facts at once. One ledger row holds the five items minor work owes — precise statement, scope, truth layer, status plus tags, admission operation(s), and one consequence check — so a fifteen-seed decomposition does not force fifteen cards. Promote a row to a full card the moment the fact turns out to be load-bearing.
+
 Use `templates/capability_card.md` whenever the fact grants a repeatable action permission: magic, technology, office, biology, legal authority, transport, communication, healing, resurrection, surveillance, fabrication, or any similar ability. Repeatable permission is the highest-risk category because hostile actors and ordinary people will optimize it.
 
+When a fact uses both a canon fact card and a capability card, divide the labor rather than duplicating it: the fact card holds the governance record — truth layer, status, constraint tags, operations, contradiction and mystery risks, and the shock-cone digest — while the capability card holds the causal analysis of use — access, limits, failure modes, costs, countermeasures, institutions, economy, and distribution. Each card cross-references the other for the sections it does not own.
+
 Use `templates/constraint_card.md` when the fact survives only because a limit, cost, bottleneck, taboo, or access rule keeps it from changing everything.
+
+Every instrument above obeys `03`'s record lifecycle: cards are living records updated in place as canon changes, while proposals, gate results, and reports are the unedited audit trail.
 
 ## Step 1: State the fact precisely
 
@@ -404,7 +410,8 @@ A change package records:
 - mystery boundaries;
 - daily-life and historical residues;
 - follow-up tasks;
-- rejected or quarantined alternatives.
+- rejected or quarantined alternatives;
+- updates to any existing living cards the change supersedes or amends (per `03`'s record lifecycle).
 
 ## Step 21: Run QA
 
@@ -473,8 +480,8 @@ Do not use the same burden of work for every change.
 
 | Severity | Required admission work |
 |---|---|
-| Minor | Precise statement, scope, truth layer, status, one consequence check. |
-| Moderate | Minor work plus cost/access/constraint check and one domain ripple. |
+| Minor | Precise statement, scope, truth layer, status, one consequence check. An admission-ledger row (`templates/admission_ledger.md`) is the sanctioned record; no card is owed. |
+| Moderate | Minor work plus cost/access/constraint check and one domain ripple. A ledger row plus a card for any load-bearing fact. |
 | Major | Full fact gate, shock-cone summary, institution/economy pass, contradiction check, follow-up debt. |
 | Foundational | Major work plus temporal/spatial passes, branch implications, mystery/aesthetic checks, QA profile. |
 | Catastrophic | Foundational work plus explicit decision record and rollback/branch plan. |
@@ -493,7 +500,7 @@ A major or higher fact is not admitted until the package contains:
 6. constraint tags, if any;
 7. dependencies;
 8. costs, access, and bottlenecks;
-9. shock-cone summary;
+9. shock-cone summary — when a propagation report exists, the report is the master record and the summary is a digest of it or a pointer to it;
 10. affected institutions or explanation for their absence;
 11. evidence/belief note;
 12. contradiction and mystery risk note;

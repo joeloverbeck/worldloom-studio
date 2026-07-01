@@ -10,18 +10,22 @@ What is the world, in one or two sentences?
 
 What experience should the world reliably create for reader, player, viewer, or collaborator?
 
+## Starting scale
+
+Village, city, region, nation, planet, interstellar, cosmological, dreamlike, or other. Scale expands only when a fact forces it (Law 5); name where the world starts.
+
 ## Genre, tone, and consequence-mode commitments
 
-- Primary genre mode:
+- Primary genre mode (the reader-facing shelf label — the genre contract of `17`):
 - Secondary modes:
-- Primary consequence mode: material/institutional / mythic / fairy-tale / dream / comic / sacred / horror / lyrical-symbolic / hybrid:
+- Primary consequence mode (which smell tests govern admission — `01`): material/institutional / mythic / fairy-tale / dream / comic / sacred / horror / lyrical-symbolic / hybrid:
 - Secondary consequence modes:
 - Tonal boundaries:
 - What the world must never become by accident:
 
 ## Foundational facts
 
-List the few seed facts that everything else must answer to.
+List the few seed facts that everything else must answer to. For how many is too many — and what to do when one sentence smuggles several facts — see the thin-start rule and seed decomposition in `05_creation_protocol.md`.
 
 1.
 2.
@@ -44,13 +48,15 @@ What limits keep the premise from becoming shapeless?
 
 What is intentionally unknown? What is wonder, sacred opacity, horror/dread, or symbolic excess rather than a puzzle?
 
-## Initial domains of pressure
+## Primary pressures and initial domains
 
-Which domains will be most affected first?
+Which three to seven forces drive adaptation in this world, and which domains feel them first?
 
 ## Ordinary-life promise
 
 What everyday residue should prove this world has existed before the story begins?
+
+Name one ordinary person — the **ordinary-life anchor** — touched by the world's core pressures. Phase 6 of `05_creation_protocol.md` returns to this person to build their day.
 
 ## Frontloaded seed audit
 
@@ -64,10 +70,12 @@ This card is a human reasoning instrument, not a database schema or implementati
 
 ## Minimum completion
 
-- State the affected fact, scope, branch, or world section.
-- Record the decision-relevant pressure, not every possible detail.
-- Name unresolved canon debt if the card exposes it.
-- Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.
+A kernel's scope is the whole world, so its completion rule differs from change-scoped cards:
+
+- State the starting scale and the primary pressures — the decision-relevant forces, not every possible detail.
+- List the seed facts that decomposition will process individually.
+- Name the canon debt the kernel already implies (constraints not yet stated, mysteries not yet bounded).
+- Cross-reference the frontloaded seed audit (next step) and the fact cards or admission-ledger rows the seeds will need.
 
 
 ## Non-naturalistic kernel prompt

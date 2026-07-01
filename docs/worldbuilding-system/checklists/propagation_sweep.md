@@ -4,6 +4,8 @@ Serves `07_propagation_engine.md`. Use after a fact passes the gate or whenever 
 
 ## Shock cone
 
+Work these boxes in the propagation report when one exists — the report is the master shock-cone record, and the fact card's summary is a digest of it. Do not write the cone a third time here.
+
 - [ ] Immediate effects.
 - [ ] Prerequisites exposed.
 - [ ] Access changes.

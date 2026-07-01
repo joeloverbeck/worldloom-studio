@@ -210,6 +210,8 @@ Decision operations are **admission operations**. They answer what governance do
 
 Decision operations answer: what do we do with the proposal?
 
+A real admission often composes several operations: a capability may be constrained, priced, and institutionalized in one decision. Record the primary operation first and the others as component moves. Composition happens inside one jurisdiction only — admission operations compose with admission operations, repair operations with repair operations (`13_contradiction_retcon_and_mystery.md`); composing never reaches across the boundary between the two families.
+
 ### Accept
 
 The fact fits and its consequences are recorded.
@@ -404,3 +406,15 @@ When more than one human contributes, every major decision needs:
 5. constraint tags, if any;
 6. follow-up debt, if any;
 7. a note explaining why valid prior content was preserved, superseded, or deprecated.
+
+## Record lifecycle: living cards and the audit trail
+
+Governance produces two kinds of record, and they age differently.
+
+**Cards are living records.** A fact card, capability card, constraint card, or any other card states the world's present tense. When an admission, repair, supersession, or deprecation changes a fact, update its card in place so the card always states current canon. Move the outgoing wording into a short history note on the card, marked with the status it now holds — `superseded` or `deprecated` — and a pointer to the report that changed it. A card left stating overturned wording is itself a contradiction waiting to be found.
+
+**Reports are the audit trail.** Propagation reports, contradiction reports, change proposals, and decision records capture a decision at the moment it was made. Do not rewrite them afterward: their value is exactly that they do not change. If a report turns out to be wrong, the correction is a new record, not an edit.
+
+The answer to "what is canon today?" is the set of live cards read in the present tense. The answer to "how did canon get here?" is the reports replayed in order. Neither substitutes for the other: a steward who keeps only reports must replay every repair to learn the current law, and a steward who keeps only cards has no evidence when a repair is disputed.
+
+This lifecycle uses the existing statuses; no new vocabulary is needed. The live body of a card carries the fact's current status. `superseded` and `deprecated` mark outgoing wording in the history note, exactly as they mark retired facts anywhere else in governance.

@@ -17,6 +17,8 @@ For a document, fact, region, institution, branch, or whole package:
 - **Yellow:** several 1s or one serious 0; usable with caution.
 - **Red:** multiple load-bearing 0s or contradictions hidden by style.
 
+Mark a test **n/a**, with a reason, when its subject matter does not exist in the world — branch tests in a single-continuity world, collaboration tests for a solo steward, game tests for prose-only work. n/a is not 0: a 0 means the category is absent or broken where its subject exists; n/a means the subject itself does not exist. An unexplained n/a is a red flag.
+
 Do not chase all 3s. Law 10 still applies: coherence is not maximal explanation.
 
 ## Mode-aware scoring calibration
@@ -156,30 +158,6 @@ The absence of expected consequences is explained: suppression, novelty, cost, t
 ### 28. Load-bearing vocabulary test
 
 Controlled vocabulary is used consistently: truth layer, status, decision operation, repair operation, constraint tag, shock cone, mystery boundary, branch.
-
-### 29. Instrument wiring test
-
-Score 0–3.
-
-0: A protocol invokes no checklist or template even though one exists.
-
-1: Instruments are mentioned but not tied to the workflow.
-
-2: Most relevant instruments are referenced and usable.
-
-3: Every load-bearing protocol names the sweep or template that operationalizes it, and no instrument contradicts its parent doctrine.
-
-### 30. Vocabulary separation test
-
-Score 0–3.
-
-0: Truth layer, status, constraint tag, admission decision, and repair operation are confused.
-
-1: Labels are mostly distinguishable but still drift in templates or examples.
-
-2: The main docs separate them clearly.
-
-3: The docs, templates, checklists, examples, and glossary all preserve the separation under stress.
 
 ## Calibrated exemplar anchors
 
@@ -353,13 +331,37 @@ Use these examples to anchor scores. They are not templates to copy; they show t
 - **Adequate / 2:** Main docs use terms correctly, but templates drift.
 - **Strong / 3:** Docs, examples, checklists, templates, and glossary all use shared terms consistently, including consequence mode and preservation boundary.
 
-### 29. Instrument wiring test
+## Package self-audit tests
+
+The two tests below score **the methodology package itself**, not the world. A world steward filling the scorecard cannot answer "does every load-bearing protocol name its sweep?" about their fiction; leave them off the world scorecard. Run them when maintaining or revising the package — after an overhaul, a field trial, or any change to the instrument set.
+
+### P1. Instrument wiring test
+
+Score 0–3.
+
+0: A protocol invokes no checklist or template even though one exists.
+
+1: Instruments are mentioned but not tied to the workflow.
+
+2: Most relevant instruments are referenced and usable.
+
+3: Every load-bearing protocol names the sweep or template that operationalizes it, and no instrument contradicts its parent doctrine.
 
 - **Weak / 1:** A protocol says “check mysteries” but does not name the ledger or checklist.
 - **Adequate / 2:** Most relevant instruments are named, with a few gaps.
 - **Strong / 3:** Every load-bearing protocol names the sweep or card that operationalizes it, and every instrument names its parent protocol and completion rule.
 
-### 30. Vocabulary separation test
+### P2. Vocabulary separation test
+
+Score 0–3.
+
+0: Truth layer, status, constraint tag, admission decision, and repair operation are confused.
+
+1: Labels are mostly distinguishable but still drift in templates or examples.
+
+2: The main docs separate them clearly.
+
+3: The docs, templates, checklists, examples, and glossary all preserve the separation under stress.
 
 - **Weak / 1:** A repair operation is recorded as a canon status, and a constraint tag is treated as a truth layer.
 - **Adequate / 2:** The main docs separate status, tag, decision, and repair; one example is fuzzy.

@@ -4,9 +4,9 @@ Use this after a fact passes the gate or whenever a high-pressure fact needs a s
 
 ## Fact
 
-## Severity level
+## Severity (work scale)
 
-Minor / moderate / major / foundational / catastrophic.
+Minor / moderate / major / foundational / catastrophic. This is the work scale, not the admission level; `06` maps the two.
 
 ## Consequence mode
 

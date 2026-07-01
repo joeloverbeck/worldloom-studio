@@ -4,12 +4,15 @@ Templates and checklists are thinking instruments. They are not mandatory forms,
 
 A good template entry answers a question. A bad one merely fills a blank. Leave fields empty if they do not apply. Mark “not yet known” only when uncertainty itself matters.
 
+Read this index at admission time, not after: the minimal use paths below are the answer to “which instruments does this fact actually need?”, and `operating_card.md` condenses them for at-hand use. When it is unclear how the instruments compose over a fact's whole life, the worked examples in `19_worked_examples.md` — especially the records-lifecycle walkthrough — demonstrate full chains.
+
 ## Template families
 
 ### Seed and fact templates
 
 - `templates/world_kernel.md` — the lean world premise, consequence-mode commitment, protected effects, and initial constraints.
 - `templates/canon_fact_card.md` — a single canon fact, its consequence mode, truth layer, status, constraint tags, consequences, and evidence.
+- `templates/admission_ledger.md` — the lightweight batch record for minor facts: one row per fact holding the five items minor work owes, so decomposition output does not force a card per seed.
 - `templates/capability_card.md` — a repeated power, technology, magic, skill, species trait, tool, or action permission.
 - `templates/constraint_card.md` — a limit, bottleneck, taboo, cost, or failure mode that keeps a fact from flattening the world.
 
@@ -65,11 +68,19 @@ Use only:
 - `templates/canon_fact_card.md` or a paragraph equivalent;
 - `checklists/canon_fact_gate.md`.
 
+### Batch of minor facts
+
+When decomposition or a burst of small ideas produces many minor-work facts at once:
+
+- `templates/admission_ledger.md` — one row per fact;
+- `checklists/canon_fact_gate.md` run per fact or per coherent cluster;
+- promote any row to a full card the moment the fact turns out to be load-bearing.
+
 ### Major capability
 
 Use:
 
-- `templates/canon_change_proposal.md`;
+- `templates/canon_change_proposal.md` — when the change needs alternatives, review, or a recorded admission decision, per `06_canon_fact_admission_protocol.md`; a solo steward admitting seeds with no alternatives under review may skip it and record the skip;
 - `checklists/canon_fact_gate.md`;
 - `templates/canon_fact_card.md`;
 - `templates/capability_card.md`;
@@ -119,6 +130,7 @@ Do not turn the system into paperwork. Fill only the fields that prevent world d
 | `templates/world_kernel.md` | `05_creation_protocol.md` | starting or refocusing a world. |
 | `templates/canon_change_proposal.md` | `06_canon_fact_admission_protocol.md` | proposing admission, change, retirement, or branch. |
 | `templates/canon_fact_card.md` | `06` / `07` / `03` | recording a fact and its governance. |
+| `templates/admission_ledger.md` | `06` / `03` | many minor facts need admission records but not full cards. |
 | `templates/capability_card.md` | `06` / `07` / `08` | repeatable permissions need limits and consequences. |
 | `templates/constraint_card.md` | `08_constraint_composition.md` | a limit must be made visible and stress-tested. |
 | `templates/propagation_report.md` | `07_propagation_engine.md` | a fact needs shock-cone analysis. |

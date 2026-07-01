@@ -1,19 +1,19 @@
 {
   "package": "docs/worldbuilding-system",
   "name": "Causal Canon Worldbuilding System",
-  "version": "0.7",
-  "iteration": 7,
+  "version": "0.8",
+  "iteration": 8,
   "generated_date": "2026-07-02",
   "repository": "joeloverbeck/worldloom-studio",
   "provenance": {
     "executor": "Claude Code (model: Fable / claude-fable-5), local session with direct working-tree access",
-    "worked_from_commit": "2b3e38a1ff6be1c223f336bd4ecf81950066748f",
-    "baseline_divergence": "none; HEAD matched the seventh-iteration brief's pinned baseline",
-    "acquisition": "direct file reads of the working tree; no URL fetching",
+    "worked_from_commit": "4b9356eef4aa5288598da6620b6c409999adacc8",
+    "baseline_divergence": "none; HEAD matched the eighth-iteration brief's pinned baseline",
+    "acquisition": "direct file reads of the working tree; web search used only for the single research-shaped change recorded in 23",
     "edits": "applied in place to the working tree; not committed by the executor"
   },
-  "file_count": 56,
-  "structural_change": "none; all version-0.6 package files kept and updated in place; iteration history de-stratified into 00_overhaul_notes.md",
+  "file_count": 58,
+  "structural_change": "two files added on field-trial evidence (operating_card.md, templates/admission_ledger.md); all version-0.7 files kept and updated in place where the trial log demanded; iteration history lives in 00_overhaul_notes.md",
   "files": [
     "docs/worldbuilding-system/00_overhaul_notes.md",
     "docs/worldbuilding-system/01_core_theory.md",
@@ -40,6 +40,8 @@
     "docs/worldbuilding-system/22_glossary.md",
     "docs/worldbuilding-system/23_research_notes_and_bibliography.md",
     "docs/worldbuilding-system/README.md",
+    "docs/worldbuilding-system/manifest.json",
+    "docs/worldbuilding-system/operating_card.md",
     "docs/worldbuilding-system/checklists/aesthetic_coherence_sweep.md",
     "docs/worldbuilding-system/checklists/agent_character_sweep.md",
     "docs/worldbuilding-system/checklists/branching_collaboration_sweep.md",
@@ -52,8 +54,8 @@
     "docs/worldbuilding-system/checklists/spatial_geographic_sweep.md",
     "docs/worldbuilding-system/checklists/temporal_timeline_sweep.md",
     "docs/worldbuilding-system/checklists/uncertainty_evidence_sweep.md",
-    "docs/worldbuilding-system/manifest.json",
     "docs/worldbuilding-system/templates/action_arena_card.md",
+    "docs/worldbuilding-system/templates/admission_ledger.md",
     "docs/worldbuilding-system/templates/aesthetic_coherence_card.md",
     "docs/worldbuilding-system/templates/agent_character_card.md",
     "docs/worldbuilding-system/templates/canon_branch_diff.md",
@@ -74,7 +76,7 @@
   ],
   "notes": {
     "root_readme": "The repository root README.md was read only for boundary awareness and is not part of this package.",
-    "external_research_lane": "No new research-shaped changes in iteration 7; all prior research lanes and citations retained.",
-    "iteration_7_focus": "De-stratification of version-tagged section layers, duplicate-guidance merges, tier and vocabulary consistency repairs, editing-scar fixes, glossary unification, and honest local-session stewardship records."
+    "external_research_lane": "One research-shaped change in iteration 8 (record lifecycle, ISO 15489-1); all prior research lanes and citations retained.",
+    "iteration_8_focus": "Field-trial repair pass: reading-path routing, card lifecycle doctrine, batch admission instrument, kernel reconciliation, one-page operating card, records-lifecycle worked example, and the trial's small instrument fixes. Evidence base: the eighth-iteration field trial (Saltmarrow), whose ledgers and eight ranked recommendations are dispositioned one-for-one in 00_overhaul_notes.md."
   }
 }

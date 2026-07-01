@@ -265,3 +265,24 @@ The Version 0.5 calibrated anchors are retained and extended because behaviorall
 ## Research note for iteration 7 (version 0.7)
 
 Iteration 7 was a coherence and stewardship pass: it de-stratified version-tagged section layers into content-titled sections, repaired tier inconsistencies and editing scars, and harmonized vocabulary. No change in this pass was shaped by new external research, so no new sources are cited. All prior research lanes and citations are retained unchanged.
+
+## Research additions from iteration 8 (version 0.8)
+
+Iteration 8 was a field-trial repair pass: an end-to-end trial build of a small world supplied the evidence, and almost every change is grounded in that trial rather than in external research. One external lane shaped one change.
+
+### Records management and the card lifecycle
+
+The record lifecycle doctrine in `03` — cards as living present-tense records updated in place, reports as an unedited audit trail — adapts a core distinction from records-management practice: a *record* is fixed evidence of a transaction, protected for authenticity and integrity after the point of capture, while working *documents* remain living and current. ISO 15489-1 frames records as evidence of business activity whose value depends on their not being altered, and audit trails as the accountability mechanism built from them.
+
+Craft translation:
+
+- a worldbuilding card is a working document (current state, updated in place);
+- a governance report is a record (evidence of a decision, never rewritten);
+- superseded wording is retained in a history note, not erased, so the card carries its own provenance;
+- a correction to a report is a new record, not an edit — the audit trail's value is exactly that it does not change.
+
+### Source added in iteration 8
+
+- ISO 15489-1:2016, *Information and documentation — Records management — Part 1: Concepts and principles*, International Organization for Standardization, https://www.iso.org/standard/62542.html
+
+No other change in iteration 8 was research-shaped; the remaining fixes are traceable to logged field-trial findings, and citing further sources for them would be decoration.

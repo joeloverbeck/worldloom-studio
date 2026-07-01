@@ -2,11 +2,13 @@
 
 Serves `05_creation_protocol.md` and `templates/world_kernel.md`. Seed facts are dangerous because they feel already accepted. Audit them as rigorously as later additions.
 
+**When this runs:** after seed decomposition and before the first admission. `05` Phase 3 folds it into the admission stage; the README lists it as its own step. Either placement is fine — what matters is that no seed is treated as accepted before this audit has run.
+
 ## Seed fact inventory
 
 - [ ] Each seed fact is written as a claim, not a vibe.
 - [ ] Each seed fact has a truth layer.
-- [ ] Each seed fact has an initial status.
+- [ ] Each seed fact has an initial status — before admission this is `proposed`; record the intended post-admission status too, so the gate can check the intention.
 - [ ] Each seed fact has an initial scope.
 - [ ] Each seed fact has obvious constraints or a note that constraints are missing.
 - [ ] Constraint tags are separated from statuses.

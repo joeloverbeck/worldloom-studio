@@ -86,10 +86,13 @@ When a contradiction appears:
 8. Identify whether the conflict protects a useful mystery.
 9. Choose a repair operation.
 10. Propagate the repair.
+11. Update the affected cards in place, per `03`'s record lifecycle: the repaired wording becomes each card's present tense, the superseded wording moves to the card's history note, and the contradiction report remains the unedited audit trail.
 
 ## Repair operations
 
 These are repair operations, not canon statuses. A status says what standing a fact currently has. A repair operation says what action you take.
+
+Repairs compose the same way admissions do: a single repair may clarify scope and institutionalize in one act. Record the primary operation first and the others as component moves, all drawn from this repair list — composing never reaches across into the admission vocabulary of `03`.
 
 ### Clarify scope
 
@@ -324,7 +327,7 @@ A mystery or protected non-instrumental effect is healthy when:
 
 A mystery or protected non-instrumental effect is weak when:
 
-- it exists only because the author has not decided;
+- it exists only because the author has not decided — undecided by neglect; a deliberate, recorded refusal to decide under an authorial mystery boundary is not this failure;
 - all answers are equally possible;
 - it blocks necessary propagation;
 - it excuses contradictions;

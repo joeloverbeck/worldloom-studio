@@ -2,6 +2,8 @@
 
 A canon fact card records a single world fact and the consequences that make it safe to use. It is a thinking instrument, not a software record.
 
+The card is a **living record**: it states current canon in the present tense and is updated in place when a repair, supersession, or deprecation changes the fact. Move outgoing wording to the history section below rather than leaving it in the body; the reports that changed the fact are the audit trail, the card is the present tense (`03`, record lifecycle).
+
 ## Fact statement
 
 Write the fact in clear prose.
@@ -51,6 +53,8 @@ What prevents this from changing everything instantly?
 
 ## Shock-cone summary
 
+When a propagation report exists for this fact, the report is the master record: write this summary as a digest of it, or a pointer to it, rather than a third full copy.
+
 - immediate effects:
 - prerequisites exposed:
 - second-order effects:
@@ -86,11 +90,15 @@ Leave this blank unless a contradiction, instability, or mystery-risk required r
 
 Record human reasoning, not just the result.
 
+## History
+
+Outgoing wording lives here, not in the body. For each superseded or deprecated version: the old wording, its status now (`superseded` / `deprecated`), the date or sequence marker, and a pointer to the contradiction report, change proposal, or decision record that retired it.
+
 ## Traceability note
 
 Parent protocol: `03_truth_layers_and_canon_governance.md` and `06_canon_fact_admission_protocol.md`.
 
-This card is a human reasoning instrument, not a database schema or implementation contract. Record one fact, not a bundle of related lore.
+This card is a human reasoning instrument, not a database schema or implementation contract. Record one fact, not a bundle of related lore; for a batch of minor facts, `templates/admission_ledger.md` rows are the sanctioned lighter record. When a capability card exists for the same fact, this card holds the governance record and shock-cone digest while the capability card holds the causal analysis of use — cross-reference rather than duplicate.
 
 ## Minimum completion
 

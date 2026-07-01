@@ -1,10 +1,10 @@
 # Causal Canon Worldbuilding System
 
-Version `0.7` is a storage- and software-agnostic methodology for creating and maintaining fictional worlds whose canon facts propagate through the world instead of sitting as isolated lore. It does not assume Markdown, a database, a graph engine, a web app, an API, an LLM workflow, or any particular publishing medium. A solo author, writing room, tabletop group, game team, or setting steward can use it with paper, notebooks, cards, documents, wikis, spreadsheets, index cards, wall charts, conversation, or any other medium.
+Version `0.8` is a storage- and software-agnostic methodology for creating and maintaining fictional worlds whose canon facts propagate through the world instead of sitting as isolated lore. It does not assume Markdown, a database, a graph engine, a web app, an API, an LLM workflow, or any particular publishing medium. A solo author, writing room, tabletop group, game team, or setting steward can use it with paper, notebooks, cards, documents, wikis, spreadsheets, index cards, wall charts, conversation, or any other medium.
 
 The records in `templates/` and the sweeps in `checklists/` are human thinking instruments, not implementation instructions. They name the questions that must be answered; they do not prescribe a storage model.
 
-Version `0.7` keeps the 56-file architecture because every file remains load-bearing with a clear authority tier. The improvement is coherence: documents are organized by what they teach rather than by the iteration that added each layer, duplicate guidance is merged, label separations and operation vocabularies are consistent across tiers, the glossary is unified and alphabetized, and the two severity vocabularies are explicitly mapped. All substance delivered by earlier versions — equal-weight non-naturalistic consequence tests, worked cases for myth, absurd comedy, dream logic, and sacred/horror, the adversarial earned-sacred-opacity guard, point-of-use micro-examples, calibrated QA anchors, and the institutional hard edge — is retained.
+Version `0.8` keeps the numbered-spine architecture and grows it by two files (58 total) where field evidence demanded an instrument: a one-page operating card and a batch admission ledger template. The improvement is field-trial repair: an end-to-end trial build of a small world exposed friction concentrated in reading-path routing, instrument-to-instrument handoffs, and record lifecycle, and this version fixes exactly those. The new-world path now routes every document it actually depends on; fact cards are governed as living present-tense records with reports as the immutable audit trail; minor facts have a sanctioned lightweight admission record; the kernel's two definitions are reconciled; and the worked examples include a records-lifecycle walkthrough. All substance delivered by earlier versions — equal-weight non-naturalistic consequence tests, worked cases for myth, absurd comedy, dream logic, and sacred/horror, the adversarial earned-sacred-opacity guard, point-of-use micro-examples, calibrated QA anchors, and the institutional hard edge — is retained.
 
 ## Core idea
 
@@ -52,15 +52,17 @@ The package distinguishes six concepts that must not be blurred:
 
 ### For a new world
 
-1. Start with `01_core_theory.md`.
+1. Start with `01_core_theory.md`, keeping `operating_card.md` at hand as a quick reference for the whole path.
 2. Fill a lean `templates/world_kernel.md`.
 3. Use `05_creation_protocol.md` to decompose every seed fact.
-4. Run `checklists/frontloaded_seed_audit.md` so the initial premise receives the same scrutiny as later changes.
-5. Admit seed facts with `06_canon_fact_admission_protocol.md`, `checklists/canon_fact_gate.md`, and `templates/canon_fact_card.md`.
-6. Propagate major facts with `07_propagation_engine.md`, `04_domain_atlas.md`, `templates/propagation_report.md`, and `checklists/propagation_sweep.md`.
-7. Add temporal, spatial, agent, institutional, uncertainty, branch, constraint, and aesthetic passes only where the fact applies.
-8. Run the specialized sweeps named in the parent protocol.
+4. Read `03_truth_layers_and_canon_governance.md` before auditing anything: the seed audit and every admission instrument depend on its truth layers, canon statuses, constraint tags, and operation vocabularies.
+5. Run `checklists/frontloaded_seed_audit.md` so the initial premise receives the same scrutiny as later changes.
+6. Admit seed facts with `06_canon_fact_admission_protocol.md` and `checklists/canon_fact_gate.md`: full record cards (`templates/canon_fact_card.md`, `templates/capability_card.md`) for major facts, `templates/admission_ledger.md` rows for minor ones. Consult `21_templates_index.md` here for the lightest instrument that catches the danger and for when `templates/canon_change_proposal.md` is required.
+7. Propagate major facts with `07_propagation_engine.md`, `04_domain_atlas.md`, `templates/propagation_report.md`, and `checklists/propagation_sweep.md`.
+8. Add temporal, spatial, agent, institutional, uncertainty, branch, constraint, and aesthetic passes only where the fact applies, running the specialized sweeps named in each parent protocol.
 9. Run `18_quality_assurance_tests.md` before treating the first version as stable.
+
+When stuck on how the instruments compose in practice, `19_worked_examples.md` demonstrates full chains, including a records-lifecycle walkthrough that shows which instrument gets filled at each step. `02_world_model.md` is enrichment rather than a required stop on this path: read it when you want sharper thinking primitives or when a fact resists classification.
 
 ### For an existing world
 
@@ -106,7 +108,7 @@ A tiny local detail may need only a fact card and a short propagation note. A ne
 ### Doctrine and primitives
 
 - `01_core_theory.md` — philosophy, 12 operating laws, Causal Canon cycle, mode-aware smell tests, and limits.
-- `02_world_model.md` — conceptual primitives and relation verbs. These are thinking tools, not database tables.
+- `02_world_model.md` — conceptual primitives and relation verbs. These are thinking tools, not database tables. Enrichment for any path: required reading only when the primitives vocabulary is needed.
 - `03_truth_layers_and_canon_governance.md` — truth layers, canon statuses, constraint tags, admission decision operations, repair-operation boundary, and governance roles.
 - `04_domain_atlas.md` — fourteen world domains facts ripple through.
 
@@ -129,12 +131,13 @@ A tiny local detail may need only a fact card and a short propagation note. A ne
 - `16_narrative_game_and_transmedia_extraction.md` — deriving story, game, and medium-specific pressure from world facts.
 - `17_aesthetic_coherence_and_semiosis.md` — tone, genre, mood, symbolism, language, semiotic propagation, wonder, sacred opacity, horror, and aesthetic residue.
 - `18_quality_assurance_tests.md` — scoring rubric, calibrated exemplar anchors, regression tests, and coherence-audit patterns.
-- `19_worked_examples.md` — worked examples using the protocols.
+- `19_worked_examples.md` — worked examples using the protocols, including a records-lifecycle walkthrough of the full instrument chain.
 - `20_ai_assisted_workflow.md` — AI as proposer, auditor, and challenger; never canon authority.
 - `21_templates_index.md` — how all templates and checklists fit together.
 - `22_glossary.md` — authoritative shared vocabulary.
 - `23_research_notes_and_bibliography.md` — research roots and translation rules.
-- `00_overhaul_notes.md` — iteration-seven provenance, diagnosis, fate mapping, retention audit, and research rationale. The single changelog: iteration history lives here, not in the doctrine and protocol files.
+- `operating_card.md` — one-page quick reference: the new-world path with its real dependencies, the label-separation table, the severity map, and the minimal instrument paths. Derived from `README`, `03`, `06`, and `21`; those files govern on any conflict.
+- `00_overhaul_notes.md` — iteration-eight provenance, evidence base, finding dispositions, fate mapping, retention audit, and research rationale. The single changelog: iteration history lives here, not in the doctrine and protocol files.
 
 ## Operating stance
 

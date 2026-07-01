@@ -32,7 +32,7 @@ Serves `06_canon_fact_admission_protocol.md`. Use before treating any proposed f
 
 ## Decision context
 
-- [ ] Admission decision operation recorded: accept, constrain, localize, historicize, reinterpret, institutionalize, price, branch, quarantine, supersede, deprecate, or reject.
+- [ ] Admission decision operation(s) recorded, primary first: accept, constrain, localize, historicize, reinterpret, institutionalize, price, branch, quarantine, supersede, deprecate, or reject. Composed admissions record component operations as context, all from the admission list (`03`).
 - [ ] Repair operation recorded only if a contradiction or instability required repair.
 - [ ] Follow-up propagation assigned.
 - [ ] Quarantined or rejected alternatives preserved where useful as branch, rumor, lie, or deprecated note.

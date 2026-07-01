@@ -56,6 +56,8 @@ Parent protocol: `06`, `07`, and `08`.
 
 This card is a human reasoning instrument, not a database schema or implementation contract. Treat the capability as repeatable; ask what happens after a hundred ordinary uses.
 
+Like every card, this is a living record updated in place as canon changes (`03`, record lifecycle). When a canon fact card exists for the same fact, that card holds the governance record — layer, status, tags, operations, shock-cone digest — and this card holds the causal analysis of use; cross-reference rather than duplicate.
+
 ## Minimum completion
 
 - State the affected fact, scope, branch, or world section.
