@@ -50,7 +50,7 @@ Who pays costs while not participating?
 
 What would change if a new canon fact entered this arena?
 
-## Version 0.5 traceability note
+## Version 0.6 traceability note
 
 Parent protocol: `12_institutional_economic_and_suppression_protocol.md`.
 

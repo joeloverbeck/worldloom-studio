@@ -221,7 +221,14 @@ Trying to answer every domain before the world has pressure will bury the useful
 
 Start small. Propagate what matters. Expand when forced.
 
-## Version 0.5 reinforcement: the thin-start rule
+
+## Version 0.6 micro-examples: thin starts in non-naturalistic modes
+
+- **Mythic kernel:** “The first fire was stolen from a sleeping whale.” Do not begin with a pantheon encyclopedia. Decompose the seed into taboo (never light lamps with whale oil), recurrence (winter fire rites imitate theft), residue (coastal children are born with ash-gray palms), and first pressure line (what happens when a city breaks the taboo during a famine?).
+- **Dream-logic kernel:** “Every locked door opens into the room where the opener last lied.” The first audit is not institutional realism; it is associative recurrence. Which lie condenses into which room? What object returns each time the same shame returns?
+- **Comic kernel:** “All official titles migrate to whoever sneezed most recently.” The thin start is not a full civil service; it is the repeatable reversal, the trapped routine, and the way status becomes impossible to stabilize.
+
+## Version 0.6 reinforcement: the thin-start rule
 
 Start thinner than feels comfortable. A strong kernel does not name every continent, dynasty, god, currency, weapon, and cuisine. It names the smallest set of facts that force the world to become itself.
 

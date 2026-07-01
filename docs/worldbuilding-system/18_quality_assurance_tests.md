@@ -29,6 +29,32 @@ Do not score a non-naturalistic world down merely because it refuses the wrong f
 
 Institutional rigor is still mandatory where the world has promised institutional realism. Mode-awareness is a scoring calibration, not a pardon.
 
+
+## Version 0.6 mode-balance calibration
+
+When scoring a non-naturalistic world, do not translate every test into institutional realism. Score against the declared consequence mode. A mythic or fairy-tale fact can earn a 3 without courts or markets if it produces rigorous recurrence, prohibition, transformation, ritual cost, helper/opponent logic, and residue. A dream or absurd-comic fact can earn a 3 if its discontinuities recur by association or reversal rather than by physics. A sacred/horror fact can earn a 3 if it protects explanation while accepting cost, boundary, dread, evidence handling, and contradiction repair.
+
+This calibration is equal-weight. A realist world that lacks institutional/economic consequence still fails. A non-naturalistic world that lacks recurrence, motif, taboo, associative pressure, comic reversal, dread ecology, or protected-effect accountability also fails.
+
+### Non-naturalistic benchmark anchors
+
+| Mode | 1 / weak | 2 / functional | 3 / strong |
+|---|---|---|---|
+| Mythic / ritual | A divine event is impressive once. | The event creates a rite or taboo. | The event creates recurring calendar pressure, cost, lineage residue, origin scars, and profanation consequences. |
+| Fairy-tale / folktale | Magic happens because it is charming. | A prohibition/helper/test recurs locally. | Prohibition, violation, helper, test, transformation, and recognition logic recur across scenes without needing institutional plausibility. |
+| Absurd comedy | Random nonsense produces isolated jokes. | A comic rule repeats. | Repetition escalates, reversals tighten the trap, characters adapt locally, and the final state exposes the same impossible structure in sharper form. |
+| Dream logic | Anything can happen. | Images recur with some association. | Condensation, displacement, image-return, false coherence, and emotional trigger conditions are legible enough to audit. |
+| Sacred / horror | “Sacred” or “scary” blocks questions. | A boundary and cost are named. | Explanation is protected, but cost, recurrence, ritual boundary, dread ecology, evidence, and contradiction repair remain fully testable. |
+| Lyrical / symbolic excess | Beautiful images float free. | Motifs recur. | Motifs exceed paraphrase while still altering attention, language, gesture, memory, and audience expectation. |
+
+### Non-naturalistic scoring examples across core tests
+
+- **Consequence test:** A moon that eats oaths scores 1 if it is only a striking image, 2 if broken oaths recur monthly, and 3 if law, love, ritual, calendars, lullabies, and betrayal residue all bend around the monthly eating.
+- **Institution or mode-equivalent test:** A dream world scores 3 when the substitute for institution is stable associative governance: the same guilt-image opens the same rooms, creates enforceable social expectations, and produces predictable avoidance.
+- **Mystery / wonder preservation test:** A sacred object scores 3 only if the refused explanation is precise and all non-explanatory consequences remain auditable.
+- **Fossil test:** An absurd-comic rule scores 3 when past reversals survive as idioms, forms, gestures, inherited routines, and defensive jokes.
+- **Evidence test:** Horror can score 3 with partial knowledge when witnesses, artifacts, absence evidence, bodily memory, and rumor ecology are tracked without prematurely explaining the threat.
+
 ## Core tests
 
 ### 1. Consequence test
@@ -392,6 +418,17 @@ Use a simple worksheet:
 - “It is magic” without social, ritual, symbolic, sacred, comic, dread, or ordinary-life consequence.
 - “It is gameplay” without world response.
 
+
+### Additional Version 0.6 non-naturalistic red flags
+
+- A mythic fact has no rite, taboo, recurrence, origin residue, or profanation cost.
+- A fairy-tale transformation has no prohibition, helper/opponent function, test, recognition, or repeated motif.
+- An absurd-comic rule is “random” rather than recurrent, escalating, and structurally trapping.
+- A dream-logic fact lacks condensation, displacement, associative trigger, recurring image, or aftermath.
+- Sacred opacity refuses consequence, contradiction repair, cost, evidence handling, or craft critique instead of refusing only explanation.
+- Horror resolves too quickly into monster logistics or refuses all evidence so dread never becomes world pressure.
+- Symbolic excess is protected as authorial taste rather than generating residue in language, behavior, material culture, or attention.
+
 ## QA repair loop
 
 1. Pick the lowest load-bearing score.
@@ -401,7 +438,7 @@ Use a simple worksheet:
 5. Record the result.
 6. Stop before the world becomes more explained than alive.
 
-## Version 0.5 reinforcement: regression profile
+## Version 0.6 reinforcement: regression profile
 
 A QA pass should produce a regression profile, not just a score. Record:
 

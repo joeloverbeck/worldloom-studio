@@ -360,7 +360,7 @@ Do not ask whether a claim is interesting before asking what layer it belongs to
 
 The wrong truth layer can make a brilliant idea incoherent. The right truth layer can make a contradiction fruitful.
 
-## Version 0.5 reinforcement: decision jurisdiction
+## Version 0.6 reinforcement: decision jurisdiction
 
 Governance failures usually happen when a steward uses the wrong operation family. Use this jurisdiction rule:
 

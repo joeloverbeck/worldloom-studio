@@ -90,7 +90,7 @@ Name emotional, symbolic, sacred, horror, continuity, gameplay, or thematic dama
 - Wonder, sacredness, horror, or symbolic excess is not converted into a puzzle unless that is the deliberate branch.
 - A reveal, if allowed, creates new consequence rather than merely closing a file.
 
-## Version 0.5 traceability note
+## Version 0.6 traceability note
 
 Parent protocol: `13_contradiction_retcon_and_mystery.md`.
 
@@ -102,3 +102,15 @@ This card is a human reasoning instrument, not a database schema or implementati
 - Record the decision-relevant pressure, not every possible detail.
 - Name unresolved canon debt if the card exposes it.
 - Cross-reference any parent protocol, checklist, contradiction report, preservation sweep, branch diff, or decision record needed to keep the change governed.
+
+
+## Sacred-opacity accountability (required if effect type includes sacred opacity)
+
+- **Refused explanation:** What exact origin, essence, or ultimate meaning is protected?
+- **Consequences still fixed:** What costs, residues, ritual conditions, witness effects, spatial limits, or temporal limits remain auditable?
+- **Recurrence / boundary rule:** What pattern distinguishes an earned exception from an arbitrary authorial convenience?
+- **Contradiction implications:** What existing or future canon facts would need repair if they violate this boundary?
+- **Critique still allowed:** Which craft questions remain fair: clarity, recurrence, tone, cost, evidence, audience trust, or aesthetic fit?
+- **Legitimate-vs-cheat note:** State why this is earned sacred opacity rather than a sacred-opacity cheat.
+
+> Micro-example: “The chapel mouth's origin is protected; its noon/sunset speech window, named-person rule, shadow cost, candle-voice profanation, and witness disputes remain governed.”

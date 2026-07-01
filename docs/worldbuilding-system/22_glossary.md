@@ -265,3 +265,16 @@ The creation discipline of beginning with the smallest set of seed facts that fo
 ## Traceability
 
 The ability to show which doctrine, protocol, checklist, template, or decision record supports a fact, instrument, repair, or branch result.
+
+
+## Earned sacred opacity
+
+A protected sacred unknown that refuses a specific explanation while accepting consequence, cost, recurrence, ritual boundary, contradiction repair, evidence handling, and craft critique. Earned sacred opacity protects the holy or numinous from reduction; it does not protect the steward from accountability.
+
+## Sacred-opacity cheat
+
+A misuse of sacred opacity in which “it is sacred” is used to escape consequence, hide vagueness, dodge contradiction repair, cancel cost, block audience-facing clarity, or shield a favored image from criticism. A sacred-opacity cheat is canon debt until repaired or rejected.
+
+## Opacity accountability test
+
+The five-part stewardship test for protected sacred opacity: state the refused explanation, state fixed consequences/costs, state recurrence or boundary, state contradiction-handling implications, and state which craft critiques remain fair. It is applied in contradiction/mystery governance, aesthetic coherence, the mystery-preservation checklist, and the mystery-ledger template.

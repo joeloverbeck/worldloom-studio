@@ -92,7 +92,7 @@ Before writing, present in chat:
 
 1. the **settled intentions** — the resolved decisions the interview produced (these become §3 of the brief and are what make Session 2 "locked");
 2. the **deliverable spec** — exactly which downloadable markdown docs Session 2 must produce (replace vs. new, filenames); for *determination-plus-conditional* targets ("decide if X is needed, and if so produce X"), state both the required verdict and which of the three production modes governs the artifact (see `references/brief-template.md` §7);
-3. the **read-in-full list** (authority-ordered, with the one-line reasons).
+3. the **read-in-full list** (authority-ordered, with the one-line reasons). **Large-package economy:** when the read list is large (e.g. a full replacement package of dozens of files), you need not enumerate every entry with its reason in chat — present it by **authority tier + the flagged/priority targets + the boundary-awareness group** (reasons stated once per group), and defer the full per-file one-line reasons to the written §2. Full enumeration stays the default for small lists.
 
 Before presenting, confirm both audit-trail announcements were emitted earlier this run: the Step 1 `Classification:` line and the Step 3 online-research run-or-skip one-liner. If either was missed, emit it now. Also confirm every path in the read-in-full list resolves at the fetch-baseline commit (`git ls-tree <baseline> <path>` / `git cat-file -e <baseline>:<path>`): drop or correct any that don't, so the list you present is the list Session 2 can actually fetch.
 
@@ -119,7 +119,12 @@ Resolve both paths against the worktree root if in a worktree. Do NOT commit.
 
 **Repeat-run brief already at the target path.** When `reports/<topic>-research-brief.md` already exists from an earlier run or session (a stable-slug iterative deliverable overwrites its own predecessor), you must `Read` the existing file before writing — the Write validator rejects an unread overwrite. This is expected on any re-issue; recover by reading then overwriting, and see `references/brief-template.md` §1 for how to record the overwritten predecessor's lineage.
 
-**Disambiguating multiple candidate predecessors.** When more than one prior brief in `reports/` could be the slug predecessor (e.g. `<topic>-research-brief.md` *and* `<topic>-overhaul-research-brief.md` both plausibly continue the line), do not guess: the one you overwrite is the file whose slug this run will write, and the lineage predecessor is the freshest step in the chain — resolve it by pairing each candidate brief with its manifest (mtime + the `manifest_<date>_<shortsha>.txt` baseline it names) and picking the most recent lineage step. Overwrite that one; surface any orphaned sibling brief explicitly in the Step 7 summary (so it is not left as a false lineage cue), and do not treat it as a second predecessor to reconcile.
+**Disambiguating multiple candidate predecessors.** When more than one prior brief in `reports/` could be the slug predecessor (e.g. `<topic>-research-brief.md` *and* `<topic>-overhaul-research-brief.md` both plausibly continue the line), do not guess — and keep two distinct roles separate, because they can point at different files:
+
+- *File to overwrite* = the file whose slug **this run will write**. That is the only file this run's Write replaces.
+- *Lineage seed* = the record that frames the delta. For a **stable-slug iterative overhaul** the lineage seed is the repo's own changelog (e.g. `00_overhaul_notes.md`) regardless of which brief is freshest — see the stable-slug note in `references/brief-template.md` §1; otherwise it is the freshest prior brief in the chain.
+
+When the *slug to write* is itself ambiguous across candidates, resolve it by pairing each candidate brief with its manifest (mtime + the `manifest_<date>_<shortsha>.txt` baseline it names) and picking the most recent lineage step. Overwrite the slug file; surface any orphaned sibling brief explicitly in the Step 7 summary (so it is not left as a false lineage cue), and do not treat it as a second predecessor to reconcile.
 
 ## Step 7: Summarize
 

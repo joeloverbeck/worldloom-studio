@@ -291,7 +291,14 @@ For every major fact:
 - [ ] Diffusion speed is plausible.
 - [ ] Local beliefs and institutions reflect place.
 
-## Version 0.5 reinforcement: diffusion is social as well as geographic
+
+## Version 0.6 micro-examples: symbolic and impossible geography
+
+- **Sacred geography:** A shrine is “near” only to those who approach without bargaining. Spatial reasoning still applies: pilgrimage routes, failed expeditions, maps with blank centers, and social inequality around access all follow.
+- **Dream geography:** The east road always leads to the room where a traveler left something unfinished. The map may be impossible, but recurrence, trigger condition, and residue make it auditable.
+- **Comic geography:** The capital moves to whichever town has the wettest socks. The spatial consequence is reversal, performative sock-wetting, counterfeit weather, and persistent administrative absurdity.
+
+## Version 0.6 reinforcement: diffusion is social as well as geographic
 
 A fact does not spread only by distance. Rogers's diffusion model emphasizes innovation, communication channels, time, and social system; worldbuilding should therefore ask who can hear, trust, afford, imitate, and legitimize a fact, not merely who lives nearby.[^i4-rogers]
 

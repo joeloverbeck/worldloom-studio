@@ -44,7 +44,7 @@ New witness, artifact, ritual, experiment, confession, map, body, fossil, price 
 
 What must not be settled accidentally?
 
-## Version 0.5 traceability note
+## Version 0.6 traceability note
 
 Parent protocol: `14_uncertainty_belief_and_evidence.md`.
 

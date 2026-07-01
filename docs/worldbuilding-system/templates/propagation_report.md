@@ -68,7 +68,7 @@ Name the specific templates or checklists required; do not write “TBD” if th
 
 Templates, checklists, contradictions, mysteries/protected effects, branches, examples.
 
-## Version 0.5 traceability note
+## Version 0.6 traceability note
 
 Parent protocol: `07_propagation_engine.md`.
 
@@ -80,3 +80,11 @@ This card is a human reasoning instrument, not a database schema or implementati
 - Record the decision-relevant pressure, not every possible detail.
 - Name unresolved canon debt if the card exposes it.
 - Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.
+
+
+## Version 0.6 mode-equivalent propagation
+
+- **Non-naturalistic propagation route:**
+- **Recurring motif / taboo / dream image / reversal / ritual / dread residue:**
+- **Domains affected without institutional plausibility:**
+- **Where institutional/economic/suppression analysis still applies:**

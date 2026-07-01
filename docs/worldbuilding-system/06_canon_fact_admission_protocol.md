@@ -460,7 +460,14 @@ The more secret a fact is, the more secrecy mechanics it owes.
 
 The more beautiful a fact is, the more ruthless the system must be about its consequences.
 
-## Version 0.5 reinforcement: severity-scaled evidence
+
+## Version 0.6 micro-examples: mode-equivalent admission
+
+- **Fairy-tale admission:** “A third apology opens the iron gate” is not admitted because it is charming. It is admitted only after the gate rule, the number-three recurrence, false-apology constraint, helper/opponent behavior, and transformation residue are stated.
+- **Sacred/horror admission:** “No one may count the chapel's steps twice” may refuse an origin explanation, but admission still requires the cost of counting, the ritual boundary, witness consequences, and contradiction repair if a prior scene counted them safely.
+- **Absurd-comic admission:** “The town minutes correct themselves to insult the speaker” must specify recurrence, escalation, social consequence, and the stable comic trap; “the minutes do random funny things” is not enough.
+
+## Version 0.6 reinforcement: severity-scaled evidence
 
 Do not use the same burden of work for every change.
 

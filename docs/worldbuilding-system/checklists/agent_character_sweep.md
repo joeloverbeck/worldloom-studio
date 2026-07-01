@@ -33,7 +33,14 @@ Serves `11_agent_character_psychology.md`. Use when a world fact changes actor b
 - [ ] Contradictory behavior repaired, assigned to truth layers, or made deliberately motivated.
 - [ ] Psychological residue recorded: habits, trauma, pride, shame, denial, superstition, gallows humor, identity politics.
 
-## Version 0.5 completion rule
+
+## Version 0.6 point-of-use non-naturalistic agency
+
+- [ ] Characters in non-naturalistic modes are audited against actor-local rationality inside the mode.
+- [ ] The sweep distinguishes foolishness from rational obedience to recurrent helper, taboo, dream, comic, or sacred logic.
+- [ ] **Micro-example:** Feeding the fox after a prohibition may be rational if helper logic repeatedly rewards sacrificial generosity.
+
+## Version 0.6 completion rule
 
 Parent protocol: `11_agent_character_psychology.md`.
 

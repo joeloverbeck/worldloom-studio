@@ -54,7 +54,7 @@ What rival or underground structures grow around it?
 
 Buildings, uniforms, phrases, seals, gestures, schedules, rituals, sounds, documents, scars, jokes.
 
-## Version 0.5 traceability note
+## Version 0.6 traceability note
 
 Parent protocol: `12_institutional_economic_and_suppression_protocol.md`.
 

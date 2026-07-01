@@ -34,7 +34,15 @@ Serves `17_aesthetic_coherence_and_semiosis.md`. Use when a fact, region, instit
 - [ ] Symbolic excess is consistent without being reduced to one gloss.
 - [ ] Aesthetic drift is either repaired or deliberately governed.
 
-## Version 0.5 completion rule
+
+## Version 0.6 protected-effect accountability
+
+- [ ] Wonder, sacred opacity, horror/dread, and symbolic excess each state what is protected and what is still testable.
+- [ ] No protected aesthetic effect is used to hide a missing consequence, broken recurrence, contradiction, or unclear boundary.
+- [ ] **Earned sacred opacity check:** The explanation may remain beyond paraphrase; the effect still leaves cost, ritual, residue, and critique-permitted craft shape.
+- [ ] **Micro-example:** A saint's hidden face earns protection if the hiddenness shapes icons, gestures, taboos, profanation costs, and witness behavior; it fails if it merely avoids description.
+
+## Version 0.6 completion rule
 
 Parent protocol: `17_aesthetic_coherence_and_semiosis.md`.
 

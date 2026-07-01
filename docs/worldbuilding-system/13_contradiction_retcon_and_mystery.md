@@ -13,7 +13,7 @@ Do not collapse these four categories:
 3. **Mystery** — the canon intentionally protects an unresolved question.
 4. **Ignorance** — characters, institutions, or publics do not know something that may already be objective canon.
 
-Version `0.5` adds a fifth distinction that must not be folded back into mystery:
+Version `0.6` adds a fifth distinction that must not be folded back into mystery:
 
 5. **Non-instrumental effect** — wonder, awe, sublimity, sacred opacity, horror, terror, dread, or symbolic excess whose purpose is not to hide a solvable answer.
 
@@ -244,7 +244,7 @@ Use `templates/mystery_ledger_entry.md` even when the puzzle-question field is �
 [^i5-burke-13]: Edmund Burke, *A Philosophical Enquiry into the Origin of Our Ideas of the Sublime and Beautiful*, 1757.
 [^i5-kant-13]: Immanuel Kant, *Critique of Judgment*, 1790; see modern summaries of aesthetic judgment and the sublime.
 [^i5-otto-13]: Rudolf Otto, *The Idea of the Holy*, 1917/1923 English translation.
-[^i5-dread-13]: Peter Windsor, “Tales of Dread,” distinguishes dread from horror by its sustained uncertainty around preternatural events.
+[^i5-dread-13]: Mark Windsor, “Tales of Dread,” distinguishes dread from horror by its sustained uncertainty around preternatural events.
 
 ## Mystery jurisdiction
 
@@ -338,7 +338,48 @@ Do not use “it is mysterious,” “it is sacred,” “it is dreamlike,” �
 
 Unknown origins still create cults, sciences, frauds, taboos, laws, markets, fears, rituals, politics, songs, repeated images, avoidance habits, profanation penalties, and dreams. The world may not know what the lights in the quarry are, and the steward may decide nobody ever should, but the quarry road still changes.
 
-## Version 0.5 reinforcement: contradiction disposition
+
+## Version 0.6 reinforcement: earned sacred opacity versus opacity cheat
+
+Sacred opacity is legitimate only when it refuses explanation while accepting consequence. The steward may protect the origin, essence, or ultimate meaning of a sacred presence, but may not protect the presence from cost, recurrence, ritual constraint, contradiction repair, evidence-bound witness handling, aesthetic critique, or audience-facing stewardship.
+
+This is the teachable line:
+
+- **Earned sacred opacity:** “We do not explain what speaks from the well, but every time it speaks, candles gutter blue, priests lose one memory, children avoid the west road for seven days, and contradiction reports repair any scene that ignored those costs.”
+- **Opacity cheat:** “The well can do whatever the author needs because it is sacred, and questions about cost, limits, prior contradictions, or reader confusion are dismissed as over-explaining.”
+
+### Paired adversarial examples
+
+| Question | Legitimate use | Cheat |
+|---|---|---|
+| What is protected? | The ultimate nature of the speaking well. | All details about what the well can do. |
+| What is still governed? | Ritual timing, witness effects, spatial avoidance, memory cost, contradiction repair, and preservation boundary. | Nothing; the sacred label cancels QA. |
+| What happens when violated? | A named profanation consequence recurs and leaves residue. | A new one-off effect appears only to solve the current plot. |
+| Can it be criticized? | Yes: recurrence, cost, tone, residue, and clarity remain criticizable. | No: critique is rejected as disrespectful or insufficiently mystical. |
+
+Scholarship on the sublime, aesthetic judgment, the numinous, enchantment, the uncanny, horror, and dread helps separate kinds of protected effects; it does not by itself prevent stewardship abuse. The prevention is this adversarial guard: sacred opacity earns protection only by passing consequence, recurrence/cost, ritual-boundary, contradiction, and craft-critique checks.[^v06-burke-13][^v06-kant-13][^v06-otto-13][^v06-bennett-13][^v06-freud-13][^v06-carroll-13][^v06-windsor-13]
+
+### Sacred-opacity accountability test
+
+Before assigning or preserving sacred opacity, answer all five:
+
+1. **Refusal scope:** What exact explanation is refused?
+2. **Consequence acceptance:** What visible consequences, costs, taboos, residues, or ritual conditions remain fixed?
+3. **Recurrence or boundary:** What pattern lets a steward tell a deliberate exception from a cheat?
+4. **Contradiction handling:** What prior or future scenes would need repair if they violate the boundary?
+5. **Critique permission:** What craft questions remain fair game: clarity, tone, recurrence, cost, reader trust, or audience-facing confusion?
+
+Failure on any answer does not automatically destroy the sacred effect, but it downgrades the item from protected opacity to unresolved craft debt until repaired.
+
+[^v06-burke-13]: Edmund Burke, *A Philosophical Enquiry into the Origin of Our Ideas of the Sublime and Beautiful*, Royal Collection Trust overview: https://www.rct.uk/collection/themes/trails/canova-in-four-dimensions/edmund-burke-a-philosophical-enquiry-into-the-origin-of-our-ideas-of-the-sublime-and-beautiful.
+[^v06-kant-13]: “Kant's Aesthetics and Teleology,” *Stanford Encyclopedia of Philosophy*, https://plato.stanford.edu/entries/kant-aesthetics/.
+[^v06-otto-13]: Stuart Sarbacker, “Rudolf Otto and the Concept of the Numinous,” Oxford Research Encyclopedia of Religion, https://academic.oup.com/edited-volume/62249/chapter/551443194.
+[^v06-bennett-13]: Jane Bennett, *The Enchantment of Modern Life*, Princeton University Press, https://press.princeton.edu/books/paperback/9780691088136/the-enchantment-of-modern-life.
+[^v06-freud-13]: Freud Museum London, “The Uncanny,” https://www.freud.org.uk/education/resources/the-uncanny/.
+[^v06-carroll-13]: Noël Carroll, *The Philosophy of Horror*, Routledge, https://www.routledge.com/The-Philosophy-of-Horror-or-Paradoxes-of-the-Heart/Carroll/p/book/9780415902168.
+[^v06-windsor-13]: Mark Windsor, “Tales of Dread,” *Estetika* 56(1), 2019, https://philpapers.org/rec/WINTOD-3.
+
+## Version 0.6 reinforcement: contradiction disposition
 
 A contradiction report must end in one of these dispositions:
 

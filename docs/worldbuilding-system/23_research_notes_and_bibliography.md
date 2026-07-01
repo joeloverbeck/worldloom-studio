@@ -166,7 +166,7 @@ The original package used exemplar settings as craft inspiration rather than aut
 
 It is not a demand for realism. It is not a reading list required before worldbuilding. It is not a substitute for judgment. Its job is to give the methodology sharper questions.
 
-## Version 0.5 research additions
+## Retained Version 0.5 research additions
 
 Iteration 5 keeps the existing research roots and adds three lanes: mode-aware non-naturalistic coherence, preservation of wonder/sacred opacity/horror/symbolic excess, and calibrated QA exemplars.
 
@@ -192,7 +192,7 @@ Rubric literature on calibrated exemplars and scoring guides supports Version `0
 
 Translation rule: QA exemplars are calibration aids, not new doctrine. They improve consistency only if teams actually compare their ratings against them.
 
-### Added sources consulted or promoted for Version 0.5
+### Added sources consulted or promoted for retained Version 0.5 material
 
 - Vladimir Propp, *Morphology of the Folktale*, University of Texas Press English translation, 1968; publisher record and structural summaries: https://www.degruyterbrill.com/document/doi/10.7560/783911/html and https://dokumen.pub/morphology-of-the-folktale-revised-edition-0292783760-9780292783768.html
 - Edmund Burke, *A Philosophical Enquiry into the Origin of Our Ideas of the Sublime and Beautiful*, 1757; overview: https://www.rct.uk/collection/themes/publications/canova-in-four-dimensions/edmund-burke-a-philosophical-enquiry-into-the-origin-of-our-ideas-of-the-sublime-and-beautiful
@@ -201,15 +201,63 @@ Translation rule: QA exemplars are calibration aids, not new doctrine. They impr
 - Jane Bennett, *The Enchantment of Modern Life*, Princeton University Press, 2001; publisher page: https://press.princeton.edu/books/paperback/9780691088136/the-enchantment-of-modern-life
 - Sigmund Freud, “The Uncanny,” 1919; Freud Museum overview: https://www.freud.org.uk/education/resources/the-uncanny/
 - Noël Carroll, *The Philosophy of Horror*, Routledge, 1990; publisher page: https://www.routledge.com/The-Philosophy-of-Horror-or-Paradoxes-of-the-Heart/Carroll/p/book/9780415902168
-- Peter Windsor, “Tales of Dread,” *The Philosophical Quarterly*; summary record: https://philpapers.org/rec/WINTOD
+- Mark Windsor, “Tales of Dread,” *Estetika: The European Journal of Aesthetics* 56(1), 2019; summary record: https://philpapers.org/rec/WINTOD-3
 - Albert Atkin, “Peirce’s Theory of Signs,” Stanford Encyclopedia of Philosophy, https://plato.stanford.edu/entries/peirce-semiotics/
 - Paul Ricoeur, “The symbol gives rise to thought,” discussed in Stanford Encyclopedia of Philosophy overview of Ricoeur, https://plato.stanford.edu/entries/ricoeur/
 - Amanda M. Heldsinger and Stephen Humphry, “Using Calibrated Exemplars in the Teacher-Assessment of Writing,” ERIC record, https://eric.ed.gov/?id=EJ918794
 - Deborah Allen and Kimberly Tanner, “Rubrics: Tools for Making Learning Goals and Evaluation Criteria Explicit for Both Teachers and Learners,” *CBE Life Sciences Education*, https://pmc.ncbi.nlm.nih.gov/articles/PMC2330295/
 
-### Version 0.5 translation summary
+### Retained Version 0.5 translation summary
 
 - Propp strengthens non-institutional consequence tests through function, recurrence, and motif.
 - Burke, Kant, Otto, Bennett, Freud, Carroll, Windsor, Peirce, and Ricoeur strengthen the distinction between mystery and wonder/sacredness/horror/symbolic excess.
 - Rubric-calibration sources justify anchored examples while warning that true reliability still requires steward practice and comparison.
 - None of these sources override the package doctrine. They sharpen the questions the doctrine already asks.
+
+
+## Version 0.6 research additions
+
+Iteration 6 adds research support for two targeted craft moves: broader non-naturalistic consequence tests and adversarial sacred-opacity accountability. These sources shape the additions in `01`, `13`, `17`, `18`, `19`, `22`, the mystery-preservation checklist, the mystery-ledger template, and the standalone seventh-iteration outlook.
+
+### Non-naturalistic coherence
+
+- Vladimir Propp's *Morphology of the Folktale* remains the anchor for fairy-tale and folktale coherence: functions, prohibitions, donor tests, helpers, recognition, and transformations can create rigorous consequence without realist institutions.[^v06-propp-23]
+- Mythic coherence is treated as recurrence, rite, taboo, origin scar, sacrifice, and seasonal or cosmic repetition rather than as a loose metaphor.
+- Absurd-comic coherence is treated as recurrent reversal, trapped routine, language failure, and escalation rather than as arbitrary nonsense. Esslin's theatre-of-the-absurd frame supports comedy whose structures reveal a world without ordinary purpose, but the package translates that into auditable recurrence rather than philosophical looseness.[^v06-esslin-23]
+- Dream-logic coherence is grounded in dream-work operations such as condensation, displacement, secondary revision, and pictorial representation; the craft translation is associative recurrence, not “anything can happen.”[^v06-dreamwork-23]
+- Sacred/horror coherence is grounded in boundary, dread, profanation cost, evidence conflict, and protected explanation.
+
+### Sacred opacity, wonder, horror, dread, and misuse
+
+- Burke's sublime helps distinguish terror, awe, and self-preservational pressure from ordinary beauty.[^v06-burke-23]
+- Kant's aesthetics helps preserve the distinction between aesthetic judgment and rule-bound cognition; the package uses this to avoid reducing wonder to mechanism, while still requiring consequence.[^v06-kant-23]
+- Otto's numinous supports the sacred-opacity distinction: holy experience may be “entirely other,” mysterious, terrifying, fascinating, and difficult to state directly.[^v06-otto-23]
+- Bennett's account of enchantment supports wonder as a live ethical and perceptual force, not mere ignorance.[^v06-bennett-23]
+- Freud's uncanny supports the “familiar made strange” pathway; the package translates that into recurrence, displacement, and dread rather than a generic scare label.[^v06-freud-uncanny-23]
+- Carroll's philosophy of horror supports treating horror as an aesthetic structure with narrative and emotional logic, not as arbitrary shock.[^v06-carroll-23]
+- Windsor's dread distinction supports Version 0.6's separation between immediate horror and sustained uncertainty that threatens a character's grasp of reality.[^v06-windsor-23]
+
+The crucial craft caveat is explicit: these works help distinguish effects, but none of them automatically prevents a steward from misusing sacred opacity. Version 0.6 therefore adds the steward-facing opacity accountability test: protect the explanation if needed, but keep consequence, cost, recurrence, contradiction repair, and craft critique alive.
+
+### Calibration and pedagogy rationale
+
+The Version 0.5 calibrated anchors are retained and extended because behaviorally anchored examples reduce interpretation drift better than abstract labels alone. Version 0.6 adds non-naturalistic anchors beside institutional ones and distributes short point-of-use micro-examples across the protocols, so users learn the operation where they apply it rather than only in the large example gallery.
+
+### Version 0.6 translation summary
+
+- Propp and structural folktale logic translate into recurrence/function/prohibition/helper/test checks in `01`, `18`, and the fairy-tale worked example.
+- Myth translates into rite/taboo/origin-scar/seasonal-return checks in `01`, `18`, and the new mythic worked example.
+- Absurd comedy translates into recurring reversal, escalation, trapped routine, and language/materialization checks in `18`, `19`, and protocol micro-examples.
+- Dream work translates into condensation, displacement, image-return, false coherence, and associative trigger checks.
+- Burke/Kant/Otto/Bennett/Freud/Carroll/Windsor translate into protected-effect distinctions, but the misuse prevention is the system's own accountability guard.
+
+[^v06-propp-23]: Vladimir Propp, *Morphology of the Folktale: Second Edition*, University of Texas Press, 1968, publisher record: https://www.degruyterbrill.com/document/doi/10.7560/783911/html.
+[^v06-esslin-23]: Martin Esslin, “The Theatre of the Absurd,” *The Tulane Drama Review* 4(4), 1960, https://www.jstor.org/stable/1124873.
+[^v06-dreamwork-23]: Freud Museum London, “The Dream-Work,” https://www.freud.org.uk/schools/resources/the-interpretation-of-dreams/the-dream-work/.
+[^v06-burke-23]: Royal Collection Trust, “Edmund Burke: A Philosophical Enquiry into the Origin of Our Ideas of the Sublime and Beautiful,” https://www.rct.uk/collection/themes/trails/canova-in-four-dimensions/edmund-burke-a-philosophical-enquiry-into-the-origin-of-our-ideas-of-the-sublime-and-beautiful.
+[^v06-kant-23]: “Kant's Aesthetics and Teleology,” *Stanford Encyclopedia of Philosophy*, https://plato.stanford.edu/entries/kant-aesthetics/.
+[^v06-otto-23]: Stuart Sarbacker, “Rudolf Otto and the Concept of the Numinous,” Oxford Research Encyclopedia of Religion, https://academic.oup.com/edited-volume/62249/chapter/551443194.
+[^v06-bennett-23]: Jane Bennett, *The Enchantment of Modern Life*, Princeton University Press, https://press.princeton.edu/books/paperback/9780691088136/the-enchantment-of-modern-life.
+[^v06-freud-uncanny-23]: Freud Museum London, “The Uncanny,” https://www.freud.org.uk/education/resources/the-uncanny/.
+[^v06-carroll-23]: Noël Carroll, *The Philosophy of Horror*, Routledge, https://www.routledge.com/The-Philosophy-of-Horror-or-Paradoxes-of-the-Heart/Carroll/p/book/9780415902168.
+[^v06-windsor-23]: Mark Windsor, “Tales of Dread,” *Estetika* 56(1), 2019, https://philpapers.org/rec/WINTOD-3.

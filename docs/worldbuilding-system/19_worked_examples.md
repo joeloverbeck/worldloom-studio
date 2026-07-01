@@ -590,7 +590,7 @@ Absence is a canon fact. Missing animals, metals, gods, stars, diseases, or writ
 
 ## Seventh example: The village where broken promises become birds
 
-This is the non-naturalistic stress test for Version `0.5`. It shows that Causal Canon does not require institutional plausibility in every mode. The world is fairy-tale / lyrical with sacred undertones. Its coherence proof is recurrence, symbolic transformation, taboo, ritual, tonal inevitability, and ordinary-life residue, not bureaucracy.
+This is the non-naturalistic stress test for Version `0.6`. It shows that Causal Canon does not require institutional plausibility in every mode. The world is fairy-tale / lyrical with sacred undertones. Its coherence proof is recurrence, symbolic transformation, taboo, ritual, tonal inevitability, and ordinary-life residue, not bureaucracy.
 
 ### Proposed fact
 
@@ -769,7 +769,171 @@ The question is not “Where is the government?” The question is “Where is t
 
 For this world, consequence lives in dawn recurrence, vow language, bird motif, shame songs, empty cages, comic reversal, sacred opacity, and a recurring threat that one's own voice may become weather. That is coherent worldbuilding without institutional naturalism.
 
-## Version 0.5 reinforcement: how to use the examples
+
+## Eighth example: The god who loses a hand every spring
+
+### Proposed fact
+
+Every spring, the harvest god loses one hand, and the first green shoots grow from the buried fingers.
+
+### Declared consequence mode
+
+Mythic / ritual. Coherence is tested through recurrence, seasonal rite, sacrificial cost, taboo, body symbolism, origin residue, and ritual condition rather than through institutional plausibility.
+
+### Clarified rule
+
+- The hand is lost once each spring at the first thaw.
+- The fingers must be buried in five fields before dawn.
+- If a finger is stolen, one domain of growth becomes distorted for the year: grain, births, memory, speech, or fire.
+- The god's hand returns in winter scarred by how the fields were tended.
+- The origin of the god's body is sacredly opaque; the rite's consequences are not.
+
+### Consequence sweep
+
+- **Recurrence:** The rite repeats yearly, so calendars, songs, courtship, inheritance, and travel all orient around the hand-loss.
+- **Taboo:** No one may count fingers during the thaw. Counting is a profanation that produces malformed shoots.
+- **Ritual cost:** The five buriers each lose a manual skill for the season; one forgets weaving, one swordplay, one writing, one surgery, one cradle-making.
+- **Social residue:** Families compete to avoid and to honor the burying role. Shame attaches not to sacrifice, but to painless sacrifice.
+- **Aesthetic residue:** Gloves become sacred objects; “empty-handed” means fertile, not poor.
+- **Mode-equivalent conflict:** The central question is not market price but whether a village will steal the speech-finger to make its children eloquent.
+
+### Contradiction and repair checks
+
+A scene that shows spring crops growing before burial is not excused as mythic. It must be repaired: move the scene after burial, localize the crop as last year's remnant, or add a heretical branch where stolen fingers created false growth.
+
+### QA snapshot
+
+- Consequence: 3 — recurrence, cost, residue, taboo, and social pressure all follow.
+- Institution/mode-equivalent: 3 — ritual office and sacrifice substitute for bureaucracy without weakening consequence.
+- Sacred opacity: 3 — origin explanation is protected; ritual effects are auditable.
+
+### Key lesson
+
+Mythic coherence does not require realist institutional causation, but it absolutely requires recurring cost, ritual condition, taboo, and residue.
+
+## Ninth example: The republic where every law becomes a hat
+
+### Proposed fact
+
+In the Republic of Brims, every law passed by the assembly immediately becomes a hat that chooses one citizen to wear it until the law is repealed.
+
+### Declared consequence mode
+
+Absurd comedy with institutional contact. The mode is comic reversal and materialized language, but because the fact concerns law, institutional rigor still applies.
+
+### Clarified rule
+
+- A law becomes exactly one hat.
+- The hat chooses a wearer by an opaque but repeatable comic logic: it favors whoever most loudly denied caring about the law.
+- The wearer must obey the law perfectly and unconsciously enforces its literal wording in conversation.
+- Repealed laws become hatboxes that whisper obsolete exceptions.
+
+### Consequences
+
+- **Comic recurrence:** Every attempt to legislate away embarrassment creates a new public costume.
+- **Institutional pressure:** Legislators write shorter laws to avoid unwieldy hats; lobbyists try to provoke opponents into denial.
+- **Economic pressure:** Tailors become legal consultants; hatbox archives become black markets for loopholes.
+- **Ordinary life:** Citizens avoid declarative opinions near parliament. Children play “who denied it?” games.
+- **Aesthetic residue:** Political cartoons become actual legal commentary because hat shape reveals legal absurdity.
+
+### Contradiction and repair checks
+
+If a scene treats law as invisible abstraction after the rule is admitted, repair it. Either the law has not passed, the hat is hidden, the wearer is absent, or the contradiction is a branch.
+
+### QA snapshot
+
+- Consequence: 3 — the joke becomes governance, speech habit, profession, and object culture.
+- Institution/mode-equivalent: 3 — comedy does not erase law; it makes law humiliatingly material.
+- Economic/value pressure: 2–3 depending on whether hatbox markets and tailoring professions are developed.
+
+### Key lesson
+
+Absurd comedy is not license for randomness. The funny rule must repeat, tighten, and produce adaptations that make the world more trapped by its own joke.
+
+## Tenth example: The station where dreams arrive before trains
+
+### Proposed fact
+
+At Harrow-Glass Station, passengers dream their destination one night before the train that could take them there appears.
+
+### Declared consequence mode
+
+Dream logic. Coherence is tested by condensation, displacement, repeated image triggers, false narrative coherence, spatial-temporal slippage, and emotional residue.
+
+### Clarified rule
+
+- The dream arrives before the train, but not always before the passenger understands the destination.
+- A destination appears as a condensed image: a mother's kitchen may stand for exile, hunger, inheritance, or a literal village.
+- Tickets print one object from the dream instead of a place-name.
+- A passenger who refuses the dream may still board, but the train stops at the avoided image.
+
+### Consequences
+
+- **Temporal pressure:** Tomorrow's journey appears before today's decision; timelines track dream date, interpretation date, boarding date, and arrival date.
+- **Evidence pressure:** Dream images are evidence, but not literal evidence. Conductors keep catalogs of recurring objects and their common displacements.
+- **Spatial pressure:** The station is a hub of associative geography: platforms group by image families, not compass direction.
+- **Character pressure:** People fear not trains but interpretation. Some hire interpreters; others sabotage sleep.
+- **Residue:** Idioms change: “missed the train” means misunderstood yourself.
+
+### Contradiction and repair checks
+
+A dream cannot mean anything convenient in the moment. If a key has repeatedly meant betrayal, a later use as “new opportunity” requires a documented shift, character misinterpretation, or branch.
+
+### QA snapshot
+
+- Timeline: 3 — dream, interpretation, train, and arrival dates are distinct.
+- Evidence: 3 — images are unreliable but governed evidence.
+- Spatial: 2–3 — strong if associative platform geography is mapped by triggers and residues.
+
+### Key lesson
+
+Dream logic becomes world logic when associations recur strongly enough that characters can fear, misread, exploit, and be changed by them.
+
+## Eleventh example: The chapel whose saint is a mouth in the wall
+
+### Proposed fact
+
+A chapel wall contains a living mouth that speaks only the names of people who will be forgiven if they enter before sunset.
+
+### Declared consequence mode
+
+Sacred / horror. Coherence is tested through ritual boundary, sacred opacity, dread, evidence conflict, profanation cost, witness transformation, and protected explanation.
+
+### Clarified rule
+
+- The mouth's origin and nature are sacredly opaque.
+- It speaks names only between noon and sunset.
+- A named person may enter once. If they refuse, their shadow enters without them.
+- No one may ask what forgiveness means. Asking causes every candle in the chapel to burn with the asker's voice for one night.
+- The mouth cannot be moved, fed, wounded, or photographed without profanation consequences.
+
+### Legitimate sacred opacity
+
+The package refuses to explain whether the mouth is saint, demon, miracle, wound, or communal hallucination. It does not refuse consequence. The mouth has hours, speech limits, shadow effects, profanation costs, witness records, ritual boundaries, and contradiction tests.
+
+### Horror and dread ecology
+
+- **Dread:** A named person has until sunset; fear accumulates before confirmation of what forgiveness costs.
+- **Horror:** When a shadow enters without its person, the remaining body is visibly altered: it casts candlelight instead of shadow.
+- **Evidence conflict:** Priests record names; skeptics record candle-voices; families dispute whether forgiveness is mercy or erasure.
+- **Ordinary life:** People avoid walking near noon. Parents name children after the already-dead to confuse the mouth.
+- **Aesthetic residue:** Architecture avoids mouths: rounded arches become taboo, lips disappear from saints' icons.
+
+### Cheat version rejected
+
+A weaker steward note says, “The mouth is sacred, so it can name anyone, alter rules, ignore prior scenes, and should not be questioned.” That is rejected as an opacity cheat. The origin is protected; the boundary, cost, recurrence, evidence, and contradiction handling are not.
+
+### QA snapshot
+
+- Mystery/wonder preservation: 3 — protected explanation is scoped.
+- Contradiction: 3 — noon/sunset, name, shadow, and candle-voice rules are repairable if violated.
+- Aesthetic residue: 3 — sacred/horror consequences alter space, iconography, family practice, and dread.
+
+### Key lesson
+
+Sacred/horror opacity is strongest when it refuses the ultimate answer and accepts every other audit.
+
+## Version 0.6 reinforcement: how to use the examples
 
 Do not copy the surface details of these examples. Copy the pressure moves:
 
@@ -781,6 +945,11 @@ Do not copy the surface details of these examples. Copy the pressure moves:
 | Cheap teleportation | A too-powerful premise must be constrained, branched, historicized, or allowed to transform the world. |
 | Visible lies | An epistemic capability changes law, intimacy, politics, aesthetics, and oppression. |
 | No horses | Absence is a fact; missing animals, resources, or technologies reshape war, trade, language, class, and myth. |
+| Broken promises become birds | Fairy-tale / lyrical consequence is proved through recurrence, motif, transformation, ritual care, sacred opacity, comic edge, and horror residue without requiring institutional plausibility. |
+| God loses a hand every spring | Mythic consequence is proved through recurring rite, taboo, sacrifice, origin scar, seasonal residue, and profanation cost. |
+| Every law becomes a hat | Absurd-comic consequence is proved through repeated reversal, materialized language, institutional contact, escalating adaptation, and object culture. |
+| Dreams arrive before trains | Dream-logic consequence is proved through condensation, displacement, image-return, false coherence, evidence pressure, and associative geography. |
+| Chapel saint is a mouth in the wall | Sacred/horror consequence is proved through scoped opacity, ritual boundary, dread ecology, witness conflict, profanation cost, and contradiction repair. |
 
 ### Example audit exercise
 

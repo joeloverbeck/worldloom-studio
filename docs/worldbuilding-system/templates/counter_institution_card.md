@@ -46,7 +46,7 @@ How does official power fight it? How does it survive?
 
 At what point does the counter-institution reproduce the harm it opposed?
 
-## Version 0.5 traceability note
+## Version 0.6 traceability note
 
 Parent protocol: `12_institutional_economic_and_suppression_protocol.md`.
 

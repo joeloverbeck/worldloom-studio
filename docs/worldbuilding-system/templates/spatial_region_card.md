@@ -44,7 +44,7 @@ Materials, colors, buildings, clothing, accents, food, sounds, rituals, place na
 
 What expected consequence is absent here, and why?
 
-## Version 0.5 traceability note
+## Version 0.6 traceability note
 
 Parent protocol: `10_spatial_and_geographic_propagation.md`.
 

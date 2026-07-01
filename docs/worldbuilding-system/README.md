@@ -1,10 +1,10 @@
 # Causal Canon Worldbuilding System
 
-Version `0.5` is a storage- and software-agnostic methodology for creating and maintaining fictional worlds whose canon facts propagate through the world instead of sitting as isolated lore. It does not assume Markdown, a database, a graph engine, a web app, an API, an LLM workflow, or any particular publishing medium. A solo author, writing room, tabletop group, game team, or setting steward can use it with paper, notebooks, cards, documents, wikis, spreadsheets, index cards, wall charts, conversation, or any other medium.
+Version `0.6` is a storage- and software-agnostic methodology for creating and maintaining fictional worlds whose canon facts propagate through the world instead of sitting as isolated lore. It does not assume Markdown, a database, a graph engine, a web app, an API, an LLM workflow, or any particular publishing medium. A solo author, writing room, tabletop group, game team, or setting steward can use it with paper, notebooks, cards, documents, wikis, spreadsheets, index cards, wall charts, conversation, or any other medium.
 
 The records in `templates/` and the sweeps in `checklists/` are human thinking instruments, not implementation instructions. They name the questions that must be answered; they do not prescribe a storage model.
 
-Version `0.5` keeps the iteration-four file architecture because every original file remained load-bearing and already had a clear authority tier. The improvement is internal: mode-aware consequence doctrine for realist and non-naturalistic worlds, a stronger distinction between mystery and non-instrumental wonder, calibrated QA exemplar anchors, sharper aesthetic and symbolic propagation, and updated instruments that preserve sacred opacity, horror, awe, and symbolic excess without weakening institutional rigor.
+Version `0.6` keeps the existing 56-file architecture because every original file remained load-bearing and already had a clear authority tier. The improvement is internal: equal-weight non-naturalistic consequence tests, compact worked cases for myth, absurd comedy, dream logic, and sacred/horror, an adversarial earned-sacred-opacity guard, point-of-use micro-examples across the protocols, calibrated QA anchors, sharper aesthetic and symbolic propagation, and updated instruments that preserve sacred opacity, horror, awe, and symbolic excess without weakening institutional rigor.
 
 ## Core idea
 
@@ -132,7 +132,7 @@ A tiny local detail may need only a fact card and a short propagation note. A ne
 - `21_templates_index.md` — how all templates and checklists fit together.
 - `22_glossary.md` — authoritative shared vocabulary.
 - `23_research_notes_and_bibliography.md` — research roots and translation rules.
-- `00_overhaul_notes.md` — iteration-five provenance, mapping, retention audit, priority-resolution notes, and research rationale.
+- `00_overhaul_notes.md` — iteration-six provenance, mapping, retention audit, priority-resolution notes, and research rationale.
 
 ## Operating stance
 

@@ -256,7 +256,14 @@ For any major constraint:
 - [ ] It leaves institutional or economic residue.
 - [ ] It does not exist only to protect the plot.
 
-## Version 0.5 reinforcement: constraint budgets
+
+## Version 0.6 micro-examples: constraints in non-naturalistic modes
+
+- **Ritual gate constraint:** A river answers only questions asked barefoot. The constraint is not “soft mood”; it limits access, shapes pilgrimage behavior, creates seasonal risk, and produces counterfeit barefoot rites.
+- **Dream tradeoff constraint:** A key opens any door but replaces one remembered face with the door's color. The cost composes with memory, identity, evidence, and character agency rather than with money.
+- **Sacred preservation constraint:** The saint's name cannot be spoken inside the chapel. This may protect opacity, but it cannot protect contradictions: records, gestures, substitutes, and consequences of violation still need governance.
+
+## Version 0.6 reinforcement: constraint budgets
 
 A constraint is strong when it creates story pressure while preventing domination. It is weak when it exists only to excuse why a world-breaking fact does not matter.
 

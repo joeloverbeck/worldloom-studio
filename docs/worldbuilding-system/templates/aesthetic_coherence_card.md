@@ -58,7 +58,7 @@ Gestures, ceremonies, games, songs, alarms, court actions, daily routines, refus
 
 Decoration without cause; monotony; over-explanation; sacred flattening; dread domestication; one-to-one symbol decoding; accidental genre drift.
 
-## Version 0.5 traceability note
+## Version 0.6 traceability note
 
 Parent protocol: `17_aesthetic_coherence_and_semiosis.md`.
 
@@ -70,3 +70,17 @@ This card is a human reasoning instrument, not a database schema or implementati
 - Record the decision-relevant pressure, not every possible detail.
 - Name unresolved canon debt if the card exposes it.
 - Cross-reference any parent protocol, checklist, contradiction report, mystery/wonder entry, branch diff, or decision record needed to keep the change governed.
+
+
+## Protected-effect accountability
+
+Use when the card invokes wonder, sacred opacity, horror/dread, uncanny recurrence, or symbolic excess.
+
+- **Protected effect:**
+- **What is not explained / not paraphrased:**
+- **What remains consequential:**
+- **Recurrence, cost, or residue:**
+- **Aesthetic cheat risk:**
+- **Repair if the effect is under-earned:**
+
+> Micro-example: A hidden saint-face is accountable if hiddenness shapes iconography, posture, taboo, witness behavior, and profanation cost; it is an aesthetic cheat if hiddenness merely conceals an undeveloped image.

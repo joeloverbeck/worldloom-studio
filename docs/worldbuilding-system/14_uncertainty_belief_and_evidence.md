@@ -239,7 +239,14 @@ Uncertainty is not a fog machine. Too much undifferentiated uncertainty destroys
 
 Use protected unknowns where they matter. Elsewhere, choose a working truth layer, confidence band, and action threshold so the world can respond.
 
-## Version 0.5 reinforcement: credence as world pressure
+
+## Version 0.6 micro-examples: evidence without disenchanting the mode
+
+- **Sacred opacity:** A relic's origin may remain protected, but witnesses can still disagree about when it glowed, who touched it, what injury followed, and which testimony is reliable.
+- **Dream logic:** A witness who saw a staircase turn into a throat is not automatically useless; the evidence card records image recurrence, trigger conditions, emotional displacement, and corroborating residues.
+- **Horror/dread:** Dread often depends on incomplete confirmation, but incomplete confirmation is still evidence ecology, not a license to avoid source reliability.
+
+## Version 0.6 reinforcement: credence as world pressure
 
 Bayesian epistemology treats degrees of belief, or credences, as central to how beliefs should respond to evidence.[^i4-bayes] The system does not require formal probability math, but it should preserve the craft insight: belief strength matters. A rumor believed at 10%, 50%, and 95% creates different behavior.
 

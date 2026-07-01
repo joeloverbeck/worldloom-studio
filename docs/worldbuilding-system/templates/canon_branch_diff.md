@@ -44,7 +44,7 @@ What must not migrate into another continuity without review?
 
 Private / public / table-only / draft / legacy / abandoned / active.
 
-## Version 0.5 traceability note
+## Version 0.6 traceability note
 
 Parent protocol: `15_branching_versioning_and_collaboration.md`.
 

@@ -40,7 +40,7 @@ Does any branch place this differently?
 
 What earlier or later facts depend on this order?
 
-## Version 0.5 traceability note
+## Version 0.6 traceability note
 
 Parent protocol: `09_temporal_and_timeline_protocol.md`.
 

@@ -36,7 +36,20 @@ Serves `13_contradiction_retcon_and_mystery.md`. Use whenever a contradiction re
 - [ ] The repair does not accidentally solve, secularize, mechanize, domesticate, or decode what should remain protected.
 - [ ] The preservation boundary does not hide an ordinary contradiction that should be repaired.
 
-## Version 0.5 completion rule
+
+## Version 0.6 sacred-opacity accountability guard
+
+Use this section whenever the protected effect is sacred opacity or adjacent sacred/horror opacity.
+
+- [ ] **Refusal scope:** The exact explanation being refused is stated.
+- [ ] **Consequence acceptance:** Costs, residues, ritual boundaries, witness effects, and profanation consequences remain visible and auditable.
+- [ ] **Recurrence / boundary:** The steward can tell a deliberate exception from an arbitrary one-off.
+- [ ] **Contradiction handling:** Prior and future scenes that violate the boundary are repaired, branched, or rejected.
+- [ ] **Critique permission:** The note states which craft questions remain fair: clarity, recurrence, tone, cost, evidence, and audience trust.
+- [ ] **Legitimate-vs-cheat comparison:** The entry can be placed beside a cheat version and explain why it is not using “sacred” to dodge work.
+- [ ] **Micro-example:** “The mouth in the chapel is sacred” is insufficient. “Its origin is unexplained, but its noon/sunset speech, shadow cost, candle-voice profanation, and witness records are fixed” earns protection.
+
+## Version 0.6 completion rule
 
 Parent protocol: `13_contradiction_retcon_and_mystery.md`.
 

@@ -218,7 +218,7 @@ For each major aesthetic effect, ask:
 [^i5-otto-17]: Rudolf Otto, *The Idea of the Holy*, 1917/1923 English translation.
 [^i5-freud-17]: Sigmund Freud, “The Uncanny,” 1919.
 [^i5-carroll-17]: Noël Carroll, *The Philosophy of Horror*, Routledge, 1990.
-[^i5-dread-17]: Peter Windsor, “Tales of Dread,” *The Philosophical Quarterly*.
+[^i5-dread-17]: Mark Windsor, “Tales of Dread,” *Estetika: The European Journal of Aesthetics* 56(1), 2019, https://philpapers.org/rec/WINTOD-3.
 [^i5-peirce-17]: Charles Sanders Peirce, icon/index/symbol distinction as summarized in the Stanford Encyclopedia of Philosophy.
 [^i5-ricoeur-17]: Paul Ricoeur, “The symbol gives rise to thought,” discussed in contemporary summaries of Ricoeur's hermeneutics.
 
@@ -255,7 +255,26 @@ Run `checklists/aesthetic_coherence_sweep.md` when a fact changes naming, tone, 
 
 If this sentence cannot be written, the fact may exist intellectually but not aesthetically.
 
-## Version 0.5 reinforcement: signs as consequences
+
+## Version 0.6 reinforcement: protected-effect accountability in aesthetics
+
+Aesthetic protection is not immunity from craft judgment. Wonder, sublimity, sacred opacity, horror/dread, uncanny recurrence, and symbolic excess can legitimately exceed paraphrase; they cannot be used to escape consequence, pattern, cost, tonal discipline, or audience-facing intelligibility.
+
+### Earned sacred opacity versus aesthetic cheat
+
+| Aesthetic claim | Earned protection | Cheat |
+|---|---|---|
+| “The saint's face must never be shown.” | The refusal creates stable framing, gestures, taboos, witness reactions, iconography, and consequences for attempted depiction. | The face is withheld because no design exists, yet the text demands reverence without residue. |
+| “The sound under the chapel is holy.” | The sound recurs at ritual thresholds, alters posture, changes speech, and leaves dread or awe without explaining its source. | The sound appears only to force a scene transition and is called holy to avoid questions. |
+| “The symbol means more than anyone can say.” | Its excess changes language, material culture, attention, and misinterpretation over time. | It is a private authorial image that resists all readerly orientation. |
+
+### Point-of-use micro-examples
+
+- **Wonder:** A sky-whale passing overhead is not explained, but roofs, lullabies, harvest timing, and children's upward etiquette change.
+- **Uncanny/dread:** The same nursery rhyme appears in unrelated mouths before disappearances; dread grows because recurrence threatens reality's reliability, not because the source is finally named.
+- **Absurd comedy:** A crown shaped like a receipt turns kingship into endless accounting jokes; the object works aesthetically because every ceremony is forced back into bookkeeping language.
+
+## Version 0.6 reinforcement: signs as consequences
 
 Aesthetic coherence is semiotic governance. Peirce’s icon/index/symbol distinction is useful craft shorthand: some details resemble, some physically or causally point, and some mean by convention.[^i4-peirce] Strong worlds use all three.
 

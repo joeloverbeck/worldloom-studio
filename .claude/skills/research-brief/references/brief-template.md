@@ -131,6 +131,9 @@ Exactly what Session 2 outputs — leave no ambiguity:
 - if the deliverable is a **numbered/indexed spec**, derive its number/path from the repo's live
   spec index or roadmap (not from an archive), continue the visible sequence, and carry any
   residual placement ambiguity as a labeled `assumption:` line rather than asserting it;
+- for an **iterative-overhaul line**, a companion outlook/assessment report's filename increments
+  with the iteration number (e.g. `sixth-iteration-outlook.md` → `seventh-iteration-outlook.md`);
+  name the incremented file and still carry it as a labeled `assumption:` line so the user can rename;
 - the **locked / no-questions** instruction, verbatim intent:
 
 > Produce the deliverables directly as downloadable markdown documents. Do not interview, do not

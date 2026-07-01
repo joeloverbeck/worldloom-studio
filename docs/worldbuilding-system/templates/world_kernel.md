@@ -56,7 +56,7 @@ What everyday residue should prove this world has existed before the story begin
 
 Run `checklists/frontloaded_seed_audit.md` before treating this kernel as stable.
 
-## Version 0.5 traceability note
+## Version 0.6 traceability note
 
 Parent protocol: `05_creation_protocol.md`.
 
@@ -68,3 +68,14 @@ This card is a human reasoning instrument, not a database schema or implementati
 - Record the decision-relevant pressure, not every possible detail.
 - Name unresolved canon debt if the card exposes it.
 - Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.
+
+
+## Version 0.6 non-naturalistic kernel prompt
+
+If the world kernel declares mythic, fairy-tale, absurd-comic, dream-logic, sacred/horror, or lyrical consequence, state one first pressure line now.
+
+- **Mode-equivalent pressure line:**
+- **Recurring motif / taboo / reversal / image / dread / symbolic residue:**
+- **First audit question:**
+
+> Micro-example: “Promises become birds” starts with recurrence, release conditions, care obligations, and feathers as evidence; it does not start with a full bureaucracy unless the world chooses that branch.

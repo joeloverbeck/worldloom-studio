@@ -231,6 +231,45 @@ For worlds that present themselves as politically, economically, technologically
 [^i5-otto]: Rudolf Otto, *The Idea of the Holy*, 1917/1923 English translation; especially the numinous as *mysterium tremendum et fascinans*.
 [^i5-bennett]: Jane Bennett, *The Enchantment of Modern Life*, Princeton University Press, 2001.
 
+
+## Version 0.6 reinforcement: equal-weight non-naturalistic pressure
+
+The system now treats non-naturalistic consequence as a first-class stress test, not as a decorative exception. A realist or strategic fact still owes institutional, economic, access, suppression, and ordinary-life consequences. A mythic, fairy-tale, absurd-comic, dream-logic, sacred, horror, or lyrical fact owes consequences just as strictly, but the consequence may travel through recurrence, motif, taboo, transformation, ritual condition, tonal inevitability, dread, comic reversal, or symbolic residue rather than through law courts, markets, or bureaucracies.
+
+The practical lesson from folktale morphology is not that every tale must share the same functions; it is that a non-naturalistic world can be coherent because functions, prohibitions, helpers, tests, recognitions, transformations, and returns recur in patterned relation.[^v06-propp-01] Version 0.6 extends that lesson beyond fairy tale: mythic worlds test origin, rite, and taboo; absurd-comic worlds test reversal, rhythm, and trapped routine; dream worlds test condensation, displacement, associative return, and image logic; sacred/horror worlds test ritual cost, boundary violation, dread, and profanation residue.
+
+### Equal-weight mode smell bank
+
+Use these smell tests with the same force as market, military, institutional, or suppression tests:
+
+| Mode | Strong consequence asks | Failure smell | Strong answer looks like |
+|---|---|---|---|
+| Mythic / ritual | What rite, taboo, seasonal return, origin mark, kinship obligation, or cosmic asymmetry follows? | A god acts once, then the world forgets the act. | The act becomes a recurring calendar pressure, a body mark, a lineage duty, a prohibited meal, or an origin scar. |
+| Fairy-tale / folktale | What prohibition, violation, donor test, helper, transformation, recognition, or restoration pattern is activated? | A magic event is whimsical but never becomes a test, helper, warning, or transformation. | Motifs recur; the same kind of promise, door, animal, number, or impossible task reliably matters. |
+| Absurd comedy | What repetition, reversal, misfit rule, bureaucracy-without-purpose, linguistic trap, or status inversion follows? | “Random” events are merely random and do not build a comic cage. | The joke tightens through recurrence: every escape reproduces the trap in sharper form. |
+| Dream logic | What image condenses multiple pressures, what detail is displaced, what return recurs, and what false coherence does the dream impose? | Dreamlike means anything can happen at any time. | The impossible image obeys association: keys become teeth, trains arrive before guilt, and the same color returns when the same latent pressure returns. |
+| Sacred / horror | What boundary is protected, what profanation costs, what ritual condition holds, and what dread persists after the event? | “Sacred” or “horrific” shields vagueness from consequence. | Explanation may be refused, but consequence is not: bodies, spaces, rites, witness credibility, and future choices change. |
+| Lyrical / symbolic excess | What motif exceeds utility while still leaving residue in language, attention, gesture, or expectation? | A beautiful image cannot be questioned because it is beautiful. | The image need not become a mechanism, but it alters what characters notice, fear, repeat, name, or refuse. |
+
+### Non-naturalistic red flags
+
+These are as serious as “no black market,” “no enemy use,” or “no institutional adoption” in realist worlds:
+
+- A mythic rule has no rite, taboo, seasonal recurrence, origin scar, or ritual custodian.
+- A fairy-tale transformation has no repeatable function, prohibition, helper logic, or recognition consequence.
+- A comic impossibility produces one joke but no tightening pattern of reversal, escalation, or trapped routine.
+- A dream-logic world uses discontinuity without associative recurrence, condensation, displacement, or residue.
+- Sacred opacity refuses not only explanation but also cost, contradiction repair, audience-facing craft pressure, or stewardship review.
+- Horror produces a monster or omen but no dread ecology: no altered attention, avoidance, rumor, ritual, or bodily memory.
+- Symbolic excess is used to protect an image from critique instead of letting the image generate residue.
+- A non-naturalistic mode is declared only after a failed realist audit, rather than governing admission from the start.
+
+### No downgrade to institutional rigor
+
+Equal-weight non-naturalistic testing does not soften the institutional hard edge. If a fact creates repeatable capability, scarcity, access advantage, enforceable power, extractable value, or suppressible knowledge, the institutional/economic/suppression protocols still apply. “Dreamlike,” “mythic,” “sacred,” “comic,” or “lyrical” changes the route of consequence; it never cancels consequence.
+
+[^v06-propp-01]: Vladimir Propp, *Morphology of the Folktale: Second Edition*, University of Texas Press, 1968, publisher record: https://www.degruyterbrill.com/document/doi/10.7560/783911/html.
+
 ## What the system does not require
 
 It does not require realism.
@@ -249,7 +288,7 @@ It does not require an LLM.
 
 It requires consequences.
 
-## Version 0.5 reinforcement: consequence without over-simulation
+## Version 0.6 reinforcement: consequence without over-simulation
 
 The system now treats consequence as a **bounded craft obligation**, not as a demand to simulate an entire universe. Systems thinking is useful because it asks about feedback, delays, stocks, flows, and leverage; it is dangerous when it tempts the steward to solve every variable before making art. Meadows's leverage-point framing supports the useful half of this habit: look for the few places where a fact changes incentives, information, rules, goals, or paradigms, rather than multiplying trivia.[^i4-meadows]
 

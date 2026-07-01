@@ -261,7 +261,14 @@ A major fact is weak if:
 - characters change but institutions do not;
 - trauma, memory, identity, or belief would matter but remain absent.
 
-## Version 0.5 reinforcement: bounded agency is not stupidity
+
+## Version 0.6 micro-examples: agency under non-naturalistic pressure
+
+- **Fairy-tale agency:** A youngest child who feeds the fox is not “irrational”; within the mode, generosity to a helper is actor-local rationality because helper logic recurs.
+- **Dream agency:** A character avoids a blue staircase because blue has repeatedly condensed guilt, not because the staircase is materially dangerous.
+- **Sacred/horror agency:** Refusing to photograph the relic may be rational when prior profanations produced costs, even if the origin of the relic is protected from explanation.
+
+## Version 0.6 reinforcement: bounded agency is not stupidity
 
 Bounded rationality means actors face limits in information, alternatives, foresight, computation, time, status, and emotional capacity; it does not mean they are foolish.[^i4-simon] Strong worlds give actors local intelligence. They adapt plausibly from where they stand.
 
