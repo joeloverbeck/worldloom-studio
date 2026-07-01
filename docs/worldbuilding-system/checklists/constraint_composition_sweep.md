@@ -32,7 +32,7 @@ Serves `08_constraint_composition.md`. Use when multiple limits govern the same 
 - [ ] Institutional or economic residue identified.
 - [ ] The constrained fact still remains worth keeping.
 
-## Version 0.4 completion rule
+## Version 0.5 completion rule
 
 Parent protocol: `08_constraint_composition.md`.
 

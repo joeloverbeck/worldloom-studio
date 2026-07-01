@@ -36,13 +36,15 @@ What institutions, rituals, records, jokes, songs, offices, archives, or punishm
 
 ## What would change confidence
 
+If the claim touches sacred opacity, distinguish discovery from profanation.
+
 New witness, artifact, ritual, experiment, confession, map, body, fossil, price movement, omen, contradiction.
 
-## Mystery boundary
+## Mystery / opacity boundary
 
 What must not be settled accidentally?
 
-## Version 0.4 traceability note
+## Version 0.5 traceability note
 
 Parent protocol: `14_uncertainty_belief_and_evidence.md`.
 

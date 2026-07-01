@@ -8,6 +8,10 @@ Use this after a fact passes the gate or whenever a high-pressure fact needs a s
 
 Minor / moderate / major / foundational / catastrophic.
 
+## Consequence mode
+
+Material/institutional / mythic / fairy-tale / dream / comic / sacred / horror / lyrical-symbolic / hybrid.
+
 ## Initial scope
 
 Time, place, population, branch, institution, medium.
@@ -26,13 +30,13 @@ What must already be true?
 
 Use the domain atlas. Record only meaningful pressure.
 
-### Institutional adaptations
+### Institutional or mode-equivalent adaptations
 
-Rules, offices, guilds, markets, rituals, laws, taboos, counter-institutions.
+Rules, offices, guilds, markets, rituals, laws, taboos, counter-institutions, recurrence patterns, symbolic transformations, sacred boundaries, comic escalations, dream recurrences, or dread patterns.
 
-### Economic adaptations
+### Economic or value-pressure adaptations
 
-Scarcity, price, labor, rents, externalities, transaction costs, substitution, black markets.
+Scarcity, price, labor, rents, externalities, transaction costs, substitution, black markets, sacrifice, taboo, shame, blessing, curse, sacred prohibition, comic cost, or symbolic exchange.
 
 ### Enemy adaptations
 
@@ -50,9 +54,9 @@ Origin, routes, barriers, clusters, border effects, regional variation.
 
 Roles, desires, fears, incentives, misbeliefs.
 
-### Aesthetic residue
+### Aesthetic and preservation residue
 
-Names, symbols, speech, objects, spaces, sounds, rituals.
+Names, symbols, speech, objects, spaces, sounds, rituals, recurrence, wonder, sacred opacity, horror/dread, or symbolic excess.
 
 ## Stopping rule
 
@@ -62,9 +66,9 @@ Why does propagation stop here for now?
 
 Name the specific templates or checklists required; do not write “TBD” if the missing work is load-bearing.
 
-Templates, checklists, contradictions, mysteries, branches, examples.
+Templates, checklists, contradictions, mysteries/protected effects, branches, examples.
 
-## Version 0.4 traceability note
+## Version 0.5 traceability note
 
 Parent protocol: `07_propagation_engine.md`.
 

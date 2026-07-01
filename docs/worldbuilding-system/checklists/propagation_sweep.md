@@ -43,7 +43,7 @@ Serves `07_propagation_engine.md`. Use after a fact passes the gate or whenever 
 - [ ] Stopping point is recorded.
 - [ ] Follow-up protocols or templates assigned.
 
-## Version 0.4 completion rule
+## Version 0.5 completion rule
 
 Parent protocol: `07_propagation_engine.md`.
 

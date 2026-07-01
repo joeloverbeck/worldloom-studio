@@ -314,6 +314,32 @@ The intended feel, genre identity, moral temperature, texture, rhythm, symbolic 
 
 Aesthetic promise is not decoration. It governs which consequences strengthen the world and which consequences make it feel like a different world.
 
+## Mode-aware primitives
+
+Version `0.5` adds these as thinking primitives, not storage requirements.
+
+### Consequence mode
+
+A consequence mode is the dominant form by which a world proves that facts matter. Material and institutional worlds prove facts through access, cost, rules-in-use, markets, records, countermeasures, and daily life. Mythic, fairy-tale, dream, comic, sacred, horror, and lyrical worlds may prove facts through recurrence, transformation, ritual condition, tonal inevitability, taboo, dread, or symbolic excess.
+
+A mode declaration is not a genre label. It is a promise about the kind of pressure the steward will honor.
+
+### Recurrence consequence
+
+A recurrence consequence is a repeated pattern that carries causal force: the third broken oath calls a storm; doors open only for the youngest child; a forbidden room returns in every house; the joke escalates each time the authority denies it. Recurrence replaces arbitrary wonder with legible pressure.
+
+### Symbolic transformation
+
+A symbolic transformation is a change in body, object, language, color, sound, animal, weather, architecture, or social gesture that makes meaning act on the world. It may be impossible by realist standards and still be coherent if it recurs according to declared mode.
+
+### Sacred opacity
+
+Sacred opacity is protected unknowability whose purpose is reverence, taboo, awe, humility, or separation from ordinary use. It is not the same as an unsolved puzzle. The steward records what may not be instrumentalized, what consequences remain visible, and what forms of explanation would profane the effect.
+
+### Symbolic excess
+
+Symbolic excess is meaning that exceeds function. A tower may be an observatory, a tomb, a warning, an index of empire, a phallic boast, a wound in the skyline, and a god's finger all at once. The point is not to collapse it to one answer but to keep its excess consistent with tone, residue, and use.
+
 ## Relationship verbs
 
 Use these relation verbs to keep world logic visible:
@@ -465,7 +491,7 @@ An unhealthy world state has:
 - characters who behave like plot machinery;
 - aesthetic drift disguised as variety.
 
-## Version 0.4 reinforcement: primitive discipline
+## Version 0.5 reinforcement: primitive discipline
 
 The primitives in this document are **handles for thought**, not storage units. A single world element may be handled as more than one primitive depending on the question. A royal archive may be an institution when asking who controls evidence, a resource when asking who can exploit it, a constraint when asking what cannot be known without it, and an aesthetic residue when asking how authority looks and sounds.
 

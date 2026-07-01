@@ -6,6 +6,7 @@ Serves `06_canon_fact_admission_protocol.md`. Use before treating any proposed f
 
 - [ ] Fact is stated clearly.
 - [ ] Fact type identified.
+- [ ] Consequence mode identified.
 - [ ] Truth layer assigned.
 - [ ] Canon status assigned.
 - [ ] Scope stated: time, place, population, branch, institution, medium/adaptation if relevant.
@@ -18,14 +19,14 @@ Serves `06_canon_fact_admission_protocol.md`. Use before treating any proposed f
 - [ ] Access conditions identified.
 - [ ] Constraints or countermeasures listed.
 - [ ] First-order consequences listed.
-- [ ] Institutions or informal norms considered.
-- [ ] Economic effects considered.
+- [ ] Institutions, informal norms, or declared mode-equivalent recurrence/ritual/symbolic pressure considered.
+- [ ] Economic effects or mode-equivalent value pressure considered.
 - [ ] Enemy/countermeasure response considered.
 - [ ] Timeline implications considered.
 - [ ] Spatial implications considered.
 - [ ] Character psychology implications considered.
 - [ ] Truth/evidence implications considered.
-- [ ] Mystery risks checked.
+- [ ] Mystery, wonder, sacred opacity, horror/dread, and symbolic-excess risks checked.
 - [ ] Contradiction risks checked.
 - [ ] Aesthetic residue considered.
 
@@ -36,7 +37,7 @@ Serves `06_canon_fact_admission_protocol.md`. Use before treating any proposed f
 - [ ] Follow-up propagation assigned.
 - [ ] Quarantined or rejected alternatives preserved where useful as branch, rumor, lie, or deprecated note.
 
-## Version 0.4 completion rule
+## Version 0.5 completion rule
 
 Parent protocol: `06_canon_fact_admission_protocol.md`.
 

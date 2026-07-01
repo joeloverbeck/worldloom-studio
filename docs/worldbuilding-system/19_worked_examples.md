@@ -588,7 +588,188 @@ Replace or explain:
 
 Absence is a canon fact. Missing animals, metals, gods, stars, diseases, or writing systems propagate as powerfully as presences.
 
-## Version 0.4 reinforcement: how to use the examples
+## Seventh example: The village where broken promises become birds
+
+This is the non-naturalistic stress test for Version `0.5`. It shows that Causal Canon does not require institutional plausibility in every mode. The world is fairy-tale / lyrical with sacred undertones. Its coherence proof is recurrence, symbolic transformation, taboo, ritual, tonal inevitability, and ordinary-life residue, not bureaucracy.
+
+### Proposed fact
+
+In the valley of Alderwake, every broken promise becomes a bird at dawn. The bird has the color of the promise's feeling and sings the exact words that were broken until the promise is repaired, forgiven, or forgotten by the one to whom it was made.
+
+### Declared consequence mode
+
+Primary mode: fairy-tale / lyrical.
+
+Secondary modes: sacred opacity and comic consequence.
+
+Explicit non-goal: the example does not require a ministry of promise-birds, a formal court of avian evidence, or a price schedule for broken vows. Those could exist in a different branch, but this world proves consequence through recurrence and social-symbolic pressure.
+
+Hard gate: the birds must recur consistently and change behavior. “It is fairy tale” is not a free pass.
+
+### Clarified rule
+
+- A promise must be spoken, signed, sung, or ritually witnessed.
+- The promiser must knowingly fail the promise.
+- The bird appears at first dawn after failure.
+- The bird follows the promiser, but it sleeps near the harmed person.
+- The song repeats the promise in the promiser's own voice.
+- The color carries emotional residue: gold for proud promises, gray for frightened promises, red for possessive promises, white for promises made in innocence, black for vows made to harm.
+- Killing the bird makes two smaller birds unless the harmed person has freely forgiven the promise.
+- Nobody knows why the valley does this. The sacred opacity is protected. The system tracks consequences, not origin mechanics.
+
+### Seed decomposition
+
+The single beautiful premise decomposes into several canon facts:
+
+1. Promises have world-force in Alderwake.
+2. Dawn is the threshold of transformation.
+3. Memory and forgiveness are causal conditions.
+4. Voice can leave the body and become an animal song.
+5. Harmed people have partial power over repair.
+6. Sacred opacity protects the origin of the rule.
+7. Birds cannot be destroyed by ordinary violence when the promise remains broken.
+
+Each fact needs constraints and residue.
+
+### Prerequisites
+
+The world needs:
+
+- a culture where spoken obligation matters;
+- social recognition of promise forms;
+- enough birds in local imagination for transformation to feel native;
+- dawn as a meaningful threshold;
+- rituals of forgiveness, witness, shame, and forgetting;
+- language habits for differentiating promise, boast, threat, bargain, joke, and curse;
+- a protected sacred boundary around “why birds?” so the effect is not converted into machinery.
+
+### Constraints
+
+The rule is limited.
+
+- Idle wishes do not become birds.
+- Threats become birds only if framed as sworn obligations.
+- Promises made under direct coercion become silent eggs until the coercion is named publicly.
+- Promises made by children become nestlings that can be soothed by teaching, not punishment.
+- A promise forgotten by everyone except the bird becomes a pale moth, not a bird.
+- Birds cannot testify in realist legal terms. They sing; interpretation remains social, comic, sacred, or cruel.
+- Outsiders may be followed by birds only while they remain inside the valley unless they accepted bread and salt before promising.
+
+These constraints prevent the fact from solving every deception problem in the world.
+
+### First-order consequences
+
+Ordinary behavior changes first.
+
+- People avoid casual promises.
+- Courtship uses conditional phrases: “If dawn permits,” “as far as my hands can carry,” “until winter changes me.”
+- Children learn the difference between a wish and a promise before they learn arithmetic.
+- Families keep open eaves so promise-birds do not beat themselves bloody against shutters.
+- Quiet people gain a reputation for wisdom; extravagant promisers become comic figures.
+- Apologies happen early in the morning so birds may dissolve before the village hears them.
+
+### Recurrence and motif
+
+The fact recurs in forms the audience can recognize.
+
+- Three birds around a roof means a household is about to break.
+- A red bird at a wedding means possessive vows are already failing.
+- A white bird in a schoolyard means a child promised more than a child can understand.
+- A black bird in the church rafters means someone has sworn harm under sacred language.
+- The same birds return in songs, embroidery, funeral customs, and jokes.
+
+The motif is not decorative. It changes interpretation before anyone explains it.
+
+### Ritual consequences
+
+Alderwake develops rites rather than ministries.
+
+- At weddings, guests release empty cages to show that vows should not trap the beloved.
+- Before harvest, neighbors sing the promises they cannot keep and ask to renegotiate them before dawn.
+- Children practice “small vows” by promising to feed a stone bird carved from ashwood.
+- Mourners forgive the dead at sunrise so grief-birds do not nest forever in chimneys.
+- Liars are not always punished; sometimes the harmed person must decide whether keeping the bird alive is more truthful than forgiveness.
+
+### Sacred opacity
+
+The origin of the birds is deliberately protected.
+
+Forbidden explanations:
+
+- a machine under the valley;
+- a forgotten empire's surveillance spell;
+- a species of telepathic bird;
+- a god who can be interviewed and asked to justify the system.
+
+Allowed consequences:
+
+- theologians disagree about whether the birds are mercy or accusation;
+- children ask where the first bird came from and receive different songs;
+- a hermit claims there was once a promise made by the valley itself;
+- no claim settles the origin.
+
+The sacred opacity creates humility. It is not a hidden clue hunt.
+
+### Comic consequences
+
+The rule also produces comedy.
+
+- A boastful mayor is followed by so many tiny sparrows that speeches become impossible.
+- Lovers try to phrase vows so carefully that proposals become legalistic nonsense, and the birds mock the loopholes in song.
+- A miser promises “a feather's worth” of help and is chased by an ostrich-sized featherless bird.
+
+Comedy does not erase consequence. It reveals self-deception.
+
+### Horror edge
+
+If someone knowingly builds a life on false vows, birds can gather into a murmuration that blocks the dawn from that person's house. The horror is not gore; it is the sound of one's own voice becoming weather.
+
+The rule must not be overused. Most promise-birds are small social pressure. The dawn-blocking swarm is reserved for repeated, knowing violation.
+
+### Institutional branch deliberately not chosen
+
+A realist branch could create oath courts, bird-interpreters, feather taxes, black-market forgiveness brokers, and cages as evidence lockers. This example chooses not to foreground that branch because its declared mode is fairy-tale / lyrical.
+
+The institutional absence is not a gap because mode-equivalent consequences are strong:
+
+- repeatable motif;
+- consistent triggers;
+- ordinary-life residue;
+- rituals;
+- taboos;
+- social adaptation;
+- comic escalation;
+- sacred opacity;
+- limits and failure modes.
+
+If later chapters introduce a regional court that uses birds as legal evidence, the world must then run the institutional protocol for that branch or region.
+
+### Contradiction and repair checks
+
+Potential contradiction: “Why does no one weaponize promises to create birds deliberately?”
+
+Repair: add a constraint. A promise made with the primary intent of producing a bird creates an egg that never hatches until the promiser suffers the cost of the promised action. This prevents spectacle-farming and preserves sincerity as a causal condition.
+
+Potential contradiction: “Can people make impossible promises to create infinite birds?”
+
+Repair: impossible promises become wind, not birds, unless the promiser sincerely believed the promise could be kept. The wind carries shame but cannot be counted, caged, sold, or weaponized.
+
+### QA snapshot
+
+- Consequence: **3** — daily life, ritual, motif, speech, comedy, and dread all respond.
+- Institution or mode-equivalent: **3** — no ministry is needed because the recurrence/ritual system is load-bearing.
+- Economic: **2** — trade implications are lightly sketched; acceptable because the example's scope is a village tale, but a market-focused branch would need more.
+- Mystery / wonder preservation: **3** — sacred opacity is separated from puzzle mystery.
+- Constraint: **3** — trigger, scope, outsider, childhood, coercion, and exploitation limits exist.
+- Aesthetic residue: **3** — color, sound, dawn, birds, cages, eaves, songs, and weather carry the fact.
+
+### Key lesson
+
+The question is not “Where is the government?” The question is “Where is the consequence?”
+
+For this world, consequence lives in dawn recurrence, vow language, bird motif, shame songs, empty cages, comic reversal, sacred opacity, and a recurring threat that one's own voice may become weather. That is coherent worldbuilding without institutional naturalism.
+
+## Version 0.5 reinforcement: how to use the examples
 
 Do not copy the surface details of these examples. Copy the pressure moves:
 

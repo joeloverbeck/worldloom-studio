@@ -30,7 +30,7 @@ Serves `09_temporal_and_timeline_protocol.md`. Use when a fact has causal order,
 - [ ] Retcon cost assessed.
 - [ ] Timeline card needed or not needed decision recorded.
 
-## Version 0.4 completion rule
+## Version 0.5 completion rule
 
 Parent protocol: `09_temporal_and_timeline_protocol.md`.
 

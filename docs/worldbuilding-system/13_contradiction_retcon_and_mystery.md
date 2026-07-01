@@ -13,6 +13,10 @@ Do not collapse these four categories:
 3. **Mystery** — the canon intentionally protects an unresolved question.
 4. **Ignorance** — characters, institutions, or publics do not know something that may already be objective canon.
 
+Version `0.5` adds a fifth distinction that must not be folded back into mystery:
+
+5. **Non-instrumental effect** — wonder, awe, sublimity, sacred opacity, horror, terror, dread, or symbolic excess whose purpose is not to hide a solvable answer.
+
 Most cheap repairs fail because they call a contradiction a mystery, or call an error a retcon without paying the cost.
 
 ## Operation jurisdiction
@@ -191,6 +195,57 @@ Every retcon should pay at least one cost.
 - **Aesthetic cost:** does it break tone, genre, or trust?
 - **Future cost:** what later stories become harder or easier?
 
+## Mystery is not wonder
+
+A mystery asks, “What is true, and who may know it?” Wonder asks, “What magnitude, beauty, terror, holiness, strangeness, or excess must remain larger than use?”
+
+The older mystery machinery remains intact: fixed, author-secret, deliberately undecided, forbidden, and evidence-governed unknowns still need ledgers. But not every protected effect should be turned into a puzzle. Some effects are damaged by puzzle pressure.
+
+| Protected effect | Core question | Steward duty | Failure mode |
+|---|---|---|---|
+| Mystery | What is unknown, fixed, secret, undecided, or forbidden? | Govern clues, theories, reveal permissions, and consequences of ignorance. | A missing answer masquerades as depth. |
+| Wonder / awe / sublimity | What should feel vast, beautiful, terrible, enchanting, or beyond ordinary measure? | Preserve magnitude, recurrence, sensory force, and humility before the effect. | The world explains the wonder until it becomes machinery. |
+| Sacredness / opacity | What must not be used, priced, mapped, named, solved, or casually handled because that refusal is part of its holiness? | Protect taboo, rite, reverence, consecration, impurity, and profanation costs. | The sacred becomes a resource system with decorative candles. |
+| Horror / terror / dread | What must remain threatening, uncanny, contaminating, or reality-wounding? | Preserve dread, consequence, bodily or ontological cost, and limits on safe knowledge. | Explanation domesticates the monster before fear has consequences. |
+| Symbolic excess | What meaning exceeds function, allegory, and one-to-one decoding? | Preserve multiple compatible meanings through motif, language, image, and residue. | A living symbol is reduced to a glossary entry. |
+
+Burke's account of the sublime ties it to awe, terror, and self-preservation rather than ordinary beauty; Kant's account treats aesthetic judgment as a form of feeling that cannot be proven by rules; Otto's numinous names sacred experience as both terrifying and fascinating; horror theory distinguishes confirmed monstrosity from dread sustained by uncertainty.[^i5-burke-13][^i5-kant-13][^i5-otto-13][^i5-dread-13]
+
+### Explanation-pressure operations
+
+When a repair, reveal, adaptation, or QA pass touches a protected effect, choose one of these operations before changing content.
+
+- **Reveal:** answer the mystery because the answer is stronger than secrecy and the consequences of revelation will be propagated.
+- **Delay:** keep the answer hidden for now, with evidence and false beliefs governed.
+- **Forbid:** name an answer or explanation type that must not be used because it would cheapen the effect or break the world.
+- **Consecrate:** mark the phenomenon as sacred opacity. It may have consequences, rituals, and taboos, but it is not to be rendered as ordinary mechanism.
+- **Dread-preserve:** keep the horror's threat, uncertainty, contamination, or forbidden knowledge alive even if some facts become clear.
+- **Excess-preserve:** refuse a single decoding of a symbol while keeping its recurrences, transformations, and limits consistent.
+- **Translate:** move an effect into a new medium or branch without changing its preservation boundary.
+
+These are not canon statuses and not admission decision operations. They are preservation operations that guide repair.
+
+### Protected-effect ledger minimum
+
+For any major mystery, wonder, sacred opacity, horror, or symbolic-excess effect, record:
+
+1. protected effect type;
+2. puzzle question, if any;
+3. what is fixed;
+4. what is secret, undecided, or forbidden;
+5. what explanation would damage the effect;
+6. what observable consequences must remain consistent;
+7. what rituals, motifs, recurrences, sensory signals, or dread patterns preserve it;
+8. what reveal, adaptation, or repair is allowed;
+9. what reveal, adaptation, or repair is prohibited.
+
+Use `templates/mystery_ledger_entry.md` even when the puzzle-question field is “none.” The ledger then protects wonder or sacred opacity rather than pretending there is a hidden answer.
+
+[^i5-burke-13]: Edmund Burke, *A Philosophical Enquiry into the Origin of Our Ideas of the Sublime and Beautiful*, 1757.
+[^i5-kant-13]: Immanuel Kant, *Critique of Judgment*, 1790; see modern summaries of aesthetic judgment and the sublime.
+[^i5-otto-13]: Rudolf Otto, *The Idea of the Holy*, 1917/1923 English translation.
+[^i5-dread-13]: Peter Windsor, “Tales of Dread,” distinguishes dread from horror by its sustained uncertainty around preternatural events.
+
 ## Mystery jurisdiction
 
 Mystery coverage is divided deliberately:
@@ -257,32 +312,33 @@ The creator deliberately refuses to settle the truth because uncertainty is part
 
 Run `checklists/mystery_preservation.md` for any retcon, contradiction repair, reveal, branch, adaptation, or evidence update that touches a protected unknown. Use `templates/mystery_ledger_entry.md` when the unknown has fixed consequences, author-secret material, deliberate undecided material, or reveal prohibitions.
 
-A mystery is healthy when:
+A mystery or protected non-instrumental effect is healthy when:
 
 - it has consequences before resolution;
 - characters can form reasonable but partial theories;
 - clues constrain interpretation;
 - false answers leave residue;
 - institutions adapt to uncertainty;
-- the answer, if revealed, would be worth the protection;
+- the answer, if one exists and is revealed, would be worth the protection;
 - not every major fact hides behind mystery.
 
-A mystery is weak when:
+A mystery or protected non-instrumental effect is weak when:
 
 - it exists only because the author has not decided;
 - all answers are equally possible;
 - it blocks necessary propagation;
 - it excuses contradictions;
 - it has no effect on ordinary life;
-- solving it would not change anything.
+- solving it would not change anything;
+- explaining it would kill the effect and no preservation boundary says so.
 
 ## The forbidden move
 
-Do not use “it is mysterious” to avoid consequence.
+Do not use “it is mysterious,” “it is sacred,” “it is dreamlike,” “it is horror,” or “it is symbolic” to avoid consequence.
 
-Unknown origins still create cults, sciences, frauds, taboos, laws, markets, fears, rituals, and politics. The world may not know what the lights in the quarry are, but the quarry road still changes.
+Unknown origins still create cults, sciences, frauds, taboos, laws, markets, fears, rituals, politics, songs, repeated images, avoidance habits, profanation penalties, and dreams. The world may not know what the lights in the quarry are, and the steward may decide nobody ever should, but the quarry road still changes.
 
-## Version 0.4 reinforcement: contradiction disposition
+## Version 0.5 reinforcement: contradiction disposition
 
 A contradiction report must end in one of these dispositions:
 

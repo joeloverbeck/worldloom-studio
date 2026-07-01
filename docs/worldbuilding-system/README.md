@@ -1,10 +1,10 @@
 # Causal Canon Worldbuilding System
 
-Version `0.4` is a storage- and software-agnostic methodology for creating and maintaining fictional worlds whose canon facts propagate through the world instead of sitting as isolated lore. It does not assume Markdown, a database, a graph engine, a web app, an API, or an LLM-based workflow. A solo author, writing room, tabletop group, game team, or setting steward can use it with paper, notebooks, cards, documents, wikis, spreadsheets, index cards, wall charts, or any other medium.
+Version `0.5` is a storage- and software-agnostic methodology for creating and maintaining fictional worlds whose canon facts propagate through the world instead of sitting as isolated lore. It does not assume Markdown, a database, a graph engine, a web app, an API, an LLM workflow, or any particular publishing medium. A solo author, writing room, tabletop group, game team, or setting steward can use it with paper, notebooks, cards, documents, wikis, spreadsheets, index cards, wall charts, conversation, or any other medium.
 
 The records in `templates/` and the sweeps in `checklists/` are human thinking instruments, not implementation instructions. They name the questions that must be answered; they do not prescribe a storage model.
 
-Version `0.4` keeps the iteration-three file architecture because every original file remained load-bearing and already had a clear authority tier. The improvement is internal: sharper decision jurisdiction, stronger traceability from doctrine to instruments, better anti-over-simulation guidance, deeper diffusion and institution checks, stronger transmedia/adaptation boundaries, and more explicit regression tests.
+Version `0.5` keeps the iteration-four file architecture because every original file remained load-bearing and already had a clear authority tier. The improvement is internal: mode-aware consequence doctrine for realist and non-naturalistic worlds, a stronger distinction between mystery and non-instrumental wonder, calibrated QA exemplar anchors, sharper aesthetic and symbolic propagation, and updated instruments that preserve sacred opacity, horror, awe, and symbolic excess without weakening institutional rigor.
 
 ## Core idea
 
@@ -103,7 +103,7 @@ A tiny local detail may need only a fact card and a short propagation note. A ne
 
 ### Doctrine and primitives
 
-- `01_core_theory.md` — philosophy, 12 operating laws, Causal Canon cycle, smell tests, and limits.
+- `01_core_theory.md` — philosophy, 12 operating laws, Causal Canon cycle, mode-aware smell tests, and limits.
 - `02_world_model.md` — conceptual primitives and relation verbs. These are thinking tools, not database tables.
 - `03_truth_layers_and_canon_governance.md` — truth layers, canon statuses, constraint tags, admission decision operations, repair-operation boundary, and governance roles.
 - `04_domain_atlas.md` — fourteen world domains facts ripple through.
@@ -118,27 +118,26 @@ A tiny local detail may need only a fact card and a short propagation note. A ne
 - `10_spatial_and_geographic_propagation.md` — terrain, distance, settlement, infrastructure, regional variation, and spatial diffusion.
 - `11_agent_character_psychology.md` — actors, identity, belief, incentives, memory, trauma, and bounded agency.
 - `12_institutional_economic_and_suppression_protocol.md` — action arenas, rules-in-use, transaction costs, markets, black markets, suppression, and counter-institutions.
-- `13_contradiction_retcon_and_mystery.md` — contradiction taxonomy, repair operations, retcon types, mystery ledger, and mystery preservation.
+- `13_contradiction_retcon_and_mystery.md` — contradiction taxonomy, repair operations, retcon types, mystery governance, and preservation of wonder, sacred opacity, horror, and symbolic excess.
 - `14_uncertainty_belief_and_evidence.md` — confidence, source reliability, evidence, credence, disputed knowledge, and belief ecology.
 - `15_branching_versioning_and_collaboration.md` — branch canon, continuity diffs, human approval, disputes, merge decisions, retirement, and deprecation.
 
 ### Extraction, quality, workflow, reference
 
 - `16_narrative_game_and_transmedia_extraction.md` — deriving story, game, and medium-specific pressure from world facts.
-- `17_aesthetic_coherence_and_semiosis.md` — tone, genre, mood, symbolism, language, and aesthetic residue.
-- `18_quality_assurance_tests.md` — scoring rubric, regression tests, and coherence-audit patterns.
+- `17_aesthetic_coherence_and_semiosis.md` — tone, genre, mood, symbolism, language, semiotic propagation, wonder, sacred opacity, horror, and aesthetic residue.
+- `18_quality_assurance_tests.md` — scoring rubric, calibrated exemplar anchors, regression tests, and coherence-audit patterns.
 - `19_worked_examples.md` — worked examples using the protocols.
 - `20_ai_assisted_workflow.md` — AI as proposer, auditor, and challenger; never canon authority.
 - `21_templates_index.md` — how all templates and checklists fit together.
 - `22_glossary.md` — authoritative shared vocabulary.
 - `23_research_notes_and_bibliography.md` — research roots and translation rules.
-- `00_overhaul_notes.md` — iteration-four provenance, mapping, retention audit, coherence fixes, and research rationale.
+- `00_overhaul_notes.md` — iteration-five provenance, mapping, retention audit, priority-resolution notes, and research rationale.
 
 ## Operating stance
 
-The system does not require realism, exhaustive simulation, every question answered, a map before a story, hard magic, software, or an LLM. It requires consequences.
+The system does not require realism, institutional plausibility in every mode, exhaustive simulation, every question answered, a map before a story, hard magic, software, or an LLM. It requires consequences appropriate to the world’s declared mode: material, institutional, ritual, symbolic, mythic, comic, sacred, horrific, dreamlike, or some governed hybrid.
 
 Coherence is not maximal explanation. A world is strongest when known facts, false beliefs, secrets, mysteries, contradictions, limits, costs, latencies, path dependencies, black markets, counter-institutions, and aesthetic residues all have governed places.
 
 When in doubt, keep the world small, pressure-test one fact, and let the next domain expand only when consequence forces it.
-

@@ -124,6 +124,18 @@ A fact is allowed only in forms that preserve the world’s emotional identity.
 
 A horror world may allow healing only at costs that deepen dread. A mythic world may require beauty, oath, or fate. A satire may let rules become absurd but not emotionally random.
 
+### Preservation constraints
+
+A preservation constraint limits explanation, use, or adaptation in order to protect wonder, sacred opacity, horror, dread, or symbolic excess. It does not say “anything goes.” It says which interpretive moves would damage the effect.
+
+Examples:
+
+- The saint's well may heal, but only those who do not ask whether the water is alive may drink.
+- The black door may recur in dreams, but mapping its hinges turns the dream into a dead hallway.
+- The monster's origin may remain forbidden, but its contamination rules must stay consistent.
+
+A preservation constraint should name the protected effect, the prohibited explanation or use, and the consequences that remain observable.
+
 ## Constraint conflict
 
 Constraints can contradict each other.
@@ -244,7 +256,7 @@ For any major constraint:
 - [ ] It leaves institutional or economic residue.
 - [ ] It does not exist only to protect the plot.
 
-## Version 0.4 reinforcement: constraint budgets
+## Version 0.5 reinforcement: constraint budgets
 
 A constraint is strong when it creates story pressure while preventing domination. It is weak when it exists only to excuse why a world-breaking fact does not matter.
 

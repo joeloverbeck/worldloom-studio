@@ -383,7 +383,7 @@ Example:
 
 If you cannot write this sentence for a major fact, the fact is under-institutionalized.
 
-## Version 0.4 reinforcement: arena-to-economy loop
+## Version 0.5 reinforcement: arena-to-economy loop
 
 Iteration 4 makes explicit that institutional and economic analysis are one loop, not two separate passes. Institutions structure transaction costs; transaction costs reshape institutions.[^i4-north][^i4-williamson]
 
@@ -411,3 +411,11 @@ Ask:
 [^i4-north]: Douglass C. North, "Institutions", *Journal of Economic Perspectives* 5(1), 1991, https://www.aeaweb.org/articles?id=10.1257/jep.5.1.97
 [^i4-williamson]: Oliver E. Williamson, "Transaction-Cost Economics: The Governance of Contractual Relations", *Journal of Law and Economics* 22(2), 1979, https://chicagounbound.uchicago.edu/jle/vol22/iss2/3/
 [^i4-scott]: James C. Scott, *Seeing Like a State*, Yale University Press, 1998; overview: https://books.google.com/books/about/Seeing_Like_a_State.html?id=Qe_RDwAAQBAJ
+
+## Mode-aware institutional check
+
+This protocol remains a hard gate for worlds whose facts operate materially, politically, economically, technologically, militarily, legally, or socially. Do not weaken it for realist worlds.
+
+For non-naturalistic worlds, ask whether the fact has a mode-equivalent action arena before forcing it into bureaucracy. A fairy-tale village may not need a ministry to regulate oath-birds; it may need wedding rites, shame songs, dawn taboos, forbidden cages, children's games, and recurring punishments. A sacred world may refuse pricing but still create pilgrimage routes, purity rules, guardians, vows, counterfeit relics, or profanation penalties.
+
+If ordinary people can repeatedly use, avoid, counterfeit, exploit, or suffer the fact, then some action arena exists. It may be a court, market, guild, shrine, family rite, campfire rule, stage routine, nightmare pattern, or taboo economy.

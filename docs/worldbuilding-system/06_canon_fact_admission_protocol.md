@@ -50,6 +50,21 @@ Choose all that apply:
 - branch fact;
 - other.
 
+## Step 2A: Declare consequence mode
+
+State which consequence mode is load-bearing for this fact.
+
+- **Material / institutional:** access, cost, rules-in-use, professions, prices, records, countermeasures, ordinary life.
+- **Mythic / ritual:** recurrence, taboo, rite, exchange, sacrifice, blessing, curse, threshold, calendrical return.
+- **Fairy-tale / folktale:** motif, number, prohibition, helper, test, punishment, reward, transformation.
+- **Dream / surreal:** associative recurrence, emotional causality, displacement, stable symbolic pressure.
+- **Comic / absurd:** escalation, reversal, exposure, disproportion, punchline consequence, rule carried past reason.
+- **Theological / sacred:** awe, taboo, consecration, impurity, reverence, forbidden use, sacred opacity.
+- **Horror / dread:** contamination, pursuit, uncanny repetition, forbidden knowledge, bodily or ontological cost.
+- **Lyrical / symbolic:** motif transformation, language drift, image-chain, gesture, color, sound, symbolic excess.
+
+For hybrid facts, name the primary mode and the secondary modes. Do not use mode as an escape hatch: an admitted fact must pass at least one hard consequence test appropriate to its mode.
+
 ## Step 3: Assign truth layer
 
 Use the canonical order from `03_truth_layers_and_canon_governance.md`:
@@ -393,7 +408,7 @@ A change package records:
 
 ## Step 21: Run QA
 
-Use `18_quality_assurance_tests.md`.
+Use `18_quality_assurance_tests.md`, including the calibrated exemplar anchors and the mode-aware scoring note.
 
 A major fact should not score 0 on any relevant test.
 
@@ -445,7 +460,7 @@ The more secret a fact is, the more secrecy mechanics it owes.
 
 The more beautiful a fact is, the more ruthless the system must be about its consequences.
 
-## Version 0.4 reinforcement: severity-scaled evidence
+## Version 0.5 reinforcement: severity-scaled evidence
 
 Do not use the same burden of work for every change.
 

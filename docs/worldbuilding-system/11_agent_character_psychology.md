@@ -261,7 +261,7 @@ A major fact is weak if:
 - characters change but institutions do not;
 - trauma, memory, identity, or belief would matter but remain absent.
 
-## Version 0.4 reinforcement: bounded agency is not stupidity
+## Version 0.5 reinforcement: bounded agency is not stupidity
 
 Bounded rationality means actors face limits in information, alternatives, foresight, computation, time, status, and emotional capacity; it does not mean they are foolish.[^i4-simon] Strong worlds give actors local intelligence. They adapt plausibly from where they stand.
 
@@ -298,3 +298,16 @@ For every major capability, identify both:
 The gap between them is often where story lives.
 
 [^i4-simon]: Herbert A. Simon, Nobel Prize lecture, "Rational Decision Making in Business Organizations", https://www.nobelprize.org/uploads/2018/06/simon-lecture.pdf
+
+## Agency in non-naturalistic modes
+
+Mode-awareness does not erase actors. In mythic, fairy-tale, dream, comic, sacred, or horror worlds, agency may be bounded by oath, role, taboo, archetype, temptation, recurrent test, ritual speech, prophetic name, dread, or symbolic transformation rather than by ordinary institutional incentives alone.
+
+Ask:
+
+- What does the mode make thinkable or unthinkable for this actor?
+- What recurrent role pressures the actor: youngest child, trickster, witness, sacrificer, double, fool, guardian, taboo-breaker?
+- What transformation would reveal a hidden desire, guilt, oath, shame, blessing, or contamination?
+- What does the actor refuse to know because knowing would profane, doom, or unmake them?
+
+Do not use archetype as a substitute for motive. Use it as an additional pressure on motive.

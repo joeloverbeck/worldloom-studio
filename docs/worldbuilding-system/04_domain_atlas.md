@@ -430,6 +430,10 @@ Propagation questions:
 - What images, sounds, gestures, metaphors, and rituals should carry the fact aesthetically?
 - Does a mechanical or narrative use of the fact betray the world’s emotional promise?
 
+### Mode pressure note
+
+When a world is declared mythic, fairy-tale, dreamlike, comic, sacred, horrific, or lyrical, Domain 14 and Domain 9 often become high-authority propagation domains. They do not excuse the other domains automatically; they tell the steward where consequence is most visible. A fairy-tale fact may first alter oath rituals, naming, animal omens, repeated numbers, and thresholds before it alters courts or coinage.
+
 ## Domain priority
 
 For high-impact facts, sweep in this order:
@@ -446,7 +450,7 @@ For high-impact facts, sweep in this order:
 
 This order catches the most dangerous failures early without forcing equal attention on every domain.
 
-## Version 0.4 reinforcement: domain triage
+## Version 0.5 reinforcement: domain triage
 
 The atlas is not a requirement to write fourteen essays for every fact. It is a pressure detector. Use three passes:
 

@@ -16,7 +16,11 @@ Write the fact in clear prose.
 
 ## Fact type
 
-Existence / capability / constraint / event / history / institution / relationship / resource / rule / exception / belief / mystery / aesthetic / branch.
+Existence / capability / constraint / event / history / institution / relationship / resource / rule / exception / belief / mystery / wonder / sacred opacity / horror-dread / symbolic excess / aesthetic / branch.
+
+## Consequence mode
+
+Material/institutional / mythic / fairy-tale / dream / comic / sacred / horror / lyrical-symbolic / hybrid.
 
 ## Truth layer
 
@@ -50,8 +54,8 @@ What prevents this from changing everything instantly?
 - immediate effects:
 - prerequisites exposed:
 - second-order effects:
-- institutional adaptations:
-- economic adaptations:
+- institutional or mode-equivalent adaptations:
+- economic or value-pressure adaptations:
 - countermeasures:
 - fossils/residue:
 - distant echoes:
@@ -64,9 +68,9 @@ Who knows, believes, denies, misreads, disputes, profits from, or suppresses it?
 
 What existing fact may conflict?
 
-## Mystery risks
+## Mystery / wonder risks
 
-What protected unknown could this accidentally reveal?
+What protected unknown, wonder, sacred opacity, horror/dread, or symbolic excess could this accidentally reveal, flatten, domesticate, or over-explain?
 
 ## Admission decision operation
 
@@ -82,7 +86,7 @@ Leave this blank unless a contradiction, instability, or mystery-risk required r
 
 Record human reasoning, not just the result.
 
-## Version 0.4 traceability note
+## Version 0.5 traceability note
 
 Parent protocol: `03_truth_layers_and_canon_governance.md` and `06_canon_fact_admission_protocol.md`.
 

@@ -48,6 +48,19 @@ When the authorial model changed. This may not correspond to any in-world date.
 
 Do not confuse these. A fact can be objectively ancient, publicly recent, institutionally suppressed, and mythically misdated.
 
+## Recurrence time
+
+Non-naturalistic worlds often use recurrence time alongside chronology. Record when a fact returns by pattern rather than calendar:
+
+- the third night;
+- the first lie after harvest;
+- every room entered in grief;
+- whenever a king forgets a name;
+- at the comic beat when denial becomes impossible;
+- when a sacred boundary is crossed.
+
+Recurrence time does not replace sequence integrity. It names a different temporal pressure that must stay stable enough for the audience to feel inevitability.
+
 ## Timeline granularity
 
 Use the lightest granularity that preserves causal order.
@@ -229,7 +242,7 @@ For every major fact:
 - [ ] Branches have divergence points.
 - [ ] Mysteries have temporal boundaries.
 
-## Version 0.4 reinforcement: latency ladder
+## Version 0.5 reinforcement: latency ladder
 
 Use a latency ladder to keep history from feeling instantaneous:
 

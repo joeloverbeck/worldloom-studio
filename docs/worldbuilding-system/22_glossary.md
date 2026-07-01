@@ -12,7 +12,7 @@ An entity capable of intention or meaningful action: person, group, institution,
 
 ## Aesthetic residue
 
-Visible, audible, linguistic, symbolic, material, or tonal evidence that a fact has shaped the world.
+Visible, audible, linguistic, symbolic, material, tonal, recurrent, sacred, horrific, dreamlike, comic, or sensory evidence that a fact has shaped the world.
 
 ## Black market
 
@@ -84,7 +84,7 @@ The process of deciding whether and how a proposed fact enters canon.
 
 ## Fact type
 
-A practical classification used during admission: existence, capability, constraint, event, history, institution, relationship, resource, rule, exception, belief, mystery, aesthetic, branch.
+A practical classification used during admission: existence, capability, constraint, event, history, institution, relationship, resource, rule, exception, belief, mystery, wonder, sacred opacity, horror/dread, symbolic excess, aesthetic, branch.
 
 ## Fossil
 
@@ -108,7 +108,7 @@ A fact accepted only within a defined place, group, route, jurisdiction, institu
 
 ## Mystery boundary
 
-The line protecting what is fixed, unknown, unknowable, author-secret, disputed, deliberately undecided, revealable, or forbidden to use.
+The line protecting what is fixed, unknown, unknowable, author-secret, disputed, deliberately undecided, revealable, or forbidden to use. It is not identical to sacred opacity or wonder unless the protected effect also contains a puzzle-like unknown.
 
 ## Objective canon
 
@@ -176,11 +176,59 @@ A classification of where a claim sits relative to canon and in-world belief: ob
 
 ## World kernel
 
-The smallest set of premises, commitments, constraints, tone, and seed facts that define what world is being built.
+The smallest set of premises, commitments, consequence modes, constraints, tone, protected effects, and seed facts that define what world is being built.
 
 ## World-state health
 
-The degree to which a world’s facts have prerequisites, constraints, consequences, institutions, contradictions, mysteries, uncertainty, costs, latencies, path dependence, and residue in healthy relation.
+The degree to which a world’s facts have prerequisites, constraints, consequences appropriate to mode, institutions or mode-equivalent pressure, contradictions, mysteries, protected wonder/sacredness/horror/symbolic excess, uncertainty, costs, latencies, path dependence, and residue in healthy relation.
+
+## Consequence mode
+
+The dominant form by which a world proves that facts matter: material/institutional, mythic, fairy-tale, dream, comic, sacred, horror, lyrical-symbolic, or a declared hybrid. Consequence mode is not canon status, truth layer, constraint tag, decision operation, or repair operation.
+
+## Mode-aware consequence
+
+The doctrine that every fact must produce consequence, but the form of consequence must fit the world’s declared mode. Institutional/economic consequence remains mandatory for institutional-realism worlds; recurrence, ritual logic, symbolic transformation, sacred opacity, dread, comedy, or symbolic excess may be the hard proof in non-naturalistic worlds.
+
+## Recurrence consequence
+
+A repeated motif, rule, event, transformation, number, threshold, joke, dream, omen, or ritual return that carries causal force.
+
+## Ritual logic
+
+A pattern in which rites, taboos, thresholds, exchanges, sacrifices, blessings, curses, or ceremonial conditions determine consequence.
+
+## Symbolic transformation
+
+A change in body, object, animal, weather, architecture, language, color, sound, or social sign by which meaning becomes worldly pressure.
+
+## Tonal inevitability
+
+The sense that an event follows from the world’s genre, mood, motif, and moral or symbolic grammar even when it is not realist causation.
+
+## Preservation boundary
+
+A recorded limit on explanation, use, adaptation, reveal, measurement, mapping, pricing, or decoding that protects a mystery, wonder, sacred opacity, horror, dread, or symbolic excess. A preservation boundary is not a canon status or constraint tag, though it may be enforced by constraints.
+
+## Explanation pressure
+
+The force exerted by QA, retcon, adaptation, audience curiosity, gameplay, or contributor convenience to turn an unknown or non-instrumental effect into a solved mechanism. Explanation pressure is not always bad; it must be governed.
+
+## Wonder / awe / sublimity
+
+A non-instrumental effect of magnitude, beauty, terror, enchantment, strangeness, or vastness that matters because it changes attention, humility, fear, reverence, or desire, not because it hides a puzzle answer.
+
+## Sacred opacity
+
+Protected unknowability whose refusal of ordinary use, pricing, naming, measuring, mapping, or explanation is part of its sacred force.
+
+## Horror / terror / dread
+
+Related but distinct pressure forms: horror confirms violation, terror anticipates danger, and dread sustains a reality-threatening unease. These can overlap with mystery but should not be solved away automatically.
+
+## Symbolic excess
+
+Meaning that exceeds one-to-one function or decoding while still exerting consistent pressure through motif, image, language, ritual, gesture, material, or recurrence.
 
 ## Authority tier
 

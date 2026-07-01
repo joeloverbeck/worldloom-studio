@@ -274,6 +274,12 @@ Some words intentionally do **not** appear in both sets:
 - `clarify scope`, `add constraint`, `diffuse unevenly`, `split`, and `retcon` are repair moves for an existing incompatibility or instability.
 - A repair may lead to a branch, supersession, or deprecation, but that downstream governance status is recorded separately from the repair operation.
 
+### Preservation boundaries are not statuses
+
+A preservation boundary says that an effect must not be flattened by explanation. It may protect a governed mystery, but it may also protect awe, sacred opacity, horror, dread, or symbolic excess. Do not convert every preservation boundary into a question awaiting an answer.
+
+A preservation boundary never substitutes for canon status, constraint tag, decision operation, or repair operation. It is contextual guidance about what a future reveal, retcon, adaptation, or QA repair must not destroy.
+
 ## Governance rules
 
 ### 1. Objective canon carries the heaviest burden
@@ -354,7 +360,7 @@ Do not ask whether a claim is interesting before asking what layer it belongs to
 
 The wrong truth layer can make a brilliant idea incoherent. The right truth layer can make a contradiction fruitful.
 
-## Version 0.4 reinforcement: decision jurisdiction
+## Version 0.5 reinforcement: decision jurisdiction
 
 Governance failures usually happen when a steward uses the wrong operation family. Use this jurisdiction rule:
 

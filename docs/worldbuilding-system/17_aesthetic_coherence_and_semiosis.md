@@ -173,6 +173,55 @@ Major facts should affect language through:
 
 Do not invent words merely to sound exotic. Invent or select words when the culture needs a distinction.
 
+## Wonder, sacred opacity, horror, and symbolic excess
+
+Aesthetic coherence includes the effects that cannot be reduced to puzzle-solving.
+
+### Wonder / awe / sublimity
+
+Wonder marks an encounter with magnitude, beauty, strangeness, terror, or enchantment that exceeds ordinary use. It should create humility, changed attention, altered ritual, altered speech, avoidance, pilgrimage, art, silence, or obsession. Burke's sublime is tied to awe and terror; Kant emphasizes aesthetic judgment as feeling rather than provable rule; Jane Bennett treats enchantment as an intense engagement with the world that can matter ethically.[^i5-burke-17][^i5-kant-17][^i5-bennett-17]
+
+A wonder effect fails when the world treats it as spectacle only. It succeeds when people, language, space, rhythm, image, and habit change around it.
+
+### Sacred opacity
+
+Sacred opacity protects a presence from ordinary explanation because the refusal is part of the world's holiness. Otto's numinous is useful because it joins dread, majesty, otherness, and attraction rather than treating sacredness as mere ignorance.[^i5-otto-17]
+
+Sacred opacity can still produce consequence: vows, silence, pilgrimage, purity, taboo, architecture, relic-handling, forbidden measurement, profanation penalties, counterfeit pieties, and schisms.
+
+### Horror, terror, and dread
+
+Horror confirms a violation; terror anticipates danger; dread can persist through uncertainty. Freud's uncanny shows how ordinary things can become frightening through doubling, animation, repetition, and the return of what should have stayed hidden; Carroll's philosophy of horror treats monsters and their impossible bodies as aesthetic objects; dread may depend on not knowing whether ordinary reality has already failed.[^i5-freud-17][^i5-carroll-17][^i5-dread-17]
+
+Do not repair horror by over-explaining it. Repair horror by making its contamination, limits, recurrence, and costs sharper.
+
+### Symbolic excess
+
+A symbol is not exhausted by one function. Peirce's icon/index/symbol distinction helps stewards ask whether an image resembles, points to, or conventionally signifies something; Ricoeur's claim that symbols give rise to thought helps preserve meanings that cannot be reduced to a single gloss.[^i5-peirce-17][^i5-ricoeur-17]
+
+Symbolic excess is healthy when multiple meanings are compatible and consequential. It is weak when no meaning constrains anything.
+
+### Preservation questions
+
+For each major aesthetic effect, ask:
+
+1. Is this a puzzle, wonder, sacred opacity, horror/dread, symbolic excess, or a hybrid?
+2. What recurrence or transformation carries the effect?
+3. What explanation would damage it?
+4. What must remain observable even if final explanation is withheld?
+5. What language, gesture, sound, color, architecture, clothing, ritual, or silence preserves it?
+6. What adaptation would flatten it into mere lore?
+
+[^i5-burke-17]: Edmund Burke, *A Philosophical Enquiry into the Origin of Our Ideas of the Sublime and Beautiful*, 1757.
+[^i5-kant-17]: Immanuel Kant, *Critique of Judgment*, 1790.
+[^i5-bennett-17]: Jane Bennett, *The Enchantment of Modern Life*, Princeton University Press, 2001.
+[^i5-otto-17]: Rudolf Otto, *The Idea of the Holy*, 1917/1923 English translation.
+[^i5-freud-17]: Sigmund Freud, “The Uncanny,” 1919.
+[^i5-carroll-17]: Noël Carroll, *The Philosophy of Horror*, Routledge, 1990.
+[^i5-dread-17]: Peter Windsor, “Tales of Dread,” *The Philosophical Quarterly*.
+[^i5-peirce-17]: Charles Sanders Peirce, icon/index/symbol distinction as summarized in the Stanford Encyclopedia of Philosophy.
+[^i5-ricoeur-17]: Paul Ricoeur, “The symbol gives rise to thought,” discussed in contemporary summaries of Ricoeur's hermeneutics.
+
 ## Aesthetic repair
 
 If a world feels incoherent, do not flatten it. Find the missing cause.
@@ -206,7 +255,7 @@ Run `checklists/aesthetic_coherence_sweep.md` when a fact changes naming, tone, 
 
 If this sentence cannot be written, the fact may exist intellectually but not aesthetically.
 
-## Version 0.4 reinforcement: signs as consequences
+## Version 0.5 reinforcement: signs as consequences
 
 Aesthetic coherence is semiotic governance. Peirce’s icon/index/symbol distinction is useful craft shorthand: some details resemble, some physically or causally point, and some mean by convention.[^i4-peirce] Strong worlds use all three.
 

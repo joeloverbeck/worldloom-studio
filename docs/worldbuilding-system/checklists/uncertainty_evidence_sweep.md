@@ -28,7 +28,7 @@ Serves `14_uncertainty_belief_and_evidence.md`. Use when a claim, rumor, prophec
 - [ ] Evidence does not accidentally settle what should remain protected.
 - [ ] Needed mystery ledger entry identified.
 
-## Version 0.4 completion rule
+## Version 0.5 completion rule
 
 Parent protocol: `14_uncertainty_belief_and_evidence.md`.
 

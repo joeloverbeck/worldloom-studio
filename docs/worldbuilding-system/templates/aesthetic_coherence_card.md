@@ -1,36 +1,52 @@
 # Aesthetic Coherence Card
 
-Use to make tone, symbolism, language, and sensory texture causal.
+An aesthetic coherence card records how tone, sign, motif, sensory texture, wonder, sacred opacity, horror, and symbolic excess become world consequence. It is a thinking instrument, not a software record.
 
 ## Fact or region
+
+## Consequence mode
+
+Material/institutional / mythic / fairy-tale / dream / comic / sacred / horror / lyrical-symbolic / hybrid.
 
 ## Mood and genre pressure
 
 ## Core motifs
 
+## Recurrence pattern
+
+What image, phrase, number, threshold, weather, animal, joke, ritual, or gesture returns?
+
+## Symbolic transformation
+
+What changes form because meaning exerts pressure?
+
+## Wonder / sacred / horror / excess boundary
+
+If present, what must not be solved, priced, mapped, decoded, domesticated, or explained?
+
 ## Naming residue
 
-Place names, personal names, titles, insults, euphemisms, eras, festivals.
+Place names, personal names, titles, insults, euphemisms, festivals, era names.
 
 ## Material residue
 
-Cloth, metal, wood, stone, bone, glass, paper, food, tools, waste.
+Cloth, metal, wood, stone, bone, glass, paper, food, tools, waste, relics.
 
 ## Spatial residue
 
-Architecture, roads, rooms, borders, sacred zones, ruins, thresholds.
+Thresholds, roads, rooms, borders, sacred zones, ruins, forbidden maps, dream places.
 
 ## Body and costume residue
 
-Clothing, scars, masks, tattoos, hair, scent, posture, prosthetics.
+Clothing, scars, masks, tattoos, hair, scent, posture, prosthetics, transformations.
 
 ## Language and speech residue
 
-Registers, taboos, accents, formulae, jargon, proverbs, jokes, curse words.
+Registers, taboos, accents, formulae, jargon, proverbs, jokes, curse words, silence.
 
 ## Ritual and performance
 
-Gestures, ceremonies, games, songs, alarms, court actions, daily routines.
+Gestures, ceremonies, games, songs, alarms, court actions, daily routines, refusals.
 
 ## Official symbols
 
@@ -40,17 +56,17 @@ Gestures, ceremonies, games, songs, alarms, court actions, daily routines.
 
 ## Aesthetic anti-patterns to avoid
 
-Decorative clutter, arbitrary words, uncaused style shifts, genre rupture without framing.
+Decoration without cause; monotony; over-explanation; sacred flattening; dread domestication; one-to-one symbol decoding; accidental genre drift.
 
-## Version 0.4 traceability note
+## Version 0.5 traceability note
 
 Parent protocol: `17_aesthetic_coherence_and_semiosis.md`.
 
-This card is a human reasoning instrument, not a database schema or implementation contract. Tie style to cause: icon, index, symbol, propaganda, counter-symbol, fossil, taboo, or branch marker.
+This card is a human reasoning instrument, not a database schema or implementation contract. Record only the signs and sensory pressures that carry consequence.
 
 ## Minimum completion
 
 - State the affected fact, scope, branch, or world section.
 - Record the decision-relevant pressure, not every possible detail.
 - Name unresolved canon debt if the card exposes it.
-- Cross-reference any parent protocol, checklist, contradiction report, mystery entry, branch diff, or decision record needed to keep the change governed.
+- Cross-reference any parent protocol, checklist, contradiction report, mystery/wonder entry, branch diff, or decision record needed to keep the change governed.

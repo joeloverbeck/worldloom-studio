@@ -148,7 +148,7 @@ Do not ask AI to fill every template for every fact. That creates bureaucracy an
 
 Use AI where it finds pressure the human might miss. Stop when the world has enough consequence to live.
 
-## Version 0.4 reinforcement: AI outputs as untrusted proposals
+## Version 0.5 reinforcement: AI outputs as untrusted proposals
 
 AI may accelerate brainstorming, contradiction hunting, and variant generation, but it must not become canon authority. AI governance frameworks emphasize risk management, transparency, accountability, and human oversight; this package translates that into a simple craft rule: a human steward must decide, record, and own every canon change.[^i4-nist][^i4-oecd]
 

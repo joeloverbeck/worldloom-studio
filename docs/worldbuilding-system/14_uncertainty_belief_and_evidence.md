@@ -23,6 +23,20 @@ Use uncertainty to:
 - prevent omniscient worldbuilding from flattening culture;
 - preserve rumors, myths, frauds, propaganda, science, law, theology, journalism, oral history, and memory as different truth practices.
 
+## Boundary with non-instrumental opacity
+
+Uncertainty asks what a person, group, archive, institution, or audience can justifiably believe. Sacred opacity and wonder ask what should not be converted into ordinary explanation. Do not score sacred opacity as weak evidence merely because it refuses disclosure.
+
+Instead, ask:
+
+- Is this an epistemic gap, a governed mystery, or a protected non-instrumental effect?
+- Who experiences uncertainty, awe, dread, reverence, or symbolic excess?
+- What evidence exists inside the world even if final explanation is forbidden?
+- What belief practices form around the opacity: rite, silence, taboo, pilgrimage, avoidance, denial, scholarship, fraud, or art?
+- What would count as profanation rather than discovery?
+
+The evidence system may track testimonies, relics, scars, rumors, and failed experiments without requiring the steward to solve the sacred thing.
+
 ## Confidence bands
 
 Use ordinary-language confidence bands, not numeric precision unless the work itself needs numbers.
@@ -225,7 +239,7 @@ Uncertainty is not a fog machine. Too much undifferentiated uncertainty destroys
 
 Use protected unknowns where they matter. Elsewhere, choose a working truth layer, confidence band, and action threshold so the world can respond.
 
-## Version 0.4 reinforcement: credence as world pressure
+## Version 0.5 reinforcement: credence as world pressure
 
 Bayesian epistemology treats degrees of belief, or credences, as central to how beliefs should respond to evidence.[^i4-bayes] The system does not require formal probability math, but it should preserve the craft insight: belief strength matters. A rumor believed at 10%, 50%, and 95% creates different behavior.
 

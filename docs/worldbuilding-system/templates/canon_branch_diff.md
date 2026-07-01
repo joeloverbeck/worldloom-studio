@@ -28,9 +28,9 @@ What must remain true for the branch to still feel like the same world?
 
 ## Character differences
 
-## Truth-layer and mystery differences
+## Truth-layer, mystery, and protected-effect differences
 
-## Aesthetic or genre differences
+## Aesthetic, genre, or consequence-mode differences
 
 ## Merge expectation
 
@@ -44,7 +44,7 @@ What must not migrate into another continuity without review?
 
 Private / public / table-only / draft / legacy / abandoned / active.
 
-## Version 0.4 traceability note
+## Version 0.5 traceability note
 
 Parent protocol: `15_branching_versioning_and_collaboration.md`.
 

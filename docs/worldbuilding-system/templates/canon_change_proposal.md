@@ -12,7 +12,7 @@ What does this improve?
 
 Continuity, branch, time, place, population, institution, medium/adaptation.
 
-## Fact type and severity
+## Fact type, consequence mode, and severity
 
 ## Proposed truth layer
 
@@ -26,11 +26,13 @@ Do not use tags as status substitutes. Tags explain limits.
 
 ## Expected consequences
 
+Include institutional/economic consequences where the mode requires them, or mode-equivalent recurrence, ritual, sacred, comic, dread, dream, or symbolic consequences where those are the declared mode.
+
 ## Cost, access, and constraints
 
 ## Contradiction risks
 
-## Mystery risks
+## Mystery / wonder risks
 
 ## Branch implications
 
@@ -48,7 +50,7 @@ Accept / constrain / localize / historicize / reinterpret / institutionalize / p
 
 Templates, checklists, examples, contradiction reports, mystery ledger entries, branch diffs, collaboration decision records.
 
-## Version 0.4 traceability note
+## Version 0.5 traceability note
 
 Parent protocol: `06_canon_fact_admission_protocol.md`.
 

@@ -177,6 +177,12 @@ Use severity levels from `06_canon_fact_admission_protocol.md`:
 
 A mature world is not one that stops changing. It is one that knows how to change without becoming arbitrary.
 
+### Mode declaration discipline
+
+During creation, do not let the first beautiful seed silently choose the world’s coherence rules. Name the mode early. If the world is realist, institutional and economic propagation are hard tests. If the world is mythic or dreamlike, recurrence, ritual logic, symbolic transformation, tonal inevitability, sacred opacity, and dread become equally hard tests. A hybrid must say where each mode applies.
+
+A mode declaration may be revised, but revision is a canon-level change to the creation brief because it changes what counts as a satisfying consequence.
+
 ## Creation anti-patterns
 
 ### Map-first sprawl
@@ -215,7 +221,7 @@ Trying to answer every domain before the world has pressure will bury the useful
 
 Start small. Propagate what matters. Expand when forced.
 
-## Version 0.4 reinforcement: the thin-start rule
+## Version 0.5 reinforcement: the thin-start rule
 
 Start thinner than feels comfortable. A strong kernel does not name every continent, dynasty, god, currency, weapon, and cuisine. It names the smallest set of facts that force the world to become itself.
 

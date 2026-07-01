@@ -181,21 +181,55 @@ Every meaningful canon change goes through this cycle:
 
 ## Strong worldbuilding smell tests
 
-A fact is probably under-propagated if:
+A fact is probably under-propagated if the world contains it but cannot answer at least one consequence question in the mode that governs the world.
 
-- only protagonists use it;
-- enemies do not optimize it;
-- governments do not regulate it;
-- markets do not price it;
-- religions do not interpret it;
-- ordinary people do not develop habits around it;
-- no one has tried to counterfeit, steal, tax, suppress, teach, monopolize, ritualize, weaponize, medicalize, eroticize, domesticate, or criminalize it;
-- no institution has formed around recurring use or recurring fear;
-- history contains no wars, reforms, disasters, scandals, jokes, professions, proverbs, ruins, or measurements arising from it;
-- it is true everywhere but has no regional variation;
-- it has existed for centuries but feels newly invented;
-- it changes plot outcomes without changing ordinary life;
-- the world would be much easier to live in if people used the fact rationally, but they inexplicably do not.
+The classic Causal Canon smell tests remain mandatory for realist, institutional, strategic, technological, political, economic, or socially naturalistic worlds:
+
+- why the fact does not immediately change warfare, labor, trade, law, sex, inheritance, crime, medicine, religion, travel, education, communication, or household life;
+- who pays for it;
+- who is excluded from it;
+- who monopolizes it;
+- who counters it;
+- who suppresses it;
+- who imitates it badly;
+- who mythologizes it;
+- who remembers its older form;
+- what ordinary person notices before any hero does.
+
+Those are one family of consequence tests, not the whole doctrine. A fairy tale, myth, dream, absurd comedy, sacred narrative, surreal world, or lyrical allegory may not want courts, ministries, price schedules, police files, and rational exploiters to be its dominant proof of coherence. It still needs consequence. The consequence may appear as recurrence, transformation, taboo, motif, ritual condition, tonal inevitability, sacred boundary, comic reversal, dread, or symbolic residue.
+
+Declare the world's primary **consequence mode** before deciding which smell tests carry most weight. Mixed worlds may use several modes, but each mode must be named so the steward is not quietly exempting a fact from pressure.
+
+### Mode-aware consequence tests
+
+Use these as alternatives or companions to the institutional tests.
+
+| Consequence mode | Coherence proof | Failure smell |
+|---|---|---|
+| Material / institutional | Rules-in-use, prices, professions, constraints, records, countermeasures, ordinary-life residue. | The world behaves like modern realism except around the author's favorite wonder. |
+| Mythic / ritual | Recurrent pattern, taboo, rite, ordeal, exchange, sacrifice, blessing, curse, threshold, calendrical return. | The miracle happens once and leaves no ritual grammar. |
+| Fairy-tale / folktale | Function, motif, repetition, transformation, number, prohibition, helper, test, reward, punishment. | The marvelous object solves the plot without becoming part of a recognizable tale-logic. |
+| Dream / surreal | Associative recurrence, emotional causality, displacement, impossible continuity with stable symbolic pressure. | Randomness replaces pattern; anything can happen, so nothing matters. |
+| Comic / absurd | Escalation, reversal, social exposure, rule carried past reason, punchline consequence, recurring cost of denial. | Absurdity erases consequence instead of intensifying it. |
+| Theological / sacred | Rite, awe, prohibition, impurity, consecration, taboo, blessing, desecration, unapproachable limit. | The sacred is explained into machinery or ignored until spectacle is needed. |
+| Horror / dread | Contamination, pursuit, uncanny repetition, forbidden knowledge, bodily or ontological cost, escalating dread. | Explanation domesticates the terror before the world has absorbed it. |
+| Lyrical / symbolic | Motif transformation, image-chain, language drift, gesture, color, sound, index, symbol, excess meaning. | Symbol is decorative and never changes behavior, mood, speech, or memory. |
+
+These modes are not excuses to skip cause. They are different forms of cause. Vladimir Propp's folktale morphology is useful here because it treats recurring tale functions and positions as structure, not as realist sociology.[^i5-propp] The sublime tradition distinguishes awe and terror from ordinary utility; Burke links the sublime to terror and self-preservation, while Kant treats aesthetic judgment as rooted in feeling rather than rule-proof.[^i5-burke][^i5-kant] Rudolf Otto's numinous names a sacred encounter that is both terrifying and fascinating, and later work on enchantment treats wonder as a mode of intense engagement, not a missing explanation.[^i5-otto][^i5-bennett]
+
+### Non-naturalistic no-free-pass rule
+
+A non-naturalistic world may refuse institutional plausibility only by replacing it with a stricter mode of recurrence. If promises turn into birds, the world need not develop a ministry of avian contracts unless its mode wants one. But the birds must recur according to recognizable pressure: vows, shame, marriage rites, childhood games, songs, omens, comic reversals, sacred prohibitions, and fear of dawn. The fact must still leave residue.
+
+### Institutional rigor is not downgraded
+
+For worlds that present themselves as politically, economically, technologically, or socially naturalistic, the older tests remain hard gates. A repeatable capability with no access limit, cost, countermeasure, institution/economy response, actor adaptation, temporal residue, and distribution pattern still fails. Mode-awareness protects myth, dream, comedy, sacred contradiction, and symbolic excess from flattening; it does not protect lazy realism from consequence.
+
+[^i5-propp]: Vladimir Propp, *Morphology of the Folktale*, first Russian edition 1928; English translation, University of Texas Press, 1968. See also structural summaries emphasizing recurrent functions and positions.
+[^i5-burke]: Edmund Burke, *A Philosophical Enquiry into the Origin of Our Ideas of the Sublime and Beautiful*, 1757.
+[^i5-kant]: Immanuel Kant, *Critique of Judgment*, 1790; see contemporary summaries of aesthetic judgment and the sublime.
+[^i5-otto]: Rudolf Otto, *The Idea of the Holy*, 1917/1923 English translation; especially the numinous as *mysterium tremendum et fascinans*.
+[^i5-bennett]: Jane Bennett, *The Enchantment of Modern Life*, Princeton University Press, 2001.
 
 ## What the system does not require
 
@@ -215,7 +249,7 @@ It does not require an LLM.
 
 It requires consequences.
 
-## Version 0.4 reinforcement: consequence without over-simulation
+## Version 0.5 reinforcement: consequence without over-simulation
 
 The system now treats consequence as a **bounded craft obligation**, not as a demand to simulate an entire universe. Systems thinking is useful because it asks about feedback, delays, stocks, flows, and leverage; it is dangerous when it tempts the steward to solve every variable before making art. Meadows's leverage-point framing supports the useful half of this habit: look for the few places where a fact changes incentives, information, rules, goals, or paradigms, rather than multiplying trivia.[^i4-meadows]
 

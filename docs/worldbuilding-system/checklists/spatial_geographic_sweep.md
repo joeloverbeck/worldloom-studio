@@ -30,7 +30,7 @@ Serves `10_spatial_and_geographic_propagation.md`. Use when a fact changes where
 - [ ] Aesthetic geography residue noted.
 - [ ] Smugglers, tolls, forts, dead roads, quarantine markers, local legends, or other barrier residues considered.
 
-## Version 0.4 completion rule
+## Version 0.5 completion rule
 
 Parent protocol: `10_spatial_and_geographic_propagation.md`.
 

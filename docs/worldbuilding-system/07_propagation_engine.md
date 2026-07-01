@@ -149,6 +149,18 @@ Some consequences are technically plausible but damage the world’s identity.
 
 A grim sacred setting may need resurrection to remain rare, costly, tragic, or taboo. A satirical world may let bureaucratic absurdity propagate farther than physics.
 
+### Mechanism 12: Recurrence
+
+A fact propagates by returning in recognizable forms: every third oath, every winter road, every youngest child, every house with a forbidden room, every joke that becomes law. Recurrence is especially important in mythic, fairy-tale, dream, comic, and lyrical modes.
+
+### Mechanism 13: Symbolic transformation
+
+A fact propagates by turning meaning into visible form: feathers, smoke, stains, bells, scars, animal guides, weather, architecture, names, music, or bodily marks. The transformation may be impossible by realist standards; it still needs stable triggers, limits, and residue.
+
+### Mechanism 14: Preservation boundary
+
+A fact propagates by changing what must not be explained, touched, exploited, photographed, mapped, named, priced, or solved. Sacred opacity, awe, dread, and symbolic excess create action by forbidding certain actions.
+
 ## The propagation loop
 
 1. Define the fact.
@@ -359,7 +371,7 @@ A good propagation report does not list everything.
 
 It records the consequential paths that must be remembered so future additions do not cheat.
 
-## Version 0.4 reinforcement: propagation triage and stop rules
+## Version 0.5 reinforcement: propagation triage and stop rules
 
 Propagation should be deep where pressure is high and ruthless where pressure is low. Use this triage:
 

@@ -1,12 +1,18 @@
 {
   "name": "Causal Canon Worldbuilding System",
-  "version": "0.4",
+  "version": "0.5",
   "created": "2026-07-01",
   "updated": "2026-07-01",
-  "purpose": "A storage-agnostic worldbuilding methodology for coherent canon fact propagation, consequence tracking, contradiction repair, mystery preservation, uncertainty governance, branch collaboration, transmedia extraction, aesthetic coherence, and continuity stewardship.",
+  "purpose": "A storage- and software-agnostic worldbuilding methodology for coherent canon fact propagation, mode-aware consequence tracking, contradiction repair, mystery and wonder preservation, uncertainty governance, branch collaboration, transmedia extraction, aesthetic coherence, calibrated QA, and continuity stewardship.",
   "baseline_repository": "joeloverbeck/worldloom-studio",
-  "baseline_commit": "a27ab313fff16a2953ffb97b7810a7b20dfce652",
+  "baseline_commit": "224496657616c6f25c0c207df9862d7e1445a04e",
   "freshness_claim": "user-supplied target commit only; not independently verified as latest main",
+  "structure_change": "none; all iteration-4 package files retained and updated in place",
+  "version_focus": [
+    "mode-aware consequence doctrine for non-naturalistic worlds without weakening institutional rigor",
+    "distinction between mystery, wonder/awe/sublimity, sacred opacity, horror/terror/dread, and symbolic excess",
+    "calibrated weak/adequate/strong exemplar anchors for QA scoring"
+  ],
   "files": [
     "00_overhaul_notes.md",
     "01_core_theory.md",
@@ -64,5 +70,7 @@
     "templates/temporal_timeline_card.md",
     "templates/uncertainty_evidence_card.md",
     "templates/world_kernel.md"
-  ]
+  ],
+  "file_count": 56,
+  "notes": "Templates and checklists are human reasoning instruments, not storage schemas or implementation instructions."
 }

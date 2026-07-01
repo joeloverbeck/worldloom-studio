@@ -33,7 +33,7 @@ Serves `11_agent_character_psychology.md`. Use when a world fact changes actor b
 - [ ] Contradictory behavior repaired, assigned to truth layers, or made deliberately motivated.
 - [ ] Psychological residue recorded: habits, trauma, pride, shame, denial, superstition, gallows humor, identity politics.
 
-## Version 0.4 completion rule
+## Version 0.5 completion rule
 
 Parent protocol: `11_agent_character_psychology.md`.
 

@@ -52,7 +52,7 @@ How would they respond without authorial convenience?
 
 What behavior would violate established psychology unless repaired?
 
-## Version 0.4 traceability note
+## Version 0.5 traceability note
 
 Parent protocol: `11_agent_character_psychology.md`.
 

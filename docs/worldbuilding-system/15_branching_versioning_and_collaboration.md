@@ -223,7 +223,7 @@ Use `templates/canon_branch_diff.md` for branch comparison and `templates/collab
 - Treating templates as paperwork rather than argument.
 - Forgetting that a collaborator’s table, draft, or adaptation may be valid within its own branch.
 
-## Version 0.4 reinforcement: invariant anchors
+## Version 0.5 reinforcement: invariant anchors
 
 Before creating or merging a branch, name the invariants: the facts, tone, relationships, moral pressures, aesthetic signals, and mysteries that must remain recognizable for the world to still be itself.
 
@@ -237,7 +237,7 @@ Invariant anchors may include:
 - one relationship geometry;
 - one domain of ordinary-life residue.
 
-### Branch compatibility matrix
+### Branch compatibility and preservation matrix
 
 When comparing branches, classify each difference:
 

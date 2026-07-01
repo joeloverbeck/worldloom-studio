@@ -41,7 +41,7 @@ For each seed fact:
 - [ ] Split into branches.
 - [ ] Quarantine until missing constraints or contradictions are repaired.
 
-## Version 0.4 completion rule
+## Version 0.5 completion rule
 
 Parent protocol: `05_creation_protocol.md`.
 

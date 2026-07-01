@@ -10,10 +10,12 @@ What is the world, in one or two sentences?
 
 What experience should the world reliably create for reader, player, viewer, or collaborator?
 
-## Genre and tone commitments
+## Genre, tone, and consequence-mode commitments
 
 - Primary genre mode:
 - Secondary modes:
+- Primary consequence mode: material/institutional / mythic / fairy-tale / dream / comic / sacred / horror / lyrical-symbolic / hybrid:
+- Secondary consequence modes:
 - Tonal boundaries:
 - What the world must never become by accident:
 
@@ -32,13 +34,15 @@ What limits keep the premise from becoming shapeless?
 - metaphysical limits:
 - technological or magical limits:
 - institutional limits:
+- recurrence / ritual / symbolic limits:
+- sacred or preservation limits:
 - geographic limits:
 - temporal limits:
 - aesthetic limits:
 
-## Initial mysteries
+## Initial mysteries and protected effects
 
-What is intentionally unknown or protected?
+What is intentionally unknown? What is wonder, sacred opacity, horror/dread, or symbolic excess rather than a puzzle?
 
 ## Initial domains of pressure
 
@@ -52,7 +56,7 @@ What everyday residue should prove this world has existed before the story begin
 
 Run `checklists/frontloaded_seed_audit.md` before treating this kernel as stable.
 
-## Version 0.4 traceability note
+## Version 0.5 traceability note
 
 Parent protocol: `05_creation_protocol.md`.
 

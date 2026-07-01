@@ -197,6 +197,20 @@ For each region, ask:
 
 Avoid making every city the same culture with different names.
 
+## Symbolic and sacred geography
+
+Some worlds contain places whose causal force is symbolic, sacred, horrific, comic, or dreamlike rather than merely logistical. Treat these as geography, not decoration.
+
+Ask:
+
+- What threshold changes conduct?
+- Which place returns in dream, ritual, joke, prophecy, or dread?
+- What cannot be mapped without damaging sacred opacity?
+- Which route is short in miles but long in shame, taboo, or ordeal?
+- Where does a motif become regionally different?
+
+A symbolic geography still needs boundaries, access rules, residue, and variation. It may refuse modern cartographic explanation, but it cannot refuse consequence.
+
 ## Spatial diffusion patterns
 
 ### Contagious diffusion
@@ -277,7 +291,7 @@ For every major fact:
 - [ ] Diffusion speed is plausible.
 - [ ] Local beliefs and institutions reflect place.
 
-## Version 0.4 reinforcement: diffusion is social as well as geographic
+## Version 0.5 reinforcement: diffusion is social as well as geographic
 
 A fact does not spread only by distance. Rogers's diffusion model emphasizes innovation, communication channels, time, and social system; worldbuilding should therefore ask who can hear, trust, afford, imitate, and legitimize a fact, not merely who lives nearby.[^i4-rogers]
 

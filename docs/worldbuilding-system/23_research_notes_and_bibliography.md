@@ -166,37 +166,50 @@ The original package used exemplar settings as craft inspiration rather than aut
 
 It is not a demand for realism. It is not a reading list required before worldbuilding. It is not a substitute for judgment. Its job is to give the methodology sharper questions.
 
-## Version 0.4 research additions
+## Version 0.5 research additions
 
-Iteration 4 did not replace the package's research roots. It tightened how those roots are translated into craft procedure.
+Iteration 5 keeps the existing research roots and adds three lanes: mode-aware non-naturalistic coherence, preservation of wonder/sacred opacity/horror/symbolic excess, and calibrated QA exemplars.
 
-### Added translation emphasis
+### Non-naturalistic coherence
 
-- Meadows's leverage-point framing supports a bounded consequence rule: identify high-pressure causal places rather than simulating every detail.
-- Rogers's diffusion model reinforces that spread depends on innovation, communication channels, time, and social system, not distance alone.
-- North, Ostrom, Williamson, and Scott reinforce the institutional/economic/suppression loop: rules-in-use, transaction costs, legibility, and informal order are inseparable.
-- Simon reinforces actor-local rationality: characters need bounded, situated intelligence, not omniscient optimization.
-- Stanford Encyclopedia treatments of Bayesian epistemology and belief revision sharpen uncertainty governance without requiring formal probability math.
-- Jenkins and Klastrup/Tosca reinforce transmedia discipline: continuity, multiplicity, worldness, mythos, topos, ethos, and invariants must be governed rather than blended.
-- Hunicke, LeBlanc, and Zubek's MDA framework sharpens game extraction: mechanics imply repeated permissions; repeated permissions imply world consequences.
-- Peirce and Silverstein strengthen aesthetic/semiotic residue: signs, speech, symbols, and style carry social meaning and causal evidence.
-- NIST and OECD AI governance materials support the package's AI stance: AI may propose and audit, but human stewards own canon decisions.
+Vladimir Propp's folktale morphology supports the package's new recurrence and transformation tests: a fairy tale can be highly structured by function, position, motif, prohibition, helper, test, reward, and punishment without needing realist institutional causation as its first proof of coherence.
 
-### Additional sources consulted or promoted
+Translation rule: when a world declares fairy-tale, mythic, dream, comic, sacred, horror, or lyrical mode, do not demand bureaucracy as the first answer. Demand a stricter recurrence grammar.
 
-- Donella H. Meadows, "Leverage Points: Places to Intervene in a System", https://donellameadows.org/archives/leverage-points-places-to-intervene-in-a-system/
-- Everett M. Rogers, *Diffusion of Innovations*, searchable excerpt, https://eli.johogo.com/Class/DOI.pdf
-- Elinor Ostrom, "Background on the Institutional Analysis and Development Framework", *Policy Studies Journal*, https://gpde.direito.ufmg.br/wp-content/uploads/2019/03/Ostrom-2011-Policy_Studies_Journal.pdf
-- Douglass C. North, "Institutions", *Journal of Economic Perspectives* 5(1), 1991, https://www.aeaweb.org/articles?id=10.1257/jep.5.1.97
-- Oliver E. Williamson, "Transaction-Cost Economics: The Governance of Contractual Relations", *Journal of Law and Economics* 22(2), 1979, https://chicagounbound.uchicago.edu/jle/vol22/iss2/3/
-- James C. Scott, *Seeing Like a State*, Yale University Press, 1998, https://books.google.com/books/about/Seeing_Like_a_State.html?id=Qe_RDwAAQBAJ
-- Herbert A. Simon, "Rational Decision Making in Business Organizations", Nobel Prize lecture, https://www.nobelprize.org/uploads/2018/06/simon-lecture.pdf
-- Hanti Lin, "Bayesian Epistemology", Stanford Encyclopedia of Philosophy, https://plato.stanford.edu/entries/epistemology-bayesian/
-- Sven Ove Hansson, "Logic of Belief Revision", Stanford Encyclopedia of Philosophy, https://plato.stanford.edu/entries/logic-belief-revision/
-- Henry Jenkins, "Transmedia Education: The 7 Principles Revisited", https://henryjenkins.org/blog/2010/06/transmedia_education_the_7_pri.html
-- Lisbeth Klastrup and Susana Tosca, "Transmedial Worlds—Rethinking Cyberworld Design", https://www.itu.dk/people/klastrup/klastruptosca_transworlds.pdf
-- Robin Hunicke, Marc LeBlanc, and Robert Zubek, "MDA: A Formal Approach to Game Design and Game Research", https://www.cs.northwestern.edu/~hunicke/pubs/MDA.pdf
-- Albert Atkin, "Peirce’s Theory of Signs", Stanford Encyclopedia of Philosophy, https://plato.stanford.edu/entries/peirce-semiotics/
-- Michael Silverstein, "Indexical Order and the Dialectics of Sociolinguistic Life", https://web.stanford.edu/~eckert/Courses/ParisPapers/Silverstein2003.pdf
-- National Institute of Standards and Technology, "AI Risk Management Framework", https://www.nist.gov/itl/ai-risk-management-framework
-- OECD, "OECD AI Principles overview", https://oecd.ai/en/ai-principles
+### Wonder, sacredness, horror, and symbolic excess
+
+Burke's sublime links awe with terror and self-preservation; Kant's aesthetics frames judgment of beauty and sublimity as feeling rather than rule-proof; Otto's numinous distinguishes sacred dread and fascination from ordinary knowledge; Bennett's work on enchantment treats wonder as a serious mode of engagement rather than a failure of explanation.
+
+Freud's uncanny, Carroll's philosophy of horror, and work distinguishing dread from horror support the new rule that fear should not automatically be solved away. Some horror is strongest when partial explanation sharpens contamination, pursuit, or ontological threat while preserving dread.
+
+Peirce's icon/index/symbol distinction and Ricoeur's account of symbol as generative of thought support the symbolic-excess vocabulary. A symbol can resemble, point, conventionally signify, and exceed a single gloss. The steward's job is not to reduce symbols to one answer; it is to keep their excess consequential.
+
+Translation rule: mystery ledgers now accept `none` for puzzle question. The ledger may protect awe, sacred opacity, dread, or symbolic excess without pretending there is a hidden answer waiting to be revealed.
+
+### Rubric calibration
+
+Rubric literature on calibrated exemplars and scoring guides supports Version `0.5`'s weak/adequate/strong anchor answers. The package keeps the 0–3 scale because more numeric precision would create false confidence. The improvement is comparative anchoring: stewards can now ask whether an answer resembles the weak, adequate, or strong example for each QA category.
+
+Translation rule: QA exemplars are calibration aids, not new doctrine. They improve consistency only if teams actually compare their ratings against them.
+
+### Added sources consulted or promoted for Version 0.5
+
+- Vladimir Propp, *Morphology of the Folktale*, University of Texas Press English translation, 1968; publisher record and structural summaries: https://www.degruyterbrill.com/document/doi/10.7560/783911/html and https://dokumen.pub/morphology-of-the-folktale-revised-edition-0292783760-9780292783768.html
+- Edmund Burke, *A Philosophical Enquiry into the Origin of Our Ideas of the Sublime and Beautiful*, 1757; overview: https://www.rct.uk/collection/themes/publications/canova-in-four-dimensions/edmund-burke-a-philosophical-enquiry-into-the-origin-of-our-ideas-of-the-sublime-and-beautiful
+- Immanuel Kant, *Critique of Judgment*, 1790; Stanford Encyclopedia of Philosophy overview: https://plato.stanford.edu/entries/kant-aesthetics/
+- Rudolf Otto, *The Idea of the Holy*, 1917/1923 English translation; Oxford reference summary of the numinous: https://academic.oup.com/book/12430/chapter-abstract/162065615
+- Jane Bennett, *The Enchantment of Modern Life*, Princeton University Press, 2001; publisher page: https://press.princeton.edu/books/paperback/9780691088136/the-enchantment-of-modern-life
+- Sigmund Freud, “The Uncanny,” 1919; Freud Museum overview: https://www.freud.org.uk/education/resources/the-uncanny/
+- Noël Carroll, *The Philosophy of Horror*, Routledge, 1990; publisher page: https://www.routledge.com/The-Philosophy-of-Horror-or-Paradoxes-of-the-Heart/Carroll/p/book/9780415902168
+- Peter Windsor, “Tales of Dread,” *The Philosophical Quarterly*; summary record: https://philpapers.org/rec/WINTOD
+- Albert Atkin, “Peirce’s Theory of Signs,” Stanford Encyclopedia of Philosophy, https://plato.stanford.edu/entries/peirce-semiotics/
+- Paul Ricoeur, “The symbol gives rise to thought,” discussed in Stanford Encyclopedia of Philosophy overview of Ricoeur, https://plato.stanford.edu/entries/ricoeur/
+- Amanda M. Heldsinger and Stephen Humphry, “Using Calibrated Exemplars in the Teacher-Assessment of Writing,” ERIC record, https://eric.ed.gov/?id=EJ918794
+- Deborah Allen and Kimberly Tanner, “Rubrics: Tools for Making Learning Goals and Evaluation Criteria Explicit for Both Teachers and Learners,” *CBE Life Sciences Education*, https://pmc.ncbi.nlm.nih.gov/articles/PMC2330295/
+
+### Version 0.5 translation summary
+
+- Propp strengthens non-institutional consequence tests through function, recurrence, and motif.
+- Burke, Kant, Otto, Bennett, Freud, Carroll, Windsor, Peirce, and Ricoeur strengthen the distinction between mystery and wonder/sacredness/horror/symbolic excess.
+- Rubric-calibration sources justify anchored examples while warning that true reliability still requires steward practice and comparison.
+- None of these sources override the package doctrine. They sharpen the questions the doctrine already asks.

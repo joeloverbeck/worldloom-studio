@@ -28,7 +28,9 @@ Minor / moderate / major / foundational / catastrophic.
 
 Which fact, doctrine, branch, or source has priority?
 
-## Mystery relationship
+## Mystery / protected-effect relationship
+
+Does this conflict protect a mystery, wonder, sacred opacity, horror/dread, or symbolic excess?
 
 Does the conflict protect a real mystery or merely hide an error?
 
@@ -50,7 +52,7 @@ What else changes because of the repair?
 
 ## Notes
 
-## Version 0.4 traceability note
+## Version 0.5 traceability note
 
 Parent protocol: `13_contradiction_retcon_and_mystery.md`.
 

@@ -100,6 +100,19 @@ Characters face incompatible continuities, versions, prophecies, campaign outcom
 
 The story advances by narrowing the unknown without destroying it.
 
+## Mode-aware extraction
+
+When extracting story, game, or medium pressure, first ask what consequence mode is load-bearing.
+
+- In material/institutional worlds, extract conflict from access, scarcity, office, law, market, countermeasure, and ordinary-life residue.
+- In mythic or fairy-tale worlds, extract conflict from prohibition, test, recurrence, helper, sacrifice, transformation, threshold, and moral reversal.
+- In dream or surreal worlds, extract conflict from emotional causality, displacement, repeated images, impossible spaces, and symbolic pressure.
+- In comic or absurd worlds, extract conflict from escalation, denial, disproportion, and rules followed past reason.
+- In sacred or horror worlds, extract conflict from taboo, profanation, dread, contamination, forbidden knowledge, and the cost of explanation.
+- In lyrical or symbolic worlds, extract conflict from motif transformation, language drift, image chains, gesture, color, sound, and excess meaning.
+
+Extraction should not normalize every mode into the same adventure plot. A sacred opacity may generate a pilgrimage, vigil, silence, refusal, or sacrilege rather than a clue hunt.
+
 ## Game extraction
 
 The original package warned that mechanics must not break the world. Keep that rule.
@@ -263,7 +276,7 @@ For any canon fact, write:
 
 Then decide which medium makes that pressure most visible.
 
-## Version 0.4 reinforcement: extraction is not canon admission
+## Version 0.5 reinforcement: extraction is not canon admission
 
 A story beat, game mechanic, scene requirement, budget solution, or medium affordance may suggest a world fact, but it does not automatically become one. Extraction asks what pressure the world can support; admission decides what canon accepts.
 
