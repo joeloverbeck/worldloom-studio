@@ -90,6 +90,8 @@ The first seed appendix records known package divergences without amending the p
 - `admission_ledger_minor_item`: seed from `templates/admission_ledger.md` columns, not from the prose phrase "five items".
 - `constraint_tag`: seed doctrine terms from `03_truth_layers_and_canon_governance.md`; seed glossary extras from `22_glossary.md` as pre-seeded `other` rows.
 - `contradiction_type`: seed from `templates/contradiction_report.md`'s ten types.
+- `repair_operation`: migration v4 corrects the seed to `13_contradiction_retcon_and_mystery.md` and `templates/contradiction_report.md`'s repair operations; `branch`, `supersede`, and `deprecate` are resulting status or branch decisions, not repair operations.
+- `work_scale`: `templates/contradiction_report.md` names `foundational`, but Worldloom Studio keeps `work_scale` aligned to `06_canon_fact_admission_protocol.md`; the divergence is logged in `seed_divergences`.
 
 Core controlled vocabularies in schema v1:
 
@@ -98,7 +100,12 @@ Core controlled vocabularies in schema v1:
 - `constraint_tag` (`03_truth_layers_and_canon_governance.md`, `22_glossary.md`)
 - `admission_decision_operation` (`03_truth_layers_and_canon_governance.md`, `checklists/canon_fact_gate.md`)
 - `repair_operation` (`13_contradiction_retcon_and_mystery.md`)
+- `contradiction_disposition` (`13_contradiction_retcon_and_mystery.md`)
+- `preservation_operation` (`13_contradiction_retcon_and_mystery.md`, `checklists/mystery_preservation.md`)
+- `retcon_type` (`13_contradiction_retcon_and_mystery.md`)
+- `protected_effect_type` (`13_contradiction_retcon_and_mystery.md`, `templates/mystery_ledger_entry.md`)
 - `consequence_mode` (`01_core_theory.md`, `05_creation_protocol.md`)
+- `consequence_disposition` (`07_propagation_engine.md`)
 - `preservation_boundary` (`13_contradiction_retcon_and_mystery.md`)
 - `work_scale` (`06_canon_fact_admission_protocol.md`)
 - `admission_level` (`06_canon_fact_admission_protocol.md`)
@@ -124,8 +131,13 @@ Each seeded vocabulary row stores its package source beside the term. Values gro
 - `canon_status`: proposed; under review; accepted; accepted with constraints; localized; contested; quarantined; branch-only; superseded; deprecated; rejected (`templates/canon_fact_card.md`, `22_glossary.md`).
 - `constraint_tag`: cost-bound; place-bound; time-bound; access-bound; knowledge-bound; institution-bound; branch-bound (`03_truth_layers_and_canon_governance.md`); ritual-bound; material-bound; population-bound (`22_glossary.md`, pre-seeded `other` rows).
 - `admission_decision_operation`: accept; constrain; localize; historicize; reinterpret; institutionalize; price; branch; quarantine; supersede; deprecate; reject (`checklists/canon_fact_gate.md`, `templates/canon_fact_card.md`).
-- `repair_operation`: clarify scope; retcon; reinterpret; institutionalize; branch; quarantine; supersede; deprecate; reject (`13_contradiction_retcon_and_mystery.md`).
+- `repair_operation`: clarify scope; add constraint; price the fact; localize; historicize; institutionalize; diffuse unevenly; reinterpret; split; retcon; quarantine; reject (`13_contradiction_retcon_and_mystery.md`, `templates/contradiction_report.md`).
+- `contradiction_disposition`: not a contradiction; diegetic conflict; mystery-preserving conflict; repair required; branch required; deprecation required; rejection required (`13_contradiction_retcon_and_mystery.md`).
+- `preservation_operation`: reveal; delay; forbid; consecrate; dread-preserve; excess-preserve; translate (`13_contradiction_retcon_and_mystery.md`, `checklists/mystery_preservation.md`).
+- `retcon_type`: soft retcon; hard retcon; diegetic retcon; branch retcon; audience-facing retcon; back-office retcon (`13_contradiction_retcon_and_mystery.md`).
+- `protected_effect_type`: governed mystery; wonder-awe-sublimity; sacred opacity; horror-terror-dread; symbolic excess (`13_contradiction_retcon_and_mystery.md`, `templates/mystery_ledger_entry.md`); hybrid (`templates/mystery_ledger_entry.md`, pre-seeded `other` row).
 - `consequence_mode`: realist; mythic; weird; hard speculative; horror; satirical; mixed; other (`05_creation_protocol.md`).
+- `consequence_disposition`: answered; intentionally scoped out; assigned as canon debt; protected as a mystery boundary (`07_propagation_engine.md`).
 - `preservation_boundary`: fixed; author-secret; deliberately undecided; forbidden; evidence-governed; none (`13_contradiction_retcon_and_mystery.md`).
 - `work_scale`: minor; moderate; major; severe; catastrophic (`06_canon_fact_admission_protocol.md`).
 - `admission_level`: 0; 1; 2; 3; 4; 5 (`06_canon_fact_admission_protocol.md`).

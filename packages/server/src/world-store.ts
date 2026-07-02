@@ -1,7 +1,27 @@
 import Database from "better-sqlite3";
 import { dirname, resolve } from "node:path";
 import { existsSync, mkdirSync } from "node:fs";
-import { APPLICATION_ID, CURRENT_SCHEMA_VERSION, migration001, migration002, migration003 } from "./schema.js";
+import { APPLICATION_ID, CURRENT_SCHEMA_VERSION, migration001, migration002, migration003, migration004 } from "./schema.js";
+import {
+  addContradictionRepairTarget as addContradictionFlowRepairTarget,
+  closeContradictionRun as closeContradictionFlowRun,
+  completeMysteryPreservationChecklist as completeMysteryFlowPreservationChecklist,
+  createMysteryLedgerEntry as createContradictionFlowMysteryLedgerEntry,
+  declareContradictionWorkScale as declareContradictionFlowWorkScale,
+  getContradictionRun as getContradictionFlowRun,
+  owedBoundariesQueue as contradictionFlowOwedBoundariesQueue,
+  proposeFactFromContradiction as proposeFactFromContradictionFlow,
+  recordContradictionRepair as recordContradictionFlowRepair,
+  recordContradictionRetconCosts as recordContradictionFlowRetconCosts,
+  recordContradictionTriage as recordContradictionFlowTriage,
+  setContradictionDisposition as setContradictionFlowDisposition,
+  setContradictionRepairPropagation as setContradictionFlowRepairPropagation,
+  skipContradictionStep as skipContradictionFlowStep,
+  startContradictionRun as startContradictionFlowRun,
+  type ContradictionRepairPropagationRow,
+  type MysteryChecklistRow,
+  type OwedBoundaryRow
+} from "./contradiction-flow.js";
 import {
   addPropagationConsequence as addPropagationFlowConsequence,
   closePropagationRun as closePropagationFlowRun,
@@ -27,6 +47,12 @@ import {
   type DeclaredSeverity
 } from "./severity-policy.js";
 import { LINK_TYPES, RECORD_TYPE_BY_KEY } from "@worldloom/shared";
+
+export type {
+  ContradictionRepairPropagationRow,
+  MysteryChecklistRow,
+  OwedBoundaryRow
+} from "./contradiction-flow.js";
 
 export type {
   PropagationConsequenceRow,
@@ -824,6 +850,76 @@ export class WorldStore {
     return correctPropagationFlowReport(this, input);
   }
 
+  startContradictionRun(input: { sourceRecordId?: number; implicatedRecordIds?: number[]; title?: string }): unknown {
+    return startContradictionFlowRun(this, input);
+  }
+
+  getContradictionRun(flowId: number): unknown {
+    return getContradictionFlowRun(this, flowId);
+  }
+
+  recordContradictionTriage(input: { flowId: number; stepKey: string; body: string }): unknown {
+    return recordContradictionFlowTriage(this, input);
+  }
+
+  declareContradictionWorkScale(input: { flowId: number; workScale: string }): unknown {
+    return declareContradictionFlowWorkScale(this, input);
+  }
+
+  setContradictionDisposition(input: { flowId: number; disposition: string; note?: string }): unknown {
+    return setContradictionFlowDisposition(this, input);
+  }
+
+  recordContradictionRepair(input: { flowId: number; operations: string[]; repairText: string }): unknown[] {
+    return recordContradictionFlowRepair(this, input);
+  }
+
+  addContradictionRepairTarget(input: { flowId: number; recordId: number; nextCanonStatus: string; newTitle?: string; newBody?: string; note?: string; advisoryRecordId?: number }): unknown {
+    return addContradictionFlowRepairTarget(this, input);
+  }
+
+  proposeFactFromContradiction(input: { flowId: number; title: string; body: string; truthLayer: string }): { record: RecordRow; queue: AdmissionQueueRow[] } {
+    return proposeFactFromContradictionFlow(this, input);
+  }
+
+  recordContradictionRetconCosts(input: { flowId: number; retconType: string; costs: Array<{ cost: string; text: string }> }): unknown[] {
+    return recordContradictionFlowRetconCosts(this, input);
+  }
+
+  setContradictionRepairPropagation(input: { flowId: number; action: "assign" | "decline"; debtName?: string; body?: string; admissionLevel?: string; workScale?: string; reason?: string }): ContradictionRepairPropagationRow {
+    return setContradictionFlowRepairPropagation(this, input);
+  }
+
+  owedBoundariesQueue(): OwedBoundaryRow[] {
+    return contradictionFlowOwedBoundariesQueue(this);
+  }
+
+  createMysteryLedgerEntry(input: {
+    propagationDispositionId?: number;
+    ledgerRecordId?: number;
+    title: string;
+    protectedRecordId: number;
+    propagationReportRecordId?: number;
+    effectType: string;
+    mysteryState: string;
+    preservationBoundary: string;
+    sections: Record<string, string>;
+  }): { record: RecordRow; queue: OwedBoundaryRow[] } {
+    return createContradictionFlowMysteryLedgerEntry(this, input);
+  }
+
+  completeMysteryPreservationChecklist(input: { flowId?: number; ledgerRecordId?: number; protectedRecordId?: number; operation: string; effectType: string; body: string; sacredGuardBody?: string }): MysteryChecklistRow {
+    return completeMysteryFlowPreservationChecklist(this, input);
+  }
+
+  skipContradictionStep(input: { flowId?: number; stepKey: string; admissionLevel?: string; workScale?: string; reason?: string }): RecordRow {
+    return skipContradictionFlowStep(this, input);
+  }
+
+  closeContradictionRun(flowId: number): { flow: unknown; report: RecordRow } {
+    return closeContradictionFlowRun(this, flowId);
+  }
+
   createLink(fromRecordId: number, toRecordId: number, linkTypeKey: string, note = ""): LinkRow {
     this.assertLinkType(linkTypeKey);
     const result = this.db.prepare(`
@@ -923,6 +1019,16 @@ export class WorldStore {
       this.db.exec("BEGIN");
       try {
         this.db.exec(migration003);
+        this.db.exec("COMMIT");
+      } catch (error) {
+        this.db.exec("ROLLBACK");
+        throw error;
+      }
+    }
+    if (version < 4) {
+      this.db.exec("BEGIN");
+      try {
+        this.db.exec(migration004);
         this.db.exec("COMMIT");
       } catch (error) {
         this.db.exec("ROLLBACK");
@@ -1095,6 +1201,16 @@ export class WorldStore {
         key: "propagation_consequence_scout",
         roleName: "Consequence scout",
         text: "Pressure-test this propagation step. Work from the steward material first, then list direct consequences, adaptations, countermeasures, fossils, quiet domains, and assumptions. Do not admit facts; label any surfaced fact as proposed-only."
+      },
+      {
+        key: "repair_challenge",
+        roleName: "Contradiction hunter",
+        text: "Pressure-test the quoted claims, chosen repair operation, retcon costs, status changes, and propagation obligations. Suggest repair pressure only; do not decide canon standing."
+      },
+      {
+        key: "boundary_guard",
+        roleName: "Mystery guardian",
+        text: "Pressure-test the preservation boundary, protected effect type, explanation-pressure operation, reveal permissions, reveal prohibitions, and sacred-opacity accountability. Protect consequence; do not solve by default."
       }
     ];
     this.db.transaction(() => {

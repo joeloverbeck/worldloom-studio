@@ -82,3 +82,58 @@ export const MIGRATION_001_VOCABULARY_TERMS = [
 ] as const;
 
 export const MIGRATION_003_CONSEQUENCE_DISPOSITIONS = terms("consequence_disposition", "docs/worldbuilding-system/07_propagation_engine.md", ["answered", "intentionally scoped out", "assigned as canon debt", "protected as a mystery boundary"]);
+
+export const MIGRATION_004_REPAIR_OPERATIONS = terms("repair_operation", "docs/worldbuilding-system/13_contradiction_retcon_and_mystery.md", [
+  "clarify scope",
+  "add constraint",
+  "price the fact",
+  "localize",
+  "historicize",
+  "institutionalize",
+  "diffuse unevenly",
+  "reinterpret",
+  "split",
+  "retcon",
+  "quarantine",
+  "reject"
+]);
+
+export const MIGRATION_004_CONTRADICTION_DISPOSITIONS = terms("contradiction_disposition", "docs/worldbuilding-system/13_contradiction_retcon_and_mystery.md", [
+  "not a contradiction",
+  "diegetic conflict",
+  "mystery-preserving conflict",
+  "repair required",
+  "branch required",
+  "deprecation required",
+  "rejection required"
+]);
+
+export const MIGRATION_004_PRESERVATION_OPERATIONS = terms("preservation_operation", "docs/worldbuilding-system/13_contradiction_retcon_and_mystery.md", [
+  "reveal",
+  "delay",
+  "forbid",
+  "consecrate",
+  "dread-preserve",
+  "excess-preserve",
+  "translate"
+]);
+
+export const MIGRATION_004_RETCON_TYPES = terms("retcon_type", "docs/worldbuilding-system/13_contradiction_retcon_and_mystery.md", [
+  "soft retcon",
+  "hard retcon",
+  "diegetic retcon",
+  "branch retcon",
+  "audience-facing retcon",
+  "back-office retcon"
+]);
+
+export const MIGRATION_004_PROTECTED_EFFECT_TYPES = [
+  ...terms("protected_effect_type", "docs/worldbuilding-system/templates/mystery_ledger_entry.md", [
+    "governed mystery",
+    "wonder-awe-sublimity",
+    "sacred opacity",
+    "horror-terror-dread",
+    "symbolic excess"
+  ]),
+  ...terms("protected_effect_type", "docs/worldbuilding-system/templates/mystery_ledger_entry.md", ["hybrid"], true, true)
+];

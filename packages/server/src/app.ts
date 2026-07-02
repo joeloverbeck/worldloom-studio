@@ -498,6 +498,147 @@ export const createApp = (options: AppOptions = {}) => {
     }
   });
 
+  app.post("/api/contradiction/runs/start", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ flow: activeWorld.startContradictionRun(await body<{ sourceRecordId?: number; implicatedRecordIds?: number[]; title?: string }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.get("/api/contradiction/runs/:id", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(activeWorld.getContradictionRun(Number(c.req.param("id"))));
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/contradiction/triage", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ triage: activeWorld.recordContradictionTriage(await body<{ flowId: number; stepKey: string; body: string }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/contradiction/scale", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ scale: activeWorld.declareContradictionWorkScale(await body<{ flowId: number; workScale: string }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/contradiction/disposition", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ disposition: activeWorld.setContradictionDisposition(await body<{ flowId: number; disposition: string; note?: string }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/contradiction/repairs", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ repairs: activeWorld.recordContradictionRepair(await body<{ flowId: number; operations: string[]; repairText: string }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/contradiction/repair-targets", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ target: activeWorld.addContradictionRepairTarget(await body<{ flowId: number; recordId: number; nextCanonStatus: string; newTitle?: string; newBody?: string; note?: string; advisoryRecordId?: number }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/contradiction/propose-fact", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(activeWorld.proposeFactFromContradiction(await body<{ flowId: number; title: string; body: string; truthLayer: string }>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/contradiction/retcon-costs", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ costs: activeWorld.recordContradictionRetconCosts(await body<{ flowId: number; retconType: string; costs: Array<{ cost: string; text: string }> }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/contradiction/repair-propagation", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ propagation: activeWorld.setContradictionRepairPropagation(await body<{ flowId: number; action: "assign" | "decline"; debtName?: string; body?: string; admissionLevel?: string; workScale?: string; reason?: string }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.get("/api/contradiction/owed-boundaries", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    return c.json({ queue: activeWorld.owedBoundariesQueue() });
+  });
+
+  app.post("/api/contradiction/mystery-ledgers", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(activeWorld.createMysteryLedgerEntry(await body<{
+        propagationDispositionId?: number;
+        ledgerRecordId?: number;
+        title: string;
+        protectedRecordId: number;
+        propagationReportRecordId?: number;
+        effectType: string;
+        mysteryState: string;
+        preservationBoundary: string;
+        sections: Record<string, string>;
+      }>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/contradiction/preservation-checklists", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ checklist: activeWorld.completeMysteryPreservationChecklist(await body<{ flowId?: number; ledgerRecordId?: number; protectedRecordId?: number; operation: string; effectType: string; body: string; sacredGuardBody?: string }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/contradiction/skip", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ record: activeWorld.skipContradictionStep(await body<{ flowId?: number; stepKey: string; admissionLevel?: string; workScale?: string; reason?: string }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/contradiction/runs/:id/close", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(activeWorld.closeContradictionRun(Number(c.req.param("id"))), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
   app.get("/api/search", (c) => {
     if (!activeWorld) return c.json({ error: "No world is open" }, 409);
     return c.json({ records: activeWorld.search(c.req.query("q") ?? "") });

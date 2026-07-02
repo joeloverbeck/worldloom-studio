@@ -1,4 +1,9 @@
 import {
+  MIGRATION_004_CONTRADICTION_DISPOSITIONS,
+  MIGRATION_004_PRESERVATION_OPERATIONS,
+  MIGRATION_004_PROTECTED_EFFECT_TYPES,
+  MIGRATION_004_REPAIR_OPERATIONS,
+  MIGRATION_004_RETCON_TYPES,
   MIGRATION_001_LINK_TYPES,
   MIGRATION_001_RECORD_TYPES,
   MIGRATION_001_VOCABULARY_TERMS,
@@ -6,7 +11,7 @@ import {
 } from "./migration-snapshots.js";
 
 export const APPLICATION_ID = 0x574c4f4d;
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_SCHEMA_VERSION = 4;
 
 const sqlString = (value: string): string => `'${value.replaceAll("'", "''")}'`;
 
@@ -605,4 +610,273 @@ CREATE TABLE IF NOT EXISTS propagation_surfaced_proposals (
 ) STRICT;
 
 PRAGMA user_version = 3;
+`;
+
+const migration004VocabularyTerms = [
+  ...MIGRATION_004_REPAIR_OPERATIONS,
+  ...MIGRATION_004_CONTRADICTION_DISPOSITIONS,
+  ...MIGRATION_004_PRESERVATION_OPERATIONS,
+  ...MIGRATION_004_RETCON_TYPES,
+  ...MIGRATION_004_PROTECTED_EFFECT_TYPES
+] as const;
+
+const contradictionReportHeadings = [
+  [1, "Contradiction statement"],
+  [2, "Affected truth layers"],
+  [3, "Affected scope"],
+  [4, "Who can notice"],
+  [5, "Audience notice"],
+  [6, "Contradiction type"],
+  [7, "Higher-authority material"],
+  [8, "Mystery / protected-effect relationship"],
+  [9, "Work scale"],
+  [10, "Disposition"],
+  [11, "Repair operation(s), primary first"],
+  [12, "Retcon cost"],
+  [13, "Propagation required"],
+  [14, "Resulting canon status or branch decision"],
+  [15, "Notes"],
+  [16, "Close audit"]
+] as const;
+
+const mysteryLedgerHeadings = [
+  [1, "Protected effect type"],
+  [2, "Puzzle question, if any"],
+  [3, "What is fixed"],
+  [4, "What is secret or undecided"],
+  [5, "Damaging explanations"],
+  [6, "Preserved consequences"],
+  [7, "Recurrence / motif / transformation"],
+  [8, "Reveal permissions"],
+  [9, "Reveal prohibitions"],
+  [10, "Explanation-pressure operation"],
+  [11, "What would break if solved or flattened"],
+  [12, "Sacred-opacity accountability"]
+] as const;
+
+export const migration004 = `
+DELETE FROM record_facets
+WHERE vocabulary = 'repair_operation'
+  AND term IN ('branch', 'supersede', 'deprecate');
+
+DELETE FROM vocabulary_terms
+WHERE vocabulary = 'repair_operation'
+  AND term IN ('branch', 'supersede', 'deprecate');
+
+${migration004VocabularyTerms
+  .map((term) => `INSERT OR IGNORE INTO vocabularies (name) VALUES (${sqlString(term.vocabulary)});
+INSERT OR IGNORE INTO vocabulary_terms (vocabulary, term, package_source, extension_allowed, seeded_other) VALUES (${sqlString(term.vocabulary)}, ${sqlString(term.term)}, ${sqlString(term.packageSource)}, ${term.extensionAllowed ? 1 : 0}, ${term.seededOther ? 1 : 0});`)
+  .join("\n")}
+
+CREATE TABLE IF NOT EXISTS seed_divergences (
+  id INTEGER PRIMARY KEY,
+  key TEXT NOT NULL UNIQUE,
+  package_source TEXT NOT NULL,
+  app_decision TEXT NOT NULL,
+  note TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+INSERT OR IGNORE INTO seed_divergences (key, package_source, app_decision, note)
+VALUES (
+  'contradiction_report_foundational_work_scale',
+  'docs/worldbuilding-system/templates/contradiction_report.md',
+  'Worldloom Studio keeps work_scale aligned to docs/worldbuilding-system/06_canon_fact_admission_protocol.md: minor, moderate, major, severe, catastrophic.',
+  'The contradiction report template names foundational; this is logged as package divergence rather than amending package text.'
+);
+
+${contradictionReportHeadings.map(([position, heading]) => `INSERT OR IGNORE INTO record_section_headings (record_type_key, position, heading, package_source) VALUES ('contradiction_report', ${position}, ${sqlString(heading)}, 'docs/worldbuilding-system/templates/contradiction_report.md');`).join("\n")}
+
+${mysteryLedgerHeadings.map(([position, heading]) => `INSERT OR IGNORE INTO record_section_headings (record_type_key, position, heading, package_source) VALUES ('mystery_ledger_entry', ${position}, ${sqlString(heading)}, 'docs/worldbuilding-system/templates/mystery_ledger_entry.md');`).join("\n")}
+
+INSERT OR IGNORE INTO prompt_templates (key, role_name, original_text, package_source) VALUES
+  ('repair_challenge', 'Contradiction hunter', 'Pressure-test the quoted claims, chosen repair operation, retcon costs, status changes, and propagation obligations. Suggest repair pressure only; do not decide canon standing.', 'docs/worldbuilding-system/20_ai_assisted_workflow.md'),
+  ('boundary_guard', 'Mystery guardian', 'Pressure-test the preservation boundary, protected effect type, explanation-pressure operation, reveal permissions, reveal prohibitions, and sacred-opacity accountability. Protect consequence; do not solve by default.', 'docs/worldbuilding-system/20_ai_assisted_workflow.md');
+
+INSERT OR IGNORE INTO prompt_template_versions (template_key, version, text)
+SELECT key, 1, original_text FROM prompt_templates WHERE key IN ('repair_challenge', 'boundary_guard');
+
+ALTER TABLE flow_instances ADD COLUMN contradiction_source_record_id INTEGER REFERENCES records(id);
+ALTER TABLE flow_instances ADD COLUMN contradiction_report_record_id INTEGER REFERENCES records(id);
+
+CREATE TABLE IF NOT EXISTS contradiction_implicated_records (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (flow_id, record_id)
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS contradiction_triage_entries (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  step_key TEXT NOT NULL,
+  body TEXT NOT NULL,
+  doctrine_source TEXT NOT NULL DEFAULT 'docs/worldbuilding-system/13_contradiction_retcon_and_mystery.md',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (flow_id, step_key)
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS contradiction_triage_touch_updated_at
+AFTER UPDATE ON contradiction_triage_entries
+WHEN old.updated_at = new.updated_at
+BEGIN
+  UPDATE contradiction_triage_entries SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = new.id;
+END;
+
+CREATE TABLE IF NOT EXISTS contradiction_work_scales (
+  flow_id INTEGER PRIMARY KEY REFERENCES flow_instances(id) ON DELETE CASCADE,
+  work_scale TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS contradiction_work_scales_validate
+BEFORE INSERT ON contradiction_work_scales
+WHEN NOT EXISTS (
+  SELECT 1 FROM vocabulary_terms
+  WHERE vocabulary = 'work_scale'
+    AND term = new.work_scale
+)
+BEGIN
+  SELECT RAISE(ABORT, 'unknown work scale');
+END;
+
+CREATE TABLE IF NOT EXISTS contradiction_dispositions (
+  flow_id INTEGER PRIMARY KEY REFERENCES flow_instances(id) ON DELETE CASCADE,
+  disposition TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS contradiction_dispositions_validate
+BEFORE INSERT ON contradiction_dispositions
+WHEN NOT EXISTS (
+  SELECT 1 FROM vocabulary_terms
+  WHERE vocabulary = 'contradiction_disposition'
+    AND term = new.disposition
+)
+BEGIN
+  SELECT RAISE(ABORT, 'unknown contradiction disposition');
+END;
+
+CREATE TABLE IF NOT EXISTS contradiction_repair_operations (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  position INTEGER NOT NULL CHECK (position > 0),
+  operation TEXT NOT NULL,
+  repair_text TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (flow_id, position)
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS contradiction_repair_operations_validate
+BEFORE INSERT ON contradiction_repair_operations
+WHEN NOT EXISTS (
+  SELECT 1 FROM vocabulary_terms
+  WHERE vocabulary = 'repair_operation'
+    AND term = new.operation
+)
+BEGIN
+  SELECT RAISE(ABORT, 'unknown repair operation');
+END;
+
+CREATE TABLE IF NOT EXISTS contradiction_repair_targets (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  next_canon_status TEXT NOT NULL,
+  new_title TEXT,
+  new_body TEXT,
+  note TEXT NOT NULL DEFAULT '',
+  advisory_record_id INTEGER REFERENCES records(id),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS contradiction_repair_created_proposals (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  proposal_record_id INTEGER NOT NULL UNIQUE REFERENCES records(id) ON DELETE CASCADE,
+  report_record_id INTEGER REFERENCES records(id),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS contradiction_retcon_costs (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  retcon_type TEXT NOT NULL,
+  cost_key TEXT NOT NULL CHECK (cost_key IN ('continuity', 'institutional', 'character', 'mystery', 'aesthetic', 'future')),
+  cost_text TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (flow_id, cost_key)
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS contradiction_retcon_costs_validate
+BEFORE INSERT ON contradiction_retcon_costs
+WHEN NOT EXISTS (
+  SELECT 1 FROM vocabulary_terms
+  WHERE vocabulary = 'retcon_type'
+    AND term = new.retcon_type
+)
+BEGIN
+  SELECT RAISE(ABORT, 'unknown retcon type');
+END;
+
+CREATE TABLE IF NOT EXISTS contradiction_repair_propagation (
+  flow_id INTEGER PRIMARY KEY REFERENCES flow_instances(id) ON DELETE CASCADE,
+  action TEXT NOT NULL CHECK (action IN ('assign', 'decline')),
+  debt_record_id INTEGER REFERENCES records(id),
+  skip_record_id INTEGER REFERENCES records(id),
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  CHECK (
+    (action = 'assign' AND debt_record_id IS NOT NULL AND skip_record_id IS NULL)
+    OR (action = 'decline' AND skip_record_id IS NOT NULL AND debt_record_id IS NULL)
+  )
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS contradiction_mystery_boundary_links (
+  id INTEGER PRIMARY KEY,
+  propagation_disposition_id INTEGER NOT NULL UNIQUE REFERENCES propagation_consequence_dispositions(id) ON DELETE CASCADE,
+  ledger_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS mystery_preservation_checklists (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER REFERENCES flow_instances(id) ON DELETE CASCADE,
+  ledger_record_id INTEGER REFERENCES records(id) ON DELETE CASCADE,
+  protected_record_id INTEGER REFERENCES records(id) ON DELETE CASCADE,
+  operation TEXT NOT NULL,
+  effect_type TEXT NOT NULL,
+  body TEXT NOT NULL,
+  sacred_guard_body TEXT NOT NULL DEFAULT '',
+  completed INTEGER NOT NULL DEFAULT 1 CHECK (completed IN (0, 1)),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS mystery_preservation_checklists_validate_operation
+BEFORE INSERT ON mystery_preservation_checklists
+WHEN NOT EXISTS (
+  SELECT 1 FROM vocabulary_terms
+  WHERE vocabulary = 'preservation_operation'
+    AND term = new.operation
+)
+BEGIN
+  SELECT RAISE(ABORT, 'unknown preservation operation');
+END;
+
+CREATE TRIGGER IF NOT EXISTS mystery_preservation_checklists_validate_effect
+BEFORE INSERT ON mystery_preservation_checklists
+WHEN NOT EXISTS (
+  SELECT 1 FROM vocabulary_terms
+  WHERE vocabulary = 'protected_effect_type'
+    AND term = new.effect_type
+)
+BEGIN
+  SELECT RAISE(ABORT, 'unknown protected effect type');
+END;
+
+PRAGMA user_version = 4;
 `;

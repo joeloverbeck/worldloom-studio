@@ -33,3 +33,7 @@ _Avoid_: AI output, suggestion, draft
 **Standing ruling**:
 A steward's persisted disposition of advisory material, carried as context into future generated prompts.
 _Avoid_: preference, feedback
+
+**Owed-boundaries queue**:
+A view of propagation results where the steward protected a consequence as a mystery boundary but has not yet linked a governed mystery ledger entry.
+_Avoid_: mystery backlog, boundary task table

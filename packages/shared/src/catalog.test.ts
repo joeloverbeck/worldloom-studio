@@ -13,8 +13,26 @@ describe("shared catalogs", () => {
       expect.objectContaining({ vocabulary: "truth_layer", term: "Objective canon" }),
       expect.objectContaining({ vocabulary: "canon_status", term: "proposed" }),
       expect.objectContaining({ vocabulary: "constraint_tag", term: "branch-bound" }),
-      expect.objectContaining({ vocabulary: "repair_operation", term: "clarify scope" })
+      expect.objectContaining({ vocabulary: "repair_operation", term: "add constraint" }),
+      expect.objectContaining({ vocabulary: "contradiction_disposition", term: "repair required" }),
+      expect.objectContaining({ vocabulary: "preservation_operation", term: "consecrate" }),
+      expect.objectContaining({ vocabulary: "retcon_type", term: "hard retcon" }),
+      expect.objectContaining({ vocabulary: "protected_effect_type", term: "sacred opacity" })
     ]));
+    expect(VOCABULARY_TERMS.filter((term) => term.vocabulary === "repair_operation").map((term) => term.term)).toEqual([
+      "clarify scope",
+      "add constraint",
+      "price the fact",
+      "localize",
+      "historicize",
+      "institutionalize",
+      "diffuse unevenly",
+      "reinterpret",
+      "split",
+      "retcon",
+      "quarantine",
+      "reject"
+    ]);
     expect(VOCABULARY_TERMS.filter((term) => term.vocabulary === "canon_status").map((term) => term.term)).toEqual([
       "proposed",
       "under review",
