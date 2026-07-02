@@ -11,7 +11,7 @@ A one-page quick reference for working stewards. Everything here is condensed fr
 5. Run `checklists/frontloaded_seed_audit.md` (after decomposition, before first admission).
 6. Admit with `06` + `checklists/canon_fact_gate.md`: cards for major facts, `templates/admission_ledger.md` rows for minor ones. Check `21` for the lightest instrument that catches the danger.
 7. Propagate major facts: `07` + `04` + `templates/propagation_report.md` + `checklists/propagation_sweep.md`. Stop when every high-pressure consequence is answered, scoped out, assigned as debt, or protected.
-8. Specialized passes (`08`–`17`) only where the fact applies; run each pass's own sweep.
+8. Specialized passes (`08`–`17`) only where the fact applies; run each pass's own sweep. New facts a pass surfaces go back through admission (`06`); the pass's output lives in one pass report.
 9. QA with `18` before calling the first version stable.
 
 Stuck on how instruments compose? `19`'s records-lifecycle example walks the full chain. `02` is enrichment, not a required stop.
@@ -38,7 +38,7 @@ Operations compose within one jurisdiction only: admission with admission, repai
 | Level 2 regional custom or institution | Moderate — minor work + cost/access/constraint check + one domain ripple |
 | Level 3 capability or strategic resource | Major — full gate, shock cone, institution/economy pass, contradiction check, debt |
 | Level 4 world premise or metaphysical rule | Foundational — major work + temporal/spatial passes, branch, mystery/aesthetic checks, QA profile |
-| Level 5 retcon, branch, or repair of established canon | Foundational to catastrophic — plus decision record and rollback/branch plan |
+| Level 5 retcon, branch, or repair of established canon | Foundational to catastrophic — decision record and rollback/branch plan owed at the catastrophic band only |
 
 Reports (`propagation_report`, `contradiction_report`) ask for the **work scale**; protocols that trigger on "Level 2 or higher" (`07`, `09`) use the **levels**.
 

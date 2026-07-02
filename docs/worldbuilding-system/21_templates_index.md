@@ -54,6 +54,8 @@ Read this index at admission time, not after: the minimal use paths below are th
 - `checklists/uncertainty_evidence_sweep.md` — used by `14_uncertainty_belief_and_evidence.md` for sources, confidence, proof standards, belief ecology, protected unknowns, and protected opacity.
 - `checklists/aesthetic_coherence_sweep.md` — used by `17_aesthetic_coherence_and_semiosis.md` for tone, signs, language, recurrence, wonder, sacred opacity, horror/dread, symbolic excess, sensory texture, and aesthetic residue.
 
+A specialized pass's output lives in a single pass report — a record bundling the sweep's completion outputs and any domain cards the pass filled, on the model of the propagation report. This is a sanctioned record container, not a separate template; like any report, it is audit trail, never edited after the pass, and any new facts the pass generated re-enter through admission (`06_canon_fact_admission_protocol.md`).
+
 ### Governance sweeps
 
 - `checklists/mystery_preservation.md` — used by `13_contradiction_retcon_and_mystery.md` when contradiction repair, retcon, reveal, adaptation, or QA repair risks collapsing a protected unknown, wonder, sacred opacity, horror/dread, or symbolic excess.

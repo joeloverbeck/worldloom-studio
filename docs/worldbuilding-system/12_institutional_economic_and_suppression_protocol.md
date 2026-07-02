@@ -371,6 +371,8 @@ Use `templates/action_arena_card.md` for recurring choice situations, `templates
 
 Run `checklists/institutional_economic_suppression_sweep.md` whenever a fact changes access, scarcity, legitimacy, enforcement, transaction costs, exclusion, secrecy, or suppression. A major fact that does not create at least one institutional or economic question is probably under-propagated.
 
+Facts this pass itself generates — an institution, profession, black market, or counter-institution the analysis demands — go through `06_canon_fact_admission_protocol.md` like any other fact; the pass records them as proposals and never admits them from inside the sweep.
+
 ## Institutional-economic synthesis
 
 After analysis, write one synthesis sentence:

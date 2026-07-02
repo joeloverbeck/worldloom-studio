@@ -142,7 +142,12 @@ Exactly what Session 2 outputs — leave no ambiguity:
   residual placement ambiguity as a labeled `assumption:` line rather than asserting it;
 - for an **iterative-overhaul line**, a companion outlook/assessment report's filename increments
   with the iteration number (e.g. `sixth-iteration-outlook.md` → `seventh-iteration-outlook.md`);
-  name the incremented file and still carry it as a labeled `assumption:` line so the user can rename;
+  name the incremented file and still carry it as a labeled `assumption:` line so the user can rename.
+  Derive the commissioned pass's own iteration ordinal from the repo's naming precedent **before**
+  the Step 5 outline — lines that interleave field trials and repair passes may share one ordinal
+  per trial+repair pair (an *Nth-iteration* trial log pairs with the Nth repair pass), so the next
+  pass is not automatically "N+1". State the resolved ordinal in §1 alongside the lineage, and
+  carry it as a labeled `assumption:` line when the precedent is ambiguous;
 - the **locked / no-questions** instruction, verbatim intent:
 
 > Produce the deliverables directly as downloadable markdown documents. Do not interview, do not

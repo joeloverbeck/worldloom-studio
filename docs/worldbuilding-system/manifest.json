@@ -1,19 +1,19 @@
 {
   "package": "docs/worldbuilding-system",
   "name": "Causal Canon Worldbuilding System",
-  "version": "0.8",
-  "iteration": 8,
+  "version": "1.0",
+  "iteration": 9,
   "generated_date": "2026-07-02",
   "repository": "joeloverbeck/worldloom-studio",
   "provenance": {
     "executor": "Claude Code (model: Fable / claude-fable-5), local session with direct working-tree access",
-    "worked_from_commit": "4b9356eef4aa5288598da6620b6c409999adacc8",
-    "baseline_divergence": "none; HEAD matched the eighth-iteration brief's pinned baseline",
-    "acquisition": "direct file reads of the working tree; web search used only for the single research-shaped change recorded in 23",
+    "worked_from_commit": "b2580daf44a8173509ffbad319725d84327dba95",
+    "baseline_divergence": "none; HEAD matched the release brief's pinned baseline",
+    "acquisition": "direct file reads of the working tree; no web fetching — the pass is evidence-bounded by the second field trial and needed no external research",
     "edits": "applied in place to the working tree; not committed by the executor"
   },
   "file_count": 58,
-  "structural_change": "two files added on field-trial evidence (operating_card.md, templates/admission_ledger.md); all version-0.7 files kept and updated in place where the trial log demanded; iteration history lives in 00_overhaul_notes.md",
+  "structural_change": "none; no file added, removed, renamed, split, or merged — a release pass applying the second field trial's five sentence fixes and the 1.0 coverage statement; iteration history lives in 00_overhaul_notes.md",
   "files": [
     "docs/worldbuilding-system/00_overhaul_notes.md",
     "docs/worldbuilding-system/01_core_theory.md",
@@ -76,7 +76,7 @@
   ],
   "notes": {
     "root_readme": "The repository root README.md was read only for boundary awareness and is not part of this package.",
-    "external_research_lane": "One research-shaped change in iteration 8 (record lifecycle, ISO 15489-1); all prior research lanes and citations retained.",
-    "iteration_8_focus": "Field-trial repair pass: reading-path routing, card lifecycle doctrine, batch admission instrument, kernel reconciliation, one-page operating card, records-lifecycle worked example, and the trial's small instrument fixes. Evidence base: the eighth-iteration field trial (Saltmarrow), whose ledgers and eight ranked recommendations are dispositioned one-for-one in 00_overhaul_notes.md."
+    "external_research_lane": "No research-shaped change in iteration 9; all prior research lanes and citations retained.",
+    "iteration_9_focus": "Version-1.0 release pass, the repair half of the ninth iteration (whose first half was the second field trial). Five sentence fixes at the protocol/instrument tier, doctrine byte-identical, plus the coverage statement naming field-tested and honestly-untested surfaces. Evidence base: the second field trial, whose ledgers and four ranked recommendations are dispositioned one-for-one in 00_overhaul_notes.md."
   }
 }

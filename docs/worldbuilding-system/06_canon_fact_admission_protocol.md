@@ -437,6 +437,8 @@ Needs local truth layer, access, and ordinary residue.
 
 A law, guild, trade route, cult, profession, disease, migration pattern, dialect, or regional practice.
 
+(Classify a law by the scope of what it structures, not by its type: a law of regional reach sits here, a law that constitutes a capability or strategic procedure is Level 3, and a law that changes possibility itself is Level 4.)
+
 Needs institutional, economic, temporal, spatial, and daily-life propagation.
 
 ### Level 3: Capability or strategic resource
@@ -487,6 +489,8 @@ Do not use the same burden of work for every change.
 | Catastrophic | Foundational work plus explicit decision record and rollback/branch plan. |
 
 The two severity vocabularies in this document answer different questions and map onto each other. The admission levels classify **what kind of fact** is entering; the work scale classifies **how much admission work** it owes. Level 0–1 facts normally owe minor work; Level 2 owes moderate work; Level 3 owes major work; Level 4 owes foundational work; Level 5 changes to established canon owe foundational-to-catastrophic work depending on how much prior material they disturb. Instruments that ask for a severity (`templates/propagation_report.md`, `templates/contradiction_report.md`) use the work scale; protocols that trigger on “Level 2 or higher” (`07`, `09`) use the levels.
+
+The explicit decision record enters at the catastrophic band only: a Level 5 change owing foundational work — a solo steward's typical contradiction repair — owes the contradiction report and its propagation as its record, and a separate decision record becomes due only when the work turns catastrophic or when multiple contributors require a collaboration decision (`15_branching_versioning_and_collaboration.md`).
 
 ### Admission package completeness
 

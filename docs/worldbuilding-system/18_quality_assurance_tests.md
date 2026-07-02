@@ -388,7 +388,9 @@ Score 0–3.
 
 ## QA scorecard template
 
-Use a simple worksheet:
+The scorecard of record is per-test: one row per core test (1–28), scored 0–3, with notes and required repair — scoring, the n/a convention, and the calibrated anchors all operate at test granularity.
+
+The condensed worksheet below is a triage view, nine clusters for a quick first scan of where the weakness lives. It does not replace per-test scoring; use it to find where to look, then score the member tests individually.
 
 | Test | Score 0–3 | Notes | Required repair |
 |---|---:|---|---|

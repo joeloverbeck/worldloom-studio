@@ -1,10 +1,22 @@
 # Causal Canon Worldbuilding System
 
-Version `0.8` is a storage- and software-agnostic methodology for creating and maintaining fictional worlds whose canon facts propagate through the world instead of sitting as isolated lore. It does not assume Markdown, a database, a graph engine, a web app, an API, an LLM workflow, or any particular publishing medium. A solo author, writing room, tabletop group, game team, or setting steward can use it with paper, notebooks, cards, documents, wikis, spreadsheets, index cards, wall charts, conversation, or any other medium.
+Version `1.0` is a storage- and software-agnostic methodology for creating and maintaining fictional worlds whose canon facts propagate through the world instead of sitting as isolated lore. It does not assume Markdown, a database, a graph engine, a web app, an API, an LLM workflow, or any particular publishing medium. A solo author, writing room, tabletop group, game team, or setting steward can use it with paper, notebooks, cards, documents, wikis, spreadsheets, index cards, wall charts, conversation, or any other medium.
 
 The records in `templates/` and the sweeps in `checklists/` are human thinking instruments, not implementation instructions. They name the questions that must be answered; they do not prescribe a storage model.
 
-Version `0.8` keeps the numbered-spine architecture and grows it by two files (58 total) where field evidence demanded an instrument: a one-page operating card and a batch admission ledger template. The improvement is field-trial repair: an end-to-end trial build of a small world exposed friction concentrated in reading-path routing, instrument-to-instrument handoffs, and record lifecycle, and this version fixes exactly those. The new-world path now routes every document it actually depends on; fact cards are governed as living present-tense records with reports as the immutable audit trail; minor facts have a sanctioned lightweight admission record; the kernel's two definitions are reconciled; and the worked examples include a records-lifecycle walkthrough. All substance delivered by earlier versions — equal-weight non-naturalistic consequence tests, worked cases for myth, absurd comedy, dream logic, and sacred/horror, the adversarial earned-sacred-opacity guard, point-of-use micro-examples, calibrated QA anchors, and the institutional hard edge — is retained.
+Version `1.0` keeps the numbered-spine architecture at 58 files. All substance delivered by earlier versions — equal-weight non-naturalistic consequence tests, worked cases for myth, absurd comedy, dream logic, and sacred/horror, the adversarial earned-sacred-opacity guard, point-of-use micro-examples, calibrated QA anchors, the record-lifecycle doctrine, the institutional hard edge, the one-page operating card, and the batch admission ledger — is retained.
+
+## What version 1.0 claims
+
+The version number is a claim about tested surfaces, not about total coverage. Two independent end-to-end field builds of small worlds — each run cold, following this README's new-world path literally — have exercised and validated:
+
+- the core pipeline twice over: kernel → seed decomposition → seed audit → severity-scaled admission → propagation → contradiction repair → QA;
+- constraint composition (`08`), the temporal pass (`09`), and the institutional/economic/suppression pass (`12`), each generative rather than merely defensive in field use;
+- the record lifecycle under a supersession chain two repairs deep;
+- batch admission through the ledger, including a row promotion to a full card;
+- the QA machinery — per-test scoring, the n/a convention, the red-team prompts — with a live firing of the mystery-preservation checklist.
+
+Honestly untested remain: the spatial (`10`), agent/psychology (`11`), uncertainty/evidence (`14`), extraction (`16`), and aesthetic (`17`) passes in anger; branching/versioning/collaboration (`15`) and every multi-steward mechanism; the worked examples (`19`) and AI workflow (`20`) under a genuinely naive steward; and the aesthetic-promise disposal in a world whose primary consequence mode is lyrical or sacred. Use those surfaces with the scrutiny owed to an untested instrument, and expect them to generate the next revision's evidence.
 
 ## Core idea
 
@@ -137,7 +149,7 @@ A tiny local detail may need only a fact card and a short propagation note. A ne
 - `22_glossary.md` — authoritative shared vocabulary.
 - `23_research_notes_and_bibliography.md` — research roots and translation rules.
 - `operating_card.md` — one-page quick reference: the new-world path with its real dependencies, the label-separation table, the severity map, and the minimal instrument paths. Derived from `README`, `03`, `06`, and `21`; those files govern on any conflict.
-- `00_overhaul_notes.md` — iteration-eight provenance, evidence base, finding dispositions, fate mapping, retention audit, and research rationale. The single changelog: iteration history lives here, not in the doctrine and protocol files.
+- `00_overhaul_notes.md` — current-iteration provenance, evidence base, finding dispositions, fate mapping, retention audit, the coverage statement of record, and research rationale. The single changelog: iteration history lives here, not in the doctrine and protocol files.
 
 ## Operating stance
 

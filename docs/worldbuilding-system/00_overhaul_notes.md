@@ -1,173 +1,161 @@
-# Overhaul Notes — Causal Canon Worldbuilding System Version 0.8
+# Overhaul Notes — Causal Canon Worldbuilding System Version 1.0
 
 Date: 2026-07-02
 
-This document records the eighth-iteration overhaul of `docs/worldbuilding-system/**`. It supersedes the version-0.7 overhaul notes for package stewardship. It is the package's single changelog: iteration history lives here, not inside the doctrine, protocol, or instrument files.
+This document records the version-1.0 release pass of `docs/worldbuilding-system/**` — the repair half of the ninth iteration, whose first half was the second field trial. It supersedes the version-0.8 overhaul notes for package stewardship. It is the package's single changelog: iteration history lives here, not inside the doctrine, protocol, or instrument files.
 
 ## Provenance
 
-Iteration 8, like iteration 7, was performed by a **Claude Code session running the Fable model with direct read/write access to the repository working tree**.
+Iteration 9's repair half, like iterations 7 and 8, was performed by a **Claude Code session running the Fable model with direct read/write access to the repository working tree**.
 
 ```text
 Executor: Claude Code (model: Fable / claude-fable-5)
 Repository: joeloverbeck/worldloom-studio (local working tree)
-HEAD at start of pass: 4b9356eef4aa5288598da6620b6c409999adacc8
-  ("First field trial.")
-Baseline divergence: none — HEAD matched the brief's pinned baseline exactly
-Acquisition method: direct file reads of the working tree; all 56 package
-  files, the field-trial log, the eighth-iteration outlook, and all 11
-  trial-world artifacts were read in full before any file was changed
-URL fetching: two web searches only, to check whether records-management
-  and job-aid literature sharpened planned fixes (see Research rationale)
+HEAD at start of pass: b2580daf44a8173509ffbad319725d84327dba95
+  ("Second field trial.")
+Baseline divergence: none — HEAD matched the release brief's pinned baseline
+  exactly, and the package was verified byte-identical between the commit the
+  second trial ran against and this baseline
+Acquisition method: direct file reads of the working tree; the full package,
+  the second trial's log and all 13 of its filled instruments, both prior
+  outlooks, and the prior trial log were read before any file was changed
+URL fetching: none — the pass is evidence-bounded and needed no research
 Edits: applied directly to the working tree; nothing committed
 ```
 
-## The evidence base: a field trial, not a self-derived diagnosis
+## The evidence base: a second field trial, and a convergence gate met
 
-Iterations 1–7 were document-editing passes. Iteration 7's own outlook concluded that another editing pass was not warranted and that the highest-value eighth iteration was a **field trial**: a steward with no authorship stake building a small world end-to-end using only the package, followed by *only the changes the trial log demands*.
+Iteration 8 was the first evidence-bounded pass: it consumed the first field trial's entire finding backlog and changed nothing the log did not demand. Its own adversarial outlook then refused to grade that homework: every 0.8 fix was unvalidated by use, and the defensible 1.0 gate was defined as *a second field trial, run cold on 0.8, whose friction log demands no structural change and confirms the 0.8 additions carry their weight*.
 
-That trial happened before this pass. A steward built the world *Saltmarrow* from kernel through QA — seed kernel → decomposition → admission → propagation → one constraint composition → one contradiction repair → one protected effect under the opacity accountability test → QA regression profile — logging sixteen frictions (F-01…F-16, with no F-14 in the numbering), six skips (S-01…S-06), six unanswered questions (Q-01…Q-06), nineteen validated strengths (V-01…V-19), and eight ranked recommendations. The trial log is committed in the repository's reports area; the package version it exercised is byte-identical to this pass's baseline.
+That trial happened as the ninth iteration's first half. A steward with no authorship stake in 0.8 built a second small world cold through the README's new-world path — kernel → decomposition → seed audit → ledger-based batch admission (with one row promotion) → propagation → the first field runs of the temporal and institutional/suppression passes → a supersession chain two repairs deep → QA with a live mystery-preservation firing — logging three frictions (F2-01…F2-03), two questions (Q2-01, Q2-02), six skips (S2-01…S2-06), and twenty-three validations (V2-01…V2-23), and scoring the package 3/3 on both self-audit tests.
 
-The trial's verdict: **the system works** — the instruments generated design quality rather than merely checking it, and the friction is concentrated in *connective tissue* (reading-path routing, instrument handoffs, record lifecycle), not substance. This pass therefore made only the changes the log demands, plus two argued consistency extensions discovered while implementing them (noted in the disposition table).
+The trial's verdict: **version 0.8 works, the eighth iteration's repairs specifically work, and the gate is met.** No finding touches doctrine; every friction is a sentence; every 0.8 fix the trial's path crossed was confirmed working, and none regressed. Its first recommendation — apply the log's sentence fixes and nothing else — is this pass's entire substantive work list; its second — declare 1.0 with a named coverage statement — is this pass's mandate, accepted by the user.
 
 ## Structural decision
 
-Two files were added; none was removed, renamed, split, or merged. The package grows from 56 to **58 files**. The high bar for structural change was met by field evidence, not ambition:
-
-- **`operating_card.md`** (top-level, unnumbered like the README) — trial recommendation 5. The trial measured a ~4,400-line minimum read before the first world is stable and repeated hesitations that the label-separation table, severity map, and minimal-use paths would have prevented if held in hand. The card is a derived quick reference; it states that `README`/`03`/`06`/`21` govern on any conflict, so it adds no authority tier.
-- **`templates/admission_ledger.md`** — trial recommendation 3 / F-08. The trial's fifteen-seed decomposition collided with the one-fact-per-card rule while severity-scaled evidence said minor facts owe only five items — and no instrument existed for that record. The steward improvised a ledger table that worked; this template blesses that pattern as a sanctioned instrument, wired into `06`, `21`, and the README path.
-
-Everything else was repaired in place.
+**None.** No file was added, removed, renamed, split, or merged; the package stays at 58 files. Every change is a sentence-scale repair woven into an existing file. This is not restraint for its own sake: two consecutive trials have converged on frictions that are sentences, and the evidence licenses nothing larger.
 
 ## Finding → disposition table
 
-Every trial ledger item and ranked recommendation, with its disposition. "Fixed as proposed" means the trial's own repair proposal was implemented; "fixed differently" explains the deviation; "declined" explains the refusal.
+Every trial ledger item and ranked recommendation, with its disposition. "Fixed as proposed" means the trial's own repair proposal was implemented; "fixed differently" explains the deviation; "no change needed" explains why the finding demands no package edit.
 
-### Frictions (F-ledger)
-
-| # | Finding | Disposition |
-|---|---|---|
-| F-01 | New-world path never routes `03`, but the audit and admission need its vocabulary | **Fixed as proposed.** `README.md` new-world path step 4 now assigns `03` before the seed audit. |
-| F-02 | Kernel template asks for genre mode and consequence mode with no gloss | **Fixed as proposed.** `templates/world_kernel.md`: genre mode glossed as the reader-facing shelf label (the genre contract of `17`); consequence mode glossed as which smell tests govern admission (`01`). |
-| F-03 | Shared change-scoped "Minimum completion" boilerplate fits the kernel awkwardly | **Fixed as proposed.** `templates/world_kernel.md` now carries a kernel-appropriate completion rule (whole-world scope, starting scale and pressures, seed list, implied debt, cross-references). Other templates keep the shared block — no findings against them. |
-| F-04 | `05` Phase 1's nine-item kernel disagrees with the template; the ordinary-life anchor person silently drops out | **Fixed as proposed, protocol governing.** `templates/world_kernel.md` gains "Starting scale", "Primary pressures and initial domains" (forces plus domains), and an ordinary-life-anchor prompt. `05` Phase 1 now maps its nine items onto the template's sections explicitly and states that the protocol governs on disagreement. The anchor person was kept as doctrine and wired downstream: `05` Phase 6 now starts from the kernel's anchor. |
-| F-05 | Audit placement ambiguous between README order and `05` Phase 3 | **Fixed as proposed.** `checklists/frontloaded_seed_audit.md` now states when it runs (after decomposition, before first admission; either placement satisfies this). `05` Phase 3 reworded to run the audit first, then the gate. |
-| F-06 | Audit asks for "initial status" before admission, which can only be `proposed` | **Fixed as proposed.** The checklist box now says pre-admission status is `proposed` and asks for the intended post-admission status so the gate can check the intention. |
-| F-07 | Fact card and capability card overlap ~half their sections with no division of labor | **Fixed as proposed.** `06` (admission instruments) states the division — fact card = governance record + shock-cone digest; capability card = causal analysis of use — and both templates carry the cross-reference rule. This codifies the division the trial steward improvised. |
-| F-08 | One-fact-per-card collides with decomposition output; no instrument exists for minor-fact records | **Fixed as proposed (template option).** New `templates/admission_ledger.md`; wired into `06` (instruments + severity table), `21` (families, matrix, new "Batch of minor facts" minimal path), `05` Phase 3, and the README path. The fact card notes the ledger as the sanctioned lighter record. |
-| F-09 | Gate asks for a singular admission operation; real admissions compose | **Fixed as proposed.** `checklists/canon_fact_gate.md` box now reads "operation(s) recorded, primary first"; `03` (decision operations) adds the composition rule — primary first, components as context, composition never crossing the admission/repair jurisdiction boundary (protecting V-14). |
-| F-10 | Shock cone demanded at three granularities (fact card, propagation report, sweep) | **Fixed as proposed.** `07` names the propagation report the master record of the shock cone; the fact card's summary section says digest-or-pointer when a report exists; the sweep's shock-cone section says to work its boxes in the report, not a third time. |
-| F-11 | Propagation report field labeled "Severity level" but offers work-scale values | **Fixed as proposed.** Field renamed "Severity (work scale)" with a one-line pointer to `06`'s mapping. **Argued extension:** the contradiction report's "Severity" field offers the same values and per `06` uses the work scale; it was relabeled "Severity (work scale)" for consistency. |
-| F-12 | Contradiction report's "Repair operation" field singular; real repairs compose | **Fixed as proposed.** Field now "Repair operation(s), primary first" with the composition rule; `13` (repair operations) adds the matching doctrine sentence, composition confined to the repair list. |
-| F-13 | **The card-lifecycle gap:** nothing says where corrected wording lives after a repair supersedes a fact | **Fixed as proposed (trial rec 1).** New "Record lifecycle: living cards and the audit trail" section in `03`: cards are living present-tense records updated in place; outgoing wording moves to a history note with its status (`superseded`/`deprecated`) and a pointer to the report; reports are the unedited audit trail. Operationalized in: `06` (instruments note + change package item), `13` (triage step 11 — update cards after propagating the repair), `templates/canon_fact_card.md` (living-record note + History section), `templates/capability_card.md`, `templates/contradiction_report.md` (supersession handoff), `templates/admission_ledger.md` (rows follow the lifecycle). Built entirely from existing statuses; glossary updated in lockstep (Living record, Audit trail). |
-| F-15 | QA scorecard has no n/a convention | **Fixed as proposed.** `18` "Interpreting scores" now defines n/a-with-reason (subject matter does not exist in the world), distinguishes it from 0, and flags unexplained n/a. |
-| F-16 | `21`'s guidance arrives too late (unrouted), and its "Major capability" path conflicts with the README on the change proposal | **Fixed as proposed.** README new-world step 6 routes `21` at admission time; `21`'s intro says to read it at admission, not after. Conflict resolved in `06`'s favor (the protocol tier already made the proposal conditional): `21`'s Major-capability path now states the proposal is required when the change needs alternatives, review, or a recorded admission decision, and that a solo steward admitting seeds with no alternatives may skip it and record the skip. README and `21` now agree. |
-
-(No F-14 exists in the trial's numbering.)
-
-### Questions (Q-ledger)
+### Frictions (F2-ledger)
 
 | # | Finding | Disposition |
 |---|---|---|
-| Q-01 | Kernel gives no seed-count guidance (resolved by `05` during the trial) | **Fixed as proposed (cross-reference).** The kernel template's Foundational facts section now points to the thin-start rule and seed decomposition in `05`. |
-| Q-02 | No decomposition granularity rule | **Fixed as proposed.** `05` Phase 2 adopts the trial steward's test verbatim in substance: split until each seed could be independently rejected without destroying its siblings, with the thin-start rule as the opposite bound. |
-| Q-03 | Aesthetic promises have no admission station | **Fixed differently (explicit disposal rather than a new station).** `05`'s seed-admission-order section now states the disposal: aesthetic promises are admitted as kernel commitments and checked by the QA aesthetic-residue test; load-bearing aesthetic rules get a record (fact card typed `aesthetic rule`, or the aesthetic coherence card under `17`). Deferring the rest to the aesthetic pass is named as the correct disposal, not a skip. A dedicated gate pass was not created because the trial's own experience showed the deferral worked; what was missing was the sentence saying so. |
-| Q-04 | Weak-mystery "author has not decided" vs. deliberate undecidedness | **Fixed as proposed.** `13`'s weak-list bullet now distinguishes undecided-by-neglect from a deliberate, recorded refusal under an authorial mystery boundary. |
-| Q-05 | QA tests 29–30 score the package, not the world | **Fixed as proposed, with renumbering.** `18` gains a "Package self-audit tests" subsection stating who runs them and when; the two tests moved there with their calibrated anchors intact and were relabeled P1/P2 so the world scorecard's core tests read 1–28 without a gap. No content was lost. |
-| Q-06 | What is the canonical current-state of canon after repairs? | **Fixed as proposed (with F-13).** `03`'s record-lifecycle section answers it directly: the current state of canon is the set of live cards read in the present tense; the reports replayed in order are how it got there. |
+| F2-01 | Pass-generated facts' admission route unstated in `07`/`09`/`12` (stated only for repair-created facts in `13`); the trial steward inferred the route and appended gated ledger rows | **Fixed as proposed.** One routing statement in each of the three files, worded as a pointer to `06`'s jurisdiction, never as new admission machinery: `07` (end of the propagation-sweep-instrument section) states the general rule — new facts a sweep or specialized pass surfaces go through `06` like any other fact, an admission-ledger row sufficing for minor ones, exactly as repair-created facts re-enter admission under `13`, with "the sweep proposes; only admission admits" as the jurisdiction seal; `09` (timeline audit) and `12` (instrument use) each carry the same rule with pass-appropriate examples and the explicit clause that the pass records proposals and never admits from inside the sweep. The sweeps' existing red flags ("the sweep changes canon status … without using the proper parent protocol") remain exactly true — the new sentences restate that boundary from the protocol side rather than weakening it. |
+| F2-02 | `18`'s QA scorecard worksheet has 9 condensed rows against 28 named tests; the n/a convention and per-test anchors operate at test granularity, forcing the trial steward to expand it | **Fixed as proposed (triage-view option).** The trial offered two shapes: present the worksheet per-test, or declare the 9 rows a triage view. The second was chosen: `18`'s scorecard section now states that the scorecard of record is per-test (one row per core test 1–28, where scoring, the n/a convention, and the calibrated anchors all operate) and that the condensed nine-row worksheet is a triage view for locating weakness, not a substitute for per-test scoring. A 28-row blank table would have added length without adding instruction; the sentence gives the steward the same authority the trial steward had to reach for by judgment. |
+| F2-03 | Severity-level classification wobbles for world-structuring laws: "a law" reads as inherently Level 2 | **Fixed as proposed.** A parenthetical in `06`'s Level 2 entry: classify a law by the scope of what it structures, not by its type — a law of regional reach sits at Level 2, a law that constitutes a capability or strategic procedure is Level 3, a law that changes possibility itself is Level 4. This makes the trial steward's Level 3 judgment call for the undated-acts class of law readable directly from the levels list. |
 
-### Skips (S-ledger)
+### Questions (Q2-ledger)
 
 | # | Finding | Disposition |
 |---|---|---|
-| S-01 | Change proposal skipped for seeds, conflicting with `21` | **Fixed with F-16** — the conditional rule now makes the trial steward's skip explicitly correct. |
-| S-02 | Mystery-preservation checklist never triggered | **No change needed** — the trial confirms the checklist's own trigger conditions worked as designed. |
-| S-03 | Specialized passes `09`–`12`, `14`–`17` sampled, not run | **No change** — trial scope, not a package defect. Recorded as the main coverage gap in the ninth-iteration outlook. |
-| S-04 | `02` never routed, never needed | **Fixed as proposed (declared optional).** README new-world path and package map now state `02` is enrichment, not a required stop. Nothing in `02` was cut. |
-| S-05 | `19` unreachable when the steward was stuck | **Fixed as proposed.** README new-world path and `21`'s intro now route to `19` for "how do the instruments compose?" questions, and `19` gained the records-lifecycle example those questions actually need. |
-| S-06 | `15`, `16`, `20`, `22`, `23` out of trial scope | **No change** — correct skips per scope; glossary-not-needed is itself evidence `03`'s tables work. |
+| Q2-01 | Where does a specialized pass's output live? Completion rules say what a sweep "must leave" without naming the container; the trial steward improvised pass-report files on the propagation report's model | **Fixed as proposed.** One statement in `21`, placed at the end of the propagation-and-domain-sweeps checklist family: a specialized pass's output lives in a single pass report — a record bundling the sweep's completion outputs and any domain cards the pass filled, on the model of the propagation report. The sentence sanctions a **record container, not a new instrument**: it explicitly says "not a separate template," binds the container to report discipline (audit trail, never edited after the pass), and closes the loop with F2-01 (new facts the pass generated re-enter through admission). No template was created; `21`'s matrix is unchanged at 19 templates. "Pass report" is used as plain description of a record in the existing report family, not as new controlled vocabulary — no glossary entry is owed, since the glossary's Audit trail entry already governs reports as a class. |
+| Q2-02 | When does a solo steward's Level-5 change owe an explicit decision record? Derivable from `06`'s work scale (catastrophic only) but never stated | **Fixed as proposed, placed in `06` (the governing parent), with the operating card re-synchronized.** A clause in `06`'s severity-scaled-evidence section, directly after the two-vocabularies mapping: the explicit decision record enters at the catastrophic band only — a Level 5 change owing foundational work, the solo steward's typical contradiction repair, owes the contradiction report and its propagation as its record, and a separate decision record becomes due only when the work turns catastrophic or when multiple contributors require a collaboration decision (`15`). The trial offered `06` or the operating card as placement; `06` was chosen because the card never becomes an authority tier — the card's severity-map Level 5 row was then re-synchronized ("decision record and rollback/branch plan owed at the catastrophic band only") so the condensed row no longer reads as if every Level 5 change owes the record. |
+
+### Skips (S2-ledger)
+
+| # | Finding | Disposition |
+|---|---|---|
+| S2-01 | `02` skipped, with the package's blessing (0.8's declared-enrichment fix) | **No change needed** — the skip is the 0.8 fix working as designed (V2-01 territory). |
+| S2-02 | `08` + constraint card + composition sweep skipped; trial mandate chose `09` + `12` | **No change needed** — legible trial scope, correctly rediscovered by the QA scorecard's constraint 2-score; `08` remains field-validated from trial 1. |
+| S2-03 | `10`, `11`, `14`–`17` and their instruments out of trial scope | **No change needed** — trial scope, not a defect; carried into the coverage statement's honestly-untested list and the tenth-iteration outlook. |
+| S2-04 | Change proposal skipped for solo seed admission | **No change needed** — the skip is licensed by `21`'s conditional rule (the 0.8 fix for trial 1's S-01/F-16 conflict, confirmed working: V2-13). |
+| S2-05 | `19` never consulted (never stuck long enough to need it) | **No change needed as a skip;** the honest caveat it carries — `19` still untested by a genuinely naive steward — goes to the coverage statement and the outlook, not to a package edit. The V2-20 micro-fix below makes the records example slightly more self-teaching for that future reader. |
+| S2-06 | `15`, `16`, `20`, `22`, `23` unneeded; the operating card's table answered vocabulary questions before the glossary was needed | **No change needed** — correct skips per scope; the glossary-not-needed observation is itself evidence the card earns its page (V2-02). |
 
 ### Ranked recommendations
 
 | # | Recommendation | Disposition |
 |---|---|---|
-| 1 | Close the card-lifecycle gap | **Implemented** — see F-13/Q-06. Doctrine placed in `03` (the governance spine owns record state), operationalized in `06`, `13`, and four templates. |
-| 2 | Fix the reading path | **Implemented** — see F-01, F-16, S-04, S-05. |
-| 3 | Batch-admission pattern + division-of-labor sentence | **Implemented** — see F-07, F-08; the trial's improvised ledger became `templates/admission_ledger.md` with a Promotions rule added (rows promote to cards when facts turn load-bearing), which the trial's structure implied but did not state. |
-| 4 | Reconcile the kernel's two definitions | **Implemented** — see F-04; the ordinary-life anchor was ruled real doctrine and wired to `05` Phase 6 rather than cut. |
-| 5 | One-page operating card | **Implemented** — new `operating_card.md` with the four components the trial named (path with real dependencies, label-separation table, severity map, minimal-use paths) plus the records rule, since the trial ranked that gap first. |
-| 6 | Records-lifecycle worked example | **Implemented** — `19`'s twelfth example, adapted from the trial's Saltmarrow artifacts into a self-contained walkthrough (no repository paths; the package remains storage-agnostic and self-contained). The trial steward's filled instruments are the uncredited-in-package source; credit lives here: the example condenses the Saltmarrow world built in the eighth-iteration field trial. |
-| 7 | Small template fixes | **Implemented** — F-02, F-05, F-06, F-09, F-11, F-12, F-15, Q-01…Q-05 as tabled above. |
-| 8 | Drop severity-scale unification; deprioritize reinforcement-tail weaving | **Honored (declined work).** The two severity scales remain, with only the F-11 field labels fixed — V-06 shows the mapping already works. No reinforcement-tail weaving was attempted — no trial evidence of need. |
+| 1 | Apply this log's sentence fixes and nothing else | **Implemented in full, and nothing else** — see the F2/Q2 rows above. Every substantive edit in this pass traces to one of those five findings; the only additional touches are the two argued derived-document re-syncs tabled below and the optional V2-20 one-liner. |
+| 2 | Declare 1.0 with a named coverage statement | **Implemented.** `README.md` carries version 1.0 and a "What version 1.0 claims" subsection naming the field-tested surfaces and the honestly-untested list in protocol terms; `manifest.json` reads version 1.0, iteration 9; this file carries the coverage statement of record (below). The user accepted the recommendation; the trial's own framing — an honest claim about tested surfaces, not a claim of total coverage — is quoted nearly verbatim in the README's subsection. |
+| 3 | Do not run a tenth editing iteration | **Honored as scope** — this pass performed no work beyond recommendations 1–2, and the question of any next iteration is reasoned fresh (and adversarially) in the tenth-iteration outlook rather than pre-committed here. |
+| 4 | Future trials, if wanted, in priority order (sacred/lyrical-primary world; naive-steward trial; collaboration trial when a second contributor exists) | **Routed to the tenth-iteration outlook**, where the priority list is adopted as the recommended shape of all future work. No package edit follows from it, by design. |
 
-### Discovered defects (argued, beyond the log)
+### Optional micro-fix (V2-20)
 
-1. **Contradiction report severity label** — the same work-scale-values-under-a-bare-"Severity"-heading pattern F-11 flagged on the propagation report; relabeled for consistency (see F-11 row).
-2. **QA test renumbering** — moving tests 29–30 out of the core list would have left "core tests 1–28, 29–30 elsewhere" ambiguity; they were relabeled P1/P2 inside the new package-self-audit subsection so both lists read cleanly. Verified no other file references the old numbers.
+**Adopted.** One parenthetical line at the end of the records-lifecycle example's repair step in `19`: an *additive* amendment — new wording with the old text left intact — owes no history note, because `03` assigns History to outgoing wording only and an additive amendment retires nothing. The trial found the doctrine's wording precise enough to adjudicate this case unaided (V2-20); the line exists so the next steward — especially the genuinely naive one `19` has not yet met — reaches the same answer by reading rather than derivation. No doctrine was touched; the line restates `03`'s existing assignment.
+
+### Argued extensions (beyond the log's letter, within its findings)
+
+1. **Operating card, path step 8** — one clause added: new facts a pass surfaces go back through admission (`06`), and the pass's output lives in one pass report. The card is the at-hand condensation of the path, and its contradiction-path line already carried the matching rule for repair-created facts; without the clause, the card would have silently omitted the two rules this pass added to its parents. Derived-document discipline: the parents (`07`/`09`/`12` via `06`'s jurisdiction, and `21`) carry the governing statements; the card condenses them.
+2. **Operating card, severity-map Level 5 row** — re-synchronized with the Q2-02 clause, as tabled in the Q2-02 row above.
+
+Both extensions are re-synchronizations of a derived document with parent content this pass edited, per the card's own "parents govern" rule; neither adds card-only authority. After these two touches the card was re-verified line by line against `README`, `03`, `06`, and `21` — no other drift found (consistent with the trial's V2-02 drift check of 0.8).
 
 ## Fate mapping
 
-Every version-0.7 file was kept at its path; two files were added. "Untouched" means byte-identical to version 0.7.
+Every version-0.8 file was kept at its path; none was added or removed (58 files). "Untouched — release-certified" means byte-identical to version 0.8, read in full this pass, and certified consistent with the five fixes.
 
-| Path | Change in 0.8 |
+| Path | Change in 1.0 |
 |---|---|
-| `00_overhaul_notes.md` | Rewritten as the iteration-8 stewardship record. |
-| `01_core_theory.md` | Untouched (trial V-02: reads as doctrine should). |
-| `02_world_model.md` | Untouched; its optional status is declared in the README, not here. |
-| `03_truth_layers_and_canon_governance.md` | Record-lifecycle section added; composed-operations rule added to decision operations. |
-| `04_domain_atlas.md` | Untouched (trial-validated, V-11). |
-| `05_creation_protocol.md` | Phase 1 kernel-template mapping; Phase 2 granularity rule; Phase 3 audit-first wording + ledger reference; Phase 6 anchor wiring; aesthetic-promise disposal added to the seed admission order. |
-| `06_canon_fact_admission_protocol.md` | Admission-ledger instrument added; card division-of-labor rule; record-lifecycle note; severity table's minor/moderate rows name the ledger; change package gains card-upkeep item; completeness item 9 gains the digest-or-pointer note. |
-| `07_propagation_engine.md` | Propagation report named master shock-cone record (one paragraph). |
-| `08_constraint_composition.md` | Untouched (trial-validated, V-13/V-14). |
-| `09_temporal_and_timeline_protocol.md` | Untouched. |
-| `10_spatial_and_geographic_propagation.md` | Untouched. |
-| `11_agent_character_psychology.md` | Untouched. |
-| `12_institutional_economic_and_suppression_protocol.md` | Untouched (institutional hard edge preserved undiminished). |
-| `13_contradiction_retcon_and_mystery.md` | Triage step 11 (card upkeep); repairs-compose rule; Q-04 neglect-vs-commitment clause. |
-| `14_uncertainty_belief_and_evidence.md` | Untouched. |
-| `15_branching_versioning_and_collaboration.md` | Untouched. |
-| `16_narrative_game_and_transmedia_extraction.md` | Untouched. |
-| `17_aesthetic_coherence_and_semiosis.md` | Untouched. |
-| `18_quality_assurance_tests.md` | n/a convention added; tests 29–30 moved (content intact, anchors intact) into a new "Package self-audit tests" subsection as P1/P2. |
-| `19_worked_examples.md` | Twelfth example added (records lifecycle); intro sentence and reuse table updated. |
-| `20_ai_assisted_workflow.md` | Untouched (AI-is-never-canon-authority doctrine intact). |
-| `21_templates_index.md` | Intro routes itself to admission time and to `19`/operating card; admission ledger added to families and matrix; "Batch of minor facts" minimal path added; Major-capability path's change-proposal line made conditional per `06`. |
-| `22_glossary.md` | Three entries added (Admission ledger, Audit trail, Living record); all prior entries preserved verbatim. |
-| `23_research_notes_and_bibliography.md` | Iteration-8 research note appended (one lane, one source). |
-| `README.md` | Version 0.8; new-world path rewritten with all real dependencies; `02` declared enrichment; `19`/`21`/operating card routed; package map updated. |
-| `manifest.json` | Rewritten: version 0.8, iteration 8, 58 files, local-session provenance. |
-| `checklists/canon_fact_gate.md` | Plural-operations box (F-09). |
-| `checklists/frontloaded_seed_audit.md` | Timing note; initial-status clarification (F-05, F-06). |
-| `checklists/propagation_sweep.md` | Master-record note under Shock cone (F-10). |
-| `checklists/mystery_preservation.md` | Untouched (trial-validated by correct non-firing, S-02). |
-| `checklists/constraint_composition_sweep.md`, `temporal_timeline_sweep.md`, `spatial_geographic_sweep.md`, `agent_character_sweep.md`, `institutional_economic_suppression_sweep.md`, `uncertainty_evidence_sweep.md`, `branching_collaboration_sweep.md`, `aesthetic_coherence_sweep.md` | Untouched. |
-| `templates/world_kernel.md` | Starting scale; primary-pressures prompt; mode glosses; anchor prompt; thin-start cross-reference; kernel-appropriate completion rule (F-02, F-03, F-04, Q-01). |
-| `templates/canon_fact_card.md` | Living-record note; History section; shock-cone digest rule; ledger and division-of-labor notes (F-07, F-08, F-10, F-13). |
-| `templates/capability_card.md` | Living-record and division-of-labor note (F-07, F-13). |
-| `templates/contradiction_report.md` | Plural operations, primary first; supersession handoff; severity field labeled work scale (F-11 ext., F-12, F-13). |
-| `templates/propagation_report.md` | Severity field renamed to work scale (F-11). |
-| `templates/mystery_ledger_entry.md` | Untouched ("the best instrument in the package", V-08/V-15 — deliberately not degraded). |
-| `templates/canon_change_proposal.md`, `constraint_card.md`, `institution_card.md`, `counter_institution_card.md`, `action_arena_card.md`, `temporal_timeline_card.md`, `spatial_region_card.md`, `agent_character_card.md`, `uncertainty_evidence_card.md`, `canon_branch_diff.md`, `collaboration_decision_record.md`, `aesthetic_coherence_card.md` | Untouched. |
-| **Added:** `operating_card.md` | One-page quick reference (trial rec 5); derived, parents govern. |
-| **Added:** `templates/admission_ledger.md` | Batch admission record for minor facts (trial rec 3 / F-08). |
+| `00_overhaul_notes.md` | Rewritten as the version-1.0 stewardship record. |
+| `01_core_theory.md` | Untouched — release-certified (doctrine; byte-identical, per the convergence criterion). |
+| `02_world_model.md` | Untouched — release-certified (doctrine; byte-identical). |
+| `03_truth_layers_and_canon_governance.md` | Untouched — release-certified (doctrine; byte-identical). The F2-01 route and the V2-20 line both point *at* its existing content; neither required amending it. |
+| `04_domain_atlas.md` | Untouched — release-certified (doctrine; byte-identical). |
+| `05_creation_protocol.md` | Untouched — release-certified (kernel reconciliation and aesthetic-promise disposal validated in use: V2-03, V2-11). |
+| `06_canon_fact_admission_protocol.md` | F2-03 law-classification parenthetical in the Level 2 entry; Q2-02 decision-record clause in the severity-scaled-evidence section. |
+| `07_propagation_engine.md` | F2-01 pass-generated-facts routing statement in the propagation-sweep-instrument section. |
+| `08_constraint_composition.md` | Untouched — release-certified (field-validated in trial 1). |
+| `09_temporal_and_timeline_protocol.md` | F2-01 routing statement in the timeline-audit section. First field run passed (V2-15); nothing else changed. |
+| `10_spatial_and_geographic_propagation.md` | Untouched — release-certified (honestly untested in anger; named in the coverage statement). |
+| `11_agent_character_psychology.md` | Untouched — release-certified (honestly untested in anger; named in the coverage statement). |
+| `12_institutional_economic_and_suppression_protocol.md` | F2-01 routing statement in the instrument-use section. First field run passed (V2-16); the institutional hard edge is otherwise byte-identical. |
+| `13_contradiction_retcon_and_mystery.md` | Untouched — release-certified; it already owned the repair-created-facts route that F2-01 generalizes, and the two-deep supersession chain validated its triage and lifecycle wiring (V2-18, V2-19). |
+| `14_uncertainty_belief_and_evidence.md` | Untouched — release-certified (honestly untested in anger). |
+| `15_branching_versioning_and_collaboration.md` | Untouched — release-certified (multi-steward tier; zero field exposure, named in the coverage statement). |
+| `16_narrative_game_and_transmedia_extraction.md` | Untouched — release-certified (honestly untested in anger). |
+| `17_aesthetic_coherence_and_semiosis.md` | Untouched — release-certified (honestly untested in anger). |
+| `18_quality_assurance_tests.md` | F2-02 reconciliation: scorecard-of-record is per-test; the nine-row worksheet declared a triage view. All 28 core tests, P1/P2, anchors, red flags, and red-team prompts unchanged. |
+| `19_worked_examples.md` | V2-20 one-liner in the records-lifecycle example (additive amendments owe no history note). All twelve examples otherwise byte-identical; the Saltmarrow package example deliberately not synced with any external artifact. |
+| `20_ai_assisted_workflow.md` | Untouched — release-certified (AI-is-never-canon-authority doctrine intact; untested under a naive steward, named in the coverage statement). |
+| `21_templates_index.md` | Q2-01 pass-report statement at the end of the sweeps family. Families, matrix (19 templates), minimal paths, and skipping rule unchanged. |
+| `22_glossary.md` | Untouched — release-certified. No fix introduced new controlled vocabulary (argued in the Q2-01 row); all 74 entries preserved verbatim. |
+| `23_research_notes_and_bibliography.md` | Untouched — release-certified. No research-shaped change this pass (see Research rationale); its own translation rules forbid citation as decoration, so nothing was added. |
+| `README.md` | Version 1.0; "What version 1.0 claims" coverage subsection; the 0.8-specific version framing replaced by a timeless retention sentence; the `00` package-map line made iteration-neutral. New-world path, package map, and all routing preserved exactly (validated literally: V2-01). |
+| `manifest.json` | Version 1.0, iteration 9, 58 files; fresh local-session provenance (this pass's baseline commit); no-structural-change note; no stale commit strings. |
+| `operating_card.md` | Two re-syncs with edited parents (path step 8 clause; severity-map Level 5 row), argued above; re-verified against `README`/`03`/`06`/`21` after the touches. |
+| `checklists/` (all 12) | Untouched — release-certified. No trial finding names any checklist; the gate, seed audit, propagation sweep, temporal sweep, institutional sweep, and mystery-preservation checklist were all validated in live use (V2 ledger), and the F2-01 sentences deliberately restate — never alter — the sweeps' red-flag boundary. |
+| `templates/` (all 19) | Untouched — release-certified. The ledger (V2-08/V2-09, including the Promotions rule), kernel (V2-03), fact and capability cards (V2-10, V2-18, V2-20), mystery ledger entry (V2-12), and contradiction report (V2-19) were all validated in use; Q2-01 sanctioned a container precisely so no new template would be created. |
 
 ## Retention audit
 
-- **Core doctrine retained.** `01` is untouched: the 12 operating laws, Causal Canon cycle, mode-aware smell tests, equal-weight non-naturalistic pressure, institutional-rigor guards, anti-failure questions, and craft ceiling are byte-identical to 0.7.
-- **Primitives retained.** `02` untouched; declaring it optional in the README removed no content and introduced no coupling.
-- **Governance spine retained and extended, never blurred.** All 13 truth layers, 11 canon statuses, constraint tags, 12 admission operations, 12 repair operations, the seven-row label-separation table, operation-context matrix, decision-jurisdiction table, canon-debt machinery, and governance board survive verbatim in `03`. The additions (composition rule, record lifecycle) use only existing vocabulary and explicitly reinforce the admission/repair boundary the trial validated (V-14).
-- **Trial-validated strengths preserved.** Checked item by item: the README path keeps its nine-step named-file shape (V-01); `01` untouched (V-02); the kernel template's non-naturalistic prompt untouched (V-03); `03`'s tables untouched (V-04); the audit's latency question untouched (V-05); the `06` severity mapping kept, only field labels fixed (V-06); the gate's contradiction-risk box untouched (V-07); the mystery ledger untouched (V-08, V-15, V-16); propagation mechanisms and stop-when-governed untouched (V-09, V-10); domain triage untouched (V-11); the sweep's contradiction check untouched (V-12); `08` untouched (V-13); the jurisdiction boundary restated, not weakened, by the composition rule (V-14); QA anchors and red-team prompts intact, with the two package tests relocated whole (V-17–V-19).
-- **QA calibration retained.** All 30 tests and all 30 calibrated anchors survive: 28 core tests in place, tests 29–30 moved intact (definitions and anchors) to the package-self-audit subsection as P1/P2. The scorecard, red flags, repair loop, regression profile, red-team prompts, and pass/fail floor are unchanged.
-- **Institutional hard edge retained.** `12` and its sweep are byte-identical to 0.7.
-- **Worked examples retained and extended.** All eleven prior examples byte-identical; one example added; the reuse table gained one row.
-- **Instruments retained and wired.** All 12 checklists and 18 prior templates keep their parent-protocol notes, completion rules, and red flags; the new template carries all three; `21`'s matrix matches the 19-template set.
-- **Glossary retained and extended.** All 71 version-0.7 entries preserved verbatim; three added, none removed or altered.
-- **Research corpus retained.** Every citation and lane in `23` survives; one lane and one source added.
-- **Deletions accounted for.** No prose was deleted this pass except wording replaced in place by its own corrected version (field labels, the audit's status box, the gate's operation box, `21`'s change-proposal line, the kernel's completion block — each superseded wording's intent is preserved or strengthened by its replacement, and each replacement is tabled above). Nothing was removed without a successor.
-- **Agnosticism intact.** No storage, software, API, web-app, or LLM coupling introduced; no package file cites a repository path outside the package; the records-lifecycle example is fully self-contained; `20`'s doctrine is untouched.
-- **No re-stratification.** All fixes are woven in timelessly; no "iteration 8 adds…" strata exist in any doctrine, protocol, or instrument file. The only current-version markers are the package `README.md`, `manifest.json`, and this file.
+- **Core doctrine retained absolutely.** `01`–`04` are byte-identical to version 0.8 — verified by diff, not by intention. The 12 operating laws, 13 truth layers, 11 canon statuses, 12 admission decision operations, 12 repair operations, label-separation table, operation-context matrix, decision-jurisdiction table, canon-debt machinery, governance board, and record-lifecycle doctrine all survive verbatim.
+- **Every version-0.8 addition survives, now field-validated.** The routed reading path (V2-01), the operating card (V2-02, plus the two argued re-syncs), the reconciled kernel (V2-03), the admission ledger and its Promotions rule (V2-08/V2-09), the division-of-labor and digest rules (V2-10), the record lifecycle under a two-deep chain (V2-18/V2-19), the n/a convention and P1/P2 placement (V2-21), and the mystery-preservation boundary logic (V2-23) are all intact; the five fixes sit adjacent to several of these, and each was worded against the validated behavior as its acceptance test.
+- **Both trials' protected sets honored.** The iteration-8 protected set (trial 1's V-01…V-19, audited item-by-item in the 0.8 retention audit) remains protected — nothing this pass touched intersects it except the QA scorecard section, where every test, anchor, and rule is unchanged and only the worksheet's standing was clarified. The V2 ledger's validated behaviors (above) now join that protected set for future passes.
+- **Jurisdiction seams stay crisp.** The F2-01 sentences route pass output *to* admission without creating admission machinery inside `07`/`09`/`12`; the sweeps' "never change canon from inside a sweep" red flags remain exactly true; Q2-01 sanctions a record container in the existing report family; the Q2-02 clause reads the work scale, it does not amend it. The status / tag / admission-operation / repair-operation / consequence-mode / preservation-boundary separations are untouched.
+- **QA calibration retained.** All 28 core tests, both package self-audit tests, all calibrated anchors, the mode-aware calibration, red flags, repair loop, regression profile, red-team prompts, and pass/fail floor are unchanged; the per-test rule states how the existing machinery already operates.
+- **Institutional hard edge retained.** `12` received one routing statement and nothing else; every step, method list, residue list, synthesis requirement, and mode-aware check is byte-identical.
+- **Vocabulary authoritative and consistent.** No new glossary entries were needed and none was added; all 74 entries preserved verbatim; every term the five fixes use is existing vocabulary.
+- **Deletions accounted for.** The only prose removed this pass is the README's 0.8-specific version-framing paragraph, superseded by the 1.0 coverage subsection that replaces it (its retention sentence — the list of preserved earlier-version substance — was carried forward verbatim and extended with the 0.8 additions), and the manifest's iteration-8 note fields, superseded by their iteration-9 successors. Nothing was removed without a successor; iteration-8 history survives in this file's evidence-base section and in the repository's own history.
+- **Agnosticism intact.** No storage, software, API, web-app, or LLM coupling introduced; no package file cites a repository path outside the package; the coverage statement names protocol surfaces, never trial artifacts; `manifest.json` remains inventory, not schema.
+- **No re-stratification.** All fixes are woven in timelessly; no "version 1.0 adds…" strata exist in any doctrine, protocol, or instrument file. The only current-version markers are the package `README.md`, `manifest.json`, and this file.
+
+## Coverage statement of record
+
+The README carries the user-facing version of this statement; this is the full accounting behind it.
+
+**Field-tested (two independent end-to-end cold builds, run by stewards without authorship stakes, logged with friction/skip/question/validation ledgers):**
+
+- The core pipeline, twice over: kernel → seed decomposition → frontloaded seed audit → severity-scaled admission (gate, fact/capability cards, mystery ledger) → propagation (full fourteen-domain pass) → contradiction repair → QA regression profile.
+- Batch admission through the admission ledger, including addendum batches and one row promotion under the Promotions rule.
+- Constraint composition (`08`) — trial 1.
+- The temporal pass (`09`) and the institutional/economic/suppression pass (`12`) — trial 2, first runs in anger, both generative.
+- The record lifecycle under accumulation: a supersession chain two repairs deep, with the second contradiction discovered *by* the first repair's mandated propagation.
+- The QA machinery at per-test granularity with the n/a convention, the red-team prompts (a genuine boundary defect and a leak channel found in each trial), and a live firing of the mystery-preservation checklist under a QA repair touching a protected effect.
+- The on-ramp as an artifact set: the routed README path (zero forced off-path reads), the operating card as persistent working memory, and the reconciled kernel.
+
+**Honestly untested (named so the version number stays true):**
+
+- `10` (spatial), `11` (agent/psychology), `14` (uncertainty/evidence), `16` (extraction), `17` (aesthetic coherence) — never run in anger; each trial's QA profile names its 2-scores exactly there.
+- `15` and every multi-steward mechanism — governance board workflow roles, dispute handling, collaboration decision records — zero field exposure; a different failure surface (contested authority, not solo confusion).
+- `19` and `20` under a genuinely naive steward — both trial stewards carried methodology-adjacent contamination and never needed the stuck-on-composition fallback.
+- The aesthetic-promise disposal in a lyrical- or sacred-primary world, where aesthetic promises are the load-bearing facts rather than kernel commitments.
+- Both trials were run by stewards of the same model family as the package's authors — a disclosed contamination that only a human or heterogeneous trial can clear.
 
 ## Research rationale
 
-Iteration 8 is evidence-bounded: nearly every change traces to a logged trial finding, and the trial log — not external literature — set the priorities. One external lane shaped one change: the record-lifecycle doctrine (`03`) adapts the records-management distinction between living working documents and fixed evidential records with audit trails, per ISO 15489-1:2016 (cited in `23`'s iteration-8 note with the craft translation). A second lane was checked and rejected: job-aid/quick-reference design literature was surveyed for the operating card and found to add nothing beyond what the trial log itself demanded (field the exact tables the steward reached for); citing it would have been decoration, which `23`'s translation rules forbid. No other change was research-shaped.
+None was needed, and none was used. This pass is evidence-bounded by design: all five fixes, the micro-fix, and the coverage statement trace to logged findings of the second field trial, and the release-versioning question (what a 1.0 label may honestly claim) was answered by the trial's own verdict language rather than by external versioning literature — importing release-engineering convention into a storage-agnostic methodology package would have been citation as decoration, which `23`'s translation rules forbid. `23` is therefore untouched; all prior research lanes and citations are retained unchanged.

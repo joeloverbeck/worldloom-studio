@@ -365,6 +365,8 @@ Run `checklists/propagation_sweep.md` after any Level 2 or higher fact, and afte
 
 The sweep is not extra paperwork. It is the compact operational form of this document: immediate effects, prerequisites, domains, institutions, economies, countermeasures, historical fossils, spatial diffusion, character pressure, aesthetic residue, and stopping condition.
 
+A sweep often surfaces new facts, not just consequences — an institution, profession, countermeasure, or residue that deserves canon standing in its own right. Route every fact a sweep or specialized pass generates through `06_canon_fact_admission_protocol.md` like any other fact (an admission-ledger row suffices for minor ones), exactly as repair-created facts re-enter admission under `13_contradiction_retcon_and_mystery.md`: the sweep proposes; only admission admits.
+
 ## The propagation report
 
 A good propagation report does not list everything.

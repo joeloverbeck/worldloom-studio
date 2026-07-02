@@ -231,6 +231,8 @@ Still record observable boundaries and forbidden uses.
 
 Run `checklists/temporal_timeline_sweep.md` for any Level 2 or higher fact with first appearance, discovery, public knowledge, institutional reaction, branch divergence, retcon, prophecy, inheritance, war, migration, law, aging, or evidence implications. Use `templates/temporal_timeline_card.md` when the timing itself becomes load-bearing.
 
+Facts this pass itself generates — a precursor event, an era boundary, an archive, an institution the chronology demands — go through `06_canon_fact_admission_protocol.md` like any other fact; the pass records them as proposals and never admits them from inside the sweep.
+
 For every major fact:
 
 - [ ] It has a first-true date or relative sequence.
