@@ -2,6 +2,14 @@ import Database from "better-sqlite3";
 import { dirname, resolve } from "node:path";
 import { existsSync, mkdirSync } from "node:fs";
 import { APPLICATION_ID, CURRENT_SCHEMA_VERSION, migration001, migration002, migration003 } from "./schema.js";
+import {
+  admissionGatePolicy,
+  admissionQueueSortKey,
+  propagationCoveragePolicy,
+  requiresSkipReason,
+  warnsForOpenCanonDebt,
+  type DeclaredSeverity
+} from "./severity-policy.js";
 import { LINK_TYPES, RECORD_TYPE_BY_KEY } from "@worldloom/shared";
 
 export interface RecordInput {
@@ -654,58 +662,30 @@ export class WorldStore {
       FROM records r
       WHERE r.record_type_key IN ('canon_fact', 'admission_ledger_row')
         AND r.canon_status IN ('proposed', 'under review')
-      ORDER BY
-        CASE COALESCE((SELECT term FROM record_facets WHERE record_id = r.id AND vocabulary = 'work_scale' ORDER BY position, id LIMIT 1), '')
-          WHEN 'catastrophic' THEN 1
-          WHEN 'severe' THEN 2
-          WHEN 'major' THEN 3
-          WHEN 'moderate' THEN 4
-          WHEN 'minor' THEN 5
-          ELSE 6
-        END,
-        CAST(COALESCE((SELECT term FROM record_facets WHERE record_id = r.id AND vocabulary = 'admission_level' ORDER BY position, id LIMIT 1), '-1') AS INTEGER) DESC,
-        r.updated_at DESC,
-        r.id DESC
-    `).all().map((row) => this.withAdmissionFacets(rowToRecord(row as Record<string, unknown>)));
+    `).all()
+      .map((row) => this.withAdmissionFacets(rowToRecord(row as Record<string, unknown>)))
+      .sort((left, right) => {
+        const leftKey = admissionQueueSortKey(left);
+        const rightKey = admissionQueueSortKey(right);
+        if (leftKey.workScaleRank !== rightKey.workScaleRank) return leftKey.workScaleRank - rightKey.workScaleRank;
+        if (leftKey.admissionLevelRank !== rightKey.admissionLevelRank) return rightKey.admissionLevelRank - leftKey.admissionLevelRank;
+        if (left.updatedAt !== right.updatedAt) return left.updatedAt < right.updatedAt ? 1 : -1;
+        return right.id - left.id;
+      });
   }
 
   gateComposition(recordId: number): unknown {
     const record = this.getRecord(recordId);
     const facets = this.listFacets(recordId);
-    const admissionLevel = facets.find((facet) => facet.vocabulary === "admission_level")?.term ?? null;
-    const workScale = facets.find((facet) => facet.vocabulary === "work_scale")?.term ?? null;
-    const major = ["3", "4", "5"].includes(admissionLevel ?? "") || ["major", "severe", "catastrophic"].includes(workScale ?? "");
-    const foundational = ["4", "5"].includes(admissionLevel ?? "") || ["severe", "catastrophic"].includes(workScale ?? "");
-    const catastrophic = admissionLevel === "5" || workScale === "catastrophic";
-    const steps = major
-      ? [
-          "fact statement",
-          "scope",
-          "type",
-          "truth layer",
-          "canon status",
-          "constraint tags",
-          "dependencies",
-          "costs/access/bottlenecks",
-          "shock-cone summary",
-          "institutions or quiet-domain declaration",
-          "evidence/belief note",
-          "contradiction and mystery risk",
-          "follow-up debt",
-          ...(foundational ? ["temporal/spatial passes", "branch implications", "mystery/aesthetic checks", "QA follow-up"] : []),
-          ...(catastrophic ? ["explicit decision record", "rollback/branch plan"] : [])
-        ]
-      : ["fact statement", "scope", "truth layer", "canon status", "constraint tags", "admission operations", "one consequence check"];
+    const severity = this.declaredSeverityFromFacets(facets);
+    const gate = admissionGatePolicy(severity);
     return {
       record,
-      admissionLevel,
-      workScale,
-      path: major ? "full_gate" : "minor_ledger",
-      doctrine: [
-        "docs/worldbuilding-system/06_canon_fact_admission_protocol.md",
-        major ? "docs/worldbuilding-system/checklists/canon_fact_gate.md" : "docs/worldbuilding-system/templates/admission_ledger.md"
-      ],
-      steps
+      admissionLevel: severity.admissionLevel,
+      workScale: severity.workScale,
+      path: gate.path,
+      doctrine: gate.doctrine,
+      steps: gate.steps
     };
   }
 
@@ -842,8 +822,9 @@ export class WorldStore {
   }
 
   declineAdmissionInstrument(input: { recordId?: number; stepKey: string; admissionLevel?: string; workScale?: string; reason?: string }): RecordRow {
-    const major = ["3", "4", "5"].includes(input.admissionLevel ?? "") || ["major", "severe", "catastrophic"].includes(input.workScale ?? "");
-    if (major && !input.reason?.trim()) throw new Error("major admission skips require a reason");
+    if (requiresSkipReason({ admissionLevel: input.admissionLevel ?? null, workScale: input.workScale ?? null }) && !input.reason?.trim()) {
+      throw new Error("major admission skips require a reason");
+    }
     const record = this.recordSkip({ stepKey: input.stepKey, reason: input.reason });
     if (input.recordId != null) this.createLink(record.id, input.recordId, "derived_from", "Admission instrument declined");
     return record;
@@ -895,16 +876,14 @@ export class WorldStore {
   propagationPlan(recordId: number): unknown {
     const record = this.getRecord(recordId);
     const facets = this.listFacets(recordId);
-    const admissionLevel = facets.find((facet) => facet.vocabulary === "admission_level")?.term ?? null;
-    const workScale = facets.find((facet) => facet.vocabulary === "work_scale")?.term ?? null;
-    const major = ["3", "4", "5"].includes(admissionLevel ?? "") || ["major", "severe", "catastrophic"].includes(workScale ?? "");
-    const foundational = ["4", "5"].includes(admissionLevel ?? "") || ["severe", "catastrophic"].includes(workScale ?? "");
+    const severity = this.declaredSeverityFromFacets(facets);
+    const coverage = propagationCoveragePolicy(severity);
     return {
       record,
-      admissionLevel,
-      workScale,
-      requiredCoverage: foundational ? "full domain-atlas sweep" : major ? "multiple orders and direct/dependency/reaction domains" : "immediate effects and one ordinary-life residue when relevant",
-      requiredDomainCount: foundational ? DOMAIN_ATLAS.length : major ? 3 : 1,
+      admissionLevel: severity.admissionLevel,
+      workScale: severity.workScale,
+      requiredCoverage: coverage.requiredCoverage,
+      requiredDomainCount: coverage.requiredDomainCount === "all" ? DOMAIN_ATLAS.length : coverage.requiredDomainCount,
       orders: PROPAGATION_ORDERS.map(([key, label]) => ({ key, label })),
       domains: DOMAIN_ATLAS,
       doctrine: {
@@ -1024,8 +1003,9 @@ export class WorldStore {
   }
 
   skipPropagationStep(input: { flowId?: number; stepKey: string; admissionLevel?: string; workScale?: string; reason?: string }): RecordRow {
-    const major = ["3", "4", "5"].includes(input.admissionLevel ?? "") || ["major", "severe", "catastrophic"].includes(input.workScale ?? "");
-    if (major && !input.reason?.trim()) throw new Error("major propagation skips require a reason");
+    if (requiresSkipReason({ admissionLevel: input.admissionLevel ?? null, workScale: input.workScale ?? null }) && !input.reason?.trim()) {
+      throw new Error("major propagation skips require a reason");
+    }
     const record = this.recordSkip({ flowId: input.flowId, stepKey: input.stepKey, reason: input.reason });
     if (input.flowId != null) {
       const flow = this.propagationFlow(input.flowId);
@@ -1337,6 +1317,13 @@ export class WorldStore {
     };
   }
 
+  private declaredSeverityFromFacets(facets: FacetRow[]): DeclaredSeverity {
+    return {
+      admissionLevel: facets.find((facet) => facet.vocabulary === "admission_level")?.term ?? null,
+      workScale: facets.find((facet) => facet.vocabulary === "work_scale")?.term ?? null
+    };
+  }
+
   private replaceSingleFacet(recordId: number, vocabulary: string, term: string): void {
     this.replaceAllFacets(recordId, vocabulary, [term]);
   }
@@ -1395,11 +1382,7 @@ export class WorldStore {
   }
 
   private openCanonDebtWarnings(recordId: number): RecordRow[] {
-    const facets = this.listFacets(recordId);
-    const admissionLevel = facets.find((facet) => facet.vocabulary === "admission_level")?.term;
-    const workScale = facets.find((facet) => facet.vocabulary === "work_scale")?.term;
-    const foundational = ["4", "5"].includes(admissionLevel ?? "") || ["severe", "catastrophic"].includes(workScale ?? "");
-    return foundational ? this.listCanonDebt(true) : [];
+    return warnsForOpenCanonDebt(this.declaredSeverityFromFacets(this.listFacets(recordId))) ? this.listCanonDebt(true) : [];
   }
 
   private nextFacetPosition(recordId: number, vocabulary: string): number {
