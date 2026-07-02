@@ -1,5 +1,7 @@
 import { requiresSkipReason } from "./severity-policy.js";
-import type { AdmissionQueueRow, RecordRow, SectionInput, WorldStore } from "./world-store.js";
+import { routeRecordToAdmissionQueue } from "./admission-flow.js";
+import { createSkipRecord } from "./flow-support.js";
+import type { AdmissionQueueRow, RecordRow, SectionInput, WorldFile } from "./world-file.js";
 
 export interface OwedBoundaryRow {
   propagationDispositionId: number;
@@ -90,21 +92,16 @@ const RETCON_COSTS = new Set(["continuity", "institutional", "character", "myste
 const REPAIR_DISPOSITIONS = new Set(["repair required", "deprecation required", "rejection required"]);
 const REPAIR_STANDING_TARGETS = new Set(["superseded", "deprecated", "quarantined", "localized", "accepted with constraints", "branch-only", "rejected"]);
 
-const assertVocabularyTerm = (store: WorldStore, vocabulary: string, term: string): void => {
-  const row = store.db.prepare("SELECT 1 FROM vocabulary_terms WHERE vocabulary = ? AND term = ?").get(vocabulary, term);
-  if (!row) throw new Error(`Unknown ${vocabulary} term: ${term}`);
+const assertVocabularyTerm = (store: WorldFile, vocabulary: string, term: string): void => {
+  store.assertVocabularyTerm(vocabulary, term);
 };
 
-const safeLink = (store: WorldStore, fromRecordId: number, toRecordId: number, linkTypeKey: string, note: string): void => {
-  store.db.prepare(`
-    INSERT OR IGNORE INTO record_links (from_record_id, to_record_id, link_type_key, note)
-    VALUES (?, ?, ?, ?)
-  `).run(fromRecordId, toRecordId, linkTypeKey, note);
+const safeLink = (store: WorldFile, fromRecordId: number, toRecordId: number, linkTypeKey: string, note: string): void => {
+  store.createLinkIfMissing(fromRecordId, toRecordId, linkTypeKey, note);
 };
 
-const readContradictionFlow = (store: WorldStore, flowId: number): ContradictionFlowRow => {
-  const row = store.db.prepare("SELECT * FROM flow_instances WHERE id = ? AND flow_key = 'contradiction'").get(flowId) as Record<string, unknown> | undefined;
-  if (!row) throw new Error(`Contradiction flow not found: ${flowId}`);
+const readContradictionFlow = (store: WorldFile, flowId: number): ContradictionFlowRow => {
+  const row = store.getFlowInstance(flowId, "contradiction");
   return {
     id: Number(row.id),
     state: String(row.state),
@@ -114,30 +111,28 @@ const readContradictionFlow = (store: WorldStore, flowId: number): Contradiction
   };
 };
 
-const workScale = (store: WorldStore, flowId: number): string | null => {
-  const row = store.db.prepare("SELECT work_scale FROM contradiction_work_scales WHERE flow_id = ?").get(flowId) as { work_scale: string } | undefined;
-  return row?.work_scale ?? null;
+const workScale = (store: WorldFile, flowId: number): string | null => {
+  return store.contradictionWorkScale(flowId);
 };
 
-const disposition = (store: WorldStore, flowId: number): { disposition: string; note: string } | null => {
-  const row = store.db.prepare("SELECT disposition, note FROM contradiction_dispositions WHERE flow_id = ?").get(flowId) as { disposition: string; note: string } | undefined;
-  return row ?? null;
+const disposition = (store: WorldFile, flowId: number): { disposition: string; note: string } | null => {
+  return store.contradictionDisposition(flowId);
 };
 
-const triageEntries = (store: WorldStore, flowId: number): Array<{ step_key: string; body: string }> =>
-  store.db.prepare("SELECT step_key, body FROM contradiction_triage_entries WHERE flow_id = ? ORDER BY id").all(flowId) as Array<{ step_key: string; body: string }>;
+const triageEntries = (store: WorldFile, flowId: number): Array<{ step_key: string; body: string }> =>
+  store.contradictionTriageEntries(flowId);
 
-const repairOperations = (store: WorldStore, flowId: number): Array<{ operation: string; repair_text: string; position: number }> =>
-  store.db.prepare("SELECT operation, repair_text, position FROM contradiction_repair_operations WHERE flow_id = ? ORDER BY position").all(flowId) as Array<{ operation: string; repair_text: string; position: number }>;
+const repairOperations = (store: WorldFile, flowId: number): Array<{ operation: string; repair_text: string; position: number }> =>
+  store.contradictionRepairOperations(flowId);
 
-const repairTargets = (store: WorldStore, flowId: number): Array<{ record_id: number; next_canon_status: string; new_title: string | null; new_body: string | null; note: string; advisory_record_id: number | null }> =>
-  store.db.prepare("SELECT record_id, next_canon_status, new_title, new_body, note, advisory_record_id FROM contradiction_repair_targets WHERE flow_id = ? ORDER BY id").all(flowId) as Array<{ record_id: number; next_canon_status: string; new_title: string | null; new_body: string | null; note: string; advisory_record_id: number | null }>;
+const repairTargets = (store: WorldFile, flowId: number): Array<{ record_id: number; next_canon_status: string; new_title: string | null; new_body: string | null; note: string; advisory_record_id: number | null }> =>
+  store.contradictionRepairTargets(flowId);
 
-const retconCosts = (store: WorldStore, flowId: number): Array<{ retcon_type: string; cost_key: string; cost_text: string }> =>
-  store.db.prepare("SELECT retcon_type, cost_key, cost_text FROM contradiction_retcon_costs WHERE flow_id = ? ORDER BY id").all(flowId) as Array<{ retcon_type: string; cost_key: string; cost_text: string }>;
+const retconCosts = (store: WorldFile, flowId: number): Array<{ retcon_type: string; cost_key: string; cost_text: string }> =>
+  store.contradictionRetconCosts(flowId);
 
-const repairPropagation = (store: WorldStore, flowId: number): ContradictionRepairPropagationRow | null => {
-  const row = store.db.prepare("SELECT * FROM contradiction_repair_propagation WHERE flow_id = ?").get(flowId) as Record<string, unknown> | undefined;
+const repairPropagation = (store: WorldFile, flowId: number): ContradictionRepairPropagationRow | null => {
+  const row = store.contradictionRepairPropagation(flowId);
   if (!row) return null;
   return {
     flowId,
@@ -148,12 +143,11 @@ const repairPropagation = (store: WorldStore, flowId: number): ContradictionRepa
   };
 };
 
-const completedChecklistForFlow = (store: WorldStore, flowId: number): boolean => {
-  const row = store.db.prepare("SELECT 1 FROM mystery_preservation_checklists WHERE flow_id = ? AND completed = 1 LIMIT 1").get(flowId);
-  return Boolean(row);
+const completedChecklistForFlow = (store: WorldFile, flowId: number): boolean => {
+  return store.completedMysteryChecklistForFlow(flowId);
 };
 
-const replaceSingleFacet = (store: WorldStore, recordId: number, vocabulary: string, term: string): void => {
+const replaceSingleFacet = (store: WorldFile, recordId: number, vocabulary: string, term: string): void => {
   assertVocabularyTerm(store, vocabulary, term);
   for (const facet of store.listFacets(recordId).filter((row) => row.vocabulary === vocabulary)) {
     store.removeFacet(recordId, facet.id);
@@ -188,7 +182,7 @@ const rowToChecklist = (row: Record<string, unknown>): MysteryChecklistRow => {
 };
 
 export const startContradictionRun = (
-  store: WorldStore,
+  store: WorldFile,
   input: { sourceRecordId?: number; implicatedRecordIds?: number[]; title?: string }
 ): unknown => {
   if (input.sourceRecordId != null) store.getRecord(input.sourceRecordId);
@@ -196,38 +190,24 @@ export const startContradictionRun = (
   for (const recordId of implicatedRecordIds) store.getRecord(recordId);
 
   if (input.sourceRecordId != null) {
-    const existing = store.db.prepare(`
-      SELECT * FROM flow_instances
-      WHERE flow_key = 'contradiction'
-        AND state = 'in_progress'
-        AND contradiction_source_record_id = ?
-      ORDER BY id DESC
-      LIMIT 1
-    `).get(input.sourceRecordId);
+    const existing = store.findInProgressContradictionFlowBySource(input.sourceRecordId);
     if (existing) return existing;
   }
 
-  const result = store.db.prepare(`
-    INSERT INTO flow_instances (flow_key, current_step, contradiction_source_record_id)
-    VALUES ('contradiction', 'contradiction:entry', ?)
-  `).run(input.sourceRecordId ?? null);
-  const flowId = Number(result.lastInsertRowid);
+  const flow = store.createFlowInstance({ flowKey: "contradiction", currentStep: "contradiction:entry", contradictionSourceRecordId: input.sourceRecordId ?? null });
+  const flowId = Number(flow.id);
   for (const recordId of implicatedRecordIds) {
-    store.db.prepare("INSERT OR IGNORE INTO contradiction_implicated_records (flow_id, record_id) VALUES (?, ?)").run(flowId, recordId);
+    store.insertContradictionImplicatedRecord(flowId, recordId);
   }
   if (input.title?.trim()) {
-    store.db.prepare(`
-      INSERT INTO contradiction_triage_entries (flow_id, step_key, body)
-      VALUES (?, 'title', ?)
-    `).run(flowId, input.title);
+    store.insertContradictionTitle(flowId, input.title);
   }
-  return store.db.prepare("SELECT * FROM flow_instances WHERE id = ?").get(flowId);
+  return store.getFlowInstance(flowId);
 };
 
-export const getContradictionRun = (store: WorldStore, flowId: number): unknown => {
+export const getContradictionRun = (store: WorldFile, flowId: number): unknown => {
   const flow = readContradictionFlow(store, flowId);
-  const implicatedRecords = (store.db.prepare("SELECT record_id FROM contradiction_implicated_records WHERE flow_id = ? ORDER BY id").all(flowId) as Array<{ record_id: number }>)
-    .map((row) => store.getRecord(row.record_id));
+  const implicatedRecords = store.contradictionImplicatedRecordIds(flowId).map((recordId) => store.getRecord(recordId));
   return {
     flow,
     implicatedRecords,
@@ -238,117 +218,93 @@ export const getContradictionRun = (store: WorldStore, flowId: number): unknown 
     repairTargets: repairTargets(store, flowId),
     retconCosts: retconCosts(store, flowId),
     repairPropagation: repairPropagation(store, flowId),
-    proposals: store.db.prepare("SELECT * FROM contradiction_repair_created_proposals WHERE flow_id = ? ORDER BY id").all(flowId),
-    checklists: store.db.prepare("SELECT * FROM mystery_preservation_checklists WHERE flow_id = ? ORDER BY id").all(flowId)
+    proposals: store.contradictionRepairCreatedProposals(flowId),
+    checklists: store.mysteryPreservationChecklistsForFlow(flowId)
   };
 };
 
 export const recordContradictionTriage = (
-  store: WorldStore,
+  store: WorldFile,
   input: { flowId: number; stepKey: string; body: string }
 ): unknown => {
   readContradictionFlow(store, input.flowId);
   if (!(input.stepKey in TRIAGE_SECTION_BY_STEP)) throw new Error(`Unknown contradiction triage step: ${input.stepKey}`);
   if (!input.body.trim()) throw new Error("contradiction triage entries require steward-written prose");
-  store.db.prepare(`
-    INSERT INTO contradiction_triage_entries (flow_id, step_key, body)
-    VALUES (?, ?, ?)
-    ON CONFLICT(flow_id, step_key) DO UPDATE SET body = excluded.body
-  `).run(input.flowId, input.stepKey, input.body);
-  store.db.prepare("UPDATE flow_instances SET current_step = ? WHERE id = ?").run(`contradiction:${input.stepKey}`, input.flowId);
-  return store.db.prepare("SELECT * FROM contradiction_triage_entries WHERE flow_id = ? AND step_key = ?").get(input.flowId, input.stepKey);
+  const entry = store.upsertContradictionTriageEntry(input.flowId, input.stepKey, input.body);
+  store.updateFlowInstance(input.flowId, { currentStep: `contradiction:${input.stepKey}` });
+  return entry;
 };
 
 export const declareContradictionWorkScale = (
-  store: WorldStore,
+  store: WorldFile,
   input: { flowId: number; workScale: string }
 ): unknown => {
   readContradictionFlow(store, input.flowId);
   assertVocabularyTerm(store, "work_scale", input.workScale);
-  store.db.prepare(`
-    INSERT INTO contradiction_work_scales (flow_id, work_scale)
-    VALUES (?, ?)
-    ON CONFLICT(flow_id) DO UPDATE SET work_scale = excluded.work_scale
-  `).run(input.flowId, input.workScale);
-  store.db.prepare("UPDATE flow_instances SET current_step = 'contradiction:work-scale' WHERE id = ?").run(input.flowId);
-  return store.db.prepare("SELECT * FROM contradiction_work_scales WHERE flow_id = ?").get(input.flowId);
+  const row = store.upsertContradictionWorkScale(input.flowId, input.workScale);
+  store.updateFlowInstance(input.flowId, { currentStep: "contradiction:work-scale" });
+  return row;
 };
 
 export const setContradictionDisposition = (
-  store: WorldStore,
+  store: WorldFile,
   input: { flowId: number; disposition: string; note?: string }
 ): unknown => {
   readContradictionFlow(store, input.flowId);
   assertVocabularyTerm(store, "contradiction_disposition", input.disposition);
-  store.db.prepare(`
-    INSERT INTO contradiction_dispositions (flow_id, disposition, note)
-    VALUES (?, ?, ?)
-    ON CONFLICT(flow_id) DO UPDATE SET disposition = excluded.disposition, note = excluded.note
-  `).run(input.flowId, input.disposition, input.note ?? "");
-  store.db.prepare("UPDATE flow_instances SET current_step = 'contradiction:disposition' WHERE id = ?").run(input.flowId);
-  return store.db.prepare("SELECT * FROM contradiction_dispositions WHERE flow_id = ?").get(input.flowId);
+  const row = store.upsertContradictionDisposition(input.flowId, input.disposition, input.note);
+  store.updateFlowInstance(input.flowId, { currentStep: "contradiction:disposition" });
+  return row;
 };
 
 export const recordContradictionRepair = (
-  store: WorldStore,
+  store: WorldFile,
   input: { flowId: number; operations: string[]; repairText: string }
 ): unknown[] => {
   readContradictionFlow(store, input.flowId);
   if (!input.operations.length) throw new Error("repair requires at least one operation");
   if (!input.repairText.trim()) throw new Error("repair operations require written repair text");
   input.operations.forEach((operation) => assertVocabularyTerm(store, "repair_operation", operation));
-  store.db.transaction(() => {
-    store.db.prepare("DELETE FROM contradiction_repair_operations WHERE flow_id = ?").run(input.flowId);
-    input.operations.forEach((operation, index) => {
-      store.db.prepare(`
-        INSERT INTO contradiction_repair_operations (flow_id, position, operation, repair_text)
-        VALUES (?, ?, ?, ?)
-      `).run(input.flowId, index + 1, operation, input.repairText);
-    });
-    store.db.prepare("UPDATE flow_instances SET current_step = 'contradiction:repair' WHERE id = ?").run(input.flowId);
-  })();
-  return store.db.prepare("SELECT * FROM contradiction_repair_operations WHERE flow_id = ? ORDER BY position").all(input.flowId);
+  return store.atomicWrite(() => {
+    const operations = store.replaceContradictionRepairOperations(input.flowId, input);
+    store.updateFlowInstance(input.flowId, { currentStep: "contradiction:repair" });
+    return operations;
+  });
 };
 
 export const addContradictionRepairTarget = (
-  store: WorldStore,
+  store: WorldFile,
   input: { flowId: number; recordId: number; nextCanonStatus: string; newTitle?: string; newBody?: string; note?: string; advisoryRecordId?: number }
 ): unknown => {
   readContradictionFlow(store, input.flowId);
   store.getRecord(input.recordId);
   assertVocabularyTerm(store, "canon_status", input.nextCanonStatus);
   if (input.advisoryRecordId != null) store.getRecord(input.advisoryRecordId);
-  const result = store.db.prepare(`
-    INSERT INTO contradiction_repair_targets (flow_id, record_id, next_canon_status, new_title, new_body, note, advisory_record_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(input.flowId, input.recordId, input.nextCanonStatus, input.newTitle ?? null, input.newBody ?? null, input.note ?? "", input.advisoryRecordId ?? null);
-  store.db.prepare("UPDATE flow_instances SET current_step = 'contradiction:repair-target' WHERE id = ?").run(input.flowId);
-  return store.db.prepare("SELECT * FROM contradiction_repair_targets WHERE id = ?").get(result.lastInsertRowid);
+  const target = store.insertContradictionRepairTarget(input);
+  store.updateFlowInstance(input.flowId, { currentStep: "contradiction:repair-target" });
+  return target;
 };
 
 export const proposeFactFromContradiction = (
-  store: WorldStore,
+  store: WorldFile,
   input: { flowId: number; title: string; body: string; truthLayer: string }
 ): { record: RecordRow; queue: AdmissionQueueRow[] } => {
   const flow = readContradictionFlow(store, input.flowId);
   const record = store.createRecord({ recordTypeKey: "canon_fact", title: input.title, body: input.body, truthLayer: input.truthLayer, canonStatus: "proposed" });
-  store.db.prepare(`
-    INSERT INTO contradiction_repair_created_proposals (flow_id, proposal_record_id, report_record_id)
-    VALUES (?, ?, ?)
-  `).run(input.flowId, record.id, flow.contradiction_report_record_id ?? null);
+  store.insertContradictionRepairCreatedProposal({
+    flowId: input.flowId,
+    proposalRecordId: record.id,
+    reportRecordId: flow.contradiction_report_record_id
+  });
   if (flow.contradiction_report_record_id != null) {
     safeLink(store, record.id, flow.contradiction_report_record_id, "derived_from", "Fact surfaced by contradiction repair report");
   }
-  store.db.prepare(`
-    INSERT INTO jurisdiction_events (record_id, origin)
-    VALUES (?, 'sweep')
-  `).run(record.id);
-  store.db.prepare("UPDATE flow_instances SET current_step = 'contradiction:surface-proposal' WHERE id = ?").run(input.flowId);
-  return { record, queue: store.admissionQueue() };
+  store.updateFlowInstance(input.flowId, { currentStep: "contradiction:surface-proposal" });
+  return { record, queue: routeRecordToAdmissionQueue(store, record.id, { recordSweepJurisdiction: true }) };
 };
 
 export const recordContradictionRetconCosts = (
-  store: WorldStore,
+  store: WorldFile,
   input: { flowId: number; retconType: string; costs: Array<{ cost: string; text: string }> }
 ): unknown[] => {
   readContradictionFlow(store, input.flowId);
@@ -358,21 +314,15 @@ export const recordContradictionRetconCosts = (
     if (!RETCON_COSTS.has(cost.cost)) throw new Error(`Unknown retcon cost: ${cost.cost}`);
     if (!cost.text.trim()) throw new Error("retcon costs require written substance");
   }
-  store.db.transaction(() => {
-    store.db.prepare("DELETE FROM contradiction_retcon_costs WHERE flow_id = ?").run(input.flowId);
-    for (const cost of input.costs) {
-      store.db.prepare(`
-        INSERT INTO contradiction_retcon_costs (flow_id, retcon_type, cost_key, cost_text)
-        VALUES (?, ?, ?, ?)
-      `).run(input.flowId, input.retconType, cost.cost, cost.text);
-    }
-    store.db.prepare("UPDATE flow_instances SET current_step = 'contradiction:retcon-cost' WHERE id = ?").run(input.flowId);
-  })();
-  return store.db.prepare("SELECT * FROM contradiction_retcon_costs WHERE flow_id = ? ORDER BY id").all(input.flowId);
+  return store.atomicWrite(() => {
+    const costs = store.replaceContradictionRetconCosts(input.flowId, input);
+    store.updateFlowInstance(input.flowId, { currentStep: "contradiction:retcon-cost" });
+    return costs;
+  });
 };
 
 export const setContradictionRepairPropagation = (
-  store: WorldStore,
+  store: WorldFile,
   input: { flowId: number; action: "assign" | "decline"; debtName?: string; body?: string; admissionLevel?: string; workScale?: string; reason?: string }
 ): ContradictionRepairPropagationRow => {
   const flow = readContradictionFlow(store, input.flowId);
@@ -387,44 +337,26 @@ export const setContradictionRepairPropagation = (
       workScale: input.workScale ?? workScale(store, input.flowId) ?? null
     };
     if (requiresSkipReason(severity) && !input.reason?.trim()) throw new Error("major contradiction skips require a reason");
-    const skip = store.recordSkip({ flowId: input.flowId, stepKey: "contradiction:repair-propagation", reason: input.reason });
+    const skip = createSkipRecord(store, { stepKey: "contradiction:repair-propagation", reason: input.reason });
     skipRecordId = skip.id;
     if (flow.contradiction_source_record_id != null) safeLink(store, skip.id, flow.contradiction_source_record_id, "derived_from", "Repair propagation declined");
   }
-  store.db.prepare(`
-    INSERT INTO contradiction_repair_propagation (flow_id, action, debt_record_id, skip_record_id, note)
-    VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(flow_id) DO UPDATE SET
-      action = excluded.action,
-      debt_record_id = excluded.debt_record_id,
-      skip_record_id = excluded.skip_record_id,
-      note = excluded.note
-  `).run(input.flowId, input.action, debtRecordId, skipRecordId, input.body ?? input.reason ?? "");
-  store.db.prepare("UPDATE flow_instances SET current_step = 'contradiction:repair-propagation' WHERE id = ?").run(input.flowId);
+  store.upsertContradictionRepairPropagation({
+    flowId: input.flowId,
+    action: input.action,
+    debtRecordId,
+    skipRecordId,
+    note: input.body ?? input.reason ?? ""
+  });
+  store.updateFlowInstance(input.flowId, { currentStep: "contradiction:repair-propagation" });
   return repairPropagation(store, input.flowId)!;
 };
 
-export const owedBoundariesQueue = (store: WorldStore): OwedBoundaryRow[] =>
-  store.db.prepare(`
-    SELECT
-      d.id AS propagation_disposition_id,
-      c.id AS consequence_id,
-      c.fact_record_id AS protected_record_id,
-      f.propagation_report_record_id,
-      d.preservation_boundary,
-      d.note,
-      c.body AS consequence_body
-    FROM propagation_consequence_dispositions d
-    JOIN propagation_consequences c ON c.id = d.consequence_id
-    JOIN flow_instances f ON f.id = c.flow_id
-    LEFT JOIN contradiction_mystery_boundary_links l ON l.propagation_disposition_id = d.id
-    WHERE d.disposition = 'protected as a mystery boundary'
-      AND l.id IS NULL
-    ORDER BY d.id
-  `).all().map((row) => rowToOwedBoundary(row as Record<string, unknown>));
+export const owedBoundariesQueue = (store: WorldFile): OwedBoundaryRow[] =>
+  store.owedBoundaryRows().map((row) => rowToOwedBoundary(row as Record<string, unknown>));
 
 export const createMysteryLedgerEntry = (
-  store: WorldStore,
+  store: WorldFile,
   input: {
     propagationDispositionId?: number;
     ledgerRecordId?: number;
@@ -442,7 +374,7 @@ export const createMysteryLedgerEntry = (
   assertVocabularyTerm(store, "protected_effect_type", input.effectType);
   assertVocabularyTerm(store, "mystery_state", input.mysteryState);
   assertVocabularyTerm(store, "preservation_boundary", input.preservationBoundary);
-  const record = store.db.transaction(() => {
+  const record = store.atomicWrite(() => {
     const ledger = input.ledgerRecordId == null
       ? store.createRecord({
         recordTypeKey: "mystery_ledger_entry",
@@ -462,18 +394,15 @@ export const createMysteryLedgerEntry = (
     safeLink(store, ledger.id, input.protectedRecordId, "preserves_boundary_for", "Mystery ledger protects this boundary");
     if (input.propagationReportRecordId != null) safeLink(store, ledger.id, input.propagationReportRecordId, "derived_from", "Mystery ledger worked from propagation boundary");
     if (input.propagationDispositionId != null) {
-      store.db.prepare(`
-        INSERT OR IGNORE INTO contradiction_mystery_boundary_links (propagation_disposition_id, ledger_record_id)
-        VALUES (?, ?)
-      `).run(input.propagationDispositionId, ledger.id);
+      store.insertMysteryBoundaryLink(input.propagationDispositionId, ledger.id);
     }
     return store.getRecord(ledger.id);
-  })();
+  });
   return { record, queue: owedBoundariesQueue(store) };
 };
 
 export const completeMysteryPreservationChecklist = (
-  store: WorldStore,
+  store: WorldFile,
   input: { flowId?: number; ledgerRecordId?: number; protectedRecordId?: number; operation: string; effectType: string; body: string; sacredGuardBody?: string }
 ): MysteryChecklistRow => {
   if (input.flowId != null) readContradictionFlow(store, input.flowId);
@@ -484,32 +413,29 @@ export const completeMysteryPreservationChecklist = (
   if (!input.body.trim()) throw new Error("preservation checklist requires steward-written prose");
   const sacred = input.effectType === "sacred opacity" || input.effectType === "horror-terror-dread";
   if (sacred && !input.sacredGuardBody?.trim()) throw new Error("sacred-opacity guard requires accountability prose");
-  const result = store.db.prepare(`
-    INSERT INTO mystery_preservation_checklists (flow_id, ledger_record_id, protected_record_id, operation, effect_type, body, sacred_guard_body, completed)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-  `).run(input.flowId ?? null, input.ledgerRecordId ?? null, input.protectedRecordId ?? null, input.operation, input.effectType, input.body, input.sacredGuardBody ?? "");
-  if (input.flowId != null) store.db.prepare("UPDATE flow_instances SET current_step = 'contradiction:preservation-checklist' WHERE id = ?").run(input.flowId);
-  return rowToChecklist(store.db.prepare("SELECT * FROM mystery_preservation_checklists WHERE id = ?").get(result.lastInsertRowid) as Record<string, unknown>);
+  const row = store.insertMysteryPreservationChecklist(input);
+  if (input.flowId != null) store.updateFlowInstance(input.flowId, { currentStep: "contradiction:preservation-checklist" });
+  return rowToChecklist(row as Record<string, unknown>);
 };
 
 export const skipContradictionStep = (
-  store: WorldStore,
+  store: WorldFile,
   input: { flowId?: number; stepKey: string; admissionLevel?: string; workScale?: string; reason?: string }
 ): RecordRow => {
   const flow = input.flowId == null ? null : readContradictionFlow(store, input.flowId);
   if (requiresSkipReason({ admissionLevel: input.admissionLevel ?? null, workScale: input.workScale ?? (input.flowId == null ? null : workScale(store, input.flowId)) ?? null }) && !input.reason?.trim()) {
     throw new Error("major contradiction skips require a reason");
   }
-  const record = store.recordSkip({ flowId: input.flowId, stepKey: input.stepKey, reason: input.reason });
+  const record = createSkipRecord(store, { stepKey: input.stepKey, reason: input.reason });
   if (flow?.contradiction_source_record_id != null) safeLink(store, record.id, flow.contradiction_source_record_id, "derived_from", "Contradiction instrument declined");
-  if (input.flowId != null) store.db.prepare("UPDATE flow_instances SET current_step = ? WHERE id = ?").run(`contradiction:skip:${input.stepKey}`, input.flowId);
+  if (input.flowId != null) store.updateFlowInstance(input.flowId, { currentStep: `contradiction:skip:${input.stepKey}` });
   return record;
 };
 
-export const closeContradictionRun = (store: WorldStore, flowId: number): { flow: unknown; report: RecordRow } => {
+export const closeContradictionRun = (store: WorldFile, flowId: number): { flow: unknown; report: RecordRow } => {
   const flow = readContradictionFlow(store, flowId);
   if (flow.contradiction_report_record_id != null) {
-    return { flow: store.db.prepare("SELECT * FROM flow_instances WHERE id = ?").get(flowId), report: store.getRecord(flow.contradiction_report_record_id) };
+    return { flow: store.getFlowInstance(flowId), report: store.getRecord(flow.contradiction_report_record_id) };
   }
   const selectedDisposition = disposition(store, flowId);
   if (!selectedDisposition) throw new Error("contradiction disposition required before close");
@@ -526,28 +452,28 @@ export const closeContradictionRun = (store: WorldStore, flowId: number): { flow
     throw new Error("mystery-preserving close requires a completed preservation checklist");
   }
 
-  return store.db.transaction(() => {
+  return store.atomicWrite(() => {
     const report = writeContradictionReport(store, flowId);
     const targets = repairTargets(store, flowId);
     for (const target of targets) {
       applyRepairTarget(store, report.id, operations, target);
     }
-    const proposalRows = store.db.prepare("SELECT proposal_record_id FROM contradiction_repair_created_proposals WHERE flow_id = ?").all(flowId) as Array<{ proposal_record_id: number }>;
+    const proposalRows = store.contradictionRepairCreatedProposals(flowId);
     for (const row of proposalRows) {
-      safeLink(store, row.proposal_record_id, report.id, "derived_from", "Fact surfaced by contradiction repair report");
+      safeLink(store, Number(row.proposal_record_id), report.id, "derived_from", "Fact surfaced by contradiction repair report");
     }
-    store.db.prepare("UPDATE contradiction_repair_created_proposals SET report_record_id = ? WHERE flow_id = ? AND report_record_id IS NULL").run(report.id, flowId);
+    store.assignContradictionReportToCreatedProposals(flowId, report.id);
     const propagation = repairPropagation(store, flowId);
     if (propagation?.debtRecordId != null) safeLink(store, report.id, propagation.debtRecordId, "requires_follow_up", "Contradiction repair assigned propagation debt");
-    const implicated = store.db.prepare("SELECT record_id FROM contradiction_implicated_records WHERE flow_id = ? ORDER BY id").all(flowId) as Array<{ record_id: number }>;
-    for (const row of implicated) safeLink(store, report.id, row.record_id, "derived_from", "Contradiction report implicates this record");
-    store.db.prepare("UPDATE flow_instances SET state = 'complete', current_step = 'contradiction:complete', contradiction_report_record_id = ? WHERE id = ?").run(report.id, flowId);
-    return { flow: store.db.prepare("SELECT * FROM flow_instances WHERE id = ?").get(flowId), report };
-  })();
+    const implicatedRecordIds = store.contradictionImplicatedRecordIds(flowId);
+    for (const recordId of implicatedRecordIds) safeLink(store, report.id, recordId, "derived_from", "Contradiction report implicates this record");
+    const completedFlow = store.updateFlowInstance(flowId, { state: "complete", currentStep: "contradiction:complete", contradictionReportRecordId: report.id });
+    return { flow: completedFlow, report };
+  });
 };
 
 const applyRepairTarget = (
-  store: WorldStore,
+  store: WorldFile,
   reportId: number,
   operations: Array<{ operation: string }>,
   target: { record_id: number; next_canon_status: string; new_title: string | null; new_body: string | null; advisory_record_id: number | null }
@@ -562,10 +488,7 @@ const applyRepairTarget = (
     canonStatus: target.next_canon_status
   });
   for (const operation of operations) {
-    store.db.prepare(`
-      INSERT INTO jurisdiction_events (record_id, origin, repair_operation)
-      VALUES (?, 'repair', ?)
-    `).run(target.record_id, operation.operation);
+    store.recordJurisdictionEvent(target.record_id, { origin: "repair", repairOperation: operation.operation });
   }
   safeLink(store, target.record_id, reportId, "derived_from", "Record repaired by contradiction report");
   if (target.advisory_record_id != null) {
@@ -574,7 +497,7 @@ const applyRepairTarget = (
   }
 };
 
-const writeContradictionReport = (store: WorldStore, flowId: number): RecordRow => {
+const writeContradictionReport = (store: WorldFile, flowId: number): RecordRow => {
   const flow = readContradictionFlow(store, flowId);
   const source = flow.contradiction_source_record_id == null ? null : store.getRecord(flow.contradiction_source_record_id);
   const triage = triageEntries(store, flowId);
