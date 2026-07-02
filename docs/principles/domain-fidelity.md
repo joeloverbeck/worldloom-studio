@@ -9,6 +9,7 @@ The app implements the Causal Canon Worldbuilding System 1.0 (`docs/worldbuildin
 - When app design uncovers a place where no faithful implementation is possible, the finding is routed as a **proposed package amendment** through the package's own change process (`00_overhaul_notes.md` is its changelog; its evidence discipline is trial-driven) — never designed around silently.
 - Every spec and ticket cites the package file it implements.
 - App content derived from the package (elaborated prompts, vocabulary seeds, export renderings) is re-checked against upstream when the package changes.
+- **Evidence flows back upstream, not only amendments.** The app mechanically enforces invariants the package states as manual discipline (report immutability, routing, history notes), so field use of the app is itself evidence for the package's open questions — e.g., whether that discipline was load-bearing *because* it was manual (the naive-steward question). Such findings are logged and offered to the package's evidence cycle.
 
 ## The glossary is the naming authority — everywhere
 

@@ -14,6 +14,8 @@ The friction this creates is the feature working — deliberate human acts befor
 
 Every step whose output later steps depend on offers a generated prompt the steward **may** (not must) run in any external LLM. The prompts operationalize `20`'s ten analyst roles; the step-to-role mapping lives in `workflow-principles.md`.
 
+Every prompt-out step preserves `20`'s invariant sequence: **human writes → AI challenges → human deletes/selects → human decides → AI summarizes → human records.** No flow step opens with generation — the steward's own material always comes first, and the AI is asked for pressure on it, never for the first draft.
+
 - Every prompt embeds: the relevant record context (assembled by the app — this is the drudgery the method currently leaves to the steward), the role's ask-for-pressure framing, `20`'s vocabulary guardrail, the instruction to label assumptions, and the steward's standing rulings from prior dispositions.
 - Prompts must be **fully self-contained** — the receiving model is assumed to have never seen the world.
 - Pasted responses are stored **verbatim as immutable advisory artifacts** attached to the step that generated the prompt. The app never parses a pasted response into a canon field.

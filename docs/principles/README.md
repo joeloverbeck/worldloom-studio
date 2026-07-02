@@ -2,7 +2,7 @@
 
 *Altitude: index. This file owns the authority order and the conformance rule; the principles themselves live in the documents below.*
 
-These documents are the ratified foundational principles of Worldloom Studio, first iteration (2026-07-02). They were ratified from the analysis in [`reports/foundational-principles-research-report.md`](../../reports/foundational-principles-research-report.md), which remains the full evidentiary argument — roots in package doctrine, field-trial evidence, and external research are cited there and not restated here.
+These documents are the ratified foundational principles of Worldloom Studio, first iteration (2026-07-02). They were ratified from the analysis in [`archive/reports/foundational-principles-research-report.md`](../../archive/reports/foundational-principles-research-report.md) (archived after exploitation; still the citation target), which remains the full evidentiary argument — roots in package doctrine, field-trial evidence, and external research are cited there and not restated here.
 
 ## Authority order
 

@@ -1,6 +1,6 @@
 # SQLite, one database file per world
 
-The canonical store for a world is a single SQLite database file at a steward-chosen path. This is the engine decision behind `docs/principles/data-principles.md` (T-1); the full argument is report §5 (`reports/foundational-principles-research-report.md`).
+The canonical store for a world is a single SQLite database file at a steward-chosen path. This is the engine decision behind `docs/principles/data-principles.md` (T-1); the full argument is report §5 (`archive/reports/foundational-principles-research-report.md`).
 
 SQLite is the only candidate with an institutional longevity story (Library of Congress recommended format; format stability pledged through 2050) — the property a decades-lived personal creative archive needs most — and the decade-lived personal-database precedents (Anki, Zotero, Calibre, Actual Budget) all converged on this shape. One file *per world* (rather than one app database for all worlds) makes the world the unit of ownership: share, archive, or retire a world by copying a file; a corrupted file or botched migration costs one world, not the archive. Worlds are genuinely independent — no cross-world references exist in the package's record types — so a shared database buys nothing. Local precedent: the steward's story-creation repo uses one database file per story and it has worked well.
 

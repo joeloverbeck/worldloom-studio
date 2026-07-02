@@ -74,3 +74,7 @@ Only offer to create an ADR when all three are true:
 3. **The result of a real trade-off** — there were genuine alternatives and you picked one for specific reasons
 
 If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md).
+
+### Before the session closes
+
+When this skill was invoked in a supporting role (e.g., by another skill) and no trigger fired, don't end silently: review the session's resolved decisions once and confirm none introduced a term owed to `CONTEXT.md` or a decision passing the three-part ADR test. State the conclusion explicitly in one line (e.g., "Domain model unchanged — no new app-layer terms, no ADR-worthy decisions"), so the dormant path is auditable rather than implicit.
