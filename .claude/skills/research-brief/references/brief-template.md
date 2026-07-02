@@ -88,7 +88,10 @@ explicitly; group the rest with the boundary-awareness purpose stated once.
 **Directory-scoped entries.** When the read mandate covers an entire directory with one
 uniform reason (e.g. the target commands "read all of `docs/<package>/`"), a per-file list
 adds bulk without informing Session 2. Sanctioned shape: a single entry stating the directory
-glob, the file count at authoring time, the ordering rule Session 2 should follow (the
+glob, the file count at authoring time — computed by a command (`git ls-tree -r --name-only
+<baseline> -- <dir> | wc -l`, or `find <dir> -type f | wc -l` against a local-session live
+tree), never estimated; if the entry also states a composition breakdown, confirm the parts
+sum to the stated count — the ordering rule Session 2 should follow (the
 package's own authority order if it declares one), the group reason stated once, and per-file
 flags only for the entries carrying extra weight *for this target*. This composes with the
 SKILL.md Step 5 large-package economy; the stated file count lets Session 2's §8 self-check

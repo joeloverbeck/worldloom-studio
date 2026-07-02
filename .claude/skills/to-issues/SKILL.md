@@ -31,6 +31,7 @@ Break the plan into **tracer bullet** issues. Each issue is a thin vertical slic
 - Each slice delivers a narrow but COMPLETE path through every layer (schema, API, UI, tests)
 - A completed slice is demoable or verifiable on its own
 - Any prefactoring should be done first
+- Plan items that are documents (ADRs, specs) become ordinary blocker issues verified by review/conformance mechanisms, not vertical slices — only code-bearing items owe the all-layers rule
 
 </vertical-slice-rules>
 
@@ -48,11 +49,11 @@ Ask the user:
 - Are the dependency relationships correct?
 - Should any slices be merged or split further?
 
-Iterate until the user approves the breakdown.
+Iterate until the user approves the breakdown. If the approval question times out with no response (the user is away), proceed with the proposed breakdown, state in the conversation that it was applied unapproved, and offer post-hoc adjustment (merge/split/re-wire, closing issues if needed) when the user returns.
 
 ### 5. Publish the issues to the issue tracker
 
-For each approved slice, publish a new issue to the issue tracker. Use the issue body template below. These issues are considered ready for AFK agents, so publish them with the correct triage label unless instructed otherwise.
+For each approved slice, publish a new issue to the issue tracker. Use the issue body template below. These issues are considered ready for AFK agents, so publish them with the correct triage label unless instructed otherwise. Verify the label exists before creating the first issue (create it per the project's triage-label doc if absent).
 
 Publish issues in dependency order (blockers first) so you can reference real issue identifiers in the "Blocked by" field.
 
@@ -65,13 +66,17 @@ A reference to the parent issue on the issue tracker (if the source was an exist
 
 A concise description of this vertical slice. Describe the end-to-end behavior, not layer-by-layer implementation.
 
-Avoid specific file paths or code snippets — they go stale fast. Exception: if a prototype produced a snippet that encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it here and note briefly that it came from a prototype. Trim to the decision-rich parts — not a working demo, just the important bits.
+Avoid specific file paths or code snippets — they go stale fast. Citations of principle, ADR, and spec documents are exempt — they are stable identifiers and are themselves the conformance mechanism. Exception: if a prototype produced a snippet that encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it here and note briefly that it came from a prototype. Trim to the decision-rich parts — not a working demo, just the important bits.
 
 ## Acceptance criteria
 
 - [ ] Criterion 1
 - [ ] Criterion 2
 - [ ] Criterion 3
+
+## Principles
+
+The conformance-rule section this repo requires of every implementable issue (`docs/principles/README.md`): name the principle documents and ADRs this slice touches, affirm non-contradiction with them, and flag any deliberate exception to the steward before implementation.
 
 ## Blocked by
 
