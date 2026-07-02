@@ -27,6 +27,8 @@ Use this compact ledger shape unless the issue set needs more detail:
 
 Use /tdd where possible, at pre-agreed seams.
 
+Default to one issue at a time. If child issues are technically inseparable and an integrated implementation pass is the safer route, say so in the ledger, keep the ledger/audit per issue, and make the closeout evidence map each issue's criteria to the shared implementation and tests.
+
 For each issue:
 
 - Identify the issue's acceptance criteria and required proof seams before coding.
@@ -55,6 +57,9 @@ Before declaring completion, closing issues, or closing a parent PRD:
 
 - Produce a per-issue audit: every acceptance criterion mapped to concrete evidence, with status `satisfied`, `blocked`, or `not done`.
 - Close only issues whose criteria are all satisfied, using a comment that includes the commit SHA and verification evidence.
+- If review found or fixed issues, or if a review fallback path was used, include the review outcome in each affected issue's closeout comment or in a clearly linked parent rollup.
 - Leave parent PRD issues open while any related child issue remains open, unless the tracker explicitly defines the parent as independently closable.
 - If a parent issue was split into child issues, do not close it merely because a broad skeleton exists.
+- Before closing a parent PRD, verify related child issue states by exact issue numbers, not only by broad issue-search output.
 - If the issue breakdown is wrong, comment with the proposed tracker correction instead of closing mismatched issues.
+- Run a final `git status --short`. For untracked verification artifacts, either remove them if safe, stage them if they are intended evidence, or explicitly report them in the final response.

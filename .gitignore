@@ -132,6 +132,9 @@ dist
 # Worldloom local runtime state
 .worldloom-studio/
 
+# Playwright CLI snapshots/logs
+.playwright-cli/
+
 # yarn v3
 .pnp.*
 .yarn/*

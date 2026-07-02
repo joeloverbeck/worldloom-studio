@@ -8,7 +8,7 @@ Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
 - **Standards** — does the code conform to this repo's documented coding standards?
 - **Spec** — does the code faithfully implement the originating issue / PRD / spec?
 
-Both axes should run as **parallel sub-agents** when the available tool policy permits it, so they don't pollute each other's context. If sub-agents are unavailable or policy-blocked, run both axes locally in separate sections and document the deviation.
+Both axes should run as **parallel sub-agents** when the available tool policy permits it, so they don't pollute each other's context. Tool availability alone is not permission: if the sub-agent tool policy requires explicit user authorization and the user did not grant it, treat sub-agents as policy-blocked. If sub-agents are unavailable or policy-blocked, run both axes locally in separate sections and document the deviation.
 
 The issue tracker should have been provided to you — run `/setup-matt-pocock-skills` if `docs/agents/issue-tracker.md` is missing.
 
@@ -27,9 +27,10 @@ Before going further, confirm the fixed point resolves (`git rev-parse <fixed-po
 Look for the originating spec, in this order:
 
 1. Issue references in the commit messages (`#123`, `Closes #45`, GitLab `!67`, etc.) — fetch via the workflow in `docs/agents/issue-tracker.md`.
-2. A path the user passed as an argument.
-3. A PRD/spec file under `docs/specs/`, `docs/`, or `.scratch/` matching the branch name or feature.
-4. If nothing is found, ask the user where the spec is. If they say there isn't one, the **Spec** sub-agent will skip and report "no spec available".
+2. When invoked as part of implementation closeout, the originating PRD/issues already resolved by the implementation workflow count as the spec source; cite those issue numbers and any created spec file.
+3. A path the user passed as an argument.
+4. A PRD/spec file under `docs/specs/`, `docs/`, or `.scratch/` matching the branch name or feature.
+5. If nothing is found, ask the user where the spec is. If they say there isn't one, the **Spec** sub-agent will skip and report "no spec available".
 
 ### 3. Identify the standards sources
 
@@ -80,6 +81,14 @@ Present the two reports under `## Standards` and `## Spec` headings, verbatim or
 End with a one-line summary: total findings per axis, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes — that's the reranking the separation exists to prevent.
 
 When this review is part of implementation closeout, report findings first. If fixes are made immediately, rerun the relevant verification, state whether the commit was amended or followed by a new commit, and include the review outcome in the implementation closeout evidence.
+
+For immediate-fix closeout, use this compact shape after the two axis reports:
+
+- **Findings found**: `<count and short titles, or none>`
+- **Fixes made**: `<files/behavior changed, or none>`
+- **Verification rerun**: `<commands and browser/manual checks>`
+- **Commit handling**: `<amended commit SHA / follow-up commit SHA / no commit yet>`
+- **Residual findings**: `<remaining Standards and Spec findings, or none>`
 
 ## Why two axes
 
