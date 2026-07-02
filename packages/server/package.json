@@ -11,7 +11,7 @@
     "typecheck": "pnpm --filter @worldloom/shared build && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@hono/node-server": "^1.17.1",
+    "@hono/node-server": "^2.0.8",
     "@worldloom/shared": "workspace:*",
     "better-sqlite3": "^12.2.0",
     "hono": "^4.8.4"
