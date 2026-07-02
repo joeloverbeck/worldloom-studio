@@ -150,4 +150,131 @@ describe("HTTP API", () => {
     expect(reopened.status).toBe(200);
     expect(await json(reopened)).toMatchObject({ records: expect.arrayContaining([expect.objectContaining({ id: firstJson.record.id })]) });
   });
+
+  it("exercises facets, sections, drafts, prompts, skips, and seed parking through the HTTP seam", async () => {
+    const app = createApp();
+    const path = tempPath("flow-world.sqlite");
+    expect((await app.request("/api/worlds/create", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path })
+    })).status).toBe(201);
+
+    const factResponse = await app.request("/api/records", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recordTypeKey: "canon_fact", title: "Seven-day echoes", body: "Echoes remain for seven days", ...explicitJudgment })
+    });
+    const fact = (await json<{ record: { id: number } }>(factResponse)).record;
+
+    expect(await json(await app.request(`/api/records/${fact.id}/facets`))).toMatchObject({ facets: [] });
+    const facetA = await json<{ facet: { id: number; position: number } }>(await app.request(`/api/records/${fact.id}/facets`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ vocabulary: "admission_decision_operation", term: "accept" })
+    }));
+    const facetB = await json<{ facet: { position: number } }>(await app.request(`/api/records/${fact.id}/facets`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ vocabulary: "admission_decision_operation", term: "price" })
+    }));
+    expect([facetA.facet.position, facetB.facet.position]).toEqual([1, 2]);
+    const badFacet = await app.request(`/api/records/${fact.id}/facets`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ vocabulary: "admission_decision_operation", term: "invented" })
+    });
+    expect(badFacet.status).toBe(400);
+    await app.request(`/api/records/${fact.id}/facets/${facetA.facet.id}`, { method: "DELETE" });
+    expect(await json(await app.request(`/api/records/${fact.id}/facets`))).toMatchObject({ facets: [{ position: 2 }] });
+
+    const sections = await app.request(`/api/records/${fact.id}/sections`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sections: [{ heading: "Fact statement", body: "Echoes answer through advocates", position: 1 }] })
+    });
+    expect(sections.status).toBe(200);
+    expect(await json(await app.request("/api/search?q=advocates"))).toMatchObject({ records: [{ id: fact.id }] });
+
+    const draft = await json<{ draft: { id: number } }>(await app.request("/api/drafts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: "Bell seed", body: "A bell remembers debts" })
+    }));
+    expect(await json(await app.request("/api/drafts"))).toMatchObject({ drafts: [{ title: "Bell seed" }] });
+    const converted = await app.request(`/api/drafts/${draft.draft.id}/convert`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recordTypeKey: "canon_fact", truthLayer: "Objective canon", canonStatus: "proposed" })
+    });
+    expect(converted.status).toBe(201);
+    expect(await json(await app.request("/api/drafts"))).toMatchObject({ drafts: [] });
+
+    const prompt = await json<{ prompt: string }>(await app.request("/api/prompts/generate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ templateKey: "kernel_pressure", recordId: fact.id, stepKey: "kernel" })
+    }));
+    expect(prompt.prompt).toContain("Record context");
+    expect(prompt.prompt).toContain("Vocabulary guardrail");
+    expect(prompt.prompt).toContain("Label assumptions instruction");
+
+    const advisory = await json<{ record: { id: number } }>(await app.request("/api/advisory-artifacts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ stepKey: "kernel", promptText: prompt.prompt, responseText: "Verbatim response" })
+    }));
+    expect((await app.request(`/api/records/${advisory.record.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ body: "edited" })
+    })).status).toBe(400);
+    expect((await app.request(`/api/advisory-artifacts/${advisory.record.id}/dispositions`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ disposition: "standing ruling", note: "Keep pressure concrete", standingRuling: true })
+    })).status).toBe(201);
+    expect((await json<{ prompt: string }>(await app.request("/api/prompts/generate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ templateKey: "kernel_pressure", recordId: fact.id })
+    }))).prompt).toContain("Keep pressure concrete");
+
+    const editedTemplate = await app.request("/api/prompt-templates/kernel_pressure", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: "Custom pressure text" })
+    });
+    expect(editedTemplate.status).toBe(200);
+    expect(await json(await app.request("/api/prompt-templates"))).toMatchObject({
+      templates: expect.arrayContaining([expect.objectContaining({ key: "kernel_pressure", current_text: "Custom pressure text", original_text: expect.stringContaining("Given this canon fact") })])
+    });
+    const revertedTemplate = await app.request("/api/prompt-templates/kernel_pressure/revert", { method: "POST" });
+    expect(revertedTemplate.status).toBe(200);
+
+    const flow = await json<{ flow: { id: number } }>(await app.request("/api/flows/creation/start", { method: "POST" }));
+    const kernelStep = await json<{ kernel: { id: number }; facets: Array<{ term: string }> }>(await app.request("/api/flows/creation/kernel-step", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowId: flow.flow.id, heading: "World premise", body: "A city hears its dead", consequenceMode: "weird" })
+    }));
+    expect(kernelStep.facets).toEqual([expect.objectContaining({ term: "weird" })]);
+    expect((await app.request("/api/flows/creation/skip", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowId: flow.flow.id, stepKey: "kernel_prompt" })
+    })).status).toBe(201);
+
+    const decomposed = await app.request("/api/flows/creation/decompose", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        flowId: flow.flow.id,
+        kernelRecordId: kernelStep.kernel.id,
+        seeds: [{ title: "Echo court testimony", body: "Courts accept echo testimony under conditions", truthLayer: "Objective canon", canonStatus: "proposed" }]
+      })
+    });
+    expect(decomposed.status).toBe(201);
+    expect(await json(decomposed)).toMatchObject({ records: [{ canonStatus: "proposed" }] });
+  });
 });

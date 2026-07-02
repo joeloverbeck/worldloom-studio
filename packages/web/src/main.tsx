@@ -19,9 +19,31 @@ interface VocabularyTerm {
   term: string;
 }
 
-interface RecentWorld {
-  path: string;
-  openedAt: string;
+interface SectionHeading {
+  record_type_key: string;
+  position: number;
+  heading: string;
+  package_source: string;
+}
+
+interface SectionRow {
+  id: number;
+  heading: string;
+  body: string;
+  position: number;
+}
+
+interface FacetRow {
+  id: number;
+  vocabulary: string;
+  term: string;
+  position: number;
+}
+
+interface DraftRow {
+  id: number;
+  title: string;
+  body: string;
 }
 
 interface LinkRow {
@@ -31,6 +53,19 @@ interface LinkRow {
   linkTypeKey: string;
   note: string;
   depth?: number;
+}
+
+interface RecentWorld {
+  path: string;
+  openedAt: string;
+}
+
+interface PromptTemplate {
+  key: string;
+  role_name: string;
+  original_text: string;
+  current_text: string;
+  current_version: number;
 }
 
 const api = async <T,>(path: string, init?: RequestInit): Promise<T> => {
@@ -48,37 +83,69 @@ const api = async <T,>(path: string, init?: RequestInit): Promise<T> => {
   return payload as T;
 };
 
+const emptyRecordForm = {
+  title: "",
+  body: "",
+  truthLayer: "",
+  canonStatus: ""
+};
+
 function App() {
   const [token, setToken] = useState(localStorage.getItem("worldloom-token") ?? "");
   const [worldPath, setWorldPath] = useState("");
   const [openWorld, setOpenWorld] = useState<string | null>(null);
+  const [serverVersion, setServerVersion] = useState("");
+  const [message, setMessage] = useState("");
   const [recordTypes, setRecordTypes] = useState<RecordTypeDefinition[]>([]);
   const [linkTypes, setLinkTypes] = useState<LinkTypeDefinition[]>([]);
   const [records, setRecords] = useState<RecordRow[]>([]);
   const [links, setLinks] = useState<LinkRow[]>([]);
   const [recentWorlds, setRecentWorlds] = useState<RecentWorld[]>([]);
   const [terms, setTerms] = useState<VocabularyTerm[]>([]);
-  const [message, setMessage] = useState("");
-  const [serverVersion, setServerVersion] = useState("");
+  const [headings, setHeadings] = useState<SectionHeading[]>([]);
+  const [sections, setSections] = useState<SectionRow[]>([]);
+  const [facets, setFacets] = useState<FacetRow[]>([]);
+  const [drafts, setDrafts] = useState<DraftRow[]>([]);
+  const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [search, setSearch] = useState("");
   const [snapshotPath, setSnapshotPath] = useState("");
   const [recordTypeKey, setRecordTypeKey] = useState("canon_fact");
   const [promotionRecordTypeKey, setPromotionRecordTypeKey] = useState("canon_fact");
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [truthLayer, setTruthLayer] = useState("");
-  const [canonStatus, setCanonStatus] = useState("");
+  const [recordForm, setRecordForm] = useState(emptyRecordForm);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [facetVocabulary, setFacetVocabulary] = useState("consequence_mode");
+  const [facetTerm, setFacetTerm] = useState("");
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftBody, setDraftBody] = useState("");
   const [fromRecordId, setFromRecordId] = useState("");
   const [toRecordId, setToRecordId] = useState("");
   const [linkTypeKey, setLinkTypeKey] = useState("depends_on");
+  const [promptRecordId, setPromptRecordId] = useState("");
+  const [promptTemplateKey, setPromptTemplateKey] = useState("kernel_pressure");
+  const [promptText, setPromptText] = useState("");
+  const [templateEdit, setTemplateEdit] = useState("");
+  const [responseText, setResponseText] = useState("");
+  const [disposition, setDisposition] = useState("standing ruling");
+  const [flowId, setFlowId] = useState<number | null>(null);
+  const [kernelRecordId, setKernelRecordId] = useState<number | null>(null);
+  const [kernelHeading, setKernelHeading] = useState("World premise");
+  const [kernelBody, setKernelBody] = useState("");
+  const [consequenceMode, setConsequenceMode] = useState("");
+  const [seedTitle, setSeedTitle] = useState("");
+  const [seedBody, setSeedBody] = useState("");
 
   const truthLayers = useMemo(() => terms.filter((term) => term.vocabulary === "truth_layer"), [terms]);
   const canonStatuses = useMemo(() => terms.filter((term) => term.vocabulary === "canon_status"), [terms]);
+  const vocabularies = useMemo(() => [...new Set(terms.map((term) => term.vocabulary))], [terms]);
+  const facetTerms = useMemo(() => terms.filter((term) => term.vocabulary === facetVocabulary), [terms, facetVocabulary]);
+  const consequenceModes = useMemo(() => terms.filter((term) => term.vocabulary === "consequence_mode"), [terms]);
+  const advisoryDispositions = useMemo(() => terms.filter((term) => term.vocabulary === "advisory_disposition"), [terms]);
   const recordTypeByKey = useMemo(() => new Map(recordTypes.map((recordType) => [recordType.key, recordType])), [recordTypes]);
-  const selectedRecordType = editingId == null ? null : recordTypeByKey.get(recordTypeKey);
-  const editingReportRecord = selectedRecordType?.mutationRegime === "report";
-  const canSaveRecord = Boolean(openWorld && title.trim() && truthLayer && canonStatus && !editingReportRecord);
+  const selectedRecordType = editingId == null ? recordTypeByKey.get(recordTypeKey) : recordTypeByKey.get(recordTypeKey);
+  const editingReportRecord = editingId != null && selectedRecordType?.mutationRegime === "report";
+  const canSaveRecord = Boolean(openWorld && recordForm.title.trim() && recordForm.truthLayer && recordForm.canonStatus && !editingReportRecord);
+  const selectedHeadings = headings.filter((heading) => heading.record_type_key === recordTypeKey);
+  const selectedTemplate = templates.find((template) => template.key === promptTemplateKey);
 
   useEffect(() => {
     if (!token) return;
@@ -97,30 +164,39 @@ function App() {
       .catch((error: Error) => setMessage(error.message));
   }, [token]);
 
+  useEffect(() => {
+    if (!facetTerm && facetTerms[0]) setFacetTerm(facetTerms[0].term);
+  }, [facetTerm, facetTerms]);
+
+  useEffect(() => {
+    setTemplateEdit(selectedTemplate?.current_text ?? "");
+  }, [selectedTemplate]);
+
   const rememberToken = (next: string) => {
     setToken(next);
     localStorage.setItem("worldloom-token", next);
   };
 
-  const refreshRecords = async () => {
-    const payload = await api<{ records: RecordRow[] }>("/api/records");
-    setRecords(payload.records);
-    await refreshLinks();
-  };
-
-  const refreshLinks = async () => {
-    const payload = await api<{ links: LinkRow[] }>("/api/links");
-    setLinks(payload.links);
-  };
-
-  const loadVocabularies = async () => {
-    const payload = await api<{ terms: VocabularyTerm[] }>("/api/vocabularies");
-    setTerms(payload.terms);
-  };
-
   const loadRecentWorlds = async () => {
     const payload = await api<{ recentWorlds: RecentWorld[] }>("/api/recent-worlds");
     setRecentWorlds(payload.recentWorlds);
+  };
+
+  const loadWorldData = async () => {
+    const [recordPayload, linkPayload, vocabularyPayload, headingPayload, draftPayload, templatePayload] = await Promise.all([
+      api<{ records: RecordRow[] }>("/api/records"),
+      api<{ links: LinkRow[] }>("/api/links"),
+      api<{ terms: VocabularyTerm[] }>("/api/vocabularies"),
+      api<{ headings: SectionHeading[] }>("/api/section-headings"),
+      api<{ drafts: DraftRow[] }>("/api/drafts"),
+      api<{ templates: PromptTemplate[] }>("/api/prompt-templates")
+    ]);
+    setRecords(recordPayload.records);
+    setLinks(linkPayload.links);
+    setTerms(vocabularyPayload.terms);
+    setHeadings(headingPayload.headings);
+    setDrafts(draftPayload.drafts);
+    setTemplates(templatePayload.templates);
   };
 
   const createOrOpen = async (mode: "create" | "open", selectedPath = worldPath) => {
@@ -130,34 +206,95 @@ function App() {
     });
     setOpenWorld(payload.path);
     setRecords(payload.records);
-    setLinks([]);
-    await loadVocabularies();
-    await refreshLinks();
+    await loadWorldData();
     await loadRecentWorlds();
     setMessage(`${mode === "create" ? "Created" : "Opened"} ${payload.path}`);
+  };
+
+  const resetRecordForm = () => {
+    setEditingId(null);
+    setRecordForm(emptyRecordForm);
+    setSections([]);
+    setFacets([]);
+  };
+
+  const editRecord = async (record: RecordRow) => {
+    setEditingId(record.id);
+    setRecordTypeKey(record.recordTypeKey);
+    setRecordForm({ title: record.title, body: record.body, truthLayer: record.truthLayer ?? "", canonStatus: record.canonStatus ?? "" });
+    const [sectionPayload, facetPayload] = await Promise.all([
+      api<{ sections: SectionRow[] }>(`/api/records/${record.id}/sections`),
+      api<{ facets: FacetRow[] }>(`/api/records/${record.id}/facets`)
+    ]);
+    setSections(sectionPayload.sections);
+    setFacets(facetPayload.facets);
+    setPromptRecordId(String(record.id));
   };
 
   const saveRecord = async () => {
     const payload = await api<{ record: RecordRow }>(editingId == null ? "/api/records" : `/api/records/${editingId}`, {
       method: editingId == null ? "POST" : "PATCH",
-      body: JSON.stringify({ recordTypeKey, title, body, truthLayer: truthLayer || null, canonStatus: canonStatus || null })
+      body: JSON.stringify({ recordTypeKey, ...recordForm, truthLayer: recordForm.truthLayer || null, canonStatus: recordForm.canonStatus || null })
     });
+    if (sections.length) {
+      await api(`/api/records/${payload.record.id}/sections`, {
+        method: "PUT",
+        body: JSON.stringify({ sections })
+      });
+    }
     setMessage(`Saved ${payload.record.shortId}`);
-    setEditingId(null);
-    setTitle("");
-    setBody("");
-    setTruthLayer("");
-    setCanonStatus("");
-    await refreshRecords();
+    resetRecordForm();
+    await loadWorldData();
   };
 
-  const editRecord = (record: RecordRow) => {
-    setEditingId(record.id);
-    setRecordTypeKey(record.recordTypeKey);
-    setTitle(record.title);
-    setBody(record.body);
-    setTruthLayer(record.truthLayer ?? "");
-    setCanonStatus(record.canonStatus ?? "");
+  const updateSection = (heading: SectionHeading, body: string) => {
+    setSections((current) => {
+      const existing = current.find((section) => section.heading === heading.heading);
+      if (existing) {
+        return current.map((section) => section.heading === heading.heading ? { ...section, body, position: heading.position } : section);
+      }
+      return [...current, { id: 0, heading: heading.heading, body, position: heading.position }];
+    });
+  };
+
+  const addFacet = async () => {
+    if (editingId == null) return;
+    await api(`/api/records/${editingId}/facets`, {
+      method: "POST",
+      body: JSON.stringify({ vocabulary: facetVocabulary, term: facetTerm })
+    });
+    const payload = await api<{ facets: FacetRow[] }>(`/api/records/${editingId}/facets`);
+    setFacets(payload.facets);
+  };
+
+  const removeFacet = async (facetId: number) => {
+    if (editingId == null) return;
+    await api(`/api/records/${editingId}/facets/${facetId}`, { method: "DELETE" });
+    const payload = await api<{ facets: FacetRow[] }>(`/api/records/${editingId}/facets`);
+    setFacets(payload.facets);
+  };
+
+  const saveDraft = async () => {
+    await api("/api/drafts", {
+      method: "POST",
+      body: JSON.stringify({ title: draftTitle, body: draftBody })
+    });
+    setDraftTitle("");
+    setDraftBody("");
+    await loadWorldData();
+  };
+
+  const convertDraft = async (draft: DraftRow) => {
+    await api(`/api/drafts/${draft.id}/convert`, {
+      method: "POST",
+      body: JSON.stringify({ recordTypeKey, truthLayer: recordForm.truthLayer, canonStatus: recordForm.canonStatus })
+    });
+    await loadWorldData();
+  };
+
+  const discardDraft = async (draft: DraftRow) => {
+    await api(`/api/drafts/${draft.id}`, { method: "DELETE" });
+    await loadWorldData();
   };
 
   const runSearch = async () => {
@@ -168,29 +305,22 @@ function App() {
   const createLink = async () => {
     await api("/api/links", {
       method: "POST",
-      body: JSON.stringify({
-        fromRecordId: Number(fromRecordId),
-        toRecordId: Number(toRecordId),
-        linkTypeKey
-      })
+      body: JSON.stringify({ fromRecordId: Number(fromRecordId), toRecordId: Number(toRecordId), linkTypeKey })
     });
-    setMessage("Link recorded");
-    await refreshLinks();
+    await loadWorldData();
   };
 
   const traverseLinks = async () => {
     const payload = await api<{ links: LinkRow[] }>(`/api/links/traverse?recordId=${encodeURIComponent(fromRecordId)}&linkTypeKey=${encodeURIComponent(linkTypeKey)}`);
     setLinks(payload.links);
-    setMessage(`Traversal returned ${payload.links.length} link${payload.links.length === 1 ? "" : "s"}`);
   };
 
   const promoteRecord = async (record: RecordRow) => {
-    const payload = await api<{ record: RecordRow }>(`/api/records/${record.id}/promote`, {
+    await api(`/api/records/${record.id}/promote`, {
       method: "POST",
       body: JSON.stringify({ recordTypeKey: promotionRecordTypeKey })
     });
-    setMessage(`Promoted ${payload.record.shortId} to ${payload.record.recordTypeKey}`);
-    await refreshRecords();
+    await loadWorldData();
   };
 
   const snapshot = async () => {
@@ -199,6 +329,79 @@ function App() {
       body: JSON.stringify({ destinationPath: snapshotPath || undefined })
     });
     setMessage(`Snapshot written to ${payload.path}`);
+  };
+
+  const generatePrompt = async () => {
+    const payload = await api<{ prompt: string }>("/api/prompts/generate", {
+      method: "POST",
+      body: JSON.stringify({ templateKey: promptTemplateKey, recordId: promptRecordId ? Number(promptRecordId) : undefined, stepKey: promptTemplateKey })
+    });
+    setPromptText(payload.prompt);
+  };
+
+  const savePromptTemplate = async () => {
+    await api(`/api/prompt-templates/${promptTemplateKey}`, {
+      method: "PATCH",
+      body: JSON.stringify({ text: templateEdit })
+    });
+    await loadWorldData();
+  };
+
+  const revertPromptTemplate = async () => {
+    await api(`/api/prompt-templates/${promptTemplateKey}/revert`, { method: "POST" });
+    await loadWorldData();
+  };
+
+  const storeAdvisory = async () => {
+    const artifact = await api<{ record: RecordRow }>("/api/advisory-artifacts", {
+      method: "POST",
+      body: JSON.stringify({ stepKey: promptTemplateKey, promptText, responseText })
+    });
+    await api(`/api/advisory-artifacts/${artifact.record.id}/dispositions`, {
+      method: "POST",
+      body: JSON.stringify({ disposition, note: responseText, standingRuling: disposition === "standing ruling" })
+    });
+    await loadWorldData();
+    setMessage(`Stored ${artifact.record.shortId}`);
+  };
+
+  const startFlow = async () => {
+    const payload = await api<{ flow: { id: number; kernel_record_id?: number } }>("/api/flows/creation/start", { method: "POST" });
+    setFlowId(payload.flow.id);
+    if (payload.flow.kernel_record_id) setKernelRecordId(payload.flow.kernel_record_id);
+  };
+
+  const saveKernelStep = async () => {
+    if (flowId == null) return;
+    const payload = await api<{ kernel: { id: number } }>("/api/flows/creation/kernel-step", {
+      method: "POST",
+      body: JSON.stringify({ flowId, heading: kernelHeading, body: kernelBody, consequenceMode: consequenceMode || undefined })
+    });
+    setKernelRecordId(payload.kernel.id);
+    await loadWorldData();
+  };
+
+  const skipPrompt = async () => {
+    await api("/api/flows/creation/skip", {
+      method: "POST",
+      body: JSON.stringify({ flowId, stepKey: promptTemplateKey })
+    });
+    await loadWorldData();
+  };
+
+  const decompose = async () => {
+    if (flowId == null || kernelRecordId == null) return;
+    await api("/api/flows/creation/decompose", {
+      method: "POST",
+      body: JSON.stringify({
+        flowId,
+        kernelRecordId,
+        seeds: [{ title: seedTitle, body: seedBody, truthLayer: recordForm.truthLayer, canonStatus: recordForm.canonStatus }]
+      })
+    });
+    setSeedTitle("");
+    setSeedBody("");
+    await loadWorldData();
   };
 
   return (
@@ -213,101 +416,137 @@ function App() {
 
       <section className="workspace">
         <aside className="sidebar">
-          <label>
-            World file path
-            <input value={worldPath} onChange={(event) => setWorldPath(event.target.value)} placeholder="/tmp/example.worldloom.sqlite" />
-          </label>
+          <label>World file path<input value={worldPath} onChange={(event) => setWorldPath(event.target.value)} placeholder="/tmp/example.worldloom.sqlite" /></label>
           <div className="row">
             <button onClick={() => createOrOpen("create")}>Create</button>
             <button onClick={() => createOrOpen("open")}>Open</button>
           </div>
-          <label>
-            Snapshot path
-            <input value={snapshotPath} onChange={(event) => setSnapshotPath(event.target.value)} placeholder="/tmp/example.snapshot.sqlite" />
-          </label>
+          <label>Snapshot path<input value={snapshotPath} onChange={(event) => setSnapshotPath(event.target.value)} placeholder="/tmp/example.snapshot.sqlite" /></label>
           <button onClick={snapshot} disabled={!openWorld}>Snapshot</button>
-
           <div className="recent">
-            {recentWorlds.map((recent) => (
-              <button key={recent.path} onClick={() => { setWorldPath(recent.path); void createOrOpen("open", recent.path); }} title={recent.openedAt}>
-                {recent.path}
-              </button>
-            ))}
+            {recentWorlds.map((recent) => <button key={recent.path} onClick={() => { setWorldPath(recent.path); void createOrOpen("open", recent.path); }}>{recent.path}</button>)}
           </div>
-
-          <label>
-            Search
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="record title or prose" />
-          </label>
+          <label>Search<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="record title or prose" /></label>
           <div className="row">
             <button onClick={runSearch} disabled={!openWorld}>Search</button>
-            <button onClick={refreshRecords} disabled={!openWorld}>All</button>
+            <button onClick={loadWorldData} disabled={!openWorld}>All</button>
           </div>
-
-          <label>
-            Link from
-            <input value={fromRecordId} onChange={(event) => setFromRecordId(event.target.value)} placeholder="record id" />
-          </label>
-          <label>
-            Link to
-            <input value={toRecordId} onChange={(event) => setToRecordId(event.target.value)} placeholder="record id" />
-          </label>
-          <label>
-            Link type
-            <select value={linkTypeKey} onChange={(event) => setLinkTypeKey(event.target.value)}>
-              {linkTypes.map((linkType) => <option key={linkType.key} value={linkType.key}>{linkType.label}</option>)}
-            </select>
-          </label>
-          <label>
-            Promotion target
-            <select value={promotionRecordTypeKey} onChange={(event) => setPromotionRecordTypeKey(event.target.value)}>
-              {recordTypes.filter((recordType) => recordType.mutationRegime === "card").map((recordType) => (
-                <option key={recordType.key} value={recordType.key}>{recordType.label}</option>
-              ))}
-            </select>
-          </label>
+          <label>Link from<input value={fromRecordId} onChange={(event) => setFromRecordId(event.target.value)} placeholder="record id" /></label>
+          <label>Link to<input value={toRecordId} onChange={(event) => setToRecordId(event.target.value)} placeholder="record id" /></label>
+          <label>Link type<select value={linkTypeKey} onChange={(event) => setLinkTypeKey(event.target.value)}>{linkTypes.map((linkType) => <option key={linkType.key} value={linkType.key}>{linkType.label}</option>)}</select></label>
+          <label>Promotion target<select value={promotionRecordTypeKey} onChange={(event) => setPromotionRecordTypeKey(event.target.value)}>{recordTypes.filter((recordType) => recordType.mutationRegime === "card").map((recordType) => <option key={recordType.key} value={recordType.key}>{recordType.label}</option>)}</select></label>
           <button onClick={createLink} disabled={!openWorld}>Create Link</button>
           <button onClick={traverseLinks} disabled={!openWorld || !fromRecordId}>Traverse</button>
         </aside>
 
         <section className="editor">
+          <div className="operating-card">
+            <strong>Operating Card</strong>
+            <span>Source: docs/worldbuilding-system/operating_card.md</span>
+            <span>Fill a lean world kernel, decompose seeds until each can be independently rejected, then admit later through `06`.</span>
+          </div>
+
           <div className="panel">
             <h2>{editingId == null ? "New record" : `Editing record ${editingId}`}</h2>
             {editingReportRecord && <p className="status">Report-regime records are append-only and view-only after creation.</p>}
             <div className="grid">
-              <label>
-                Record type
-                <select value={recordTypeKey} onChange={(event) => setRecordTypeKey(event.target.value)} disabled={editingId != null}>
-                  {recordTypes.map((recordType) => <option key={recordType.key} value={recordType.key}>{recordType.label} ({recordType.mutationRegime})</option>)}
-                </select>
-              </label>
-              <label>
-                Truth layer
-                <select value={truthLayer} onChange={(event) => setTruthLayer(event.target.value)} disabled={editingReportRecord}>
-                  <option></option>
-                  {truthLayers.map((term) => <option key={term.term}>{term.term}</option>)}
-                </select>
-              </label>
-              <label>
-                Canon status
-                <select value={canonStatus} onChange={(event) => setCanonStatus(event.target.value)} disabled={editingReportRecord}>
-                  <option></option>
-                  {canonStatuses.map((term) => <option key={term.term}>{term.term}</option>)}
-                </select>
-              </label>
+              <label>Record type<select value={recordTypeKey} onChange={(event) => { setRecordTypeKey(event.target.value); setSections([]); }} disabled={editingId != null}>{recordTypes.map((recordType) => <option key={recordType.key} value={recordType.key}>{recordType.label} ({recordType.mutationRegime})</option>)}</select></label>
+              <label>Truth layer<select value={recordForm.truthLayer} onChange={(event) => setRecordForm({ ...recordForm, truthLayer: event.target.value })} disabled={editingReportRecord}><option></option>{truthLayers.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+              <label>Canon status<select value={recordForm.canonStatus} onChange={(event) => setRecordForm({ ...recordForm, canonStatus: event.target.value })} disabled={editingReportRecord}><option></option>{canonStatuses.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
             </div>
-            <label>
-              Title
-              <input value={title} onChange={(event) => setTitle(event.target.value)} disabled={editingReportRecord} />
-            </label>
-            <label>
-              Prose
-              <textarea value={body} onChange={(event) => setBody(event.target.value)} rows={10} disabled={editingReportRecord} />
-            </label>
+            <label>Title<input value={recordForm.title} onChange={(event) => setRecordForm({ ...recordForm, title: event.target.value })} disabled={editingReportRecord} /></label>
+            <label>Prose<textarea value={recordForm.body} onChange={(event) => setRecordForm({ ...recordForm, body: event.target.value })} rows={5} disabled={editingReportRecord} /></label>
+            {selectedHeadings.length > 0 && (
+              <div className="subpanel">
+                <h3>Sections</h3>
+                {selectedHeadings.map((heading) => (
+                  <label key={heading.heading}>{heading.heading}
+                    <textarea rows={3} value={sections.find((section) => section.heading === heading.heading)?.body ?? ""} onChange={(event) => updateSection(heading, event.target.value)} disabled={editingReportRecord} />
+                  </label>
+                ))}
+              </div>
+            )}
+            <div className="subpanel">
+              <h3>Facets</h3>
+              <div className="grid">
+                <label>Vocabulary<select value={facetVocabulary} onChange={(event) => { setFacetVocabulary(event.target.value); setFacetTerm(""); }}>{vocabularies.map((vocabulary) => <option key={vocabulary}>{vocabulary}</option>)}</select></label>
+                <label>Term<select value={facetTerm} onChange={(event) => setFacetTerm(event.target.value)}>{facetTerms.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+                <button onClick={addFacet} disabled={editingId == null}>Add Facet</button>
+              </div>
+              <div className="chips">{facets.map((facet) => <button key={facet.id} onClick={() => removeFacet(facet.id)}>{facet.vocabulary}: {facet.term} #{facet.position}</button>)}</div>
+            </div>
             <div className="row">
               <button onClick={saveRecord} disabled={!canSaveRecord}>Save Record</button>
-              <button onClick={() => { setEditingId(null); setTitle(""); setBody(""); setTruthLayer(""); setCanonStatus(""); }}>Clear</button>
+              <button onClick={resetRecordForm}>Clear</button>
             </div>
+          </div>
+
+          <div className="panel two">
+            <section className="subpanel">
+              <h2>Draft space</h2>
+              <label>Title<input value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} /></label>
+              <label>Body<textarea rows={4} value={draftBody} onChange={(event) => setDraftBody(event.target.value)} /></label>
+              <button onClick={saveDraft} disabled={!openWorld || !draftTitle.trim()}>Save Draft</button>
+              {drafts.map((draft) => (
+                <article key={draft.id}>
+                  <h3>{draft.title}</h3>
+                  <p>{draft.body}</p>
+                  <div className="row">
+                    <button onClick={() => convertDraft(draft)} disabled={!recordForm.truthLayer || !recordForm.canonStatus}>Convert to Proposed</button>
+                    <button onClick={() => discardDraft(draft)}>Discard</button>
+                  </div>
+                </article>
+              ))}
+            </section>
+            <section className="subpanel">
+              <h2>Prompt-out</h2>
+              <label>Template<select value={promptTemplateKey} onChange={(event) => setPromptTemplateKey(event.target.value)}>{templates.map((template) => <option key={template.key} value={template.key}>{template.role_name} v{template.current_version}</option>)}</select></label>
+              {selectedTemplate && (
+                <div className="doctrine">
+                  <strong>{selectedTemplate.role_name}</strong>
+                  <span>Source: docs/worldbuilding-system/20_ai_assisted_workflow.md</span>
+                  <span>Original: {selectedTemplate.original_text}</span>
+                </div>
+              )}
+              <label>Steward-editable prompt text<textarea rows={4} value={templateEdit} onChange={(event) => setTemplateEdit(event.target.value)} /></label>
+              <div className="row">
+                <button onClick={savePromptTemplate} disabled={!openWorld || !templateEdit.trim()}>Save Template</button>
+                <button onClick={revertPromptTemplate} disabled={!openWorld}>Revert Template</button>
+              </div>
+              <label>Record id<input value={promptRecordId} onChange={(event) => setPromptRecordId(event.target.value)} /></label>
+              <button onClick={generatePrompt} disabled={!openWorld}>Generate Prompt</button>
+              <textarea rows={7} value={promptText} onChange={(event) => setPromptText(event.target.value)} />
+              <label>Pasted response<textarea rows={5} value={responseText} onChange={(event) => setResponseText(event.target.value)} /></label>
+              <label>Disposition<select value={disposition} onChange={(event) => setDisposition(event.target.value)}>{advisoryDispositions.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+              <div className="row">
+                <button onClick={storeAdvisory} disabled={!promptText || !responseText}>Store Advisory</button>
+                <button onClick={skipPrompt} disabled={!openWorld}>Skip Prompt</button>
+              </div>
+            </section>
+          </div>
+
+          <div className="panel">
+            <h2>Creation flow</h2>
+            <div className="row">
+              <button onClick={startFlow} disabled={!openWorld}>Start or Resume</button>
+              <span className="status">{flowId ? `Flow ${flowId}${kernelRecordId ? ` · kernel ${kernelRecordId}` : ""}` : ""}</span>
+            </div>
+            <div className="grid">
+              <label>Kernel step<select value={kernelHeading} onChange={(event) => setKernelHeading(event.target.value)}>{headings.filter((heading) => heading.record_type_key === "world_kernel").map((heading) => <option key={heading.heading}>{heading.heading}</option>)}</select></label>
+              <label>Consequence mode<select value={consequenceMode} onChange={(event) => setConsequenceMode(event.target.value)}><option></option>{consequenceModes.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+            </div>
+            <div className="doctrine">
+              <strong>Doctrine at point of use</strong>
+              <span>Kernel steps derive from docs/worldbuilding-system/05_creation_protocol.md and docs/worldbuilding-system/templates/world_kernel.md.</span>
+              <span>Decomposition uses the granularity rule: split until each seed can be independently rejected without destroying its siblings; stop at the thin-start boundary.</span>
+            </div>
+            <label>Kernel section<textarea rows={4} value={kernelBody} onChange={(event) => setKernelBody(event.target.value)} /></label>
+            <button onClick={saveKernelStep} disabled={flowId == null}>Save Kernel Step</button>
+            <div className="grid">
+              <label>Seed title<input value={seedTitle} onChange={(event) => setSeedTitle(event.target.value)} /></label>
+              <label>Seed body<input value={seedBody} onChange={(event) => setSeedBody(event.target.value)} /></label>
+            </div>
+            <button onClick={decompose} disabled={flowId == null || kernelRecordId == null || !seedTitle || !recordForm.truthLayer || !recordForm.canonStatus}>Decompose and Park Seed</button>
           </div>
 
           {message && <p className="status">{message}</p>}
@@ -316,11 +555,9 @@ function App() {
             {records.map((record) => (
               <article key={record.id}>
                 <button onClick={() => editRecord(record)}>Edit</button>
-                {recordTypeByKey.get(record.recordTypeKey)?.mutationRegime === "card" && (
-                  <button className="promote" onClick={() => promoteRecord(record)}>Promote</button>
-                )}
+                {recordTypeByKey.get(record.recordTypeKey)?.mutationRegime === "card" && <button className="promote" onClick={() => promoteRecord(record)}>Promote</button>}
                 <h3>{record.shortId} · {record.title}</h3>
-                <p className="meta">{record.recordTypeKey} · {record.updatedAt}</p>
+                <p className="meta">{record.recordTypeKey} · {record.truthLayer ?? "no layer"} · {record.canonStatus ?? "no status"} · {record.updatedAt}</p>
                 <p>{record.body || "No prose yet."}</p>
               </article>
             ))}
@@ -328,11 +565,7 @@ function App() {
           {links.length > 0 && (
             <div className="links">
               <h2>Links</h2>
-              {links.map((link) => (
-                <p key={`${link.id}-${link.depth ?? 0}`}>
-                  {link.depth ? `${link.depth}. ` : ""}{link.fromRecordId} {link.linkTypeKey} {link.toRecordId}{link.note ? ` · ${link.note}` : ""}
-                </p>
-              ))}
+              {links.map((link) => <p key={`${link.id}-${link.depth ?? 0}`}>{link.depth ? `${link.depth}. ` : ""}{link.fromRecordId} {link.linkTypeKey} {link.toRecordId}{link.note ? ` · ${link.note}` : ""}</p>)}
             </div>
           )}
         </section>

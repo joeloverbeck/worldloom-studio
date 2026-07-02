@@ -102,6 +102,7 @@ label {
   display: grid;
   gap: 14px;
   max-width: 980px;
+  margin-bottom: 18px;
 }
 
 .panel h2 {
@@ -118,7 +119,52 @@ label {
 .row {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
+}
+
+.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.subpanel,
+.operating-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #d4cdbc;
+  border-radius: 8px;
+  background: #fffdfa;
+  padding: 12px;
+}
+
+.operating-card {
+  max-width: 980px;
+  margin-bottom: 18px;
+  color: #33423d;
+}
+
+.operating-card span {
+  overflow-wrap: anywhere;
+}
+
+.subpanel h2,
+.subpanel h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chips button {
+  height: auto;
+  min-height: 30px;
+  background: #fffdfa;
+  color: #1f3d36;
 }
 
 .recent {
@@ -150,6 +196,16 @@ label {
   border-radius: 8px;
   background: #fffdfa;
   padding: 12px 96px 12px 14px;
+}
+
+.records article p,
+.subpanel article p {
+  overflow-wrap: anywhere;
+}
+
+.subpanel article {
+  border-top: 1px solid #ddd6c8;
+  padding-top: 10px;
 }
 
 .records article > button {
@@ -206,5 +262,14 @@ label {
 
   .grid {
     grid-template-columns: 1fr;
+  }
+
+  .two {
+    grid-template-columns: 1fr;
+  }
+
+  .records article {
+    padding-right: 14px;
+    padding-top: 90px;
   }
 }

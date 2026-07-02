@@ -1,7 +1,7 @@
 import { LINK_TYPES, RECORD_TYPES, VOCABULARY_TERMS } from "@worldloom/shared";
 
 export const APPLICATION_ID = 0x574c4f4d;
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 const sqlString = (value: string): string => `'${value.replaceAll("'", "''")}'`;
 
@@ -266,4 +266,234 @@ BEGIN
 END;
 
 PRAGMA user_version = 1;
+`;
+
+const headingValues = [
+  ["world_kernel", 1, "World premise", "docs/worldbuilding-system/templates/world_kernel.md"],
+  ["world_kernel", 2, "Core promise", "docs/worldbuilding-system/templates/world_kernel.md"],
+  ["world_kernel", 3, "Starting scale", "docs/worldbuilding-system/templates/world_kernel.md"],
+  ["world_kernel", 4, "Genre, tone, and consequence-mode commitments", "docs/worldbuilding-system/templates/world_kernel.md"],
+  ["world_kernel", 5, "Foundational facts", "docs/worldbuilding-system/templates/world_kernel.md"],
+  ["world_kernel", 6, "Foundational constraints", "docs/worldbuilding-system/templates/world_kernel.md"],
+  ["world_kernel", 7, "Initial mysteries and protected effects", "docs/worldbuilding-system/templates/world_kernel.md"],
+  ["world_kernel", 8, "Primary pressures and initial domains", "docs/worldbuilding-system/templates/world_kernel.md"],
+  ["world_kernel", 9, "Ordinary-life promise", "docs/worldbuilding-system/templates/world_kernel.md"],
+  ["canon_fact", 1, "Fact statement", "docs/worldbuilding-system/templates/canon_fact_card.md"],
+  ["canon_fact", 2, "Working scope", "docs/worldbuilding-system/templates/canon_fact_card.md"],
+  ["canon_fact", 3, "Consequence mode", "docs/worldbuilding-system/templates/canon_fact_card.md"],
+  ["canon_fact", 4, "Prerequisites", "docs/worldbuilding-system/templates/canon_fact_card.md"],
+  ["canon_fact", 5, "Costs and limits", "docs/worldbuilding-system/templates/canon_fact_card.md"],
+  ["canon_fact", 6, "Shock-cone summary", "docs/worldbuilding-system/templates/canon_fact_card.md"],
+  ["canon_fact", 7, "Evidence and belief", "docs/worldbuilding-system/templates/canon_fact_card.md"],
+  ["canon_fact", 8, "Contradiction risks", "docs/worldbuilding-system/templates/canon_fact_card.md"],
+  ["canon_fact", 9, "Mystery / wonder risks", "docs/worldbuilding-system/templates/canon_fact_card.md"],
+  ["canon_fact", 10, "Notes", "docs/worldbuilding-system/templates/canon_fact_card.md"],
+  ["seed_decomposition", 1, "Kernel source", "docs/worldbuilding-system/05_creation_protocol.md"],
+  ["seed_decomposition", 2, "Drafts consumed", "docs/worldbuilding-system/05_creation_protocol.md"],
+  ["seed_decomposition", 3, "Granularity decisions", "docs/worldbuilding-system/05_creation_protocol.md"],
+  ["seed_decomposition", 4, "Parked seeds", "docs/worldbuilding-system/05_creation_protocol.md"],
+  ["seed_decomposition", 5, "Thin-start boundary", "docs/worldbuilding-system/05_creation_protocol.md"]
+] as const;
+
+export const migration002 = `
+CREATE TABLE IF NOT EXISTS record_section_headings (
+  record_type_key TEXT NOT NULL REFERENCES record_types(key) ON DELETE CASCADE,
+  position INTEGER NOT NULL CHECK (position > 0),
+  heading TEXT NOT NULL,
+  package_source TEXT NOT NULL,
+  PRIMARY KEY (record_type_key, position),
+  UNIQUE (record_type_key, heading)
+) STRICT;
+
+${headingValues.map(([recordTypeKey, position, heading, packageSource]) => `INSERT OR IGNORE INTO record_section_headings (record_type_key, position, heading, package_source) VALUES (${sqlString(recordTypeKey)}, ${position}, ${sqlString(heading)}, ${sqlString(packageSource)});`).join("\n")}
+
+CREATE TABLE IF NOT EXISTS record_sections (
+  id INTEGER PRIMARY KEY,
+  record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  heading TEXT NOT NULL,
+  body TEXT NOT NULL DEFAULT '',
+  position INTEGER NOT NULL CHECK (position > 0),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (record_id, heading),
+  UNIQUE (record_id, position)
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS record_section_history (
+  id INTEGER PRIMARY KEY,
+  section_id INTEGER NOT NULL,
+  record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  sequence INTEGER NOT NULL,
+  retired_heading TEXT NOT NULL,
+  retired_body TEXT NOT NULL,
+  retired_position INTEGER NOT NULL,
+  retired_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  UNIQUE (section_id, sequence)
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS drafts (
+  id INTEGER PRIMARY KEY,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS prompt_templates (
+  key TEXT PRIMARY KEY,
+  role_name TEXT NOT NULL,
+  original_text TEXT NOT NULL,
+  package_source TEXT NOT NULL,
+  current_version INTEGER NOT NULL DEFAULT 1
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS prompt_template_versions (
+  id INTEGER PRIMARY KEY,
+  template_key TEXT NOT NULL REFERENCES prompt_templates(key) ON DELETE CASCADE,
+  version INTEGER NOT NULL,
+  text TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (template_key, version)
+) STRICT;
+
+INSERT OR IGNORE INTO prompt_templates (key, role_name, original_text, package_source) VALUES
+  ('kernel_pressure', 'Consequence scout', 'Given this canon fact and its constraints, list consequences across the domain atlas. Separate direct consequences from speculative ones. Do not invent new canon facts; label assumptions.', 'docs/worldbuilding-system/20_ai_assisted_workflow.md'),
+  ('decomposition_pressure', 'Prerequisite auditor', 'What hard, soft, economic, institutional, temporal, spatial, and psychological prerequisites does this fact require? Flag any prerequisite that would itself need canon admission.', 'docs/worldbuilding-system/20_ai_assisted_workflow.md');
+
+INSERT OR IGNORE INTO prompt_template_versions (template_key, version, text)
+SELECT key, 1, original_text FROM prompt_templates;
+
+CREATE TABLE IF NOT EXISTS advisory_dispositions (
+  id INTEGER PRIMARY KEY,
+  advisory_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  disposition TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  standing_ruling INTEGER NOT NULL DEFAULT 0 CHECK (standing_ruling IN (0, 1)),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS advisory_dispositions_validate
+BEFORE INSERT ON advisory_dispositions
+WHEN NOT EXISTS (
+  SELECT 1 FROM vocabulary_terms
+  WHERE vocabulary = 'advisory_disposition'
+    AND term = new.disposition
+)
+BEGIN
+  SELECT RAISE(ABORT, 'unknown advisory disposition');
+END;
+
+CREATE TABLE IF NOT EXISTS flow_instances (
+  id INTEGER PRIMARY KEY,
+  flow_key TEXT NOT NULL,
+  state TEXT NOT NULL DEFAULT 'in_progress',
+  current_step TEXT NOT NULL,
+  kernel_record_id INTEGER REFERENCES records(id),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS report_sections_no_update
+BEFORE UPDATE ON record_sections
+WHEN (SELECT mutation_regime FROM record_types rt JOIN records r ON r.record_type_key = rt.key WHERE r.id = old.record_id) = 'report'
+BEGIN
+  SELECT RAISE(ABORT, 'report-regime sections are append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS report_sections_no_delete
+BEFORE DELETE ON record_sections
+WHEN (SELECT mutation_regime FROM record_types rt JOIN records r ON r.record_type_key = rt.key WHERE r.id = old.record_id) = 'report'
+BEGIN
+  SELECT RAISE(ABORT, 'report-regime sections are append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS card_sections_history
+BEFORE UPDATE OF heading, body ON record_sections
+WHEN (SELECT mutation_regime FROM record_types rt JOIN records r ON r.record_type_key = rt.key WHERE r.id = old.record_id) = 'card'
+  AND (old.heading IS NOT new.heading OR old.body IS NOT new.body)
+BEGIN
+  INSERT INTO record_section_history (section_id, record_id, sequence, retired_heading, retired_body, retired_position)
+  VALUES (
+    old.id,
+    old.record_id,
+    COALESCE((SELECT MAX(sequence) + 1 FROM record_section_history WHERE section_id = old.id), 1),
+    old.heading,
+    old.body,
+    old.position
+  );
+END;
+
+CREATE TRIGGER IF NOT EXISTS record_sections_touch_updated_at
+AFTER UPDATE ON record_sections
+WHEN old.updated_at = new.updated_at
+BEGIN
+  UPDATE record_sections SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = new.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS drafts_touch_updated_at
+AFTER UPDATE ON drafts
+WHEN old.updated_at = new.updated_at
+BEGIN
+  UPDATE drafts SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = new.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS flow_instances_touch_updated_at
+AFTER UPDATE ON flow_instances
+WHEN old.updated_at = new.updated_at
+BEGIN
+  UPDATE flow_instances SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = new.id;
+END;
+
+DROP TRIGGER IF EXISTS records_ai;
+DROP TRIGGER IF EXISTS records_ad;
+DROP TRIGGER IF EXISTS records_au;
+DROP TRIGGER IF EXISTS record_sections_ai;
+DROP TRIGGER IF EXISTS record_sections_ad;
+DROP TRIGGER IF EXISTS record_sections_au;
+
+CREATE TRIGGER records_ai AFTER INSERT ON records BEGIN
+  INSERT INTO records_fts(rowid, short_id, title, body)
+  VALUES (new.id, new.short_id, new.title, new.body);
+END;
+
+CREATE TRIGGER records_ad AFTER DELETE ON records BEGIN
+  INSERT INTO records_fts(records_fts, rowid, short_id, title, body)
+  VALUES ('delete', old.id, old.short_id, old.title, old.body);
+END;
+
+CREATE TRIGGER records_au AFTER UPDATE OF short_id, title, body ON records BEGIN
+  INSERT INTO records_fts(records_fts, rowid, short_id, title, body)
+  VALUES ('delete', old.id, old.short_id, old.title, old.body);
+  INSERT INTO records_fts(rowid, short_id, title, body)
+  VALUES (new.id, new.short_id, new.title, new.body || char(10) || COALESCE((SELECT group_concat(heading || char(10) || body, char(10)) FROM record_sections WHERE record_id = new.id ORDER BY position), ''));
+END;
+
+CREATE TRIGGER record_sections_ai AFTER INSERT ON record_sections BEGIN
+  INSERT INTO records_fts(records_fts, rowid, short_id, title, body)
+  VALUES ('delete', new.record_id, (SELECT short_id FROM records WHERE id = new.record_id), (SELECT title FROM records WHERE id = new.record_id), (SELECT body FROM records WHERE id = new.record_id));
+  INSERT INTO records_fts(rowid, short_id, title, body)
+  SELECT id, short_id, title, body || char(10) || COALESCE((SELECT group_concat(heading || char(10) || body, char(10)) FROM record_sections WHERE record_id = records.id ORDER BY position), '')
+  FROM records WHERE id = new.record_id;
+END;
+
+CREATE TRIGGER record_sections_ad AFTER DELETE ON record_sections BEGIN
+  INSERT INTO records_fts(records_fts, rowid, short_id, title, body)
+  VALUES ('delete', old.record_id, (SELECT short_id FROM records WHERE id = old.record_id), (SELECT title FROM records WHERE id = old.record_id), (SELECT body FROM records WHERE id = old.record_id));
+  INSERT INTO records_fts(rowid, short_id, title, body)
+  SELECT id, short_id, title, body || char(10) || COALESCE((SELECT group_concat(heading || char(10) || body, char(10)) FROM record_sections WHERE record_id = records.id ORDER BY position), '')
+  FROM records WHERE id = old.record_id;
+END;
+
+CREATE TRIGGER record_sections_au AFTER UPDATE OF heading, body, position ON record_sections BEGIN
+  INSERT INTO records_fts(records_fts, rowid, short_id, title, body)
+  VALUES ('delete', new.record_id, (SELECT short_id FROM records WHERE id = new.record_id), (SELECT title FROM records WHERE id = new.record_id), (SELECT body FROM records WHERE id = new.record_id));
+  INSERT INTO records_fts(rowid, short_id, title, body)
+  SELECT id, short_id, title, body || char(10) || COALESCE((SELECT group_concat(heading || char(10) || body, char(10)) FROM record_sections WHERE record_id = records.id ORDER BY position), '')
+  FROM records WHERE id = new.record_id;
+END;
+
+INSERT INTO records_fts(records_fts) VALUES('rebuild');
+
+PRAGMA user_version = 2;
 `;

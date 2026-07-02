@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { APP_VERSION, LINK_TYPES, RECORD_TYPES, type HealthPayload } from "@worldloom/shared";
 import { rememberWorld, listRecentWorlds } from "./recent-worlds.js";
-import { WorldStore, type RecordInput } from "./world-store.js";
+import { WorldStore, type FacetInput, type RecordInput } from "./world-store.js";
 
 interface AppOptions {
   token?: string;
@@ -72,7 +72,8 @@ export const createApp = (options: AppOptions = {}) => {
   app.post("/api/records", async (c) => {
     if (!activeWorld) return c.json({ error: "No world is open" }, 409);
     try {
-      return c.json({ record: activeWorld.createRecord(await body<RecordInput>(c)) }, 201);
+      const input = await body<RecordInput & { advisoryRecordId?: number }>(c);
+      return c.json({ record: activeWorld.createRecordWithProvenance(input, input.advisoryRecordId) }, 201);
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }
@@ -100,6 +101,184 @@ export const createApp = (options: AppOptions = {}) => {
   app.get("/api/records/:id/history", (c) => {
     if (!activeWorld) return c.json({ error: "No world is open" }, 409);
     return c.json({ history: activeWorld.history(Number(c.req.param("id"))) });
+  });
+
+  app.get("/api/records/:id/facets", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ facets: activeWorld.listFacets(Number(c.req.param("id"))) });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/records/:id/facets", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ facet: activeWorld.addFacet(Number(c.req.param("id")), await body<FacetInput>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.delete("/api/records/:id/facets/:facetId", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      activeWorld.removeFacet(Number(c.req.param("id")), Number(c.req.param("facetId")));
+      return c.json({ ok: true });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.get("/api/section-headings", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    return c.json({ headings: activeWorld.sectionHeadings(c.req.query("recordTypeKey") || undefined) });
+  });
+
+  app.get("/api/records/:id/sections", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    return c.json({ sections: activeWorld.listSections(Number(c.req.param("id"))) });
+  });
+
+  app.put("/api/records/:id/sections", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      const input = await body<{ sections: Array<{ heading: string; body?: string; position: number }> }>(c);
+      return c.json({ sections: activeWorld.replaceSections(Number(c.req.param("id")), input.sections) });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.get("/api/records/:id/section-history", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    return c.json({ history: activeWorld.sectionHistory(Number(c.req.param("id"))) });
+  });
+
+  app.get("/api/drafts", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    return c.json({ drafts: activeWorld.listDrafts() });
+  });
+
+  app.post("/api/drafts", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ draft: activeWorld.createDraft(await body<{ title: string; body?: string }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.patch("/api/drafts/:id", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ draft: activeWorld.updateDraft(Number(c.req.param("id")), await body<{ title?: string; body?: string }>(c)) });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.delete("/api/drafts/:id", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      activeWorld.discardDraft(Number(c.req.param("id")));
+      return c.json({ ok: true });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/drafts/:id/convert", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ record: activeWorld.convertDraft(Number(c.req.param("id")), await body<Omit<RecordInput, "title" | "body"> & { title?: string }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.get("/api/prompt-templates", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    return c.json({ templates: activeWorld.promptTemplates() });
+  });
+
+  app.patch("/api/prompt-templates/:key", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      const input = await body<{ text: string }>(c);
+      return c.json({ template: activeWorld.updatePromptTemplate(c.req.param("key"), input.text) });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/prompt-templates/:key/revert", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ template: activeWorld.revertPromptTemplate(c.req.param("key")) });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/prompts/generate", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(activeWorld.generatePrompt(await body<{ templateKey: string; recordId?: number; stepKey?: string }>(c)));
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/advisory-artifacts", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ record: activeWorld.createAdvisoryArtifact(await body<{ stepKey: string; promptText: string; responseText: string }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/advisory-artifacts/:id/dispositions", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ disposition: activeWorld.disposeAdvisoryArtifact(Number(c.req.param("id")), await body<{ disposition: string; note?: string; standingRuling?: boolean }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/flows/creation/start", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    return c.json({ flow: activeWorld.startCreationFlow() }, 201);
+  });
+
+  app.post("/api/flows/creation/kernel-step", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(activeWorld.saveKernelStep(await body<{ flowId: number; heading: string; body: string; consequenceMode?: string }>(c)));
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/flows/creation/skip", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ record: activeWorld.recordSkip(await body<{ flowId?: number; stepKey: string; reason?: string }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/flows/creation/decompose", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(activeWorld.decomposeSeeds(await body<{ flowId: number; kernelRecordId: number; draftIds?: number[]; seeds: Array<{ title: string; body: string; truthLayer: string; canonStatus: string }> }>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
   });
 
   app.get("/api/search", (c) => {

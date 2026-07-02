@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
-import { APPLICATION_ID } from "../src/schema.js";
+import { APPLICATION_ID, migration001 } from "../src/schema.js";
 import { WorldStore } from "../src/world-store.js";
 
 let tempDirs: string[] = [];
@@ -30,7 +30,7 @@ describe("WorldStore", () => {
     const store = WorldStore.create(path);
 
     expect(store.db.pragma("application_id", { simple: true })).toBe(APPLICATION_ID);
-    expect(store.db.pragma("user_version", { simple: true })).toBe(1);
+    expect(store.db.pragma("user_version", { simple: true })).toBe(2);
     expect(store.db.pragma("journal_mode", { simple: true })).toBe("wal");
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM record_types").get()).toMatchObject({ count: 26 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM link_types").get()).toMatchObject({ count: 24 });
@@ -48,9 +48,9 @@ describe("WorldStore", () => {
     oldDb.close();
 
     const migrated = WorldStore.open(oldPath);
-    expect(migrated.db.pragma("user_version", { simple: true })).toBe(1);
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(2);
     migrated.close();
-    expect(readdirSync(join(oldPath, "..")).some((name) => name.includes("pre-migration-v0-to-v1"))).toBe(true);
+    expect(readdirSync(join(oldPath, "..")).some((name) => name.includes("pre-migration-v0-to-v2"))).toBe(true);
 
     const corruptPath = tempPath("corrupt.sqlite");
     writeFileSync(corruptPath, "not sqlite");
@@ -74,6 +74,109 @@ describe("WorldStore", () => {
     expect(() => secondConnection.prepare("DELETE FROM records WHERE id = ?").run(report.id)).toThrow(/append-only/);
     expect(() => secondConnection.prepare("UPDATE records SET actor_id = 2 WHERE id = ?").run(card.id)).toThrow(/provenance/);
     secondConnection.close();
+    store.close();
+  });
+
+  it("migrates v1 files to sectioned prose, preserves body content, and rejects newer schemas plainly", () => {
+    const path = tempPath("v1.sqlite");
+    const db = new Database(path);
+    db.exec("BEGIN");
+    db.exec(migration001);
+    const recordId = Number(db.prepare(`
+      INSERT INTO records (short_id, record_type_key, title, body, truth_layer, canon_status)
+      VALUES ('FAC-99', 'canon_fact', 'Preserved fact', 'Body from v1', 'Objective canon', 'proposed')
+    `).run().lastInsertRowid);
+    db.exec("COMMIT");
+    db.close();
+
+    const migrated = WorldStore.open(path);
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(2);
+    expect(migrated.getRecord(recordId)).toMatchObject({ body: "Body from v1" });
+    expect(migrated.sectionHeadings("world_kernel")).toEqual(expect.arrayContaining([
+      expect.objectContaining({ heading: "World premise" })
+    ]));
+    migrated.close();
+    expect(readdirSync(join(path, "..")).some((name) => name.includes("pre-migration-v1-to-v2"))).toBe(true);
+
+    const newerPath = tempPath("newer.sqlite");
+    const newer = new Database(newerPath);
+    newer.pragma(`application_id = ${APPLICATION_ID}`);
+    newer.pragma("user_version = 99");
+    newer.close();
+    expect(() => WorldStore.open(newerPath)).toThrow(/newer than this app/);
+  });
+
+  it("stores sectioned prose with card history, report immutability, and FTS coverage", () => {
+    const store = WorldStore.create(tempPath("sections.sqlite"));
+    const kernel = store.createRecord({ recordTypeKey: "world_kernel", title: "Kernel", body: "", ...explicitJudgment });
+    store.replaceSections(kernel.id, [{ heading: "World premise", body: "The salt moon wakes", position: 1 }]);
+    store.replaceSections(kernel.id, [{ heading: "World premise", body: "The silver moon wakes", position: 1 }]);
+    store.replaceSections(kernel.id, [
+      { heading: "Core promise", body: "Debts speak plainly", position: 1 },
+      { heading: "World premise", body: "The silver moon wakes", position: 2 }
+    ]);
+
+    expect(store.sectionHistory(kernel.id)).toMatchObject([{ retired_body: "The salt moon wakes" }]);
+    expect(store.listSections(kernel.id)).toMatchObject([
+      { heading: "Core promise", position: 1 },
+      { heading: "World premise", position: 2 }
+    ]);
+    expect(store.search("silver")).toMatchObject([{ id: kernel.id }]);
+
+    const report = store.createRecord({ recordTypeKey: "seed_decomposition", title: "Decomposition", body: "Audit", ...explicitJudgment });
+    store.replaceSections(report.id, [{ heading: "Kernel source", body: "Kernel KER-1", position: 1 }]);
+    const secondConnection = new Database(store.path);
+    secondConnection.pragma("foreign_keys = ON");
+    expect(() => secondConnection.prepare("UPDATE record_sections SET body = 'Changed' WHERE record_id = ?").run(report.id)).toThrow(/append-only/);
+    expect(() => secondConnection.prepare("DELETE FROM record_sections WHERE record_id = ?").run(report.id)).toThrow(/append-only/);
+    secondConnection.close();
+    store.close();
+  });
+
+  it("records facets, drafts, prompt rulings, advisory immutability, provenance, and decomposition", () => {
+    const store = WorldStore.create(tempPath("flow.sqlite"));
+    const fact = store.createRecord({ recordTypeKey: "canon_fact", title: "Echo law", body: "Echoes last seven days", ...explicitJudgment });
+    expect(store.listFacets(fact.id)).toEqual([]);
+    const first = store.addFacet(fact.id, { vocabulary: "admission_decision_operation", term: "accept" });
+    const second = store.addFacet(fact.id, { vocabulary: "admission_decision_operation", term: "price" });
+    expect(store.listFacets(fact.id)).toMatchObject([{ id: first.id, position: 1 }, { id: second.id, position: 2 }]);
+    expect(() => store.addFacet(fact.id, { vocabulary: "missing", term: "accept" })).toThrow(/Unknown/);
+    store.removeFacet(fact.id, first.id);
+    expect(store.listFacets(fact.id)).toMatchObject([{ id: second.id, position: 2 }]);
+
+    const draft = store.createDraft({ title: "Raw seed", body: "A bell remembers debts" });
+    expect(store.listRecords().some((record) => record.title === "Raw seed")).toBe(false);
+    const converted = store.convertDraft(draft.id, { recordTypeKey: "canon_fact", truthLayer: "Objective canon", canonStatus: "proposed" });
+    expect(converted).toMatchObject({ title: "Raw seed", canonStatus: "proposed" });
+    expect(store.listDrafts()).toEqual([]);
+
+    const prompt = store.generatePrompt({ templateKey: "kernel_pressure", recordId: fact.id, stepKey: "kernel" }).prompt;
+    expect(prompt).toContain("Record context");
+    expect(prompt).toContain("Vocabulary guardrail");
+    const advisory = store.createAdvisoryArtifact({ stepKey: "kernel", promptText: prompt, responseText: "Pressure response verbatim" });
+    store.disposeAdvisoryArtifact(advisory.id, { disposition: "standing ruling", note: "Prefer concrete institutional pressure", standingRuling: true });
+    expect(store.generatePrompt({ templateKey: "kernel_pressure", recordId: fact.id }).prompt).toContain("Prefer concrete institutional pressure");
+
+    const authored = store.createRecordWithProvenance({ recordTypeKey: "canon_fact", title: "Authored with context", body: "Steward wording", ...explicitJudgment }, advisory.id);
+    expect(store.listLinks(authored.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ fromRecordId: authored.id, toRecordId: advisory.id, linkTypeKey: "derived_from" }),
+      expect.objectContaining({ fromRecordId: authored.id, toRecordId: advisory.id, linkTypeKey: "cites_advisory_artifact" })
+    ]));
+    expect(() => store.updateRecord(advisory.id, { body: "Changed" })).toThrow(/append-only/);
+
+    const flow = store.startCreationFlow() as { id: number };
+    const kernelStep = store.saveKernelStep({ flowId: flow.id, heading: "World premise", body: "A city built on echoes", consequenceMode: "weird" }) as { kernel: { id: number }; facets: unknown[] };
+    expect(kernelStep.facets).toEqual([expect.objectContaining({ vocabulary: "consequence_mode", term: "weird" })]);
+    const result = store.decomposeSeeds({
+      flowId: flow.id,
+      kernelRecordId: kernelStep.kernel.id,
+      seeds: [{ title: "Echo bridges answer", body: "The bridges answer questions at dawn", truthLayer: "Objective canon", canonStatus: "proposed" }]
+    }) as { report: { id: number }; records: Array<{ id: number; canonStatus: string }> };
+    expect(result.records).toMatchObject([{ canonStatus: "proposed" }]);
+    expect(store.listLinks(result.records[0]!.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ toRecordId: kernelStep.kernel.id, linkTypeKey: "derived_from" }),
+      expect.objectContaining({ toRecordId: result.report.id, linkTypeKey: "derived_from" })
+    ]));
     store.close();
   });
 

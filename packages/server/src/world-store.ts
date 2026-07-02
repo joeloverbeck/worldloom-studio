@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { dirname, resolve } from "node:path";
 import { existsSync, mkdirSync } from "node:fs";
-import { APPLICATION_ID, CURRENT_SCHEMA_VERSION, migration001 } from "./schema.js";
+import { APPLICATION_ID, CURRENT_SCHEMA_VERSION, migration001, migration002 } from "./schema.js";
 import { LINK_TYPES, RECORD_TYPE_BY_KEY } from "@worldloom/shared";
 
 export interface RecordInput {
@@ -33,6 +33,40 @@ export interface LinkRow {
   createdAt: string;
 }
 
+export interface FacetInput {
+  vocabulary: string;
+  term: string;
+  position?: number;
+}
+
+export interface FacetRow extends FacetInput {
+  id: number;
+  recordId: number;
+  position: number;
+}
+
+export interface SectionInput {
+  heading: string;
+  body?: string;
+  position: number;
+}
+
+export interface SectionRow {
+  id: number;
+  recordId: number;
+  heading: string;
+  body: string;
+  position: number;
+}
+
+export interface DraftRow {
+  id: number;
+  title: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface TraversalRow extends LinkRow {
   depth: number;
 }
@@ -56,6 +90,30 @@ const rowToLink = (row: Record<string, unknown>): LinkRow => ({
   linkTypeKey: String(row.link_type_key),
   note: String(row.note ?? ""),
   createdAt: String(row.created_at)
+});
+
+const rowToFacet = (row: Record<string, unknown>): FacetRow => ({
+  id: Number(row.id),
+  recordId: Number(row.record_id),
+  vocabulary: String(row.vocabulary),
+  term: String(row.term),
+  position: Number(row.position)
+});
+
+const rowToSection = (row: Record<string, unknown>): SectionRow => ({
+  id: Number(row.id),
+  recordId: Number(row.record_id),
+  heading: String(row.heading),
+  body: String(row.body ?? ""),
+  position: Number(row.position)
+});
+
+const rowToDraft = (row: Record<string, unknown>): DraftRow => ({
+  id: Number(row.id),
+  title: String(row.title),
+  body: String(row.body ?? ""),
+  createdAt: String(row.created_at),
+  updatedAt: String(row.updated_at)
 });
 
 const quoteSqlPath = (path: string): string => `'${path.replaceAll("'", "''")}'`;
@@ -138,6 +196,15 @@ export class WorldStore {
     return this.getRecord(Number(result.lastInsertRowid));
   }
 
+  createRecordWithProvenance(input: RecordInput, advisoryRecordId?: number): RecordRow {
+    const record = this.createRecord(input);
+    if (advisoryRecordId != null) {
+      this.createLink(record.id, advisoryRecordId, "derived_from", "Steward authored with advisory material on the table");
+      this.createLink(record.id, advisoryRecordId, "cites_advisory_artifact", "Verbatim advisory artifact consulted");
+    }
+    return record;
+  }
+
   updateRecord(id: number, input: Partial<Omit<RecordInput, "recordTypeKey">>): RecordRow {
     const current = this.getRecord(id);
     this.db.prepare(`
@@ -171,6 +238,259 @@ export class WorldStore {
       `).run(id, current.id, `Promotion changed ${current.shortId} from ${current.recordTypeKey} to ${nextRecordTypeKey}`);
     })();
     return this.getRecord(id);
+  }
+
+  listFacets(recordId: number): FacetRow[] {
+    return this.db.prepare("SELECT * FROM record_facets WHERE record_id = ? ORDER BY vocabulary, position, id").all(recordId).map((row) => rowToFacet(row as Record<string, unknown>));
+  }
+
+  addFacet(recordId: number, input: FacetInput): FacetRow {
+    this.getRecord(recordId);
+    this.assertVocabularyTerm(input.vocabulary, input.term);
+    const result = this.db.prepare(`
+      INSERT INTO record_facets (record_id, vocabulary, term, position)
+      VALUES (?, ?, ?, ?)
+    `).run(recordId, input.vocabulary, input.term, input.position ?? this.nextFacetPosition(recordId, input.vocabulary));
+    return rowToFacet(this.db.prepare("SELECT * FROM record_facets WHERE id = ?").get(result.lastInsertRowid) as Record<string, unknown>);
+  }
+
+  removeFacet(recordId: number, facetId: number): void {
+    const result = this.db.prepare("DELETE FROM record_facets WHERE record_id = ? AND id = ?").run(recordId, facetId);
+    if (!result.changes) throw new Error(`Facet not found: ${facetId}`);
+  }
+
+  sectionHeadings(recordTypeKey?: string): unknown[] {
+    if (recordTypeKey) {
+      return this.db.prepare("SELECT * FROM record_section_headings WHERE record_type_key = ? ORDER BY position").all(recordTypeKey);
+    }
+    return this.db.prepare("SELECT * FROM record_section_headings ORDER BY record_type_key, position").all();
+  }
+
+  listSections(recordId: number): SectionRow[] {
+    return this.db.prepare("SELECT * FROM record_sections WHERE record_id = ? ORDER BY position").all(recordId).map((row) => rowToSection(row as Record<string, unknown>));
+  }
+
+  replaceSections(recordId: number, sections: SectionInput[]): SectionRow[] {
+    const record = this.getRecord(recordId);
+    const headings = new Set(this.sectionHeadings(record.recordTypeKey).map((row) => String((row as { heading: string }).heading)));
+    for (const section of sections) {
+      if (!headings.has(section.heading)) throw new Error(`Unknown section heading for ${record.recordTypeKey}: ${section.heading}`);
+    }
+    this.db.transaction(() => {
+      const current = new Map(this.listSections(recordId).map((section) => [section.heading, section]));
+      for (const section of sections) {
+        const existing = current.get(section.heading);
+        if (existing) {
+          this.db.prepare("UPDATE record_sections SET position = ? WHERE id = ?").run(existing.position + 10000, existing.id);
+        }
+      }
+      for (const section of sections) {
+        const existing = current.get(section.heading);
+        if (existing) {
+          this.db.prepare("UPDATE record_sections SET body = ?, position = ? WHERE id = ?").run(section.body ?? "", section.position, existing.id);
+        } else {
+          this.db.prepare("INSERT INTO record_sections (record_id, heading, body, position) VALUES (?, ?, ?, ?)").run(recordId, section.heading, section.body ?? "", section.position);
+        }
+      }
+    })();
+    return this.listSections(recordId);
+  }
+
+  sectionHistory(recordId: number): unknown[] {
+    return this.db.prepare("SELECT * FROM record_section_history WHERE record_id = ? ORDER BY id").all(recordId);
+  }
+
+  listDrafts(): DraftRow[] {
+    return this.db.prepare("SELECT * FROM drafts ORDER BY updated_at DESC, id DESC").all().map((row) => rowToDraft(row as Record<string, unknown>));
+  }
+
+  createDraft(input: { title: string; body?: string }): DraftRow {
+    const result = this.db.prepare("INSERT INTO drafts (title, body) VALUES (?, ?)").run(input.title, input.body ?? "");
+    return rowToDraft(this.db.prepare("SELECT * FROM drafts WHERE id = ?").get(result.lastInsertRowid) as Record<string, unknown>);
+  }
+
+  updateDraft(id: number, input: { title?: string; body?: string }): DraftRow {
+    const current = this.db.prepare("SELECT * FROM drafts WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+    if (!current) throw new Error(`Draft not found: ${id}`);
+    this.db.prepare("UPDATE drafts SET title = ?, body = ? WHERE id = ?").run(input.title ?? current.title, input.body ?? current.body ?? "", id);
+    return rowToDraft(this.db.prepare("SELECT * FROM drafts WHERE id = ?").get(id) as Record<string, unknown>);
+  }
+
+  discardDraft(id: number): void {
+    const result = this.db.prepare("DELETE FROM drafts WHERE id = ?").run(id);
+    if (!result.changes) throw new Error(`Draft not found: ${id}`);
+  }
+
+  convertDraft(id: number, input: Omit<RecordInput, "title" | "body"> & { title?: string }): RecordRow {
+    const draft = this.db.prepare("SELECT * FROM drafts WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+    if (!draft) throw new Error(`Draft not found: ${id}`);
+    if (!input.recordTypeKey || !input.truthLayer || !input.canonStatus) {
+      throw new Error("draft conversion requires explicit record type, truth layer, and canon status");
+    }
+    const record = this.db.transaction(() => {
+      const created = this.createRecord({
+        recordTypeKey: input.recordTypeKey,
+        title: input.title ?? String(draft.title),
+        body: String(draft.body ?? ""),
+        truthLayer: input.truthLayer,
+        canonStatus: input.canonStatus
+      });
+      this.db.prepare("DELETE FROM drafts WHERE id = ?").run(id);
+      return created;
+    })();
+    return record;
+  }
+
+  promptTemplates(): unknown[] {
+    return this.db.prepare(`
+      SELECT pt.*, ptv.text AS current_text
+      FROM prompt_templates pt
+      JOIN prompt_template_versions ptv ON ptv.template_key = pt.key AND ptv.version = pt.current_version
+      ORDER BY pt.key
+    `).all();
+  }
+
+  updatePromptTemplate(key: string, text: string): unknown {
+    const current = this.db.prepare("SELECT * FROM prompt_templates WHERE key = ?").get(key) as { current_version: number } | undefined;
+    if (!current) throw new Error(`Prompt template not found: ${key}`);
+    const nextVersion = current.current_version + 1;
+    this.db.transaction(() => {
+      this.db.prepare("INSERT INTO prompt_template_versions (template_key, version, text) VALUES (?, ?, ?)").run(key, nextVersion, text);
+      this.db.prepare("UPDATE prompt_templates SET current_version = ? WHERE key = ?").run(nextVersion, key);
+    })();
+    return this.db.prepare(`
+      SELECT pt.*, ptv.text AS current_text
+      FROM prompt_templates pt
+      JOIN prompt_template_versions ptv ON ptv.template_key = pt.key AND ptv.version = pt.current_version
+      WHERE pt.key = ?
+    `).get(key);
+  }
+
+  revertPromptTemplate(key: string): unknown {
+    const template = this.db.prepare("SELECT original_text FROM prompt_templates WHERE key = ?").get(key) as { original_text: string } | undefined;
+    if (!template) throw new Error(`Prompt template not found: ${key}`);
+    return this.updatePromptTemplate(key, template.original_text);
+  }
+
+  generatePrompt(input: { templateKey: string; recordId?: number; stepKey?: string }): { prompt: string } {
+    const template = this.db.prepare(`
+      SELECT pt.key, pt.role_name, pt.original_text, pt.package_source, ptv.text AS current_text
+      FROM prompt_templates pt
+      JOIN prompt_template_versions ptv ON ptv.template_key = pt.key AND ptv.version = pt.current_version
+      WHERE pt.key = ?
+    `).get(input.templateKey) as Record<string, unknown> | undefined;
+    if (!template) throw new Error(`Prompt template not found: ${input.templateKey}`);
+    const recordContext = input.recordId == null ? "No record context selected." : this.recordPromptContext(input.recordId);
+    const rulings = this.standingRulings();
+    return {
+      prompt: [
+        `Role framing (${template.role_name}): ask for pressure, not answers. The steward's material comes first; do not write final canon.`,
+        `Default prompt derivation (${template.package_source}): ${template.current_text}`,
+        "Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories.",
+        "Label assumptions instruction: separate direct consequences from speculative assumptions and mark unadmitted assumptions plainly.",
+        `Standing rulings: ${rulings.length ? rulings.map((row) => `${row.disposition}: ${row.note}`).join("; ") : "none"}.`,
+        `Step: ${input.stepKey ?? input.templateKey}`,
+        "Record context:",
+        recordContext
+      ].join("\n\n")
+    };
+  }
+
+  createAdvisoryArtifact(input: { stepKey: string; promptText: string; responseText: string }): RecordRow {
+    return this.createRecord({
+      recordTypeKey: "advisory_artifact",
+      title: `Advisory artifact: ${input.stepKey}`,
+      body: [`Prompt:`, input.promptText, `Response:`, input.responseText].join("\n\n"),
+      truthLayer: "disputed claim",
+      canonStatus: "proposed"
+    });
+  }
+
+  disposeAdvisoryArtifact(advisoryRecordId: number, input: { disposition: string; note?: string; standingRuling?: boolean }): unknown {
+    this.getRecord(advisoryRecordId);
+    this.assertVocabularyTerm("advisory_disposition", input.disposition);
+    const result = this.db.prepare(`
+      INSERT INTO advisory_dispositions (advisory_record_id, disposition, note, standing_ruling)
+      VALUES (?, ?, ?, ?)
+    `).run(advisoryRecordId, input.disposition, input.note ?? "", input.standingRuling ? 1 : 0);
+    return this.db.prepare("SELECT * FROM advisory_dispositions WHERE id = ?").get(result.lastInsertRowid);
+  }
+
+  startCreationFlow(): unknown {
+    const row = this.db.prepare("SELECT * FROM flow_instances WHERE flow_key = 'creation' AND state = 'in_progress' ORDER BY id DESC LIMIT 1").get();
+    if (row) return row;
+    const result = this.db.prepare("INSERT INTO flow_instances (flow_key, current_step) VALUES ('creation', 'kernel:World premise')").run();
+    return this.db.prepare("SELECT * FROM flow_instances WHERE id = ?").get(result.lastInsertRowid);
+  }
+
+  saveKernelStep(input: { flowId: number; heading: string; body: string; consequenceMode?: string }): unknown {
+    const flow = this.db.prepare("SELECT * FROM flow_instances WHERE id = ?").get(input.flowId) as { kernel_record_id: number | null } | undefined;
+    if (!flow) throw new Error(`Flow not found: ${input.flowId}`);
+    const kernelId = flow.kernel_record_id ?? this.createRecord({
+      recordTypeKey: "world_kernel",
+      title: "World kernel",
+      body: "",
+      truthLayer: "Objective canon",
+      canonStatus: "proposed"
+    }).id;
+    if (!flow.kernel_record_id) {
+      this.db.prepare("UPDATE flow_instances SET kernel_record_id = ? WHERE id = ?").run(kernelId, input.flowId);
+    }
+    const heading = this.sectionHeadings("world_kernel").find((row) => String((row as { heading: string }).heading) === input.heading) as { position: number } | undefined;
+    if (!heading) throw new Error(`Unknown kernel step: ${input.heading}`);
+    this.replaceSections(kernelId, [{ heading: input.heading, body: input.body, position: Number(heading.position) }]);
+    if (input.consequenceMode) {
+      const existing = this.listFacets(kernelId).filter((facet) => facet.vocabulary === "consequence_mode");
+      for (const facet of existing) this.removeFacet(kernelId, facet.id);
+      this.addFacet(kernelId, { vocabulary: "consequence_mode", term: input.consequenceMode, position: 1 });
+    }
+    this.db.prepare("UPDATE flow_instances SET current_step = ? WHERE id = ?").run(`kernel:${input.heading}`, input.flowId);
+    return { flow: this.db.prepare("SELECT * FROM flow_instances WHERE id = ?").get(input.flowId), kernel: this.getRecord(kernelId), sections: this.listSections(kernelId), facets: this.listFacets(kernelId) };
+  }
+
+  recordSkip(input: { flowId?: number; stepKey: string; reason?: string }): RecordRow {
+    return this.createRecord({
+      recordTypeKey: "skip_record",
+      title: `Skip: ${input.stepKey}`,
+      body: input.reason ? `Step: ${input.stepKey}\nReason: ${input.reason}` : `Step: ${input.stepKey}\nReason not collected below major-fact threshold.`,
+      truthLayer: "Objective canon",
+      canonStatus: "proposed"
+    });
+  }
+
+  decomposeSeeds(input: { flowId: number; kernelRecordId: number; draftIds?: number[]; seeds: Array<{ title: string; body: string; truthLayer: string; canonStatus: string }> }): unknown {
+    const kernel = this.getRecord(input.kernelRecordId);
+    const drafts = (input.draftIds ?? []).map((id) => {
+      const row = this.db.prepare("SELECT * FROM drafts WHERE id = ?").get(id);
+      if (!row) throw new Error(`Draft not found: ${id}`);
+      return rowToDraft(row as Record<string, unknown>);
+    });
+    return this.db.transaction(() => {
+      const report = this.createRecord({
+        recordTypeKey: "seed_decomposition",
+        title: "Seed decomposition",
+        body: `Kernel ${kernel.shortId}; drafts consumed: ${drafts.map((draft) => draft.title).join(", ") || "none"}`,
+        truthLayer: "Objective canon",
+        canonStatus: "proposed"
+      });
+      this.replaceSections(report.id, [
+        { heading: "Kernel source", body: `${kernel.shortId} ${kernel.title}`, position: 1 },
+        { heading: "Drafts consumed", body: drafts.map((draft) => `${draft.title}\n${draft.body}`).join("\n\n"), position: 2 },
+        { heading: "Granularity decisions", body: "Each parked seed is independently rejectable without destroying its siblings.", position: 3 },
+        { heading: "Parked seeds", body: input.seeds.map((seed) => seed.title).join("\n"), position: 4 },
+        { heading: "Thin-start boundary", body: "No seed is admitted by this flow; admission is deferred to the admission flow.", position: 5 }
+      ]);
+      const records = input.seeds.map((seed) => {
+        if (!seed.truthLayer || !seed.canonStatus) throw new Error("seed parking requires explicit truth layer and canon status");
+        const record = this.createRecord({ recordTypeKey: "canon_fact", title: seed.title, body: seed.body, truthLayer: seed.truthLayer, canonStatus: seed.canonStatus });
+        this.createLink(record.id, kernel.id, "derived_from", "Seed decomposed from world kernel");
+        this.createLink(record.id, report.id, "derived_from", "Seed recorded by decomposition report");
+        return record;
+      });
+      for (const draft of drafts) this.db.prepare("DELETE FROM drafts WHERE id = ?").run(draft.id);
+      this.db.prepare("UPDATE flow_instances SET current_step = 'decomposition:complete', state = 'complete' WHERE id = ?").run(input.flowId);
+      return { report, records, flow: this.db.prepare("SELECT * FROM flow_instances WHERE id = ?").get(input.flowId) };
+    })();
   }
 
   createLink(fromRecordId: number, toRecordId: number, linkTypeKey: string, note = ""): LinkRow {
@@ -258,6 +578,16 @@ export class WorldStore {
         throw error;
       }
     }
+    if (version < 2) {
+      this.db.exec("BEGIN");
+      try {
+        this.db.exec(migration002);
+        this.db.exec("COMMIT");
+      } catch (error) {
+        this.db.exec("ROLLBACK");
+        throw error;
+      }
+    }
     this.db.pragma("journal_mode = WAL");
   }
 
@@ -300,6 +630,33 @@ export class WorldStore {
     if (!LINK_TYPES.some((linkType) => linkType.key === linkTypeKey)) {
       throw new Error(`Unknown link type: ${linkTypeKey}`);
     }
+  }
+
+  private assertVocabularyTerm(vocabulary: string, term: string): void {
+    const row = this.db.prepare("SELECT 1 FROM vocabulary_terms WHERE vocabulary = ? AND term = ?").get(vocabulary, term);
+    if (!row) throw new Error(`Unknown ${vocabulary} term: ${term}`);
+  }
+
+  private nextFacetPosition(recordId: number, vocabulary: string): number {
+    const row = this.db.prepare("SELECT COALESCE(MAX(position), 0) + 1 AS next FROM record_facets WHERE record_id = ? AND vocabulary = ?").get(recordId, vocabulary) as { next: number };
+    return row.next;
+  }
+
+  private recordPromptContext(recordId: number): string {
+    const record = this.getRecord(recordId);
+    const sections = this.listSections(recordId);
+    return [
+      `${record.shortId} ${record.title}`,
+      `Type: ${record.recordTypeKey}`,
+      `Truth layer: ${record.truthLayer ?? "unset"}`,
+      `Canon status: ${record.canonStatus ?? "unset"}`,
+      record.body,
+      ...sections.map((section) => `## ${section.heading}\n${section.body}`)
+    ].filter(Boolean).join("\n");
+  }
+
+  private standingRulings(): Array<{ disposition: string; note: string }> {
+    return this.db.prepare("SELECT disposition, note FROM advisory_dispositions WHERE standing_ruling = 1 ORDER BY id").all() as Array<{ disposition: string; note: string }>;
   }
 
   private backupPath(label: string): string {
