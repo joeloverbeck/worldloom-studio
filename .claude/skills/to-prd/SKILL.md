@@ -6,11 +6,11 @@ disable-model-invocation: true
 
 This skill takes the current conversation context and codebase understanding and produces a PRD. Do NOT interview the user about requirements — synthesize what you already know; the Step 2 seam confirmation is the sole sanctioned checkpoint.
 
-The issue tracker and triage label vocabulary should have been provided to you — run `/setup-matt-pocock-skills` if not.
+The issue tracker and triage label vocabulary should have been provided to you — run `/setup-matt-pocock-skills` if not. Before publishing, read the project's issue-tracker and triage-label docs (per `CLAUDE.md`) if you haven't this session.
 
 ## Process
 
-1. Explore the repo to understand the current state of the codebase, if you haven't already. Use the project's domain glossary vocabulary throughout the PRD, and respect any ADRs in the area you're touching.
+1. Explore the repo to understand the current state of the codebase, if you haven't already. Use the project's domain glossary vocabulary throughout the PRD, and respect any ADRs in the area you're touching. Fetch the most recent published PRD issue(s) from the tracker and match their house style — title format, provenance preamble, story phrasing, and cross-referencing conventions.
 
 2. Sketch out the seams at which you're going to test the feature. Existing seams should be preferred to new ones. Use the highest seam possible. If new seams are needed, propose them at the highest point you can. The fewer seams across the codebase, the better - the ideal number is one.
 
@@ -18,9 +18,11 @@ When the PRD's scope includes non-code deliverables (ADRs, specs, doc packs), sk
 
 Check with the user that these seams match their expectations. If the confirmation goes unanswered (the user is away), proceed only when the sketch reuses existing seams unchanged — and record in Further Notes that seam confirmation timed out and the seams are open to veto. If the sketch proposes any new seam, stop without publishing and leave the sketch as the turn's deliverable.
 
-3. Write the PRD using the template below, then publish it to the project issue tracker. Verify the `ready-for-agent` label exists before creating the issue (create it per the project's triage-label doc if absent), then apply it - no need for additional triage.
+3. Write the PRD using the template below, then publish it to the project issue tracker. Title the issue `PRD: <name> — <key mechanisms>`, matching prior PRDs. Verify the `ready-for-agent` label exists before creating the issue (create it per the project's triage-label doc if absent; a verification earlier in the same session suffices), then apply it - no need for additional triage.
 
 <prd-template>
+
+[Preamble — an untitled paragraph before the first section: provenance (which session or decision determined this PRD), what prior PRD or commitment it follows or discharges, and the ratification status of its decisions.]
 
 ## Problem Statement
 
@@ -54,7 +56,7 @@ A list of implementation decisions that were made. This can include:
 - API contracts
 - Specific interactions
 
-Do NOT include specific file paths or code snippets. They may end up being outdated very quickly. Citations of principle, ADR, and spec documents are exempt — they are stable identifiers and are themselves the conformance mechanism.
+Do NOT include specific file paths or code snippets. They may end up being outdated very quickly. Citations of principle, ADR, spec, prior issue/PR, and methodology-module documents are exempt — they are stable identifiers and are themselves the conformance mechanism.
 
 Exception: if a prototype produced a snippet that encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it within the relevant decision and note briefly that it came from a prototype. Trim to the decision-rich parts — not a working demo, just the important bits.
 

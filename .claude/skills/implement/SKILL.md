@@ -10,6 +10,7 @@ Implement the work described by the user in the PRD or issues.
 
 Before editing code, identify the authoritative work items.
 
+- Run `git status --short` before the first edit. Record unrelated dirty files in the ledger or progress note, leave them untouched, and do not edit or stage them unless they become in-scope.
 - If the user names a PRD issue, fetch the PRD and also list related open child issues, blockers, and linked implementation tickets from the issue tracker.
 - Treat the child issues as the implementation checklist unless the user explicitly says to implement only the parent PRD text.
 - If the user names a set of issues, fetch each issue body and comments.
@@ -39,7 +40,7 @@ For each issue:
 - Mark blockers explicitly in the ledger instead of skipping the issue.
 - When the issue body, PRD text, acceptance criteria, or implementation includes UI/browser-visible behavior, run a real browser smoke or record why it is blocked; include the route, action path, and observed outcome in the closeout evidence.
 
-Run typechecking regularly, single test files regularly, and the full test suite once at the end.
+Run typechecking regularly and single test files regularly. Before closeout, read the root verification guidance and run the canonical gates required for the work's blast radius. In this repo, workflow, package, cross-package, or closeout-scale changes require `pnpm test`, `pnpm typecheck`, and `pnpm build`; do not report a lint, browser/e2e, or hard-audit gate as satisfied unless the repo adds that script and policy.
 
 ## 3. Review before commit
 
@@ -50,6 +51,7 @@ The repo's code-review skill expects a fixed point. Use one of these routes:
 - Commit the completed implementation locally, then run /code-review against `HEAD~1` or another fixed point before pushing or closing issues.
 - If committing first would be inappropriate, run an explicit pre-commit review against `git diff HEAD` and say that you are adapting the review because no committed fixed point exists yet.
 - If /code-review cannot run because a required mechanism is unavailable, including when sub-agents or other review tools are unavailable or policy-blocked, run a local two-axis review against the fixed point: standards/conventions and spec/acceptance. Document the deviation and its reason, fix any findings, rerun the relevant gates, and include the review outcome in closeout evidence.
+- If review fixes happen after the implementation commit, stage only implementation-owned files and intentionally either amend the implementation commit or create a follow-up commit. Refresh the final SHA after the last commit, rerun required gates on the final tree, and use that final SHA in closeout comments.
 
 Before staging or committing, rerun `git status --short`, identify unrelated existing changes, and stage only files owned by the implementation. Leave unrelated dirty files untouched and report them in the final response.
 
@@ -59,12 +61,13 @@ Commit your work to the current branch.
 
 Before declaring completion, closing issues, or closing a parent PRD:
 
-- Produce a pre-close per-issue audit before closing any issue: every acceptance criterion mapped to concrete evidence, with status `satisfied`, `blocked`, or `not done`.
+- Produce a pre-close per-issue audit before closing any issue: every acceptance criterion mapped to concrete evidence, with status `satisfied`, `blocked`, or `not done`. Default to one row per acceptance criterion; do not group acceptance checkboxes into one prose row unless the row names each checkbox explicitly.
 - Close only issues whose criteria are all satisfied, using a comment that includes the commit SHA and verification evidence.
 - If review found or fixed issues, or if a review fallback path was used, include the review outcome in each affected issue's closeout comment or in a clearly linked parent rollup.
 - Leave parent PRD issues open while any related child issue remains open, unless the tracker explicitly defines the parent as independently closable.
 - If a parent issue was split into child issues, do not close it merely because a broad skeleton exists.
 - Before closing a parent PRD, verify related child issue states by exact issue numbers, not only by broad issue-search output.
+- After closing child issues or a parent PRD, verify the live tracker state again by exact issue numbers before final response.
 - If the issue breakdown is wrong, comment with the proposed tracker correction instead of closing mismatched issues.
 - Run a final `git status --short`. For untracked verification artifacts, either remove them if safe, stage them if they are intended evidence, or explicitly report them in the final response.
 

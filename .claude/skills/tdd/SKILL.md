@@ -21,6 +21,8 @@ A **seam** is the public boundary you test at: the interface where you observe b
 
 **Test only at pre-agreed seams.** Before writing any test, write down the seams under test and confirm them with the user. No test is written at an unconfirmed seam. You can't test everything — agreeing the seams up front is how testing effort lands on the critical paths and complex logic instead of every edge case.
 
+If a PRD or issue explicitly names proof seams, those count as pre-agreed after you restate them in the implementation ledger. Ask the user only when the seam is absent, ambiguous, or conflicts with the codebase's actual public interfaces.
+
 Ask: "What's the public interface, and which seams should we test?"
 
 ## Anti-patterns
@@ -32,5 +34,6 @@ Ask: "What's the public interface, and which seams should we test?"
 ## Rules of the loop
 
 - **Red before green.** Write the failing test first, then only enough code to pass it. Don't anticipate future tests or add speculative features.
-- **One slice at a time.** One seam, one test, one minimal implementation per cycle.
-- **Refactoring is not part of the loop.** It belongs to the review stage (see the `review` skill), not the red → green implementation cycle.
+- **Record the loop.** For each slice, keep lightweight evidence of the red command and expected failure, then the green command. If red-first is skipped, say why.
+- **One slice at a time.** One seam, one test, one minimal implementation per cycle. When a vertical slice legitimately spans several public seams, write the smallest tracer-bullet test at each seam, keep the issue/audit mapping explicit, and avoid bulk tests that are not tied to an acceptance criterion.
+- **Refactoring is not part of the loop.** It belongs to the review stage (see the `code-review` skill), not the red → green implementation cycle.
