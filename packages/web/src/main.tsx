@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { LinkTypeDefinition, RecordTypeDefinition } from "@worldloom/shared";
+import type { HealthPayload, LinkTypeDefinition, RecordTypeDefinition } from "@worldloom/shared";
 import "./styles.css";
 
 interface RecordRow {
@@ -22,6 +22,15 @@ interface VocabularyTerm {
 interface RecentWorld {
   path: string;
   openedAt: string;
+}
+
+interface LinkRow {
+  id: number;
+  fromRecordId: number;
+  toRecordId: number;
+  linkTypeKey: string;
+  note: string;
+  depth?: number;
 }
 
 const api = async <T,>(path: string, init?: RequestInit): Promise<T> => {
@@ -46,11 +55,15 @@ function App() {
   const [recordTypes, setRecordTypes] = useState<RecordTypeDefinition[]>([]);
   const [linkTypes, setLinkTypes] = useState<LinkTypeDefinition[]>([]);
   const [records, setRecords] = useState<RecordRow[]>([]);
+  const [links, setLinks] = useState<LinkRow[]>([]);
   const [recentWorlds, setRecentWorlds] = useState<RecentWorld[]>([]);
   const [terms, setTerms] = useState<VocabularyTerm[]>([]);
   const [message, setMessage] = useState("");
+  const [serverVersion, setServerVersion] = useState("");
   const [search, setSearch] = useState("");
+  const [snapshotPath, setSnapshotPath] = useState("");
   const [recordTypeKey, setRecordTypeKey] = useState("canon_fact");
+  const [promotionRecordTypeKey, setPromotionRecordTypeKey] = useState("canon_fact");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [truthLayer, setTruthLayer] = useState("");
@@ -62,14 +75,22 @@ function App() {
 
   const truthLayers = useMemo(() => terms.filter((term) => term.vocabulary === "truth_layer"), [terms]);
   const canonStatuses = useMemo(() => terms.filter((term) => term.vocabulary === "canon_status"), [terms]);
+  const recordTypeByKey = useMemo(() => new Map(recordTypes.map((recordType) => [recordType.key, recordType])), [recordTypes]);
+  const selectedRecordType = editingId == null ? null : recordTypeByKey.get(recordTypeKey);
+  const editingReportRecord = selectedRecordType?.mutationRegime === "report";
+  const canSaveRecord = Boolean(openWorld && title.trim() && truthLayer && canonStatus && !editingReportRecord);
 
   useEffect(() => {
     if (!token) return;
+    api<HealthPayload>("/api/health")
+      .then((health) => setServerVersion(health.version))
+      .catch((error: Error) => setMessage(error.message));
     api<{ recordTypes: RecordTypeDefinition[]; linkTypes: LinkTypeDefinition[] }>("/api/catalog")
       .then((catalog) => {
         setRecordTypes(catalog.recordTypes);
         setLinkTypes(catalog.linkTypes);
         setRecordTypeKey(catalog.recordTypes[0]?.key ?? "canon_fact");
+        setPromotionRecordTypeKey(catalog.recordTypes.find((recordType) => recordType.key === "canon_fact")?.key ?? catalog.recordTypes[0]?.key ?? "canon_fact");
         setLinkTypeKey(catalog.linkTypes[0]?.key ?? "depends_on");
         return loadRecentWorlds();
       })
@@ -84,6 +105,12 @@ function App() {
   const refreshRecords = async () => {
     const payload = await api<{ records: RecordRow[] }>("/api/records");
     setRecords(payload.records);
+    await refreshLinks();
+  };
+
+  const refreshLinks = async () => {
+    const payload = await api<{ links: LinkRow[] }>("/api/links");
+    setLinks(payload.links);
   };
 
   const loadVocabularies = async () => {
@@ -103,7 +130,9 @@ function App() {
     });
     setOpenWorld(payload.path);
     setRecords(payload.records);
+    setLinks([]);
     await loadVocabularies();
+    await refreshLinks();
     await loadRecentWorlds();
     setMessage(`${mode === "create" ? "Created" : "Opened"} ${payload.path}`);
   };
@@ -117,6 +146,8 @@ function App() {
     setEditingId(null);
     setTitle("");
     setBody("");
+    setTruthLayer("");
+    setCanonStatus("");
     await refreshRecords();
   };
 
@@ -144,10 +175,29 @@ function App() {
       })
     });
     setMessage("Link recorded");
+    await refreshLinks();
+  };
+
+  const traverseLinks = async () => {
+    const payload = await api<{ links: LinkRow[] }>(`/api/links/traverse?recordId=${encodeURIComponent(fromRecordId)}&linkTypeKey=${encodeURIComponent(linkTypeKey)}`);
+    setLinks(payload.links);
+    setMessage(`Traversal returned ${payload.links.length} link${payload.links.length === 1 ? "" : "s"}`);
+  };
+
+  const promoteRecord = async (record: RecordRow) => {
+    const payload = await api<{ record: RecordRow }>(`/api/records/${record.id}/promote`, {
+      method: "POST",
+      body: JSON.stringify({ recordTypeKey: promotionRecordTypeKey })
+    });
+    setMessage(`Promoted ${payload.record.shortId} to ${payload.record.recordTypeKey}`);
+    await refreshRecords();
   };
 
   const snapshot = async () => {
-    const payload = await api<{ path: string }>("/api/worlds/snapshot", { method: "POST", body: "{}" });
+    const payload = await api<{ path: string }>("/api/worlds/snapshot", {
+      method: "POST",
+      body: JSON.stringify({ destinationPath: snapshotPath || undefined })
+    });
     setMessage(`Snapshot written to ${payload.path}`);
   };
 
@@ -156,7 +206,7 @@ function App() {
       <header className="topbar">
         <div>
           <h1>Worldloom Studio</h1>
-          <p>{openWorld ?? "No world file open"}</p>
+          <p>{serverVersion ? `Server ${serverVersion} · ` : ""}{openWorld ?? "No world file open"}</p>
         </div>
         <input aria-label="Worldloom token" placeholder="server token" value={token} onChange={(event) => rememberToken(event.target.value)} />
       </header>
@@ -170,8 +220,12 @@ function App() {
           <div className="row">
             <button onClick={() => createOrOpen("create")}>Create</button>
             <button onClick={() => createOrOpen("open")}>Open</button>
-            <button onClick={snapshot} disabled={!openWorld}>Snapshot</button>
           </div>
+          <label>
+            Snapshot path
+            <input value={snapshotPath} onChange={(event) => setSnapshotPath(event.target.value)} placeholder="/tmp/example.snapshot.sqlite" />
+          </label>
+          <button onClick={snapshot} disabled={!openWorld}>Snapshot</button>
 
           <div className="recent">
             {recentWorlds.map((recent) => (
@@ -204,12 +258,22 @@ function App() {
               {linkTypes.map((linkType) => <option key={linkType.key} value={linkType.key}>{linkType.label}</option>)}
             </select>
           </label>
+          <label>
+            Promotion target
+            <select value={promotionRecordTypeKey} onChange={(event) => setPromotionRecordTypeKey(event.target.value)}>
+              {recordTypes.filter((recordType) => recordType.mutationRegime === "card").map((recordType) => (
+                <option key={recordType.key} value={recordType.key}>{recordType.label}</option>
+              ))}
+            </select>
+          </label>
           <button onClick={createLink} disabled={!openWorld}>Create Link</button>
+          <button onClick={traverseLinks} disabled={!openWorld || !fromRecordId}>Traverse</button>
         </aside>
 
         <section className="editor">
           <div className="panel">
             <h2>{editingId == null ? "New record" : `Editing record ${editingId}`}</h2>
+            {editingReportRecord && <p className="status">Report-regime records are append-only and view-only after creation.</p>}
             <div className="grid">
               <label>
                 Record type
@@ -219,14 +283,14 @@ function App() {
               </label>
               <label>
                 Truth layer
-                <select value={truthLayer} onChange={(event) => setTruthLayer(event.target.value)}>
+                <select value={truthLayer} onChange={(event) => setTruthLayer(event.target.value)} disabled={editingReportRecord}>
                   <option></option>
                   {truthLayers.map((term) => <option key={term.term}>{term.term}</option>)}
                 </select>
               </label>
               <label>
                 Canon status
-                <select value={canonStatus} onChange={(event) => setCanonStatus(event.target.value)}>
+                <select value={canonStatus} onChange={(event) => setCanonStatus(event.target.value)} disabled={editingReportRecord}>
                   <option></option>
                   {canonStatuses.map((term) => <option key={term.term}>{term.term}</option>)}
                 </select>
@@ -234,14 +298,14 @@ function App() {
             </div>
             <label>
               Title
-              <input value={title} onChange={(event) => setTitle(event.target.value)} />
+              <input value={title} onChange={(event) => setTitle(event.target.value)} disabled={editingReportRecord} />
             </label>
             <label>
               Prose
-              <textarea value={body} onChange={(event) => setBody(event.target.value)} rows={10} />
+              <textarea value={body} onChange={(event) => setBody(event.target.value)} rows={10} disabled={editingReportRecord} />
             </label>
             <div className="row">
-              <button onClick={saveRecord} disabled={!openWorld || !title.trim()}>Save Record</button>
+              <button onClick={saveRecord} disabled={!canSaveRecord}>Save Record</button>
               <button onClick={() => { setEditingId(null); setTitle(""); setBody(""); setTruthLayer(""); setCanonStatus(""); }}>Clear</button>
             </div>
           </div>
@@ -252,12 +316,25 @@ function App() {
             {records.map((record) => (
               <article key={record.id}>
                 <button onClick={() => editRecord(record)}>Edit</button>
+                {recordTypeByKey.get(record.recordTypeKey)?.mutationRegime === "card" && (
+                  <button className="promote" onClick={() => promoteRecord(record)}>Promote</button>
+                )}
                 <h3>{record.shortId} · {record.title}</h3>
                 <p className="meta">{record.recordTypeKey} · {record.updatedAt}</p>
                 <p>{record.body || "No prose yet."}</p>
               </article>
             ))}
           </div>
+          {links.length > 0 && (
+            <div className="links">
+              <h2>Links</h2>
+              {links.map((link) => (
+                <p key={`${link.id}-${link.depth ?? 0}`}>
+                  {link.depth ? `${link.depth}. ` : ""}{link.fromRecordId} {link.linkTypeKey} {link.toRecordId}{link.note ? ` · ${link.note}` : ""}
+                </p>
+              ))}
+            </div>
+          )}
         </section>
       </section>
     </main>

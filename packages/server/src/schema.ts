@@ -7,8 +7,6 @@ const sqlString = (value: string): string => `'${value.replaceAll("'", "''")}'`;
 
 export const migration001 = `
 PRAGMA application_id = ${APPLICATION_ID};
-PRAGMA journal_mode = WAL;
-
 CREATE TABLE IF NOT EXISTS world_metadata (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -88,8 +86,8 @@ CREATE TABLE IF NOT EXISTS records (
   record_type_key TEXT NOT NULL REFERENCES record_types(key),
   title TEXT NOT NULL,
   body TEXT NOT NULL DEFAULT '',
-  truth_layer TEXT,
-  canon_status TEXT,
+  truth_layer TEXT NOT NULL,
+  canon_status TEXT NOT NULL,
   continuity_scope_id INTEGER NOT NULL DEFAULT 1 REFERENCES continuity_scopes(id),
   actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
@@ -118,6 +116,13 @@ CREATE TABLE IF NOT EXISTS record_links (
   UNIQUE (from_record_id, to_record_id, link_type_key)
 ) STRICT;
 
+CREATE TRIGGER IF NOT EXISTS record_links_no_retire_dangle
+BEFORE DELETE ON record_links
+WHEN old.link_type_key IN ('retired_by', 'supersedes', 'promoted_to', 'tombstones')
+BEGIN
+  SELECT RAISE(ABORT, 'retirement and genealogy links are append-only');
+END;
+
 CREATE TABLE IF NOT EXISTS record_facets (
   id INTEGER PRIMARY KEY,
   record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
@@ -127,6 +132,44 @@ CREATE TABLE IF NOT EXISTS record_facets (
   UNIQUE (record_id, vocabulary, term),
   FOREIGN KEY (vocabulary, term) REFERENCES vocabulary_terms(vocabulary, term)
 ) STRICT;
+
+CREATE TABLE IF NOT EXISTS jurisdiction_events (
+  id INTEGER PRIMARY KEY,
+  record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  origin TEXT NOT NULL CHECK (origin IN ('admission', 'repair', 'sweep')),
+  admission_decision_operation TEXT,
+  repair_operation TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  CHECK (
+    (origin = 'admission' AND admission_decision_operation IS NOT NULL AND repair_operation IS NULL)
+    OR (origin = 'repair' AND repair_operation IS NOT NULL AND admission_decision_operation IS NULL)
+    OR (origin = 'sweep' AND admission_decision_operation IS NULL AND repair_operation IS NULL)
+  )
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS jurisdiction_events_validate_admission_operation
+BEFORE INSERT ON jurisdiction_events
+WHEN new.admission_decision_operation IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM vocabulary_terms
+    WHERE vocabulary = 'admission_decision_operation'
+      AND term = new.admission_decision_operation
+  )
+BEGIN
+  SELECT RAISE(ABORT, 'unknown admission decision operation');
+END;
+
+CREATE TRIGGER IF NOT EXISTS jurisdiction_events_validate_repair_operation
+BEFORE INSERT ON jurisdiction_events
+WHEN new.repair_operation IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM vocabulary_terms
+    WHERE vocabulary = 'repair_operation'
+      AND term = new.repair_operation
+  )
+BEGIN
+  SELECT RAISE(ABORT, 'unknown repair operation');
+END;
 
 CREATE VIRTUAL TABLE IF NOT EXISTS records_fts
 USING fts5(short_id, title, body, content='records', content_rowid='id');
@@ -173,7 +216,7 @@ CREATE TRIGGER IF NOT EXISTS records_ad AFTER DELETE ON records BEGIN
   VALUES ('delete', old.id, old.short_id, old.title, old.body);
 END;
 
-CREATE TRIGGER IF NOT EXISTS records_au AFTER UPDATE ON records BEGIN
+CREATE TRIGGER IF NOT EXISTS records_au AFTER UPDATE OF short_id, title, body ON records BEGIN
   INSERT INTO records_fts(records_fts, rowid, short_id, title, body)
   VALUES ('delete', old.id, old.short_id, old.title, old.body);
   INSERT INTO records_fts(rowid, short_id, title, body)
@@ -192,6 +235,12 @@ BEFORE DELETE ON records
 WHEN (SELECT mutation_regime FROM record_types WHERE key = old.record_type_key) = 'report'
 BEGIN
   SELECT RAISE(ABORT, 'report-regime records are append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS records_provenance_no_update
+BEFORE UPDATE OF actor_id, created_at ON records
+BEGIN
+  SELECT RAISE(ABORT, 'record provenance is immutable');
 END;
 
 CREATE TRIGGER IF NOT EXISTS card_records_history

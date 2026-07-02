@@ -2,14 +2,14 @@ import Database from "better-sqlite3";
 import { dirname, resolve } from "node:path";
 import { existsSync, mkdirSync } from "node:fs";
 import { APPLICATION_ID, CURRENT_SCHEMA_VERSION, migration001 } from "./schema.js";
-import { RECORD_TYPE_BY_KEY } from "@worldloom/shared";
+import { LINK_TYPES, RECORD_TYPE_BY_KEY } from "@worldloom/shared";
 
 export interface RecordInput {
   recordTypeKey: string;
   title: string;
   body?: string;
-  truthLayer?: string | null;
-  canonStatus?: string | null;
+  truthLayer: string;
+  canonStatus: string;
 }
 
 export interface RecordRow {
@@ -24,6 +24,19 @@ export interface RecordRow {
   updatedAt: string;
 }
 
+export interface LinkRow {
+  id: number;
+  fromRecordId: number;
+  toRecordId: number;
+  linkTypeKey: string;
+  note: string;
+  createdAt: string;
+}
+
+export interface TraversalRow extends LinkRow {
+  depth: number;
+}
+
 const rowToRecord = (row: Record<string, unknown>): RecordRow => ({
   id: Number(row.id),
   shortId: String(row.short_id),
@@ -34,6 +47,15 @@ const rowToRecord = (row: Record<string, unknown>): RecordRow => ({
   canonStatus: row.canon_status == null ? null : String(row.canon_status),
   createdAt: String(row.created_at),
   updatedAt: String(row.updated_at)
+});
+
+const rowToLink = (row: Record<string, unknown>): LinkRow => ({
+  id: Number(row.id),
+  fromRecordId: Number(row.from_record_id),
+  toRecordId: Number(row.to_record_id),
+  linkTypeKey: String(row.link_type_key),
+  note: String(row.note ?? ""),
+  createdAt: String(row.created_at)
 });
 
 const quoteSqlPath = (path: string): string => `'${path.replaceAll("'", "''")}'`;
@@ -53,7 +75,7 @@ export class WorldStore {
     const db = new Database(resolved);
     const store = new WorldStore(resolved, db);
     store.configureConnection();
-    store.migrate();
+    store.migrate({ backupBeforeMigration: false });
     return store;
   }
 
@@ -67,7 +89,7 @@ export class WorldStore {
     store.configureConnection();
     store.assertIntegrity();
     store.assertApplicationIdCanOpen();
-    store.migrate();
+    store.migrate({ backupBeforeMigration: true });
     return store;
   }
 
@@ -82,6 +104,10 @@ export class WorldStore {
     return destination;
   }
 
+  integrityCheck(): string {
+    return String(this.db.pragma("integrity_check", { simple: true }));
+  }
+
   listRecords(): RecordRow[] {
     return this.db.prepare("SELECT * FROM records ORDER BY updated_at DESC, id DESC").all().map((row) => rowToRecord(row as Record<string, unknown>));
   }
@@ -94,6 +120,9 @@ export class WorldStore {
 
   createRecord(input: RecordInput): RecordRow {
     this.assertRecordType(input.recordTypeKey);
+    if (!input.truthLayer || !input.canonStatus) {
+      throw new Error("truthLayer and canonStatus are explicit steward choices");
+    }
     const shortId = this.nextShortId(input.recordTypeKey);
     const result = this.db.prepare(`
       INSERT INTO records (short_id, record_type_key, title, body, truth_layer, canon_status)
@@ -103,13 +132,13 @@ export class WorldStore {
       recordTypeKey: input.recordTypeKey,
       title: input.title,
       body: input.body ?? "",
-      truthLayer: input.truthLayer ?? null,
-      canonStatus: input.canonStatus ?? null
+      truthLayer: input.truthLayer,
+      canonStatus: input.canonStatus
     });
     return this.getRecord(Number(result.lastInsertRowid));
   }
 
-  updateRecord(id: number, input: Partial<RecordInput>): RecordRow {
+  updateRecord(id: number, input: Partial<Omit<RecordInput, "recordTypeKey">>): RecordRow {
     const current = this.getRecord(id);
     this.db.prepare(`
       UPDATE records
@@ -128,23 +157,61 @@ export class WorldStore {
     return this.getRecord(id);
   }
 
-  createLink(fromRecordId: number, toRecordId: number, linkTypeKey: string, note = ""): unknown {
+  promoteRecord(id: number, nextRecordTypeKey: string): RecordRow {
+    const current = this.getRecord(id);
+    const nextType = this.assertRecordType(nextRecordTypeKey);
+    if (nextType.mutationRegime !== "card") {
+      throw new Error("promotion target must use the card mutation regime");
+    }
+    this.db.transaction(() => {
+      this.db.prepare("UPDATE records SET record_type_key = ? WHERE id = ?").run(nextRecordTypeKey, id);
+      this.db.prepare(`
+        INSERT OR IGNORE INTO record_links (from_record_id, to_record_id, link_type_key, note)
+        VALUES (?, ?, 'tombstones', ?)
+      `).run(id, current.id, `Promotion changed ${current.shortId} from ${current.recordTypeKey} to ${nextRecordTypeKey}`);
+    })();
+    return this.getRecord(id);
+  }
+
+  createLink(fromRecordId: number, toRecordId: number, linkTypeKey: string, note = ""): LinkRow {
+    this.assertLinkType(linkTypeKey);
     const result = this.db.prepare(`
       INSERT INTO record_links (from_record_id, to_record_id, link_type_key, note)
       VALUES (?, ?, ?, ?)
     `).run(fromRecordId, toRecordId, linkTypeKey, note);
-    return this.db.prepare("SELECT * FROM record_links WHERE id = ?").get(result.lastInsertRowid);
+    return rowToLink(this.db.prepare("SELECT * FROM record_links WHERE id = ?").get(result.lastInsertRowid) as Record<string, unknown>);
   }
 
-  listLinks(recordId?: number): unknown[] {
+  listLinks(recordId?: number): LinkRow[] {
     if (recordId == null) {
-      return this.db.prepare("SELECT * FROM record_links ORDER BY id").all();
+      return this.db.prepare("SELECT * FROM record_links ORDER BY id").all().map((row) => rowToLink(row as Record<string, unknown>));
     }
     return this.db.prepare(`
       SELECT * FROM record_links
       WHERE from_record_id = ? OR to_record_id = ?
       ORDER BY id
-    `).all(recordId, recordId);
+    `).all(recordId, recordId).map((row) => rowToLink(row as Record<string, unknown>));
+  }
+
+  traverse(recordId: number, linkTypeKey?: string): TraversalRow[] {
+    return this.db.prepare(`
+      WITH RECURSIVE walk(id, from_record_id, to_record_id, link_type_key, note, created_at, depth) AS (
+        SELECT id, from_record_id, to_record_id, link_type_key, note, created_at, 1
+        FROM record_links
+        WHERE from_record_id = @recordId
+          AND (@linkTypeKey IS NULL OR link_type_key = @linkTypeKey)
+        UNION ALL
+        SELECT rl.id, rl.from_record_id, rl.to_record_id, rl.link_type_key, rl.note, rl.created_at, walk.depth + 1
+        FROM record_links rl
+        JOIN walk ON rl.from_record_id = walk.to_record_id
+        WHERE walk.depth < 32
+          AND (@linkTypeKey IS NULL OR rl.link_type_key = @linkTypeKey)
+      )
+      SELECT * FROM walk ORDER BY depth, id
+    `).all({ recordId, linkTypeKey: linkTypeKey ?? null }).map((row) => ({
+      ...rowToLink(row as Record<string, unknown>),
+      depth: Number((row as Record<string, unknown>).depth)
+    }));
   }
 
   search(query: string): RecordRow[] {
@@ -173,12 +240,12 @@ export class WorldStore {
     this.db.pragma("busy_timeout = 5000");
   }
 
-  private migrate(): void {
+  private migrate(options: { backupBeforeMigration: boolean }): void {
     const version = Number(this.db.pragma("user_version", { simple: true }));
     if (version > CURRENT_SCHEMA_VERSION) {
       throw new Error(`World schema ${version} is newer than this app supports (${CURRENT_SCHEMA_VERSION})`);
     }
-    if (version < CURRENT_SCHEMA_VERSION && version > 0) {
+    if (version < CURRENT_SCHEMA_VERSION && options.backupBeforeMigration) {
       this.snapshot(this.backupPath(`pre-migration-v${version}-to-v${CURRENT_SCHEMA_VERSION}`));
     }
     if (version === 0) {
@@ -191,6 +258,7 @@ export class WorldStore {
         throw error;
       }
     }
+    this.db.pragma("journal_mode = WAL");
   }
 
   private assertIntegrity(): void {
@@ -220,9 +288,17 @@ export class WorldStore {
     return transaction();
   }
 
-  private assertRecordType(recordTypeKey: string): void {
-    if (!RECORD_TYPE_BY_KEY.has(recordTypeKey)) {
+  private assertRecordType(recordTypeKey: string) {
+    const recordType = RECORD_TYPE_BY_KEY.get(recordTypeKey);
+    if (!recordType) {
       throw new Error(`Unknown record type: ${recordTypeKey}`);
+    }
+    return recordType;
+  }
+
+  private assertLinkType(linkTypeKey: string): void {
+    if (!LINK_TYPES.some((linkType) => linkType.key === linkTypeKey)) {
+      throw new Error(`Unknown link type: ${linkTypeKey}`);
     }
   }
 

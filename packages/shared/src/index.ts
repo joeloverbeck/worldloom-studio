@@ -23,6 +23,13 @@ export interface LinkTypeDefinition {
   packageSource: string;
 }
 
+export interface HealthPayload {
+  ok: true;
+  version: string;
+}
+
+export const APP_VERSION = "0.0.0";
+
 export const RECORD_TYPES: RecordTypeDefinition[] = [
   { key: "world_kernel", label: "World kernel", namespace: "KER", mutationRegime: "card", packageSource: "docs/worldbuilding-system/templates/world_kernel.md" },
   { key: "canon_fact", label: "Canon fact", namespace: "FAC", mutationRegime: "card", packageSource: "docs/worldbuilding-system/templates/canon_fact_card.md" },
@@ -83,8 +90,8 @@ const terms = (vocabulary: string, packageSource: string, values: string[], exte
   values.map((term) => ({ vocabulary, term, packageSource, extensionAllowed, seededOther: seededOther || term === "other" }));
 
 export const VOCABULARY_TERMS: VocabularyTerm[] = [
-  ...terms("truth_layer", "docs/worldbuilding-system/03_truth_layers_and_canon_governance.md", ["author canon", "working canon", "branch canon", "local canon", "adaptation canon", "rumor", "legend", "lie", "unknown"]),
-  ...terms("canon_status", "docs/worldbuilding-system/03_truth_layers_and_canon_governance.md", ["proposed", "under review", "accepted", "constrained", "localized", "historicized", "reinterpreted", "institutionalized", "priced", "branch-only", "quarantined", "superseded", "deprecated", "rejected"]),
+  ...terms("truth_layer", "docs/worldbuilding-system/templates/canon_fact_card.md", ["Objective canon", "author-secret canon", "branch canon", "mystery boundary", "diegetic claim", "public belief", "local belief", "elite belief", "mythic truth", "propaganda", "lie", "honest error", "disputed claim"]),
+  ...terms("canon_status", "docs/worldbuilding-system/templates/canon_fact_card.md", ["proposed", "under review", "accepted", "accepted with constraints", "localized", "contested", "quarantined", "branch-only", "superseded", "deprecated", "rejected"]),
   ...terms("constraint_tag", "docs/worldbuilding-system/03_truth_layers_and_canon_governance.md", ["cost-bound", "place-bound", "time-bound", "access-bound", "knowledge-bound", "institution-bound", "branch-bound"]),
   ...terms("constraint_tag", "docs/worldbuilding-system/22_glossary.md", ["ritual-bound", "material-bound", "population-bound"], true, true),
   ...terms("admission_decision_operation", "docs/worldbuilding-system/checklists/canon_fact_gate.md", ["accept", "constrain", "localize", "historicize", "reinterpret", "institutionalize", "price", "branch", "quarantine", "supersede", "deprecate", "reject"]),

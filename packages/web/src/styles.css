@@ -152,10 +152,14 @@ label {
   padding: 12px 96px 12px 14px;
 }
 
-.records article button {
+.records article > button {
   position: absolute;
   top: 12px;
   right: 12px;
+}
+
+.records article > button.promote {
+  top: 54px;
 }
 
 .records h3,
@@ -171,6 +175,17 @@ label {
   margin: 4px 0 8px;
   color: #667065;
   font-size: 0.85rem;
+}
+
+.links {
+  margin-top: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.links h2,
+.links p {
+  margin: 0;
 }
 
 @media (max-width: 820px) {

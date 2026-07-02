@@ -116,6 +116,31 @@ Core controlled vocabularies in schema v1:
 
 The app may store and validate these terms. It may not merge, infer, or auto-assign them.
 
+### Vocabulary Value Appendix
+
+Each seeded vocabulary row stores its package source beside the term. Values grouped on one line share the cited source unless a note says otherwise.
+
+- `truth_layer`: Objective canon; author-secret canon; branch canon; mystery boundary; diegetic claim; public belief; local belief; elite belief; mythic truth; propaganda; lie; honest error; disputed claim (`templates/canon_fact_card.md`).
+- `canon_status`: proposed; under review; accepted; accepted with constraints; localized; contested; quarantined; branch-only; superseded; deprecated; rejected (`templates/canon_fact_card.md`, `22_glossary.md`).
+- `constraint_tag`: cost-bound; place-bound; time-bound; access-bound; knowledge-bound; institution-bound; branch-bound (`03_truth_layers_and_canon_governance.md`); ritual-bound; material-bound; population-bound (`22_glossary.md`, pre-seeded `other` rows).
+- `admission_decision_operation`: accept; constrain; localize; historicize; reinterpret; institutionalize; price; branch; quarantine; supersede; deprecate; reject (`checklists/canon_fact_gate.md`, `templates/canon_fact_card.md`).
+- `repair_operation`: clarify scope; retcon; reinterpret; institutionalize; branch; quarantine; supersede; deprecate; reject (`13_contradiction_retcon_and_mystery.md`).
+- `consequence_mode`: realist; mythic; weird; hard speculative; horror; satirical; mixed; other (`05_creation_protocol.md`).
+- `preservation_boundary`: fixed; author-secret; deliberately undecided; forbidden; evidence-governed; none (`13_contradiction_retcon_and_mystery.md`).
+- `work_scale`: minor; moderate; major; severe; catastrophic (`06_canon_fact_admission_protocol.md`).
+- `admission_level`: 0; 1; 2; 3; 4; 5 (`06_canon_fact_admission_protocol.md`).
+- `fact_type`: world fact; constraint; capability; institution; character; spatial; temporal; aesthetic rule; other (`templates/canon_fact_card.md`).
+- `dependency_type`: hard; soft; social; economic; epistemic; temporal; spatial; aesthetic (`02_world_model.md`).
+- `constraint_type`: access; cost; location; time; population; material; legal; ritual; knowledge; social; biological; ecological; psychological; aesthetic; branch (`checklists/constraint_composition_sweep.md`).
+- `contradiction_type`: timeline; spatial; causal; capacity; institutional; psychological; economic; epistemic; semantic; branch (`templates/contradiction_report.md`).
+- `mystery_state`: fixed; author-secret; deliberately undecided; forbidden; evidence-governed (`13_contradiction_retcon_and_mystery.md`).
+- `branch_status`: active; retired; merged; quarantined (`templates/canon_branch_diff.md`).
+- `merge_expectation`: never; possible; planned; required (`templates/canon_branch_diff.md`).
+- `workflow_role`: steward; contributor; reviewer; approver; implementer; observer; advisor; maintainer (`templates/collaboration_decision_record.md`, `20_ai_assisted_workflow.md`).
+- `provenance_actor_role`: steward (`data-principles.md`).
+- `advisory_disposition`: selected; deleted; challenged; ignored; standing ruling (`20_ai_assisted_workflow.md`).
+- `admission_ledger_minor_item`: fact; truth layer; status; dependencies; canon debt (`templates/admission_ledger.md`).
+
 ## Typed Links
 
 `record_links` stores directed typed links with foreign keys on both ends. Link types are seeded from package relationship language:

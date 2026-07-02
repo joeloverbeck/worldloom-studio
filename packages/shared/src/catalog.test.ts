@@ -10,10 +10,23 @@ describe("shared catalogs", () => {
 
   it("seeds the schema-owned vocabulary facets separately", () => {
     expect(VOCABULARY_TERMS).toEqual(expect.arrayContaining([
-      expect.objectContaining({ vocabulary: "truth_layer", term: "author canon" }),
+      expect.objectContaining({ vocabulary: "truth_layer", term: "Objective canon" }),
       expect.objectContaining({ vocabulary: "canon_status", term: "proposed" }),
       expect.objectContaining({ vocabulary: "constraint_tag", term: "branch-bound" }),
       expect.objectContaining({ vocabulary: "repair_operation", term: "clarify scope" })
     ]));
+    expect(VOCABULARY_TERMS.filter((term) => term.vocabulary === "canon_status").map((term) => term.term)).toEqual([
+      "proposed",
+      "under review",
+      "accepted",
+      "accepted with constraints",
+      "localized",
+      "contested",
+      "quarantined",
+      "branch-only",
+      "superseded",
+      "deprecated",
+      "rejected"
+    ]);
   });
 });
