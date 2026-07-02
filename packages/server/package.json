@@ -1,0 +1,24 @@
+{
+  "name": "@worldloom/server",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "test": "pnpm --filter @worldloom/shared build && vitest run",
+    "typecheck": "pnpm --filter @worldloom/shared build && tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.17.1",
+    "@worldloom/shared": "workspace:*",
+    "better-sqlite3": "^12.2.0",
+    "hono": "^4.8.4"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "tsx": "^4.20.3",
+    "vitest": "^3.2.4"
+  }
+}

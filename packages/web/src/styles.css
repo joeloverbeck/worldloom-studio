@@ -1,0 +1,195 @@
+:root {
+  color: #202421;
+  background: #f7f5ef;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 1px solid #1f3d36;
+  background: #1f3d36;
+  color: #fff;
+  border-radius: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+button:disabled {
+  background: #9a9f99;
+  border-color: #9a9f99;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid #b8b2a5;
+  border-radius: 6px;
+  background: #fffdfa;
+  padding: 8px 10px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  color: #485047;
+  font-size: 0.9rem;
+}
+
+.topbar {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  background: #20342f;
+  color: #fffdfa;
+}
+
+.topbar h1,
+.topbar p {
+  margin: 0;
+}
+
+.topbar h1 {
+  font-size: 1.25rem;
+}
+
+.topbar p {
+  color: #d7ddd7;
+  overflow-wrap: anywhere;
+}
+
+.topbar input {
+  max-width: 320px;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) 1fr;
+  min-height: calc(100vh - 76px);
+}
+
+.sidebar {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 18px;
+  border-right: 1px solid #d7d1c3;
+  background: #efeadf;
+}
+
+.editor {
+  padding: 18px;
+}
+
+.panel {
+  display: grid;
+  gap: 14px;
+  max-width: 980px;
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.recent {
+  display: grid;
+  gap: 6px;
+}
+
+.recent button {
+  width: 100%;
+  height: auto;
+  min-height: 34px;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.status {
+  color: #1d5a4f;
+}
+
+.records {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.records article {
+  position: relative;
+  border: 1px solid #d4cdbc;
+  border-radius: 8px;
+  background: #fffdfa;
+  padding: 12px 96px 12px 14px;
+}
+
+.records article button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.records h3,
+.records p {
+  margin: 0;
+}
+
+.records h3 {
+  font-size: 1rem;
+}
+
+.records .meta {
+  margin: 4px 0 8px;
+  color: #667065;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 820px) {
+  .topbar,
+  .workspace {
+    display: block;
+  }
+
+  .topbar input {
+    max-width: none;
+    margin-top: 10px;
+  }
+
+  .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid #d7d1c3;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

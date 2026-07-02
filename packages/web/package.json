@@ -1,0 +1,24 @@
+{
+  "name": "@worldloom/web",
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && vite build",
+    "dev": "vite --host 127.0.0.1",
+    "test": "vitest run",
+    "typecheck": "pnpm --filter @worldloom/shared build && tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^4.6.0",
+    "@worldloom/shared": "workspace:*",
+    "vite": "^7.0.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

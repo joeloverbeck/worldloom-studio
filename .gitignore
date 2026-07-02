@@ -46,6 +46,7 @@ web_modules/
 
 # TypeScript cache
 *.tsbuildinfo
+dist-types/
 
 # Optional npm cache directory
 .npm
@@ -127,6 +128,9 @@ dist
 
 # pnpm
 .pnpm-store
+
+# Worldloom local runtime state
+.worldloom-studio/
 
 # yarn v3
 .pnp.*
