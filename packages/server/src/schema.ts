@@ -1,7 +1,7 @@
 import { LINK_TYPES, RECORD_TYPES, VOCABULARY_TERMS } from "@worldloom/shared";
 
 export const APPLICATION_ID = 0x574c4f4d;
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
 const sqlString = (value: string): string => `'${value.replaceAll("'", "''")}'`;
 
@@ -498,4 +498,106 @@ END;
 INSERT INTO records_fts(records_fts) VALUES('rebuild');
 
 PRAGMA user_version = 2;
+`;
+
+const propagationReportHeadings = [
+  [1, "Fact and run"],
+  [2, "Shock-cone orders"],
+  [3, "Domain-atlas sweep"],
+  [4, "Negative domains"],
+  [5, "Consequences and dispositions"],
+  [6, "Surfaced proposals"],
+  [7, "Debt and preservation boundaries"],
+  [8, "Stopping-rule audit"]
+] as const;
+
+export const migration003 = `
+${VOCABULARY_TERMS.filter((term) => term.vocabulary === "consequence_disposition")
+  .map((term) => `INSERT OR IGNORE INTO vocabularies (name) VALUES (${sqlString(term.vocabulary)});
+INSERT OR IGNORE INTO vocabulary_terms (vocabulary, term, package_source, extension_allowed, seeded_other) VALUES (${sqlString(term.vocabulary)}, ${sqlString(term.term)}, ${sqlString(term.packageSource)}, ${term.extensionAllowed ? 1 : 0}, ${term.seededOther ? 1 : 0});`)
+  .join("\n")}
+
+${propagationReportHeadings.map(([position, heading]) => `INSERT OR IGNORE INTO record_section_headings (record_type_key, position, heading, package_source) VALUES ('propagation_report', ${position}, ${sqlString(heading)}, 'docs/worldbuilding-system/templates/propagation_report.md');`).join("\n")}
+
+INSERT OR IGNORE INTO prompt_templates (key, role_name, original_text, package_source) VALUES
+  ('propagation_consequence_scout', 'Consequence scout', 'Pressure-test this propagation step. Work from the steward material first, then list direct consequences, adaptations, countermeasures, fossils, quiet domains, and assumptions. Do not admit facts; label any surfaced fact as proposed-only.', 'docs/worldbuilding-system/20_ai_assisted_workflow.md');
+
+INSERT OR IGNORE INTO prompt_template_versions (template_key, version, text)
+SELECT key, 1, original_text FROM prompt_templates WHERE key = 'propagation_consequence_scout';
+
+ALTER TABLE flow_instances ADD COLUMN propagation_fact_record_id INTEGER REFERENCES records(id);
+ALTER TABLE flow_instances ADD COLUMN propagation_debt_record_id INTEGER REFERENCES records(id);
+ALTER TABLE flow_instances ADD COLUMN propagation_report_record_id INTEGER REFERENCES records(id);
+
+CREATE TABLE IF NOT EXISTS propagation_consequences (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  fact_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  order_key TEXT NOT NULL,
+  order_label TEXT NOT NULL,
+  domain_name TEXT,
+  body TEXT NOT NULL,
+  pressure TEXT NOT NULL DEFAULT 'normal' CHECK (pressure IN ('normal', 'high')),
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS propagation_domain_sweeps (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  domain_name TEXT NOT NULL,
+  triage TEXT NOT NULL CHECK (triage IN ('direct', 'dependency', 'reaction', 'negative')),
+  declaration TEXT NOT NULL DEFAULT '',
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (flow_id, domain_name)
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS propagation_consequence_dispositions (
+  id INTEGER PRIMARY KEY,
+  consequence_id INTEGER NOT NULL UNIQUE REFERENCES propagation_consequences(id) ON DELETE CASCADE,
+  disposition TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  preservation_boundary TEXT,
+  debt_record_id INTEGER REFERENCES records(id),
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  CHECK (
+    (disposition = 'assigned as canon debt' AND debt_record_id IS NOT NULL AND preservation_boundary IS NULL)
+    OR (disposition = 'protected as a mystery boundary' AND preservation_boundary IS NOT NULL AND debt_record_id IS NULL)
+    OR (disposition IN ('answered', 'intentionally scoped out') AND debt_record_id IS NULL)
+  )
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS propagation_dispositions_validate
+BEFORE INSERT ON propagation_consequence_dispositions
+WHEN NOT EXISTS (
+  SELECT 1 FROM vocabulary_terms
+  WHERE vocabulary = 'consequence_disposition'
+    AND term = new.disposition
+)
+BEGIN
+  SELECT RAISE(ABORT, 'unknown consequence disposition');
+END;
+
+CREATE TRIGGER IF NOT EXISTS propagation_dispositions_no_update
+BEFORE UPDATE ON propagation_consequence_dispositions
+BEGIN
+  SELECT RAISE(ABORT, 'consequence dispositions are standing rulings; add a new consequence/report to correct');
+END;
+
+CREATE TABLE IF NOT EXISTS propagation_surfaced_proposals (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  proposal_record_id INTEGER NOT NULL UNIQUE REFERENCES records(id) ON DELETE CASCADE,
+  report_record_id INTEGER REFERENCES records(id),
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+PRAGMA user_version = 3;
 `;

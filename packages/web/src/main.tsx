@@ -66,6 +66,41 @@ interface AdmissionQueueRow extends RecordRow {
   constraintTags: string[];
 }
 
+interface PropagationQueueRow extends RecordRow {
+  scope: string;
+  state: string;
+}
+
+interface PropagationConsequence {
+  id: number;
+  orderKey: string;
+  orderLabel: string;
+  domainName: string | null;
+  body: string;
+  pressure: "normal" | "high";
+}
+
+interface PropagationDomain {
+  id: number;
+  domainName: string;
+  triage: "direct" | "dependency" | "reaction" | "negative";
+  declaration: string;
+}
+
+interface PropagationDisposition {
+  id: number;
+  consequenceId: number;
+  disposition: string;
+}
+
+interface PropagationPlan {
+  requiredCoverage: string;
+  requiredDomainCount: number;
+  orders: Array<{ key: string; label: string }>;
+  domains: string[];
+  doctrine: { signatureTests: string[]; stoppingRules: string[] };
+}
+
 interface PromptTemplate {
   key: string;
   role_name: string;
@@ -115,6 +150,11 @@ function App() {
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [admissionQueue, setAdmissionQueue] = useState<AdmissionQueueRow[]>([]);
   const [canonDebt, setCanonDebt] = useState<RecordRow[]>([]);
+  const [propagationQueue, setPropagationQueue] = useState<PropagationQueueRow[]>([]);
+  const [propagationPlan, setPropagationPlan] = useState<PropagationPlan | null>(null);
+  const [propagationConsequences, setPropagationConsequences] = useState<PropagationConsequence[]>([]);
+  const [propagationDomains, setPropagationDomains] = useState<PropagationDomain[]>([]);
+  const [propagationDispositions, setPropagationDispositions] = useState<PropagationDisposition[]>([]);
   const [search, setSearch] = useState("");
   const [snapshotPath, setSnapshotPath] = useState("");
   const [recordTypeKey, setRecordTypeKey] = useState("canon_fact");
@@ -150,6 +190,17 @@ function App() {
   const [gateNotApplicable, setGateNotApplicable] = useState("");
   const [canonDebtName, setCanonDebtName] = useState("");
   const [seedAuditFindings, setSeedAuditFindings] = useState("");
+  const [propagationFactId, setPropagationFactId] = useState("");
+  const [propagationDebtId, setPropagationDebtId] = useState("");
+  const [propagationFlowId, setPropagationFlowId] = useState<number | null>(null);
+  const [propagationOrderKey, setPropagationOrderKey] = useState("first");
+  const [propagationDomainName, setPropagationDomainName] = useState("");
+  const [propagationTriage, setPropagationTriage] = useState<"direct" | "dependency" | "reaction" | "negative">("direct");
+  const [propagationText, setPropagationText] = useState("");
+  const [propagationPressure, setPropagationPressure] = useState<"normal" | "high">("normal");
+  const [propagationDispositionTerm, setPropagationDispositionTerm] = useState("answered");
+  const [propagationConsequenceId, setPropagationConsequenceId] = useState("");
+  const [propagationBoundary, setPropagationBoundary] = useState("");
 
   const truthLayers = useMemo(() => terms.filter((term) => term.vocabulary === "truth_layer"), [terms]);
   const canonStatuses = useMemo(() => terms.filter((term) => term.vocabulary === "canon_status"), [terms]);
@@ -160,6 +211,7 @@ function App() {
   const admissionLevels = useMemo(() => terms.filter((term) => term.vocabulary === "admission_level"), [terms]);
   const workScales = useMemo(() => terms.filter((term) => term.vocabulary === "work_scale"), [terms]);
   const admissionOperations = useMemo(() => terms.filter((term) => term.vocabulary === "admission_decision_operation"), [terms]);
+  const consequenceDispositions = useMemo(() => terms.filter((term) => term.vocabulary === "consequence_disposition"), [terms]);
   const recordTypeByKey = useMemo(() => new Map(recordTypes.map((recordType) => [recordType.key, recordType])), [recordTypes]);
   const selectedRecordType = editingId == null ? recordTypeByKey.get(recordTypeKey) : recordTypeByKey.get(recordTypeKey);
   const editingReportRecord = editingId != null && selectedRecordType?.mutationRegime === "report";
@@ -204,7 +256,7 @@ function App() {
   };
 
   const loadWorldData = async () => {
-    const [recordPayload, linkPayload, vocabularyPayload, headingPayload, draftPayload, templatePayload, queuePayload, debtPayload] = await Promise.all([
+    const [recordPayload, linkPayload, vocabularyPayload, headingPayload, draftPayload, templatePayload, queuePayload, debtPayload, propagationQueuePayload] = await Promise.all([
       api<{ records: RecordRow[] }>("/api/records"),
       api<{ links: LinkRow[] }>("/api/links"),
       api<{ terms: VocabularyTerm[] }>("/api/vocabularies"),
@@ -212,7 +264,8 @@ function App() {
       api<{ drafts: DraftRow[] }>("/api/drafts"),
       api<{ templates: PromptTemplate[] }>("/api/prompt-templates"),
       api<{ queue: AdmissionQueueRow[] }>("/api/admission/queue"),
-      api<{ debt: RecordRow[] }>("/api/admission/debt?open=true")
+      api<{ debt: RecordRow[] }>("/api/admission/debt?open=true"),
+      api<{ queue: PropagationQueueRow[] }>("/api/propagation/queue")
     ]);
     setRecords(recordPayload.records);
     setLinks(linkPayload.links);
@@ -222,6 +275,7 @@ function App() {
     setTemplates(templatePayload.templates);
     setAdmissionQueue(queuePayload.queue);
     setCanonDebt(debtPayload.debt);
+    setPropagationQueue(propagationQueuePayload.queue);
   };
 
   const createOrOpen = async (mode: "create" | "open", selectedPath = worldPath) => {
@@ -525,6 +579,102 @@ function App() {
     await loadWorldData();
   };
 
+  const loadPropagationRun = async (flowId: number) => {
+    const payload = await api<{
+      plan: PropagationPlan;
+      consequences: PropagationConsequence[];
+      domainSweeps: PropagationDomain[];
+      dispositions: PropagationDisposition[];
+    }>(`/api/propagation/runs/${flowId}`);
+    setPropagationPlan(payload.plan);
+    setPropagationConsequences(payload.consequences);
+    setPropagationDomains(payload.domainSweeps);
+    setPropagationDispositions(payload.dispositions);
+  };
+
+  const startPropagation = async () => {
+    if (!propagationFactId) return;
+    const payload = await api<{ flow: { id: number } }>("/api/propagation/runs/start", {
+      method: "POST",
+      body: JSON.stringify({ factRecordId: Number(propagationFactId), debtRecordId: propagationDebtId ? Number(propagationDebtId) : undefined })
+    });
+    setPropagationFlowId(payload.flow.id);
+    await loadPropagationRun(payload.flow.id);
+    await loadWorldData();
+  };
+
+  const loadPropagationPlan = async () => {
+    if (!propagationFactId) return;
+    const payload = await api<{ plan: PropagationPlan }>(`/api/propagation/records/${propagationFactId}/plan`);
+    setPropagationPlan(payload.plan);
+    setPropagationDomainName(payload.plan.domains[0] ?? "");
+    setPropagationOrderKey(payload.plan.orders[1]?.key ?? payload.plan.orders[0]?.key ?? "first");
+  };
+
+  const savePropagationConsequence = async () => {
+    if (propagationFlowId == null) return;
+    const payload = await api<{ consequence: PropagationConsequence }>("/api/propagation/consequences", {
+      method: "POST",
+      body: JSON.stringify({ flowId: propagationFlowId, orderKey: propagationOrderKey, domainName: propagationDomainName || undefined, body: propagationText, pressure: propagationPressure })
+    });
+    setPropagationConsequenceId(String(payload.consequence.id));
+    setPropagationText("");
+    await loadPropagationRun(propagationFlowId);
+  };
+
+  const savePropagationDomain = async () => {
+    if (propagationFlowId == null) return;
+    await api("/api/propagation/domains", {
+      method: "POST",
+      body: JSON.stringify({ flowId: propagationFlowId, domainName: propagationDomainName, triage: propagationTriage, declaration: propagationText })
+    });
+    setPropagationText("");
+    await loadPropagationRun(propagationFlowId);
+  };
+
+  const savePropagationDisposition = async () => {
+    if (!propagationConsequenceId) return;
+    await api("/api/propagation/dispositions", {
+      method: "POST",
+      body: JSON.stringify({
+        consequenceId: Number(propagationConsequenceId),
+        disposition: propagationDispositionTerm,
+        note: propagationText,
+        debtName: propagationDispositionTerm === "assigned as canon debt" ? propagationBoundary || "Propagation follow-up debt" : undefined,
+        preservationBoundary: propagationDispositionTerm === "protected as a mystery boundary" ? propagationBoundary : undefined
+      })
+    });
+    setPropagationText("");
+    setPropagationBoundary("");
+    if (propagationFlowId != null) await loadPropagationRun(propagationFlowId);
+    await loadWorldData();
+  };
+
+  const proposePropagationFact = async () => {
+    if (propagationFlowId == null) return;
+    await api("/api/propagation/propose-fact", {
+      method: "POST",
+      body: JSON.stringify({ flowId: propagationFlowId, title: recordForm.title, body: recordForm.body, truthLayer: recordForm.truthLayer })
+    });
+    await loadWorldData();
+  };
+
+  const skipPropagation = async () => {
+    await api("/api/propagation/skip", {
+      method: "POST",
+      body: JSON.stringify({ flowId: propagationFlowId ?? undefined, stepKey: "web_propagation_step", admissionLevel, workScale, reason: gateNotApplicable || undefined })
+    });
+    await loadWorldData();
+  };
+
+  const closePropagation = async () => {
+    if (propagationFlowId == null) return;
+    const payload = await api<{ report: RecordRow }>(`/api/propagation/runs/${propagationFlowId}/close`, { method: "POST" });
+    setMessage(`Closed propagation run with ${payload.report.shortId}`);
+    await loadPropagationRun(propagationFlowId);
+    await loadWorldData();
+  };
+
   return (
     <main>
       <header className="topbar">
@@ -690,6 +840,75 @@ function App() {
                   <button onClick={() => setAdmissionRecordId(String(row.id))}>Select</button>
                   <h3>{row.shortId} · {row.title}</h3>
                   <p className="meta">{row.canonStatus} · level {row.admissionLevel ?? "unset"} · {row.workScale ?? "unset"} · tags {row.constraintTags.join(", ") || "none"}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <div className="panel">
+            <h2>Propagation flow</h2>
+            <div className="doctrine">
+              <strong>Shock cone</strong>
+              <span>Source: docs/worldbuilding-system/07_propagation_engine.md and docs/worldbuilding-system/04_domain_atlas.md.</span>
+              <span>{propagationPlan?.requiredCoverage ?? "Load a fact plan to see severity-scaled coverage."}</span>
+            </div>
+            <div className="grid">
+              <label>Fact id<input value={propagationFactId} onChange={(event) => setPropagationFactId(event.target.value)} /></label>
+              <label>Debt id<input value={propagationDebtId} onChange={(event) => setPropagationDebtId(event.target.value)} /></label>
+              <label>Flow id<input value={propagationFlowId ?? ""} onChange={(event) => setPropagationFlowId(event.target.value ? Number(event.target.value) : null)} /></label>
+            </div>
+            <div className="row">
+              <button onClick={loadPropagationPlan} disabled={!openWorld || !propagationFactId}>Load Plan</button>
+              <button onClick={startPropagation} disabled={!openWorld || !propagationFactId}>Start or Resume</button>
+              <button onClick={() => propagationFlowId != null && loadPropagationRun(propagationFlowId)} disabled={!openWorld || propagationFlowId == null}>Refresh Run</button>
+              <button onClick={closePropagation} disabled={!openWorld || propagationFlowId == null}>Close Run</button>
+            </div>
+            {propagationPlan && (
+              <div className="doctrine">
+                <strong>Signature tests</strong>
+                <span>{propagationPlan.doctrine.signatureTests.join(" · ")}</span>
+                <span>Stopping states: {propagationPlan.doctrine.stoppingRules.join(" · ")}</span>
+              </div>
+            )}
+            <div className="grid">
+              <label>Order<select value={propagationOrderKey} onChange={(event) => setPropagationOrderKey(event.target.value)}>{(propagationPlan?.orders ?? []).map((order) => <option key={order.key} value={order.key}>{order.label}</option>)}</select></label>
+              <label>Domain<select value={propagationDomainName} onChange={(event) => setPropagationDomainName(event.target.value)}><option></option>{(propagationPlan?.domains ?? []).map((domain) => <option key={domain}>{domain}</option>)}</select></label>
+              <label>Pressure<select value={propagationPressure} onChange={(event) => setPropagationPressure(event.target.value as "normal" | "high")}><option>normal</option><option>high</option></select></label>
+              <label>Triage<select value={propagationTriage} onChange={(event) => setPropagationTriage(event.target.value as "direct" | "dependency" | "reaction" | "negative")}><option>direct</option><option>dependency</option><option>reaction</option><option>negative</option></select></label>
+            </div>
+            <label>Propagation prose<textarea rows={4} value={propagationText} onChange={(event) => setPropagationText(event.target.value)} /></label>
+            <div className="row">
+              <button onClick={savePropagationConsequence} disabled={propagationFlowId == null || !propagationText.trim()}>Add Consequence</button>
+              <button onClick={savePropagationDomain} disabled={propagationFlowId == null || !propagationDomainName || (propagationTriage === "negative" && !propagationText.trim())}>Record Domain</button>
+              <button onClick={skipPropagation} disabled={!openWorld}>Record Skip</button>
+            </div>
+            <div className="grid">
+              <label>Consequence id<input value={propagationConsequenceId} onChange={(event) => setPropagationConsequenceId(event.target.value)} /></label>
+              <label>Disposition<select value={propagationDispositionTerm} onChange={(event) => setPropagationDispositionTerm(event.target.value)}>{consequenceDispositions.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+              <label>Debt or boundary<input value={propagationBoundary} onChange={(event) => setPropagationBoundary(event.target.value)} /></label>
+            </div>
+            <div className="row">
+              <button onClick={savePropagationDisposition} disabled={!propagationConsequenceId || !propagationDispositionTerm}>Save Disposition</button>
+              <button onClick={proposePropagationFact} disabled={propagationFlowId == null || !recordForm.title || !recordForm.truthLayer}>Propose Surfaced Fact</button>
+            </div>
+            <div className="subpanel">
+              <h3>Owed propagation</h3>
+              {propagationQueue.map((debt) => <button key={debt.id} onClick={() => { setPropagationDebtId(String(debt.id)); }}>{debt.shortId} · {debt.title}</button>)}
+            </div>
+            <div className="records compact">
+              {propagationConsequences.map((consequence) => (
+                <article key={consequence.id}>
+                  <button onClick={() => setPropagationConsequenceId(String(consequence.id))}>Select</button>
+                  <h3>#{consequence.id} · {consequence.orderLabel}</h3>
+                  <p className="meta">{consequence.pressure} · {consequence.domainName ?? "no domain"} · {propagationDispositions.some((row) => row.consequenceId === consequence.id) ? "dispositioned" : "open"}</p>
+                  <p>{consequence.body}</p>
+                </article>
+              ))}
+              {propagationDomains.map((domain) => (
+                <article key={domain.id}>
+                  <h3>{domain.domainName}</h3>
+                  <p className="meta">{domain.triage}</p>
+                  <p>{domain.declaration || "swept"}</p>
                 </article>
               ))}
             </div>

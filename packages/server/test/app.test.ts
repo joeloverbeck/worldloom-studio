@@ -404,4 +404,155 @@ describe("HTTP API", () => {
     expect(majorSkip.status).toBe(400);
     expect((await app.request(`/api/admission/debt/${debt.debt.id}/close`, { method: "POST" })).status).toBe(200);
   });
+
+  it("drives propagation queue, run work, dispositions, report, proposal routing, prompts, and skips through the HTTP seam", async () => {
+    const app = createApp();
+    const path = tempPath("propagation-world.sqlite");
+    expect((await app.request("/api/worlds/create", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path })
+    })).status).toBe(201);
+
+    const fact = await json<{ record: { id: number; shortId: string } }>(await app.request("/api/records", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recordTypeKey: "canon_fact", title: "Ghost tolls bind bridges", body: "Dead witnesses can charge crossings.", truthLayer: "Objective canon", canonStatus: "accepted" })
+    }));
+    expect((await app.request(`/api/admission/records/${fact.record.id}/severity`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ admissionLevel: "4", workScale: "severe" })
+    })).status).toBe(200);
+    const debt = await json<{ debt: { id: number } }>(await app.request("/api/admission/debt", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: `Propagation owed for ${fact.record.shortId}`, scope: "propagation", assignee: "steward", body: "Admission owed a shock cone." })
+    }));
+
+    expect(await json(await app.request("/api/propagation/queue"))).toMatchObject({ queue: [expect.objectContaining({ id: debt.debt.id })] });
+    const plan = await json<{ plan: { requiredDomainCount: number; domains: string[]; doctrine: { signatureTests: string[] } } }>(await app.request(`/api/propagation/records/${fact.record.id}/plan`));
+    expect(plan.plan.requiredDomainCount).toBe(14);
+    expect(plan.plan.domains).toContain("Economy, trade, and scarcity");
+    expect(plan.plan.doctrine.signatureTests).toContain("where are the fossils?");
+
+    const flow = await json<{ flow: { id: number } }>(await app.request("/api/propagation/runs/start", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ factRecordId: fact.record.id, debtRecordId: debt.debt.id })
+    }));
+    const resumed = await json<{ flow: { id: number } }>(await app.request("/api/propagation/runs/start", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ factRecordId: fact.record.id, debtRecordId: debt.debt.id })
+    }));
+    expect(resumed.flow.id).toBe(flow.flow.id);
+
+    const prompt = await json<{ prompt: string }>(await app.request("/api/prompts/generate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ templateKey: "propagation_consequence_scout", recordId: fact.record.id, stepKey: "propagation:first" })
+    }));
+    expect(prompt.prompt).toContain("Consequence scout");
+    expect(prompt.prompt).toContain("Record context");
+    expect((await app.request("/api/prompt-templates/propagation_consequence_scout", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: "Custom propagation pressure text" })
+    })).status).toBe(200);
+    expect(await json(await app.request("/api/prompt-templates"))).toMatchObject({
+      templates: expect.arrayContaining([expect.objectContaining({ key: "propagation_consequence_scout", current_text: "Custom propagation pressure text" })])
+    });
+    expect((await app.request("/api/prompt-templates/propagation_consequence_scout/revert", { method: "POST" })).status).toBe(200);
+    const advisory = await json<{ record: { id: number } }>(await app.request("/api/advisory-artifacts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ stepKey: "propagation:first", promptText: prompt.prompt, responseText: "Pressure response verbatim" })
+    }));
+    expect((await app.request(`/api/advisory-artifacts/${advisory.record.id}/dispositions`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ disposition: "standing ruling", note: "Keep bridge economics explicit", standingRuling: true })
+    })).status).toBe(201);
+    expect((await json<{ prompt: string }>(await app.request("/api/prompts/generate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ templateKey: "propagation_consequence_scout", recordId: fact.record.id, stepKey: "propagation:second" })
+    }))).prompt).toContain("Keep bridge economics explicit");
+
+    const minorSkip = await app.request("/api/propagation/skip", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowId: flow.flow.id, stepKey: "optional_enemy_use", admissionLevel: "1", workScale: "minor" })
+    });
+    expect(minorSkip.status).toBe(201);
+    const majorSkip = await app.request("/api/propagation/skip", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowId: flow.flow.id, stepKey: "domain_atlas", admissionLevel: "4", workScale: "severe" })
+    });
+    expect(majorSkip.status).toBe(400);
+
+    const consequence = await json<{ consequence: { id: number } }>(await app.request("/api/propagation/consequences", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        flowId: flow.flow.id,
+        orderKey: "first",
+        domainName: "Economy, trade, and scarcity",
+        body: "Bridge tolls become debt instruments priced by mortuary advocates.",
+        pressure: "high"
+      })
+    }));
+    expect((await app.request("/api/propagation/domains", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowId: flow.flow.id, domainName: "Economy, trade, and scarcity", triage: "direct", declaration: "Tolls and credit markets change." })
+    })).status).toBe(201);
+    expect((await app.request("/api/propagation/domains", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowId: flow.flow.id, domainName: "Aesthetics, tone, and narrative use", triage: "negative", declaration: "No comic shortcut; this stays funerary and costly." })
+    })).status).toBe(201);
+
+    const refusedClose = await app.request(`/api/propagation/runs/${flow.flow.id}/close`, { method: "POST" });
+    expect(refusedClose.status).toBe(400);
+    expect(await json(refusedClose)).toMatchObject({ error: expect.stringContaining("undispositioned high-pressure consequences") });
+
+    expect((await app.request("/api/propagation/dispositions", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ consequenceId: consequence.consequence.id, disposition: "protected as a mystery boundary", preservationBoundary: "author-secret", note: "Keep the origin of toll authority hidden." })
+    })).status).toBe(201);
+    const proposed = await json<{ record: { id: number; canonStatus: string }; queue: Array<{ id: number }> }>(await app.request("/api/propagation/propose-fact", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowId: flow.flow.id, title: "Mortuary toll scrip exists", body: "Debt paper backed by dead witnesses circulates near bridges.", truthLayer: "Objective canon" })
+    }));
+    expect(proposed.record.canonStatus).toBe("proposed");
+    expect(proposed.queue).toEqual(expect.arrayContaining([expect.objectContaining({ id: proposed.record.id })]));
+
+    const closed = await app.request(`/api/propagation/runs/${flow.flow.id}/close`, { method: "POST" });
+    expect(closed.status).toBe(201);
+    const closedJson = await json<{ report: { id: number; recordTypeKey: string }; debt: { id: number; canonStatus: string } }>(closed);
+    expect(closedJson).toMatchObject({ report: { recordTypeKey: "propagation_report" }, debt: { id: debt.debt.id, canonStatus: "accepted" } });
+    expect(await json(await app.request(`/api/links?recordId=${fact.record.id}`))).toMatchObject({
+      links: expect.arrayContaining([expect.objectContaining({ toRecordId: closedJson.report.id, linkTypeKey: "digest_of" })])
+    });
+    expect(await json(await app.request(`/api/links?recordId=${proposed.record.id}`))).toMatchObject({
+      links: expect.arrayContaining([expect.objectContaining({ toRecordId: closedJson.report.id, linkTypeKey: "derived_from" })])
+    });
+    const correction = await app.request(`/api/propagation/reports/${closedJson.report.id}/corrections`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ body: "Corrected report prose without editing the original." })
+    });
+    expect(correction.status).toBe(201);
+    const correctionJson = await json<{ report: { id: number; recordTypeKey: string } }>(correction);
+    expect(correctionJson.report.recordTypeKey).toBe("propagation_report");
+    expect(await json(await app.request(`/api/links?recordId=${correctionJson.report.id}`))).toMatchObject({
+      links: expect.arrayContaining([expect.objectContaining({ toRecordId: closedJson.report.id, linkTypeKey: "supersedes" })])
+    });
+    expect(await json(await app.request("/api/search?q=mortuary"))).toMatchObject({ records: expect.arrayContaining([expect.objectContaining({ id: closedJson.report.id })]) });
+  });
 });

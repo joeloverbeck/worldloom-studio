@@ -30,14 +30,16 @@ describe("WorldStore", () => {
     const store = WorldStore.create(path);
 
     expect(store.db.pragma("application_id", { simple: true })).toBe(APPLICATION_ID);
-    expect(store.db.pragma("user_version", { simple: true })).toBe(2);
+    expect(store.db.pragma("user_version", { simple: true })).toBe(3);
     expect(store.db.pragma("journal_mode", { simple: true })).toBe("wal");
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM record_types").get()).toMatchObject({ count: 26 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM link_types").get()).toMatchObject({ count: 24 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'canon_status'").get()).toMatchObject({ count: 11 });
+    expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'consequence_disposition'").get()).toMatchObject({ count: 4 });
     expect(store.promptTemplates()).toEqual(expect.arrayContaining([
       expect.objectContaining({ key: "admission_prerequisite_audit" }),
-      expect.objectContaining({ key: "admission_constraint_challenge" })
+      expect.objectContaining({ key: "admission_constraint_challenge" }),
+      expect.objectContaining({ key: "propagation_consequence_scout" })
     ]));
     expect(store.db.prepare("SELECT strict FROM pragma_table_list WHERE name = 'records'").get()).toMatchObject({ strict: 1 });
 
@@ -67,9 +69,9 @@ describe("WorldStore", () => {
     oldDb.close();
 
     const migrated = WorldStore.open(oldPath);
-    expect(migrated.db.pragma("user_version", { simple: true })).toBe(2);
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(3);
     migrated.close();
-    expect(readdirSync(join(oldPath, "..")).some((name) => name.includes("pre-migration-v0-to-v2"))).toBe(true);
+    expect(readdirSync(join(oldPath, "..")).some((name) => name.includes("pre-migration-v0-to-v3"))).toBe(true);
 
     const corruptPath = tempPath("corrupt.sqlite");
     writeFileSync(corruptPath, "not sqlite");
@@ -109,13 +111,13 @@ describe("WorldStore", () => {
     db.close();
 
     const migrated = WorldStore.open(path);
-    expect(migrated.db.pragma("user_version", { simple: true })).toBe(2);
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(3);
     expect(migrated.getRecord(recordId)).toMatchObject({ body: "Body from v1" });
     expect(migrated.sectionHeadings("world_kernel")).toEqual(expect.arrayContaining([
       expect.objectContaining({ heading: "World premise" })
     ]));
     migrated.close();
-    expect(readdirSync(join(path, "..")).some((name) => name.includes("pre-migration-v1-to-v2"))).toBe(true);
+    expect(readdirSync(join(path, "..")).some((name) => name.includes("pre-migration-v1-to-v3"))).toBe(true);
 
     const newerPath = tempPath("newer.sqlite");
     const newer = new Database(newerPath);
@@ -309,6 +311,73 @@ describe("WorldStore", () => {
       expect.objectContaining({ toRecordId: fact.id, linkTypeKey: "depends_on" }),
       expect.objectContaining({ fromRecordId: ledger.id, toRecordId: ledger.id, linkTypeKey: "tombstones" })
     ]));
+    store.close();
+  });
+
+  it("works propagation runs with coverage, report digest, proposal routing, and SQL invariants", () => {
+    const store = WorldStore.create(tempPath("propagation.sqlite"));
+    const fact = store.createRecord({ recordTypeKey: "canon_fact", title: "Ghost tolls bind bridges", body: "Dead witnesses can charge crossings.", truthLayer: "Objective canon", canonStatus: "accepted" });
+    store.declareAdmissionSeverity(fact.id, { admissionLevel: "4", workScale: "severe" });
+    const debt = store.createCanonDebt({ name: `Propagation owed for ${fact.shortId}`, scope: "propagation", assignee: "steward", body: "Admission owed a shock cone." });
+
+    expect(store.propagationQueue()).toEqual([expect.objectContaining({ id: debt.id, scope: "propagation" })]);
+    const flow = store.startPropagationRun({ factRecordId: fact.id, debtRecordId: debt.id }) as { id: number; current_step: string };
+    expect(flow.current_step).toBe("propagation:entry");
+    expect(store.startPropagationRun({ factRecordId: fact.id, debtRecordId: debt.id })).toMatchObject({ id: flow.id });
+
+    const direct = store.addPropagationConsequence({
+      flowId: flow.id,
+      orderKey: "first",
+      domainName: "Economy, trade, and scarcity",
+      body: "Bridge tolls become debt instruments priced by mortuary advocates.",
+      pressure: "high"
+    });
+    store.recordPropagationDomain({ flowId: flow.id, domainName: "Economy, trade, and scarcity", triage: "direct", declaration: "Tolls and credit markets change." });
+    store.recordPropagationDomain({ flowId: flow.id, domainName: "Aesthetics, tone, and narrative use", triage: "negative", declaration: "No comic shortcut; this stays funerary and costly." });
+
+    expect(() => store.closePropagationRun(flow.id)).toThrow(/undispositioned high-pressure consequences: #/);
+    const disposition = store.dispositionPropagationConsequence({
+      consequenceId: direct.id,
+      disposition: "assigned as canon debt",
+      note: "Track counterfeiting and enforcement.",
+      debtName: "Bridge toll counterfeiting pressure"
+    });
+    expect(disposition.debtRecordId).toEqual(expect.any(Number));
+
+    const proposal = store.proposeFactFromPropagation({
+      flowId: flow.id,
+      title: "Mortuary toll scrip exists",
+      body: "Debt paper backed by dead witnesses circulates near bridges.",
+      truthLayer: "Objective canon"
+    });
+    expect(proposal.record).toMatchObject({ recordTypeKey: "canon_fact", canonStatus: "proposed" });
+    expect(proposal.queue).toEqual(expect.arrayContaining([expect.objectContaining({ id: proposal.record.id })]));
+
+    const closed = store.closePropagationRun(flow.id);
+    expect(closed.report).toMatchObject({ recordTypeKey: "propagation_report", canonStatus: "accepted" });
+    expect(closed.debt).toMatchObject({ id: debt.id, canonStatus: "accepted" });
+    expect(store.listLinks(fact.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ fromRecordId: fact.id, toRecordId: closed.report.id, linkTypeKey: "digest_of" })
+    ]));
+    expect(store.listLinks(proposal.record.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ fromRecordId: proposal.record.id, toRecordId: closed.report.id, linkTypeKey: "derived_from" })
+    ]));
+    expect(store.search("counterfeiting")).toEqual(expect.arrayContaining([expect.objectContaining({ id: closed.report.id })]));
+    const correction = store.correctPropagationReport({ originalReportId: closed.report.id, body: "Corrected propagation report prose." });
+    expect(correction).toMatchObject({ recordTypeKey: "propagation_report", canonStatus: "accepted" });
+    expect(store.listLinks(correction.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ fromRecordId: correction.id, toRecordId: closed.report.id, linkTypeKey: "supersedes" })
+    ]));
+
+    const secondConnection = new Database(store.path);
+    secondConnection.pragma("foreign_keys = ON");
+    expect(() => secondConnection.prepare("UPDATE records SET body = 'Changed' WHERE id = ?").run(closed.report.id)).toThrow(/append-only/);
+    expect(() => secondConnection.prepare("DELETE FROM records WHERE id = ?").run(closed.report.id)).toThrow(/append-only/);
+    expect(() => secondConnection.prepare(`
+      INSERT INTO jurisdiction_events (record_id, origin, admission_decision_operation)
+      VALUES (?, 'sweep', 'accept')
+    `).run(proposal.record.id)).toThrow(/CHECK/);
+    secondConnection.close();
     store.close();
   });
 

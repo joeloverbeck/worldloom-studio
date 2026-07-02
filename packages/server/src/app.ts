@@ -403,6 +403,101 @@ export const createApp = (options: AppOptions = {}) => {
     }
   });
 
+  app.get("/api/propagation/queue", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    return c.json({ queue: activeWorld.propagationQueue() });
+  });
+
+  app.get("/api/propagation/records/:id/plan", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ plan: activeWorld.propagationPlan(Number(c.req.param("id"))) });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/propagation/runs/start", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ flow: activeWorld.startPropagationRun(await body<{ factRecordId: number; debtRecordId?: number }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.get("/api/propagation/runs/:id", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(activeWorld.getPropagationRun(Number(c.req.param("id"))));
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/propagation/consequences", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ consequence: activeWorld.addPropagationConsequence(await body<{ flowId: number; orderKey: string; domainName?: string; body: string; pressure?: "normal" | "high" }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/propagation/domains", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ domain: activeWorld.recordPropagationDomain(await body<{ flowId: number; domainName: string; triage: "direct" | "dependency" | "reaction" | "negative"; declaration?: string }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/propagation/dispositions", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ disposition: activeWorld.dispositionPropagationConsequence(await body<{ consequenceId: number; disposition: string; note?: string; debtName?: string; preservationBoundary?: string }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/propagation/propose-fact", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(activeWorld.proposeFactFromPropagation(await body<{ flowId: number; title: string; body: string; truthLayer: string }>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/propagation/skip", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ record: activeWorld.skipPropagationStep(await body<{ flowId?: number; stepKey: string; admissionLevel?: string; workScale?: string; reason?: string }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/propagation/runs/:id/close", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(activeWorld.closePropagationRun(Number(c.req.param("id"))), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/propagation/reports/:id/corrections", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ report: activeWorld.correctPropagationReport({ originalReportId: Number(c.req.param("id")), ...(await body<{ title?: string; body: string }>(c)) }) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
   app.get("/api/search", (c) => {
     if (!activeWorld) return c.json({ error: "No world is open" }, 409);
     return c.json({ records: activeWorld.search(c.req.query("q") ?? "") });
