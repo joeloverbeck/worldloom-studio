@@ -7,7 +7,7 @@ SQLite is the only candidate with an institutional longevity story (Library of C
 ## Configuration (binding on the schema spec)
 
 - STRICT tables; `PRAGMA foreign_keys=ON` per connection; NOT NULL keys; WAL mode; `application_id` set.
-- The 29 controlled vocabularies seeded into vocabulary tables from the package files (user-extensible rows where the package says "other"); ordered multi-valued operations as position-indexed rows; the admission/repair jurisdiction boundary enforced by CHECK/trigger.
+- The controlled vocabularies seeded into vocabulary tables from the package files, per the enumerated seed list the schema spec owns (`domain-fidelity.md` T-2; user-extensible rows where the package says "other"); ordered multi-valued operations as position-indexed rows; the admission/repair jurisdiction boundary enforced by CHECK/trigger.
 - Prose sections stored as prose (sections table or JSONB); FTS5 external-content index, trigger-synced, per-column weighting so names/titles outrank body prose.
 - A first-class typed link table with FK integrity; recursive CTEs for supersession chains and dependency paths. If graph queries ever outgrow SQL, build an in-memory graph projection in the app layer (Calibre's pattern) — never a second persistent engine.
 - `BEFORE UPDATE`/`BEFORE DELETE` triggers raise on report-regime tables; card mutations automatically write history rows.

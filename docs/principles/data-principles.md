@@ -8,20 +8,20 @@ One world = one visible database file at a steward-chosen path, copyable, backed
 
 ## W-5. Record once, view anywhere
 
-One canonical record; every other surface renders a live digest or link. The propagation report is the master record of the shock cone; the fact card's shock-cone summary is a digest of or pointer to it; capability and fact cards divide labor and cross-reference rather than duplicate. The file-versus-record mismatch dissolves: **the record is the unit; files exist only at export.**
+One canonical record; every other surface renders a live digest or link. The propagation report is the master record of the shock cone (`07`) — or the `21` pass report, when the cone was worked inside a specialized pass, exactly as the second trial's institutional pass carries one card's cone; the fact card's shock-cone summary is a digest of or pointer to it; capability and fact cards divide labor and cross-reference rather than duplicate. The file-versus-record mismatch dissolves: **the record is the unit; files exist only at export.**
 
 ## W-6. The record lifecycle is the data model
 
 `03`'s two mutation regimes are enforced at the storage layer:
 
-- **Living cards** state the present tense and are updated in place; every supersession automatically writes a history entry carrying the outgoing wording verbatim, its retirement status, a sequence marker, and a link to the retiring report.
-- **Reports and ledgers** are the audit trail and are append-only — never edited; a correction is a new record.
+- **Living records** state the present tense and are updated in place; every supersession automatically writes a history entry carrying the outgoing wording verbatim, its retirement status, a sequence marker, and a link to the retiring report. Cards are the paradigm, but the regime is wider: admission-ledger rows are living records ("rows follow the record lifecycle like any card" — `22`; the ledger template says so itself), as are mystery-ledger entries and canon-debt/skip records with open/closed state.
+- **Reports** are the audit trail and are append-only — never edited; a correction is a new record. The regime covers every governance report the package names — propagation and contradiction reports, change proposals, decision records — plus gate results (`06`: "proposals, gate results, and reports are the unedited audit trail") and the `21` pass-report container, the one report type with no template file.
 
 History is owed to outgoing wording only; additive amendments carry none (`03`, `19`). The two query modes the package names are the app's two primary read surfaces: *what is canon today?* (the live cards) and *how did canon get here?* (the reports in order). The W-3 status machine — 11 canon statuses, sweeps propose / admission admits, jurisdiction-bounded operations — is enforced here, not in UI convention.
 
 ## T-3. Identifiers are the app's job; content is never a key
 
-The package defines no ID scheme; both trials show stewards hand-minting IDs and hand-maintaining pointers that dangled. The app mints stable surrogate identifiers and global sequence/timestamps for every record. Fact statements and titles are mutable display fields — they are *expected* to be reworded in place. Cross-references are **typed link records with enforced referential integrity**, link types seeded from the templates catalog's edge map (retired-by, digest-of, promoted-to, constrains, opposes, decomposes, …). Human-facing short IDs may be generated for citation in prose and export.
+The package defines no ID scheme; both trials show stewards hand-minting IDs and hand-maintaining pointers that dangled. The app mints stable surrogate identifiers and global sequence/timestamps for every record. Fact statements and titles are mutable display fields — they are *expected* to be reworded in place. Cross-references are **typed link records with enforced referential integrity**. The package names these relationships in instrument prose, never as a catalog: the fact card's history pointer to its retiring record (retired-by), the shock-cone digest rule (digest-of), the ledger's Promotions rule (promoted-to), the constraint card's constrained-fact section (constrains), the counter-institution card's opposed-institution section (opposes), and so on. The link-type list is therefore an **app-side synthesis, not a package quotation**: the schema spec enumerates it, citing each type to the instrument that names the relationship. Human-facing short IDs may be generated for citation in prose and export.
 
 ## T-4. Prose fidelity first; structure only where the package structures
 
@@ -37,7 +37,7 @@ Every fact carries a continuity scope with the single default "main continuity";
 
 ## Lifecycle behaviors any engine must support
 
-The field trials exercised these; they are requirements, not options (report §5.1/§5.3):
+Requirements, not options (report §5.1/§5.3). Most were exercised directly by the field trials — at trial scale: one promotion, one chain two repairs deep, five of the eleven statuses in live use — and the last two are derived from P-6 and T-4 rather than trial-exercised:
 
 - supersession chains of arbitrary depth with genealogical links between repairs;
 - ledger-row → card **promotion** preserving identity, leaving a tombstone pointer on the row;

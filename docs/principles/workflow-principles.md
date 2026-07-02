@@ -2,7 +2,7 @@
 
 *Altitude: architectural principles. Durable, but may evolve with field evidence from app use.*
 
-How the package's protocols become guided flows. The concrete flow designs (new world, single idea, contradiction/mystery/retcon, QA) are specced downstream against these principles; report §6 is the reference architecture.
+How the package's protocols become guided flows. The concrete flow designs (new world, single idea, contradiction/mystery/retcon, QA) are specced downstream against these principles; the archived report's §6 is the evidentiary reference architecture those specs start from — the binding conformance surface remains this folder, not the archive.
 
 ## The division of labor (P-3, working rule)
 
@@ -15,7 +15,7 @@ The steward judges; the app remembers, routes, and checks. In every flow: the ap
 - Flows are **resumable and interleavable**; every flow can be exited with state parked at `proposed`/`under review`.
 - Repair must be cheap (`13`'s retcon kindness rule expects change).
 - The steward is a repeat expert: flows owe **accelerators** — batch admission, per-cluster gate runs, keyboard-driven paths.
-- Each step shows the relevant doctrine at point of use; the operating card is persistent UI chrome.
+- Each step shows the relevant doctrine at point of use; the operating card is persistent UI chrome — embedded as a **versioned derivation** re-checked against upstream when the card changes (the same discipline as default prompt texts, `canon-sovereignty.md`), never as a live coupling: the methodology card must not acquire the app as a change-control dependent (`reports/tenth-iteration-outlook.md` §1.4).
 
 ## W-2. Severity scaling is the core conditional dimension
 
@@ -27,7 +27,7 @@ Any fact born anywhere — a propagation sweep, a specialized pass, a contradict
 
 ## W-4. Skips are first-class records
 
-"Skipping an instrument is allowed. Silent skipping is not" (`21`). For every offered-but-declined instrument the app records: what was skipped, the stated reason, the licensing rule, and the resulting canon debt if any. QA reads this ledger. Canon debt generally is a tracked entity — named, scoped, assigned, open/closed — and open debt gates what `03` says it gates, surfaced as a **warning, not a hard block**: the judgment is the steward's.
+"Skipping an instrument is allowed. Silent skipping is not" (`21`). The app records every offered-but-declined instrument mechanically — what was skipped, under which licensing rule — at no cost to the steward. A **stated reason** is collected at the package's own threshold: `21` scopes the recording duty to major facts ("For major facts, record why omitted instruments were not needed"), and W-2's severity scaling governs below it — a reason is never demanded of every minor row. Resulting canon debt, if any, attaches per `03`. QA reads this ledger. Canon debt generally is a tracked entity — named, scoped, assigned, open/closed — and open debt gates what `03` says it gates, surfaced as a **warning, not a hard block**: the judgment is the steward's.
 
 ## W-7. Gates demand substance, not clicks
 
@@ -39,8 +39,8 @@ Every dependency-bearing step offers its `20` analyst role (the boundary rules l
 
 | Flow step | Analyst role |
 |---|---|
-| Fact statement / dependencies (gate steps 1–4) | Prerequisite auditor |
-| Capability / access / cost / constraints (gate steps 5–8) | Constraint challenger |
+| Fact statement / dependencies (`06` steps 1–4) | Prerequisite auditor |
+| Capability / access / cost / constraints (`06` steps 5–8) | Constraint challenger |
 | Actor sweep | Character-pressure analyst |
 | Institutional / economic sweeps | Institution/economy analyst |
 | Temporal / spatial sweeps | Spatial-temporal analyst |

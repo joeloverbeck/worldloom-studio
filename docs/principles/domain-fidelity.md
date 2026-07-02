@@ -4,7 +4,7 @@
 
 ## P-1. The methodology is upstream and fixed
 
-The app implements the Causal Canon Worldbuilding System 1.0 (`docs/worldbuilding-system/`) and does not amend it. The package's authority order governs the app's domain model: `01_core_theory.md` and `03_truth_layers_and_canon_governance.md` over protocols, protocols over instruments.
+The app implements the Causal Canon Worldbuilding System 1.0 (`docs/worldbuilding-system/`) and does not amend it. The package's authority order — the five tiers of its `README.md` "Authority order" section — governs the app's domain model: doctrine (`01`, `03`) over everything, protocols (`05`–`17`) over instruments, and on any protocol/instrument conflict the protocol wins and the instrument is repaired.
 
 - When app design uncovers a place where no faithful implementation is possible, the finding is routed as a **proposed package amendment** through the package's own change process (`00_overhaul_notes.md` is its changelog; its evidence discipline is trial-driven) — never designed around silently.
 - Every spec and ticket cites the package file it implements.
@@ -13,15 +13,15 @@ The app implements the Causal Canon Worldbuilding System 1.0 (`docs/worldbuildin
 
 ## The glossary is the naming authority — everywhere
 
-`22_glossary.md` governs **UI strings, schema identifiers, code identifiers, and documentation** verbatim: steward, admission, shock cone, canon debt, truth layer, and the rest. No display-synonym layer exists — synonym layers are the drift mechanism the glossary itself warns about ("shadow market" for black market is its own example). Any deviation is a flagged exception requiring a recorded decision. This keeps fidelity mechanically checkable: a reviewer can grep UI strings against the glossary.
+`22_glossary.md` governs **UI strings, schema identifiers, code identifiers, and documentation** verbatim: shock cone, canon debt, truth layer, admission ledger, living record, and the rest. A handful of pervasive package terms have no glossary heading — *steward* above all — and for these, consistent package usage governs; they are package terms, not app-layer terms. No display-synonym layer exists — synonym layers are the drift mechanism the glossary itself warns about ("shadow market" for black market is its own example). Any deviation is a flagged exception requiring a recorded decision. This keeps fidelity mechanically checkable: a reviewer can grep UI strings against the glossary, and against package usage for the unheaded terms.
 
-If a concept the app needs has no package definition, it is an *app-layer* term and belongs in the root `CONTEXT.md`, which defers to the package glossary for everything the package defines.
+If a concept the app needs appears nowhere in the package — neither as a glossary entry nor in consistent package usage — it is an *app-layer* term and belongs in the root `CONTEXT.md`, which defers to the package glossary for everything the package defines.
 
 ## T-2. The label separations are schema facets, never flattened
 
-The six concepts the package forbids blurring — **canon status, constraint tag, admission decision operation, repair operation, consequence mode, preservation boundary** — plus truth layer and the work scale, are stored as separate, separately-typed fields drawn from separately-seeded vocabulary tables, using the package's exact terms. The templates catalog yields 29 controlled vocabularies in total; several are deliberately open via "other" (user-extensible rows), and the package files remain the single seeded source — the lists are not restated here or anywhere else.
+The six concepts the package forbids blurring — **canon status, constraint tag, admission decision operation, repair operation, consequence mode, preservation boundary** — plus truth layer and the work scale, are stored as separate, separately-typed fields drawn from separately-seeded vocabulary tables, using the package's exact terms. The instruments carry roughly thirty controlled vocabularies in total — the package states no count, and the exact tally depends on counting judgments (reuses, semi-open lists), so **the schema spec owns the enumerated seed list**, each vocabulary cited to the package file that defines it. Several are deliberately open via "other" (user-extensible rows), and the package files remain the single seeded source — the lists are not restated here or anywhere else.
 
-- Operations are **ordered multi-valued** ("primary first, others as component moves").
+- Operations are **ordered multi-valued** — "record the primary operation first and the others as component moves" (`03`).
 - Composition never crosses the admission/repair jurisdiction boundary (`03`, `13`) — enforced at the schema level, mechanizing what QA test P2 checks by hand.
 
 ## The line the app must hold

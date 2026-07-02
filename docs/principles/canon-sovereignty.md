@@ -22,6 +22,8 @@ Every prompt-out step preserves `20`'s invariant sequence: **human writes → AI
 - The steward disposes of advisory material using `20`'s output labels; dispositions persist and steer future prompts.
 - Every prompt-out step is skippable — `20`'s anti-automation rule governs.
 
+The prompt-out/paste-in transport is a reasoned design, not an externally evidenced pattern: the archived report's §10 records a negative finding — no published study of deliberately API-less, clipboard-mediated LLM integration was found. App field use is its first real evaluation; specs building on W-1 inherit that honesty (charter T-8), not a claim of validated practice. Sovereignty itself (P-2) does not rest on this evidence — its roots are the prior app's failure and `20`'s doctrine, independently sufficient.
+
 ## Default prompt texts
 
 The app ships **elaborated defaults**, derived from `20`'s ready prompts and roles, with the `20` originals always visible as the doctrinal source. Fidelity is preserved by derivation, not quotation — the same relationship the schema has to the templates (T-4). Defaults are versioned app content: when `20` changes upstream, every derivation is re-checked (P-1). Prompts are steward-editable; app defaults are versioned so edits are reversible.
