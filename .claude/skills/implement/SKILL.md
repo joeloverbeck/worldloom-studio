@@ -14,7 +14,14 @@ Before editing code, identify the authoritative work items.
 - Treat the child issues as the implementation checklist unless the user explicitly says to implement only the parent PRD text.
 - If the user names a set of issues, fetch each issue body and comments.
 - Build a progress ledger with one row per issue: issue number, title, dependencies/blockers, acceptance criteria, planned evidence, test seams, and closeout state.
+- When the user names a child issue range and asks to close a parent PRD, list all related children, including children outside the requested range; mark out-of-range children as already closed, blocking, or intentionally excluded before closing the parent.
 - Do not silently collapse multiple issues into a smaller "skeleton" or "first slice" when the user asked for the issues.
+
+Use this compact ledger shape unless the issue set needs more detail:
+
+| Issue | Blockers | Acceptance | Evidence | Test seam | Status | Closeout comment |
+|---|---|---|---|---|---|---|
+| #N | ... | ... | ... | ... | planned / in progress / satisfied / blocked / not done | ... |
 
 ## 2. Work issue-by-issue
 
@@ -26,6 +33,7 @@ For each issue:
 - Write or update tests for the acceptance criteria where a test seam is available.
 - Keep the issue open if required seam tests or other required proof are missing.
 - Mark blockers explicitly in the ledger instead of skipping the issue.
+- When acceptance criteria include browser-visible behavior, run a real browser smoke or record why it is blocked; include the route, action path, and observed outcome in the closeout evidence.
 
 Run typechecking regularly, single test files regularly, and the full test suite once at the end.
 
@@ -37,6 +45,7 @@ The repo's code-review skill expects a fixed point. Use one of these routes:
 
 - Commit the completed implementation locally, then run /code-review against `HEAD~1` or another fixed point before pushing or closing issues.
 - If committing first would be inappropriate, run an explicit pre-commit review against `git diff HEAD` and say that you are adapting the review because no committed fixed point exists yet.
+- If /code-review cannot run because a required mechanism is unavailable, run a local two-axis review against the fixed point: standards/conventions and spec/acceptance. Document the deviation, fix any findings, rerun the relevant gates, and include the review outcome in closeout evidence.
 
 Commit your work to the current branch.
 
