@@ -13,3 +13,7 @@ Default label vocabulary — `needs-triage`, `needs-info`, `ready-for-agent`, `r
 ### Domain docs
 
 Multi-context layout — `CONTEXT-MAP.md` at the root points to per-context `CONTEXT.md` files. See `docs/agents/domain.md`.
+
+### Foundational principles
+
+App-level principles live in `docs/principles/`; read `docs/principles/README.md` for the authority order and the conformance rule (specs and implementable issues carry a "Principles" section). System-wide ADRs live in `docs/adr/`. The worldbuilding methodology in `docs/worldbuilding-system/` is upstream of both.

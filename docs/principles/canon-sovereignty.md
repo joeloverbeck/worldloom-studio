@@ -1,0 +1,37 @@
+# Canon Sovereignty
+
+*Altitude: constitution. Changes require an explicit steward decision.*
+
+This document exists because the prior app failed exactly here: AI-decided content the steward disagreed with was painful to remove and cascaded through subsequent canon. Its principles operationalize `docs/worldbuilding-system/20_ai_assisted_workflow.md` ("AI is never canon authority"; "every AI-generated idea remains proposed until admitted by human review") as architecture rather than norm.
+
+## P-2. User sovereignty over canon is structural, not advisory
+
+The steward writes or explicitly approves every final word that enters the world. **There is no code path by which generated text becomes canon without deliberate steward admission.** Pasted LLM responses land in an advisory store that is type-separate from canon records; nothing copies from it into a card, ledger row, or report except a steward-performed act that the UI frames as authorship, not acceptance.
+
+The friction this creates is the feature working — deliberate human acts before accepting machine output measurably reduce uncritical over-reliance (report §4.1, P-2 research grounding). The mitigation is severity scaling (W-2), never a bypass.
+
+## W-1. Prompt-out at every dependency-bearing step; paste-in is advisory material
+
+Every step whose output later steps depend on offers a generated prompt the steward **may** (not must) run in any external LLM. The prompts operationalize `20`'s ten analyst roles; the step-to-role mapping lives in `workflow-principles.md`.
+
+- Every prompt embeds: the relevant record context (assembled by the app — this is the drudgery the method currently leaves to the steward), the role's ask-for-pressure framing, `20`'s vocabulary guardrail, the instruction to label assumptions, and the steward's standing rulings from prior dispositions.
+- Prompts must be **fully self-contained** — the receiving model is assumed to have never seen the world.
+- Pasted responses are stored **verbatim as immutable advisory artifacts** attached to the step that generated the prompt. The app never parses a pasted response into a canon field.
+- The steward disposes of advisory material using `20`'s output labels; dispositions persist and steer future prompts.
+- Every prompt-out step is skippable — `20`'s anti-automation rule governs.
+
+## Default prompt texts
+
+The app ships **elaborated defaults**, derived from `20`'s ready prompts and roles, with the `20` originals always visible as the doctrinal source. Fidelity is preserved by derivation, not quotation — the same relationship the schema has to the templates (T-4). Defaults are versioned app content: when `20` changes upstream, every derivation is re-checked (P-1). Prompts are steward-editable; app defaults are versioned so edits are reversible.
+
+## Advisory-artifact retention
+
+Advisory artifacts are **retained verbatim, forever**. They are what makes P-2 demonstrable rather than asserted: "the steward authored this, with that material on the table" is only checkable while the material exists. v1 ships no purge affordance. If a real need ever emerges, the decision is ADR-level and the design is a **tombstone purge** — a record of what was destroyed, when, and why — never silent deletion.
+
+## Provenance of advisory input (T-5, advisory half)
+
+Every record and mutation carries provenance: who, when, in which flow step, and — where advisory material was consulted — which prompt was generated and which pasted response was on the table, verbatim. The shape follows W3C PROV informally: the fact *was derived from* the advisory artifact but *was attributed to* the steward. Authorship time is the only trustworthy capture point — post-hoc AI-text attribution is unreliable. The storage mechanism is in `data-principles.md`.
+
+## The API door
+
+v1 is strictly prompt-out/paste-in: no LLM API calls, no API keys, no vendor coupling. This boundary is a *scope* decision (charter), not the sovereignty invariant itself — sovereignty is transport-independent. Any future integration routes through the same advisory store and admission gate, without exception.
