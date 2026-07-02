@@ -35,9 +35,28 @@ describe("WorldStore", () => {
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM record_types").get()).toMatchObject({ count: 26 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM link_types").get()).toMatchObject({ count: 24 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'canon_status'").get()).toMatchObject({ count: 11 });
+    expect(store.promptTemplates()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "admission_prerequisite_audit" }),
+      expect.objectContaining({ key: "admission_constraint_challenge" })
+    ]));
     expect(store.db.prepare("SELECT strict FROM pragma_table_list WHERE name = 'records'").get()).toMatchObject({ strict: 1 });
 
     store.close();
+  });
+
+  it("re-seeds admission prompt templates when opening an existing v2 world", () => {
+    const path = tempPath("existing-v2.sqlite");
+    const store = WorldStore.create(path);
+    store.db.prepare("DELETE FROM prompt_template_versions WHERE template_key LIKE 'admission_%'").run();
+    store.db.prepare("DELETE FROM prompt_templates WHERE key LIKE 'admission_%'").run();
+    store.close();
+
+    const reopened = WorldStore.open(path);
+    expect(reopened.promptTemplates()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "admission_prerequisite_audit" }),
+      expect.objectContaining({ key: "admission_constraint_challenge" })
+    ]));
+    reopened.close();
   });
 
   it("backs up an older world before migrating it and rejects corrupted files plainly", () => {
@@ -222,6 +241,74 @@ describe("WorldStore", () => {
 
     const ftsSql = store.db.prepare("SELECT sql FROM sqlite_schema WHERE name = 'records_fts'").get() as { sql: string };
     expect(ftsSql.sql).toContain("content='records'");
+    store.close();
+  });
+
+  it("enforces admission invariants at the store and SQL seams", () => {
+    const store = WorldStore.create(tempPath("admission.sqlite"));
+    const fact = store.createRecord({ recordTypeKey: "canon_fact", title: "Flood writ", body: "A writ redirects floodwater", ...explicitJudgment });
+    store.declareAdmissionSeverity(fact.id, { admissionLevel: "3", workScale: "major" });
+    const flow = store.startAdmissionGate(fact.id) as { current_step: string };
+    expect(flow.current_step).toContain(`record:${fact.id}:gate`);
+    expect(() => store.completeAdmissionGate({
+      recordId: fact.id,
+      truthLayer: "Objective canon",
+      canonStatus: "deprecated",
+      operations: ["accept"],
+      consequenceText: "Flood courts now need clerks."
+    })).toThrow(/illegal canon status transition/);
+    expect(() => store.completeAdmissionGate({
+      recordId: fact.id,
+      truthLayer: "Objective canon",
+      canonStatus: "accepted",
+      operations: ["accept"]
+    })).toThrow(/written consequence/);
+
+    const gate = store.completeAdmissionGate({
+      recordId: fact.id,
+      body: "A governed writ redirects floodwater",
+      truthLayer: "Objective canon",
+      canonStatus: "accepted",
+      operations: ["accept", "institutionalize"],
+      consequenceText: "Flood courts now need clerks.",
+      quietDomainDeclarations: ["No household-level change."],
+      notApplicableReasons: ["No branch implication."]
+    });
+    expect(gate.record).toMatchObject({ id: fact.id, canonStatus: "accepted" });
+    expect(store.history(fact.id)).toEqual(expect.arrayContaining([expect.objectContaining({ retired_body: "A writ redirects floodwater" })]));
+    expect(store.db.prepare("SELECT admission_decision_operation FROM jurisdiction_events WHERE record_id = ? AND origin = 'admission' ORDER BY id").all(fact.id)).toEqual([
+      { admission_decision_operation: "accept" },
+      { admission_decision_operation: "institutionalize" }
+    ]);
+
+    const secondConnection = new Database(store.path);
+    secondConnection.pragma("foreign_keys = ON");
+    expect(() => secondConnection.prepare("UPDATE records SET body = 'Changed' WHERE id = ?").run(gate.gateResult.id)).toThrow(/append-only/);
+    expect(() => secondConnection.prepare(`
+      INSERT INTO jurisdiction_events (record_id, origin, repair_operation)
+      VALUES (?, 'admission', 'retcon')
+    `).run(fact.id)).toThrow(/CHECK/);
+    secondConnection.close();
+
+    const ledger = store.admitMinorBatch({
+      rows: [{
+        title: "Minor flood custom",
+        fact: "Clerks use blue wax.",
+        scope: "flood court",
+        truthLayer: "Objective canon",
+        status: "accepted",
+        operations: ["accept"],
+        consequenceCheck: "Blue wax enters household errands."
+      }]
+    }).records[0]!;
+    store.createLink(ledger.id, fact.id, "depends_on");
+    const promoted = store.promoteRecord(ledger.id, "canon_fact");
+    expect(promoted.id).toBe(ledger.id);
+    expect(promoted.shortId).toBe(ledger.shortId);
+    expect(store.listLinks(promoted.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ toRecordId: fact.id, linkTypeKey: "depends_on" }),
+      expect.objectContaining({ fromRecordId: ledger.id, toRecordId: ledger.id, linkTypeKey: "tombstones" })
+    ]));
     store.close();
   });
 

@@ -60,6 +60,12 @@ interface RecentWorld {
   openedAt: string;
 }
 
+interface AdmissionQueueRow extends RecordRow {
+  admissionLevel: string | null;
+  workScale: string | null;
+  constraintTags: string[];
+}
+
 interface PromptTemplate {
   key: string;
   role_name: string;
@@ -107,6 +113,8 @@ function App() {
   const [facets, setFacets] = useState<FacetRow[]>([]);
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
+  const [admissionQueue, setAdmissionQueue] = useState<AdmissionQueueRow[]>([]);
+  const [canonDebt, setCanonDebt] = useState<RecordRow[]>([]);
   const [search, setSearch] = useState("");
   const [snapshotPath, setSnapshotPath] = useState("");
   const [recordTypeKey, setRecordTypeKey] = useState("canon_fact");
@@ -133,6 +141,15 @@ function App() {
   const [consequenceMode, setConsequenceMode] = useState("");
   const [seedTitle, setSeedTitle] = useState("");
   const [seedBody, setSeedBody] = useState("");
+  const [admissionRecordId, setAdmissionRecordId] = useState("");
+  const [admissionLevel, setAdmissionLevel] = useState("");
+  const [workScale, setWorkScale] = useState("");
+  const [admissionOperation, setAdmissionOperation] = useState("accept");
+  const [gateConsequence, setGateConsequence] = useState("");
+  const [gateQuietDomain, setGateQuietDomain] = useState("");
+  const [gateNotApplicable, setGateNotApplicable] = useState("");
+  const [canonDebtName, setCanonDebtName] = useState("");
+  const [seedAuditFindings, setSeedAuditFindings] = useState("");
 
   const truthLayers = useMemo(() => terms.filter((term) => term.vocabulary === "truth_layer"), [terms]);
   const canonStatuses = useMemo(() => terms.filter((term) => term.vocabulary === "canon_status"), [terms]);
@@ -140,12 +157,16 @@ function App() {
   const facetTerms = useMemo(() => terms.filter((term) => term.vocabulary === facetVocabulary), [terms, facetVocabulary]);
   const consequenceModes = useMemo(() => terms.filter((term) => term.vocabulary === "consequence_mode"), [terms]);
   const advisoryDispositions = useMemo(() => terms.filter((term) => term.vocabulary === "advisory_disposition"), [terms]);
+  const admissionLevels = useMemo(() => terms.filter((term) => term.vocabulary === "admission_level"), [terms]);
+  const workScales = useMemo(() => terms.filter((term) => term.vocabulary === "work_scale"), [terms]);
+  const admissionOperations = useMemo(() => terms.filter((term) => term.vocabulary === "admission_decision_operation"), [terms]);
   const recordTypeByKey = useMemo(() => new Map(recordTypes.map((recordType) => [recordType.key, recordType])), [recordTypes]);
   const selectedRecordType = editingId == null ? recordTypeByKey.get(recordTypeKey) : recordTypeByKey.get(recordTypeKey);
   const editingReportRecord = editingId != null && selectedRecordType?.mutationRegime === "report";
   const canSaveRecord = Boolean(openWorld && recordForm.title.trim() && recordForm.truthLayer && recordForm.canonStatus && !editingReportRecord);
   const selectedHeadings = headings.filter((heading) => heading.record_type_key === recordTypeKey);
   const selectedTemplate = templates.find((template) => template.key === promptTemplateKey);
+  const selectedAdmissionRecord = records.find((record) => record.id === Number(admissionRecordId));
 
   useEffect(() => {
     if (!token) return;
@@ -183,13 +204,15 @@ function App() {
   };
 
   const loadWorldData = async () => {
-    const [recordPayload, linkPayload, vocabularyPayload, headingPayload, draftPayload, templatePayload] = await Promise.all([
+    const [recordPayload, linkPayload, vocabularyPayload, headingPayload, draftPayload, templatePayload, queuePayload, debtPayload] = await Promise.all([
       api<{ records: RecordRow[] }>("/api/records"),
       api<{ links: LinkRow[] }>("/api/links"),
       api<{ terms: VocabularyTerm[] }>("/api/vocabularies"),
       api<{ headings: SectionHeading[] }>("/api/section-headings"),
       api<{ drafts: DraftRow[] }>("/api/drafts"),
-      api<{ templates: PromptTemplate[] }>("/api/prompt-templates")
+      api<{ templates: PromptTemplate[] }>("/api/prompt-templates"),
+      api<{ queue: AdmissionQueueRow[] }>("/api/admission/queue"),
+      api<{ debt: RecordRow[] }>("/api/admission/debt?open=true")
     ]);
     setRecords(recordPayload.records);
     setLinks(linkPayload.links);
@@ -197,6 +220,8 @@ function App() {
     setHeadings(headingPayload.headings);
     setDrafts(draftPayload.drafts);
     setTemplates(templatePayload.templates);
+    setAdmissionQueue(queuePayload.queue);
+    setCanonDebt(debtPayload.debt);
   };
 
   const createOrOpen = async (mode: "create" | "open", selectedPath = worldPath) => {
@@ -404,6 +429,102 @@ function App() {
     await loadWorldData();
   };
 
+  const proposeRecord = async (record: RecordRow) => {
+    await api(`/api/admission/propose-record/${record.id}`, { method: "POST" });
+    setAdmissionRecordId(String(record.id));
+    await loadWorldData();
+  };
+
+  const proposeDraft = async (draft: DraftRow) => {
+    await api(`/api/admission/propose-draft/${draft.id}`, {
+      method: "POST",
+      body: JSON.stringify({ truthLayer: recordForm.truthLayer })
+    });
+    await loadWorldData();
+  };
+
+  const declareSeverity = async () => {
+    if (!admissionRecordId) return;
+    await api(`/api/admission/records/${admissionRecordId}/severity`, {
+      method: "POST",
+      body: JSON.stringify({ admissionLevel, workScale })
+    });
+    await loadWorldData();
+  };
+
+  const startAdmission = async () => {
+    if (!admissionRecordId) return;
+    await api(`/api/admission/records/${admissionRecordId}/start`, { method: "POST" });
+    await loadWorldData();
+  };
+
+  const completeAdmission = async () => {
+    if (!admissionRecordId) return;
+    await api("/api/admission/gate/complete", {
+      method: "POST",
+      body: JSON.stringify({
+        recordId: Number(admissionRecordId),
+        truthLayer: recordForm.truthLayer || selectedAdmissionRecord?.truthLayer,
+        canonStatus: recordForm.canonStatus || "accepted",
+        operations: [admissionOperation],
+        consequenceText: gateConsequence,
+        notApplicableReasons: gateNotApplicable ? [gateNotApplicable] : [],
+        quietDomainDeclarations: gateQuietDomain ? [gateQuietDomain] : []
+      })
+    });
+    await loadWorldData();
+  };
+
+  const admitMinorBatch = async () => {
+    await api("/api/admission/minor-batch", {
+      method: "POST",
+      body: JSON.stringify({
+        source: "web admission panel",
+        rows: [{
+          title: recordForm.title || "Minor admission row",
+          fact: recordForm.body || recordForm.title,
+          scope: "declared in admission panel",
+          truthLayer: recordForm.truthLayer,
+          status: recordForm.canonStatus || "accepted",
+          operations: [admissionOperation],
+          consequenceCheck: gateConsequence
+        }]
+      })
+    });
+    await loadWorldData();
+  };
+
+  const runSeedAudit = async () => {
+    if (!admissionRecordId) return;
+    await api("/api/admission/seed-audit", {
+      method: "POST",
+      body: JSON.stringify({ seedRecordIds: [Number(admissionRecordId)], findings: seedAuditFindings, decision: "proceed" })
+    });
+    await loadWorldData();
+  };
+
+  const createDebt = async () => {
+    await api("/api/admission/debt", {
+      method: "POST",
+      body: JSON.stringify({ name: canonDebtName, scope: "admission", assignee: "steward" })
+    });
+    setCanonDebtName("");
+    await loadWorldData();
+  };
+
+  const closeDebt = async (debt: RecordRow) => {
+    await api(`/api/admission/debt/${debt.id}/close`, { method: "POST" });
+    await loadWorldData();
+  };
+
+  const skipAdmissionInstrument = async () => {
+    await api("/api/admission/skip", {
+      method: "POST",
+      body: JSON.stringify({ recordId: admissionRecordId ? Number(admissionRecordId) : undefined, stepKey: "web_admission_instrument", admissionLevel, workScale, reason: gateNotApplicable || undefined })
+    });
+    await loadWorldData();
+  };
+
   return (
     <main>
       <header className="topbar">
@@ -493,6 +614,7 @@ function App() {
                   <p>{draft.body}</p>
                   <div className="row">
                     <button onClick={() => convertDraft(draft)} disabled={!recordForm.truthLayer || !recordForm.canonStatus}>Convert to Proposed</button>
+                    <button onClick={() => proposeDraft(draft)} disabled={!recordForm.truthLayer}>Propose</button>
                     <button onClick={() => discardDraft(draft)}>Discard</button>
                   </div>
                 </article>
@@ -526,6 +648,54 @@ function App() {
           </div>
 
           <div className="panel">
+            <h2>Admission flow</h2>
+            <div className="doctrine">
+              <strong>Doctrine at point of use</strong>
+              <span>Queue and gate derive from docs/worldbuilding-system/06_canon_fact_admission_protocol.md, checklists/canon_fact_gate.md, checklists/frontloaded_seed_audit.md, and templates/admission_ledger.md.</span>
+              <span>Severity is steward-declared; sweeps propose and only admission admits.</span>
+            </div>
+            <div className="grid">
+              <label>Record id<input value={admissionRecordId} onChange={(event) => setAdmissionRecordId(event.target.value)} /></label>
+              <label>Admission level<select value={admissionLevel} onChange={(event) => setAdmissionLevel(event.target.value)}><option></option>{admissionLevels.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+              <label>Work scale<select value={workScale} onChange={(event) => setWorkScale(event.target.value)}><option></option>{workScales.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+            </div>
+            <div className="row">
+              <button onClick={declareSeverity} disabled={!openWorld || !admissionRecordId || !admissionLevel || !workScale}>Declare Severity</button>
+              <button onClick={startAdmission} disabled={!openWorld || !admissionRecordId}>Start Gate</button>
+              <button onClick={skipAdmissionInstrument} disabled={!openWorld}>Record Skip</button>
+            </div>
+            <div className="grid">
+              <label>Operation<select value={admissionOperation} onChange={(event) => setAdmissionOperation(event.target.value)}>{admissionOperations.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+              <label>Quiet domain declaration<input value={gateQuietDomain} onChange={(event) => setGateQuietDomain(event.target.value)} /></label>
+              <label>N/A reason<input value={gateNotApplicable} onChange={(event) => setGateNotApplicable(event.target.value)} /></label>
+            </div>
+            <label>Consequence check<textarea rows={3} value={gateConsequence} onChange={(event) => setGateConsequence(event.target.value)} /></label>
+            <div className="row">
+              <button onClick={completeAdmission} disabled={!openWorld || !admissionRecordId || !(recordForm.truthLayer || selectedAdmissionRecord?.truthLayer) || !admissionOperation}>Complete Gate</button>
+              <button onClick={admitMinorBatch} disabled={!openWorld || !recordForm.title || !recordForm.truthLayer || !gateConsequence}>Admit Minor Row</button>
+            </div>
+            <label>Seed audit findings<textarea rows={3} value={seedAuditFindings} onChange={(event) => setSeedAuditFindings(event.target.value)} /></label>
+            <button onClick={runSeedAudit} disabled={!openWorld || !admissionRecordId || !seedAuditFindings}>Run Seed Audit</button>
+            <div className="subpanel">
+              <h3>Canon debt</h3>
+              <div className="row">
+                <input aria-label="Canon debt name" value={canonDebtName} onChange={(event) => setCanonDebtName(event.target.value)} placeholder="named debt" />
+                <button onClick={createDebt} disabled={!openWorld || !canonDebtName}>Create Debt</button>
+              </div>
+              {canonDebt.map((debt) => <button key={debt.id} onClick={() => closeDebt(debt)}>{debt.shortId} · {debt.title}</button>)}
+            </div>
+            <div className="records compact">
+              {admissionQueue.map((row) => (
+                <article key={row.id}>
+                  <button onClick={() => setAdmissionRecordId(String(row.id))}>Select</button>
+                  <h3>{row.shortId} · {row.title}</h3>
+                  <p className="meta">{row.canonStatus} · level {row.admissionLevel ?? "unset"} · {row.workScale ?? "unset"} · tags {row.constraintTags.join(", ") || "none"}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <div className="panel">
             <h2>Creation flow</h2>
             <div className="row">
               <button onClick={startFlow} disabled={!openWorld}>Start or Resume</button>
@@ -555,6 +725,7 @@ function App() {
             {records.map((record) => (
               <article key={record.id}>
                 <button onClick={() => editRecord(record)}>Edit</button>
+                <button className="propose" onClick={() => proposeRecord(record)}>Propose</button>
                 {recordTypeByKey.get(record.recordTypeKey)?.mutationRegime === "card" && <button className="promote" onClick={() => promoteRecord(record)}>Promote</button>}
                 <h3>{record.shortId} · {record.title}</h3>
                 <p className="meta">{record.recordTypeKey} · {record.truthLayer ?? "no layer"} · {record.canonStatus ?? "no status"} · {record.updatedAt}</p>

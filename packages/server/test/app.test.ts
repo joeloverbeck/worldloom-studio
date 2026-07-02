@@ -277,4 +277,131 @@ describe("HTTP API", () => {
     expect(decomposed.status).toBe(201);
     expect(await json(decomposed)).toMatchObject({ records: [{ canonStatus: "proposed" }] });
   });
+
+  it("drives admission queue, severity, ledger, gate, audit, skips, debt, and prompts through the HTTP seam", async () => {
+    const app = createApp();
+    const path = tempPath("admission-world.sqlite");
+    expect((await app.request("/api/worlds/create", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path })
+    })).status).toBe(201);
+
+    const draft = await json<{ draft: { id: number } }>(await app.request("/api/drafts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: "Toll bell", body: "A bell charges each crossing" })
+    }));
+    const proposed = await app.request(`/api/admission/propose-draft/${draft.draft.id}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ truthLayer: "Objective canon" })
+    });
+    expect(proposed.status).toBe(201);
+    const proposedJson = await json<{ record: { id: number; canonStatus: string }; queue: Array<{ id: number; canonStatus: string }> }>(proposed);
+    expect(proposedJson.record.canonStatus).toBe("proposed");
+    expect(proposedJson.queue).toEqual(expect.arrayContaining([expect.objectContaining({ id: proposedJson.record.id, canonStatus: "proposed" })]));
+    expect(await json(await app.request(`/api/links?recordId=${proposedJson.record.id}`))).toMatchObject({
+      links: [expect.objectContaining({ fromRecordId: proposedJson.record.id, linkTypeKey: "derived_from", note: "Propose action provenance" })]
+    });
+
+    const seed = await json<{ record: { id: number } }>(await app.request("/api/records", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recordTypeKey: "canon_fact", title: "Seed fact", body: "Seed body", ...explicitJudgment })
+    }));
+    expect(await json(await app.request("/api/admission/queue"))).toMatchObject({ queue: expect.arrayContaining([expect.objectContaining({ id: seed.record.id })]) });
+
+    const severity = await app.request(`/api/admission/records/${proposedJson.record.id}/severity`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ admissionLevel: "4", workScale: "severe" })
+    });
+    expect(severity.status).toBe(200);
+    expect(await json(severity)).toMatchObject({ gate: { path: "full_gate", steps: expect.arrayContaining(["shock-cone summary"]) } });
+
+    const prompt = await json<{ prompt: string }>(await app.request("/api/prompts/generate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ templateKey: "admission_prerequisite_audit", recordId: proposedJson.record.id, stepKey: "admission:dependencies" })
+    }));
+    expect(prompt.prompt).toContain("Prerequisite auditor");
+    expect(prompt.prompt).toContain("Vocabulary guardrail");
+
+    const badGate = await app.request("/api/admission/gate/complete", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recordId: proposedJson.record.id, truthLayer: "Objective canon", canonStatus: "accepted", operations: ["accept"] })
+    });
+    expect(badGate.status).toBe(400);
+    expect(await json(badGate)).toMatchObject({ error: expect.stringContaining("written consequence") });
+
+    const debt = await json<{ debt: { id: number } }>(await app.request("/api/admission/debt", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Unpriced bell crossings", scope: "economy", assignee: "steward" })
+    }));
+    const completedGate = await app.request("/api/admission/gate/complete", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        recordId: proposedJson.record.id,
+        truthLayer: "Objective canon",
+        canonStatus: "accepted with constraints",
+        constraintTags: ["cost-bound"],
+        operations: ["constrain", "price"],
+        consequenceText: "Markets now price crossings by bell debt.",
+        notApplicableReasons: ["No branch implication in main continuity."],
+        quietDomainDeclarations: ["No spatial spread beyond bridge wards yet."],
+        followUpDebt: "Propagate bridge-toll economics."
+      })
+    });
+    expect(completedGate.status).toBe(201);
+    expect(await json(completedGate)).toMatchObject({
+      record: { canonStatus: "accepted with constraints" },
+      gateResult: { recordTypeKey: "gate_result" },
+      warnings: [expect.objectContaining({ id: debt.debt.id })]
+    });
+
+    const minorBatch = await app.request("/api/admission/minor-batch", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        source: "seed cluster",
+        rows: [{
+          title: "Ledger: bell toll color",
+          fact: "The toll bell is blue.",
+          scope: "bridge ward",
+          truthLayer: "Objective canon",
+          status: "accepted",
+          operations: ["accept"],
+          consequenceCheck: "Blue paint becomes the bridge ward's ordinary sign."
+        }]
+      })
+    });
+    expect(minorBatch.status).toBe(201);
+    expect(await json(minorBatch)).toMatchObject({ records: [{ recordTypeKey: "admission_ledger_row", canonStatus: "accepted" }] });
+
+    const audit = await app.request("/api/admission/seed-audit", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ seedRecordIds: [seed.record.id], findings: "Seed has a scope and intended status.", decision: "proceed" })
+    });
+    expect(audit.status).toBe(201);
+    expect(await json(audit)).toMatchObject({ report: { recordTypeKey: "gate_result" }, seeds: [{ canonStatus: "proposed" }] });
+
+    const minorSkip = await app.request("/api/admission/skip", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recordId: seed.record.id, stepKey: "seed_audit", admissionLevel: "1", workScale: "minor" })
+    });
+    expect(minorSkip.status).toBe(201);
+    const majorSkip = await app.request("/api/admission/skip", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recordId: seed.record.id, stepKey: "canon_change_proposal", admissionLevel: "3", workScale: "major" })
+    });
+    expect(majorSkip.status).toBe(400);
+    expect((await app.request(`/api/admission/debt/${debt.debt.id}/close`, { method: "POST" })).status).toBe(200);
+  });
 });

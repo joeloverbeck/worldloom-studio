@@ -215,7 +215,15 @@ label {
 }
 
 .records article > button.promote {
+  top: 96px;
+}
+
+.records article > button.propose {
   top: 54px;
+}
+
+.records.compact article {
+  padding-right: 96px;
 }
 
 .records h3,

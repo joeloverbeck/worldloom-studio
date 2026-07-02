@@ -281,6 +281,128 @@ export const createApp = (options: AppOptions = {}) => {
     }
   });
 
+  app.get("/api/admission/queue", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    return c.json({ queue: activeWorld.admissionQueue() });
+  });
+
+  app.post("/api/admission/propose-draft/:id", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(activeWorld.proposeDraftToAdmission(Number(c.req.param("id")), await body<{ title?: string; truthLayer: string }>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/admission/propose-record/:id", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(activeWorld.proposeRecordToAdmission(Number(c.req.param("id"))), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/admission/records/:id/severity", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(activeWorld.declareAdmissionSeverity(Number(c.req.param("id")), await body<{ admissionLevel: string; workScale: string }>(c)));
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.get("/api/admission/records/:id/gate", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ gate: activeWorld.gateComposition(Number(c.req.param("id"))) });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/admission/minor-batch", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(activeWorld.admitMinorBatch(await body<{ source?: string; rows: Array<{ title: string; fact: string; scope: string; truthLayer: string; status: string; constraintTags?: string[]; operations: string[]; consequenceCheck: string }> }>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/admission/records/:id/start", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ flow: activeWorld.startAdmissionGate(Number(c.req.param("id"))) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/admission/gate/complete", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(activeWorld.completeAdmissionGate(await body<{
+        recordId: number;
+        title?: string;
+        body?: string;
+        truthLayer: string;
+        canonStatus: string;
+        constraintTags?: string[];
+        operations: string[];
+        consequenceText?: string;
+        notApplicableReasons?: string[];
+        quietDomainDeclarations?: string[];
+        followUpDebt?: string;
+        advisoryRecordId?: number;
+      }>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/admission/seed-audit", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(activeWorld.runSeedAudit(await body<{ seedRecordIds: number[]; findings: string; decision: string }>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/admission/skip", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ record: activeWorld.declineAdmissionInstrument(await body<{ recordId?: number; stepKey: string; admissionLevel?: string; workScale?: string; reason?: string }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.get("/api/admission/debt", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    return c.json({ debt: activeWorld.listCanonDebt(c.req.query("open") === "true") });
+  });
+
+  app.post("/api/admission/debt", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ debt: activeWorld.createCanonDebt(await body<{ name: string; scope: string; assignee: string; body?: string }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/admission/debt/:id/close", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ debt: activeWorld.closeCanonDebt(Number(c.req.param("id"))) });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
   app.get("/api/search", (c) => {
     if (!activeWorld) return c.json({ error: "No world is open" }, 409);
     return c.json({ records: activeWorld.search(c.req.query("q") ?? "") });

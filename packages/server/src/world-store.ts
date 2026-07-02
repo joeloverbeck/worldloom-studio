@@ -71,6 +71,12 @@ export interface TraversalRow extends LinkRow {
   depth: number;
 }
 
+export interface AdmissionQueueRow extends RecordRow {
+  admissionLevel: string | null;
+  workScale: string | null;
+  constraintTags: string[];
+}
+
 const rowToRecord = (row: Record<string, unknown>): RecordRow => ({
   id: Number(row.id),
   shortId: String(row.short_id),
@@ -493,6 +499,255 @@ export class WorldStore {
     })();
   }
 
+  admissionQueue(): AdmissionQueueRow[] {
+    return this.db.prepare(`
+      SELECT r.*
+      FROM records r
+      WHERE r.record_type_key IN ('canon_fact', 'admission_ledger_row')
+        AND r.canon_status IN ('proposed', 'under review')
+      ORDER BY
+        CASE COALESCE((SELECT term FROM record_facets WHERE record_id = r.id AND vocabulary = 'work_scale' ORDER BY position, id LIMIT 1), '')
+          WHEN 'catastrophic' THEN 1
+          WHEN 'severe' THEN 2
+          WHEN 'major' THEN 3
+          WHEN 'moderate' THEN 4
+          WHEN 'minor' THEN 5
+          ELSE 6
+        END,
+        CAST(COALESCE((SELECT term FROM record_facets WHERE record_id = r.id AND vocabulary = 'admission_level' ORDER BY position, id LIMIT 1), '-1') AS INTEGER) DESC,
+        r.updated_at DESC,
+        r.id DESC
+    `).all().map((row) => this.withAdmissionFacets(rowToRecord(row as Record<string, unknown>)));
+  }
+
+  proposeDraftToAdmission(id: number, input: { title?: string; truthLayer: string }): { record: RecordRow; queue: AdmissionQueueRow[] } {
+    const record = this.convertDraft(id, { recordTypeKey: "canon_fact", title: input.title, truthLayer: input.truthLayer, canonStatus: "proposed" });
+    this.recordJurisdictionEvent(record.id, "sweep");
+    this.recordProposeProvenance(record.id, "admission:propose-draft");
+    return { record, queue: this.admissionQueue() };
+  }
+
+  proposeRecordToAdmission(id: number): { record: RecordRow; queue: AdmissionQueueRow[] } {
+    const record = this.getRecord(id);
+    this.recordJurisdictionEvent(id, "sweep");
+    this.recordProposeProvenance(id, "admission:propose-record");
+    return { record, queue: this.admissionQueue() };
+  }
+
+  declareAdmissionSeverity(recordId: number, input: { admissionLevel: string; workScale: string }): { record: RecordRow; facets: FacetRow[]; gate: unknown; queue: AdmissionQueueRow[] } {
+    this.assertVocabularyTerm("admission_level", input.admissionLevel);
+    this.assertVocabularyTerm("work_scale", input.workScale);
+    this.replaceSingleFacet(recordId, "admission_level", input.admissionLevel);
+    this.replaceSingleFacet(recordId, "work_scale", input.workScale);
+    return { record: this.getRecord(recordId), facets: this.listFacets(recordId), gate: this.gateComposition(recordId), queue: this.admissionQueue() };
+  }
+
+  gateComposition(recordId: number): unknown {
+    const record = this.getRecord(recordId);
+    const facets = this.listFacets(recordId);
+    const admissionLevel = facets.find((facet) => facet.vocabulary === "admission_level")?.term ?? null;
+    const workScale = facets.find((facet) => facet.vocabulary === "work_scale")?.term ?? null;
+    const major = ["3", "4", "5"].includes(admissionLevel ?? "") || ["major", "severe", "catastrophic"].includes(workScale ?? "");
+    const foundational = ["4", "5"].includes(admissionLevel ?? "") || ["severe", "catastrophic"].includes(workScale ?? "");
+    const catastrophic = admissionLevel === "5" || workScale === "catastrophic";
+    const steps = major
+      ? [
+          "fact statement",
+          "scope",
+          "type",
+          "truth layer",
+          "canon status",
+          "constraint tags",
+          "dependencies",
+          "costs/access/bottlenecks",
+          "shock-cone summary",
+          "institutions or quiet-domain declaration",
+          "evidence/belief note",
+          "contradiction and mystery risk",
+          "follow-up debt",
+          ...(foundational ? ["temporal/spatial passes", "branch implications", "mystery/aesthetic checks", "QA follow-up"] : []),
+          ...(catastrophic ? ["explicit decision record", "rollback/branch plan"] : [])
+        ]
+      : ["fact statement", "scope", "truth layer", "canon status", "constraint tags", "admission operations", "one consequence check"];
+    return {
+      record,
+      admissionLevel,
+      workScale,
+      path: major ? "full_gate" : "minor_ledger",
+      doctrine: [
+        "docs/worldbuilding-system/06_canon_fact_admission_protocol.md",
+        major ? "docs/worldbuilding-system/checklists/canon_fact_gate.md" : "docs/worldbuilding-system/templates/admission_ledger.md"
+      ],
+      steps
+    };
+  }
+
+  admitMinorBatch(input: { source?: string; rows: Array<{ title: string; fact: string; scope: string; truthLayer: string; status: string; constraintTags?: string[]; operations: string[]; consequenceCheck: string }> }): { records: RecordRow[]; report: RecordRow } {
+    if (!input.rows.length) throw new Error("minor admission batch requires at least one row");
+    return this.db.transaction(() => {
+      const report = this.createRecord({
+        recordTypeKey: "gate_result",
+        title: "Minor admission batch",
+        body: `Source: ${input.source ?? "admission queue"}\nRows: ${input.rows.length}`,
+        truthLayer: "Objective canon",
+        canonStatus: "accepted"
+      });
+      const records = input.rows.map((row) => {
+        if (!row.fact || !row.scope || !row.truthLayer || !row.status || !row.operations.length || !row.consequenceCheck) {
+          throw new Error("minor ledger rows require fact, scope, truth layer, status, operations, and one consequence check");
+        }
+        const record = this.createRecord({
+          recordTypeKey: "admission_ledger_row",
+          title: row.title,
+          body: [
+            `Fact: ${row.fact}`,
+            `Scope: ${row.scope}`,
+            `Status: ${row.status}`,
+            `Constraint tags: ${(row.constraintTags ?? []).join(", ") || "none"}`,
+            `Admission operation(s): ${row.operations.join(", ")}`,
+            `One consequence check: ${row.consequenceCheck}`
+          ].join("\n"),
+          truthLayer: row.truthLayer,
+          canonStatus: row.status
+        });
+        this.replaceSingleFacet(record.id, "admission_level", "1");
+        this.replaceSingleFacet(record.id, "work_scale", "minor");
+        for (const [index, tag] of (row.constraintTags ?? []).entries()) {
+          this.addFacet(record.id, { vocabulary: "constraint_tag", term: tag, position: index + 1 });
+        }
+        row.operations.forEach((operation) => this.recordJurisdictionEvent(record.id, "admission", operation));
+        this.createLink(record.id, report.id, "derived_from", "Minor admission batch gate result");
+        return record;
+      });
+      return { records, report };
+    })();
+  }
+
+  startAdmissionGate(recordId: number): unknown {
+    this.getRecord(recordId);
+    const row = this.db.prepare("SELECT * FROM flow_instances WHERE flow_key = 'admission' AND state = 'in_progress' AND current_step LIKE ? ORDER BY id DESC LIMIT 1").get(`record:${recordId}:%`);
+    if (row) return row;
+    const result = this.db.prepare("INSERT INTO flow_instances (flow_key, current_step) VALUES ('admission', ?)").run(`record:${recordId}:gate`);
+    this.updateRecord(recordId, { canonStatus: "under review" });
+    return this.db.prepare("SELECT * FROM flow_instances WHERE id = ?").get(result.lastInsertRowid);
+  }
+
+  completeAdmissionGate(input: {
+    recordId: number;
+    title?: string;
+    body?: string;
+    truthLayer: string;
+    canonStatus: string;
+    constraintTags?: string[];
+    operations: string[];
+    consequenceText?: string;
+    notApplicableReasons?: string[];
+    quietDomainDeclarations?: string[];
+    followUpDebt?: string;
+    advisoryRecordId?: number;
+  }): { record: RecordRow; gateResult: RecordRow; warnings: RecordRow[] } {
+    const current = this.getRecord(input.recordId);
+    const gate = this.gateComposition(input.recordId) as { path: string };
+    if (!input.operations.length) throw new Error("admission gate requires at least one admission operation");
+    if (gate.path === "full_gate") {
+      if (!input.consequenceText?.trim()) throw new Error("full gate requires written consequence text");
+      if ((input.notApplicableReasons ?? []).some((reason) => !reason.trim())) throw new Error("n/a gate items require a reason");
+      if ((input.quietDomainDeclarations ?? []).some((declaration) => !declaration.trim())) throw new Error("quiet domains require a declaration");
+    }
+    this.assertAllowedStatusTransition(current.canonStatus, input.canonStatus);
+    return this.db.transaction(() => {
+      const warnings = this.openCanonDebtWarnings(input.recordId);
+      const record = this.updateRecord(input.recordId, {
+        title: input.title ?? current.title,
+        body: input.body ?? current.body,
+        truthLayer: input.truthLayer,
+        canonStatus: input.canonStatus
+      });
+      this.replaceAllFacets(record.id, "constraint_tag", input.constraintTags ?? []);
+      input.operations.forEach((operation) => this.recordJurisdictionEvent(record.id, "admission", operation));
+      const gateResult = this.createRecord({
+        recordTypeKey: "gate_result",
+        title: `Gate result: ${record.shortId}`,
+        body: [
+          `Record: ${record.shortId} ${record.title}`,
+          `Status: ${input.canonStatus}`,
+          `Operations: ${input.operations.join(", ")}`,
+          `Consequence: ${input.consequenceText ?? "minor or not supplied"}`,
+          `N/A reasons: ${(input.notApplicableReasons ?? []).join("; ") || "none"}`,
+          `Quiet domains: ${(input.quietDomainDeclarations ?? []).join("; ") || "none"}`,
+          `Follow-up debt: ${input.followUpDebt ?? "none"}`
+        ].join("\n"),
+        truthLayer: "Objective canon",
+        canonStatus: input.canonStatus === "rejected" ? "rejected" : "accepted"
+      });
+      this.createLink(record.id, gateResult.id, "derived_from", "Admission gate result");
+      if (input.advisoryRecordId != null) {
+        this.createLink(record.id, input.advisoryRecordId, "derived_from", "Admission decision informed by advisory material");
+        this.createLink(record.id, input.advisoryRecordId, "cites_advisory_artifact", "Verbatim admission advisory artifact consulted");
+      }
+      if (input.followUpDebt) {
+        this.createCanonDebt({ name: `Propagation owed for ${record.shortId}`, scope: "propagation", assignee: "steward", body: input.followUpDebt });
+      }
+      this.db.prepare("UPDATE flow_instances SET state = 'complete', current_step = ? WHERE flow_key = 'admission' AND state = 'in_progress' AND current_step LIKE ?").run(`record:${record.id}:complete`, `record:${record.id}:%`);
+      return { record, gateResult, warnings };
+    })();
+  }
+
+  runSeedAudit(input: { seedRecordIds: number[]; findings: string; decision: string }): { report: RecordRow; seeds: RecordRow[] } {
+    if (!input.seedRecordIds.length) throw new Error("seed audit requires at least one seed");
+    const seeds = input.seedRecordIds.map((id) => this.getRecord(id));
+    return this.db.transaction(() => {
+      const report = this.createRecord({
+        recordTypeKey: "gate_result",
+        title: "Frontloaded seed audit",
+        body: [
+          `Seeds: ${seeds.map((seed) => seed.shortId).join(", ")}`,
+          `Findings: ${input.findings}`,
+          `Decision: ${input.decision}`,
+          "Audit proposes; it does not admit or mutate seed judgment fields."
+        ].join("\n"),
+        truthLayer: "Objective canon",
+        canonStatus: "proposed"
+      });
+      for (const seed of seeds) this.createLink(seed.id, report.id, "derived_from", "Frontloaded seed audit report");
+      return { report, seeds: input.seedRecordIds.map((id) => this.getRecord(id)) };
+    })();
+  }
+
+  declineAdmissionInstrument(input: { recordId?: number; stepKey: string; admissionLevel?: string; workScale?: string; reason?: string }): RecordRow {
+    const major = ["3", "4", "5"].includes(input.admissionLevel ?? "") || ["major", "severe", "catastrophic"].includes(input.workScale ?? "");
+    if (major && !input.reason?.trim()) throw new Error("major admission skips require a reason");
+    const record = this.recordSkip({ stepKey: input.stepKey, reason: input.reason });
+    if (input.recordId != null) this.createLink(record.id, input.recordId, "derived_from", "Admission instrument declined");
+    return record;
+  }
+
+  createCanonDebt(input: { name: string; scope: string; assignee: string; body?: string }): RecordRow {
+    return this.createRecord({
+      recordTypeKey: "canon_debt",
+      title: input.name,
+      body: [`Scope: ${input.scope}`, `Assignee: ${input.assignee}`, `State: open`, input.body ?? ""].filter(Boolean).join("\n"),
+      truthLayer: "Objective canon",
+      canonStatus: "under review"
+    });
+  }
+
+  listCanonDebt(openOnly = false): RecordRow[] {
+    const rows = this.db.prepare(`
+      SELECT * FROM records
+      WHERE record_type_key = 'canon_debt'
+        AND (@openOnly = 0 OR canon_status != 'accepted')
+      ORDER BY updated_at DESC, id DESC
+    `).all({ openOnly: openOnly ? 1 : 0 });
+    return rows.map((row) => rowToRecord(row as Record<string, unknown>));
+  }
+
+  closeCanonDebt(id: number): RecordRow {
+    const debt = this.getRecord(id);
+    if (debt.recordTypeKey !== "canon_debt") throw new Error("only canon debt can be closed through this route");
+    return this.updateRecord(id, { body: `${debt.body}\nState: closed`, canonStatus: "accepted" });
+  }
+
   createLink(fromRecordId: number, toRecordId: number, linkTypeKey: string, note = ""): LinkRow {
     this.assertLinkType(linkTypeKey);
     const result = this.db.prepare(`
@@ -588,6 +843,7 @@ export class WorldStore {
         throw error;
       }
     }
+    this.ensureAdmissionPromptTemplates();
     this.db.pragma("journal_mode = WAL");
   }
 
@@ -637,6 +893,81 @@ export class WorldStore {
     if (!row) throw new Error(`Unknown ${vocabulary} term: ${term}`);
   }
 
+  private withAdmissionFacets(record: RecordRow): AdmissionQueueRow {
+    const facets = this.listFacets(record.id);
+    return {
+      ...record,
+      admissionLevel: facets.find((facet) => facet.vocabulary === "admission_level")?.term ?? null,
+      workScale: facets.find((facet) => facet.vocabulary === "work_scale")?.term ?? null,
+      constraintTags: facets.filter((facet) => facet.vocabulary === "constraint_tag").map((facet) => facet.term)
+    };
+  }
+
+  private replaceSingleFacet(recordId: number, vocabulary: string, term: string): void {
+    this.replaceAllFacets(recordId, vocabulary, [term]);
+  }
+
+  private replaceAllFacets(recordId: number, vocabulary: string, terms: string[]): void {
+    this.getRecord(recordId);
+    terms.forEach((term) => this.assertVocabularyTerm(vocabulary, term));
+    this.db.prepare("DELETE FROM record_facets WHERE record_id = ? AND vocabulary = ?").run(recordId, vocabulary);
+    terms.forEach((term, index) => this.addFacet(recordId, { vocabulary, term, position: index + 1 }));
+  }
+
+  private recordJurisdictionEvent(recordId: number, origin: "admission" | "repair" | "sweep", admissionOperation?: string): void {
+    this.getRecord(recordId);
+    if (admissionOperation) this.assertVocabularyTerm("admission_decision_operation", admissionOperation);
+    this.db.prepare(`
+      INSERT INTO jurisdiction_events (record_id, origin, admission_decision_operation)
+      VALUES (?, ?, ?)
+    `).run(recordId, origin, admissionOperation ?? null);
+  }
+
+  private recordProposeProvenance(recordId: number, flowStep: string): void {
+    const record = this.getRecord(recordId);
+    const provenance = this.createRecord({
+      recordTypeKey: "canon_change_proposal",
+      title: `Propose: ${record.shortId}`,
+      body: [
+        `Actor: steward`,
+        `Flow step: ${flowStep}`,
+        `Record: ${record.shortId} ${record.title}`,
+        "Proposing routes the record to the universal admission queue and does not mutate judgment fields."
+      ].join("\n"),
+      truthLayer: record.truthLayer ?? "disputed claim",
+      canonStatus: "proposed"
+    });
+    this.createLink(record.id, provenance.id, "derived_from", "Propose action provenance");
+  }
+
+  private assertAllowedStatusTransition(current: string | null, next: string): void {
+    this.assertVocabularyTerm("canon_status", next);
+    const allowed: Record<string, string[]> = {
+      proposed: ["under review", "accepted", "accepted with constraints", "localized", "contested", "quarantined", "branch-only", "rejected"],
+      "under review": ["proposed", "accepted", "accepted with constraints", "localized", "contested", "quarantined", "branch-only", "rejected"],
+      accepted: ["superseded", "deprecated"],
+      "accepted with constraints": ["superseded", "deprecated"],
+      localized: ["superseded", "deprecated"],
+      contested: ["under review", "quarantined", "rejected"],
+      quarantined: ["under review", "rejected"],
+      "branch-only": ["superseded", "deprecated"],
+      superseded: [],
+      deprecated: [],
+      rejected: []
+    };
+    if (current && current !== next && !allowed[current]?.includes(next)) {
+      throw new Error(`illegal canon status transition: ${current} -> ${next}`);
+    }
+  }
+
+  private openCanonDebtWarnings(recordId: number): RecordRow[] {
+    const facets = this.listFacets(recordId);
+    const admissionLevel = facets.find((facet) => facet.vocabulary === "admission_level")?.term;
+    const workScale = facets.find((facet) => facet.vocabulary === "work_scale")?.term;
+    const foundational = ["4", "5"].includes(admissionLevel ?? "") || ["severe", "catastrophic"].includes(workScale ?? "");
+    return foundational ? this.listCanonDebt(true) : [];
+  }
+
   private nextFacetPosition(recordId: number, vocabulary: string): number {
     const row = this.db.prepare("SELECT COALESCE(MAX(position), 0) + 1 AS next FROM record_facets WHERE record_id = ? AND vocabulary = ?").get(recordId, vocabulary) as { next: number };
     return row.next;
@@ -657,6 +988,33 @@ export class WorldStore {
 
   private standingRulings(): Array<{ disposition: string; note: string }> {
     return this.db.prepare("SELECT disposition, note FROM advisory_dispositions WHERE standing_ruling = 1 ORDER BY id").all() as Array<{ disposition: string; note: string }>;
+  }
+
+  private ensureAdmissionPromptTemplates(): void {
+    const templates = [
+      {
+        key: "admission_prerequisite_audit",
+        roleName: "Prerequisite auditor",
+        text: "Pressure-test this proposed fact statement and its dependencies. Identify hard, soft, economic, institutional, temporal, spatial, and psychological prerequisites; flag any prerequisite that needs its own admission."
+      },
+      {
+        key: "admission_constraint_challenge",
+        roleName: "Constraint challenger",
+        text: "Challenge the proposed capability, access, cost, and constraints. Look for hostile optimization, cheap countermeasures, missing prices, quiet domains, and places where a constraint should be typed rather than hidden in prose."
+      }
+    ];
+    this.db.transaction(() => {
+      for (const template of templates) {
+        this.db.prepare(`
+          INSERT OR IGNORE INTO prompt_templates (key, role_name, original_text, package_source)
+          VALUES (?, ?, ?, 'docs/worldbuilding-system/20_ai_assisted_workflow.md')
+        `).run(template.key, template.roleName, template.text);
+        this.db.prepare(`
+          INSERT OR IGNORE INTO prompt_template_versions (template_key, version, text)
+          VALUES (?, 1, ?)
+        `).run(template.key, template.text);
+      }
+    })();
   }
 
   private backupPath(label: string): string {

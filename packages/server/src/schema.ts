@@ -359,7 +359,9 @@ CREATE TABLE IF NOT EXISTS prompt_template_versions (
 
 INSERT OR IGNORE INTO prompt_templates (key, role_name, original_text, package_source) VALUES
   ('kernel_pressure', 'Consequence scout', 'Given this canon fact and its constraints, list consequences across the domain atlas. Separate direct consequences from speculative ones. Do not invent new canon facts; label assumptions.', 'docs/worldbuilding-system/20_ai_assisted_workflow.md'),
-  ('decomposition_pressure', 'Prerequisite auditor', 'What hard, soft, economic, institutional, temporal, spatial, and psychological prerequisites does this fact require? Flag any prerequisite that would itself need canon admission.', 'docs/worldbuilding-system/20_ai_assisted_workflow.md');
+  ('decomposition_pressure', 'Prerequisite auditor', 'What hard, soft, economic, institutional, temporal, spatial, and psychological prerequisites does this fact require? Flag any prerequisite that would itself need canon admission.', 'docs/worldbuilding-system/20_ai_assisted_workflow.md'),
+  ('admission_prerequisite_audit', 'Prerequisite auditor', 'Pressure-test this proposed fact statement and its dependencies. Identify hard, soft, economic, institutional, temporal, spatial, and psychological prerequisites; flag any prerequisite that needs its own admission.', 'docs/worldbuilding-system/20_ai_assisted_workflow.md'),
+  ('admission_constraint_challenge', 'Constraint challenger', 'Challenge the proposed capability, access, cost, and constraints. Look for hostile optimization, cheap countermeasures, missing prices, quiet domains, and places where a constraint should be typed rather than hidden in prose.', 'docs/worldbuilding-system/20_ai_assisted_workflow.md');
 
 INSERT OR IGNORE INTO prompt_template_versions (template_key, version, text)
 SELECT key, 1, original_text FROM prompt_templates;
