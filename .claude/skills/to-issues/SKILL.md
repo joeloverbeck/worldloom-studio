@@ -58,7 +58,7 @@ Iterate until the user approves the breakdown. If the approval question times ou
 
 For each approved slice, publish a new issue to the issue tracker. Use the issue body template below. These issues are considered ready for AFK agents, so publish them with the correct triage label unless instructed otherwise. Verify the label exists before creating the first issue (create it per the project's triage-label doc if absent).
 
-Publish issues in dependency order (blockers first) so you can reference real issue identifiers in the "Blocked by" field. Batch publishing with predicted identifiers is acceptable only when references point strictly backward, creation is chained to stop on first failure, and each returned number is verified against its prediction — correct via issue edits on any mismatch; otherwise create one at a time.
+Publish issues in dependency order (blockers first) so you can reference real issue identifiers in the "Blocked by" field. Batch publishing with predicted identifiers is acceptable only when references point strictly backward, creation is chained to stop on first failure, and each returned number is verified against its prediction — correct via issue edits on any mismatch; otherwise create one at a time. Forward references — a handoff naming the later slice that closes it — are written by slice *title*, never identifier: titles are stable within the breakdown and need no post-publication edits; identifiers are reserved for backward references like "Blocked by".
 
 <issue-template>
 ## Parent

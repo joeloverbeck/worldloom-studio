@@ -76,6 +76,6 @@ A description of the things that are out of scope for this PRD.
 
 ## Further Notes
 
-Any further notes about the feature. When the synthesized requirements rest on provisional or unratified decisions (e.g., an interview the user never answered), say so here and mark them open to veto before grooming.
+Any further notes about the feature. When the synthesized requirements rest on provisional or unratified decisions (e.g., an interview the user never answered), say so here and mark them open to veto before grooming — and record the seam-confirmation outcome either way (answered: name the seams ratified; timed out: open to veto), so a groomer can tell which parts of the PRD stand ratified and which do not.
 
 </prd-template>

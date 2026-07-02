@@ -37,7 +37,7 @@ For each issue:
 - Write or update tests for the acceptance criteria where a test seam is available.
 - Keep the issue open if required seam tests or other required proof are missing.
 - Mark blockers explicitly in the ledger instead of skipping the issue.
-- When acceptance criteria include browser-visible behavior, run a real browser smoke or record why it is blocked; include the route, action path, and observed outcome in the closeout evidence.
+- When the issue body, PRD text, acceptance criteria, or implementation includes UI/browser-visible behavior, run a real browser smoke or record why it is blocked; include the route, action path, and observed outcome in the closeout evidence.
 
 Run typechecking regularly, single test files regularly, and the full test suite once at the end.
 
@@ -49,7 +49,7 @@ The repo's code-review skill expects a fixed point. Use one of these routes:
 
 - Commit the completed implementation locally, then run /code-review against `HEAD~1` or another fixed point before pushing or closing issues.
 - If committing first would be inappropriate, run an explicit pre-commit review against `git diff HEAD` and say that you are adapting the review because no committed fixed point exists yet.
-- If /code-review cannot run because a required mechanism is unavailable, run a local two-axis review against the fixed point: standards/conventions and spec/acceptance. Document the deviation, fix any findings, rerun the relevant gates, and include the review outcome in closeout evidence.
+- If /code-review cannot run because a required mechanism is unavailable, including when sub-agents or other review tools are unavailable or policy-blocked, run a local two-axis review against the fixed point: standards/conventions and spec/acceptance. Document the deviation and its reason, fix any findings, rerun the relevant gates, and include the review outcome in closeout evidence.
 
 Before staging or committing, rerun `git status --short`, identify unrelated existing changes, and stage only files owned by the implementation. Leave unrelated dirty files untouched and report them in the final response.
 
@@ -59,7 +59,7 @@ Commit your work to the current branch.
 
 Before declaring completion, closing issues, or closing a parent PRD:
 
-- Produce a per-issue audit: every acceptance criterion mapped to concrete evidence, with status `satisfied`, `blocked`, or `not done`.
+- Produce a pre-close per-issue audit before closing any issue: every acceptance criterion mapped to concrete evidence, with status `satisfied`, `blocked`, or `not done`.
 - Close only issues whose criteria are all satisfied, using a comment that includes the commit SHA and verification evidence.
 - If review found or fixed issues, or if a review fallback path was used, include the review outcome in each affected issue's closeout comment or in a clearly linked parent rollup.
 - Leave parent PRD issues open while any related child issue remains open, unless the tracker explicitly defines the parent as independently closable.
@@ -67,3 +67,11 @@ Before declaring completion, closing issues, or closing a parent PRD:
 - Before closing a parent PRD, verify related child issue states by exact issue numbers, not only by broad issue-search output.
 - If the issue breakdown is wrong, comment with the proposed tracker correction instead of closing mismatched issues.
 - Run a final `git status --short`. For untracked verification artifacts, either remove them if safe, stage them if they are intended evidence, or explicitly report them in the final response.
+
+Use this compact pre-close audit shape unless the issue set needs more detail:
+
+| Issue | Acceptance criterion | Evidence | Status |
+|---|---|---|---|
+| #N | ... | commit/tests/browser route/store seam/etc. | satisfied / blocked / not done |
+
+Do not close an issue until its audit rows are posted or otherwise captured in the conversation, and every row for that issue is `satisfied`.
