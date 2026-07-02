@@ -16,7 +16,7 @@ The issue tracker and triage label vocabulary should have been provided to you â
 
 When the PRD's scope includes non-code deliverables (ADRs, specs, doc packs), sketch seams for the implementation surface only, and state in Testing Decisions which deliverables are covered by review/conformance mechanisms rather than tests.
 
-Check with the user that these seams match their expectations.
+Check with the user that these seams match their expectations. If the confirmation goes unanswered (the user is away), proceed only when the sketch reuses existing seams unchanged â€” and record in Further Notes that seam confirmation timed out and the seams are open to veto. If the sketch proposes any new seam, stop without publishing and leave the sketch as the turn's deliverable.
 
 3. Write the PRD using the template below, then publish it to the project issue tracker. Verify the `ready-for-agent` label exists before creating the issue (create it per the project's triage-label doc if absent), then apply it - no need for additional triage.
 
@@ -64,7 +64,7 @@ A list of testing decisions that were made. Include:
 
 - A description of what makes a good test (only test external behavior, not implementation details)
 - Which modules will be tested
-- Prior art for the tests (i.e. similar types of tests in the codebase)
+- Prior art for the tests (i.e. similar types of tests in the codebase), named descriptively (package + kind of test) rather than by file path, consistent with the Implementation Decisions rule
 
 ## Principles
 
@@ -76,6 +76,6 @@ A description of the things that are out of scope for this PRD.
 
 ## Further Notes
 
-Any further notes about the feature.
+Any further notes about the feature. When the synthesized requirements rest on provisional or unratified decisions (e.g., an interview the user never answered), say so here and mark them open to veto before grooming.
 
 </prd-template>

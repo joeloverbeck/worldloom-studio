@@ -23,6 +23,8 @@ Use this compact ledger shape unless the issue set needs more detail:
 |---|---|---|---|---|---|---|
 | #N | ... | ... | ... | ... | planned / in progress / satisfied / blocked / not done | ... |
 
+Post the ledger to the conversation before the first edit. Update it when dependencies, blockers, evidence, or closeout state changes materially.
+
 ## 2. Work issue-by-issue
 
 Use /tdd where possible, at pre-agreed seams.
@@ -48,6 +50,8 @@ The repo's code-review skill expects a fixed point. Use one of these routes:
 - Commit the completed implementation locally, then run /code-review against `HEAD~1` or another fixed point before pushing or closing issues.
 - If committing first would be inappropriate, run an explicit pre-commit review against `git diff HEAD` and say that you are adapting the review because no committed fixed point exists yet.
 - If /code-review cannot run because a required mechanism is unavailable, run a local two-axis review against the fixed point: standards/conventions and spec/acceptance. Document the deviation, fix any findings, rerun the relevant gates, and include the review outcome in closeout evidence.
+
+Before staging or committing, rerun `git status --short`, identify unrelated existing changes, and stage only files owned by the implementation. Leave unrelated dirty files untouched and report them in the final response.
 
 Commit your work to the current branch.
 

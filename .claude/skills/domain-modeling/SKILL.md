@@ -57,6 +57,10 @@ When domain relationships are being discussed, stress-test them with specific sc
 
 When the user states how something works, check whether the code agrees. If you find a contradiction, surface it: "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
 
+### Challenge agent-authored material
+
+When decisions are drafted without live user input (the user is away, or the session runs autonomously), the material carrying domain terms is your own — ledger lines, recaps, determinations. Apply the same glossary challenge and fuzzy-language sharpening to that material, checking it against `CONTEXT.md` and any authoritative domain glossary before presenting it.
+
 ### Update CONTEXT.md inline
 
 When a term is resolved, update `CONTEXT.md` right there. Don't batch these up — capture them as they happen. Use the format in [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md). Exception: when the glossary file's own existence or shape is still an open decision in the session, hold resolved terms aside and write them in one pass once it's ratified.
@@ -77,4 +81,4 @@ If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](
 
 ### Before the session closes
 
-When this skill was invoked in a supporting role (e.g., by another skill) and no trigger fired, don't end silently: review the session's resolved decisions once and confirm none introduced a term owed to `CONTEXT.md` or a decision passing the three-part ADR test. State the conclusion explicitly in one line (e.g., "Domain model unchanged — no new app-layer terms, no ADR-worthy decisions"), so the dormant path is auditable rather than implicit.
+When this skill was invoked in a supporting role (e.g., by another skill) and no trigger fired, don't end silently: review the session's resolved decisions once and confirm none introduced a term owed to `CONTEXT.md` or a decision passing the three-part ADR test. State the conclusion explicitly in one line (e.g., "Domain model unchanged — no new app-layer terms, no ADR-worthy decisions"), so the dormant path is auditable rather than implicit. When the reviewed decisions are themselves provisional (applied without user ratification), qualify the closing line accordingly — e.g., "Domain model unchanged — contingent on ratification of the provisional decisions" — so a later veto re-triggers the check.

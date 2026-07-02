@@ -14,7 +14,7 @@ The issue tracker and triage label vocabulary should have been provided to you �
 
 ### 1. Gather context
 
-Work from whatever is already in the conversation context. If the user passes an issue reference (issue number, URL, or path) as an argument, fetch it from the issue tracker and read its full body and comments.
+Work from whatever is already in the conversation context. An in-context body satisfies the body read when the issue was authored or fetched this session. But when the argument names a tracker issue, always fetch its comments fresh before drafting — they may carry corrections or vetoes newer than the context. If the referenced issue is not in context at all, fetch its full body and comments.
 
 ### 2. Explore the codebase (optional)
 
@@ -32,6 +32,7 @@ Break the plan into **tracer bullet** issues. Each issue is a thin vertical slic
 - A completed slice is demoable or verifiable on its own
 - Any prefactoring should be done first
 - Plan items that are documents (ADRs, specs) become ordinary blocker issues verified by review/conformance mechanisms, not vertical slices — only code-bearing items owe the all-layers rule
+- When a slice's behavior is deliberately completed by a later slice, state the handoff explicitly in both issue bodies (what this slice leaves open, which slice closes it), so neither implementer duplicates or drops the seam
 
 </vertical-slice-rules>
 
@@ -42,6 +43,8 @@ Present the proposed breakdown as a numbered list. For each slice, show:
 - **Title**: short descriptive name
 - **Blocked by**: which other slices (if any) must complete first
 - **User stories covered**: which user stories this addresses (if the source material has them)
+
+Include a one-line prefactoring verdict for the whole breakdown ("Prefactoring: none needed because …", or a prefactor slice at position 1), so the reader can tell the check ran.
 
 Ask the user:
 
@@ -55,7 +58,7 @@ Iterate until the user approves the breakdown. If the approval question times ou
 
 For each approved slice, publish a new issue to the issue tracker. Use the issue body template below. These issues are considered ready for AFK agents, so publish them with the correct triage label unless instructed otherwise. Verify the label exists before creating the first issue (create it per the project's triage-label doc if absent).
 
-Publish issues in dependency order (blockers first) so you can reference real issue identifiers in the "Blocked by" field.
+Publish issues in dependency order (blockers first) so you can reference real issue identifiers in the "Blocked by" field. Batch publishing with predicted identifiers is acceptable only when references point strictly backward, creation is chained to stop on first failure, and each returned number is verified against its prediction — correct via issue edits on any mismatch; otherwise create one at a time.
 
 <issue-template>
 ## Parent
