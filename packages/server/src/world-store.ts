@@ -116,6 +116,13 @@ export interface PropagationDispositionRow {
   createdAt: string;
 }
 
+type AdmissionSeedInput = { title: string; body: string; truthLayer: string; canonStatus: string };
+
+type AdmissionIntakeCompletion = {
+  recordSweepJurisdiction?: boolean;
+  provenanceFlowStep?: string;
+};
+
 const rowToRecord = (row: Record<string, unknown>): RecordRow => ({
   id: Number(row.id),
   shortId: String(row.short_id),
@@ -563,7 +570,7 @@ export class WorldStore {
     });
   }
 
-  decomposeSeeds(input: { flowId: number; kernelRecordId: number; draftIds?: number[]; seeds: Array<{ title: string; body: string; truthLayer: string; canonStatus: string }> }): unknown {
+  decomposeSeeds(input: { flowId: number; kernelRecordId: number; draftIds?: number[]; seeds: AdmissionSeedInput[] }): unknown {
     const kernel = this.getRecord(input.kernelRecordId);
     const drafts = (input.draftIds ?? []).map((id) => {
       const row = this.db.prepare("SELECT * FROM drafts WHERE id = ?").get(id);
@@ -585,13 +592,7 @@ export class WorldStore {
         { heading: "Parked seeds", body: input.seeds.map((seed) => seed.title).join("\n"), position: 4 },
         { heading: "Thin-start boundary", body: "No seed is admitted by this flow; admission is deferred to the admission flow.", position: 5 }
       ]);
-      const records = input.seeds.map((seed) => {
-        if (!seed.truthLayer || !seed.canonStatus) throw new Error("seed parking requires explicit truth layer and canon status");
-        const record = this.createRecord({ recordTypeKey: "canon_fact", title: seed.title, body: seed.body, truthLayer: seed.truthLayer, canonStatus: seed.canonStatus });
-        this.createLink(record.id, kernel.id, "derived_from", "Seed decomposed from world kernel");
-        this.createLink(record.id, report.id, "derived_from", "Seed recorded by decomposition report");
-        return record;
-      });
+      const records = input.seeds.map((seed) => this.intakeCreationSeed(seed, kernel.id, report.id));
       for (const draft of drafts) this.db.prepare("DELETE FROM drafts WHERE id = ?").run(draft.id);
       this.db.prepare("UPDATE flow_instances SET current_step = 'decomposition:complete', state = 'complete' WHERE id = ?").run(input.flowId);
       return { report, records, flow: this.db.prepare("SELECT * FROM flow_instances WHERE id = ?").get(input.flowId) };
@@ -599,6 +600,55 @@ export class WorldStore {
   }
 
   admissionQueue(): AdmissionQueueRow[] {
+    return this.readAdmissionQueue();
+  }
+
+  proposeDraftToAdmission(id: number, input: { title?: string; truthLayer: string }): { record: RecordRow; queue: AdmissionQueueRow[] } {
+    return this.intakeDraftProposal(id, input);
+  }
+
+  proposeRecordToAdmission(id: number): { record: RecordRow; queue: AdmissionQueueRow[] } {
+    return this.intakeRecordProposal(id);
+  }
+
+  declareAdmissionSeverity(recordId: number, input: { admissionLevel: string; workScale: string }): { record: RecordRow; facets: FacetRow[]; gate: unknown; queue: AdmissionQueueRow[] } {
+    return this.refreshAdmissionQueueAfterSeverity(recordId, input);
+  }
+
+  private intakeCreationSeed(seed: AdmissionSeedInput, kernelRecordId: number, reportRecordId: number): RecordRow {
+    if (!seed.truthLayer || !seed.canonStatus) throw new Error("seed parking requires explicit truth layer and canon status");
+    const record = this.createRecord({ recordTypeKey: "canon_fact", title: seed.title, body: seed.body, truthLayer: seed.truthLayer, canonStatus: seed.canonStatus });
+    this.createLink(record.id, kernelRecordId, "derived_from", "Seed decomposed from world kernel");
+    this.createLink(record.id, reportRecordId, "derived_from", "Seed recorded by decomposition report");
+    this.completeAdmissionIntake(record.id);
+    return record;
+  }
+
+  private intakeDraftProposal(id: number, input: { title?: string; truthLayer: string }): { record: RecordRow; queue: AdmissionQueueRow[] } {
+    const record = this.convertDraft(id, { recordTypeKey: "canon_fact", title: input.title, truthLayer: input.truthLayer, canonStatus: "proposed" });
+    return { record, queue: this.completeAdmissionIntake(record.id, { recordSweepJurisdiction: true, provenanceFlowStep: "admission:propose-draft" }) };
+  }
+
+  private intakeRecordProposal(id: number): { record: RecordRow; queue: AdmissionQueueRow[] } {
+    const record = this.getRecord(id);
+    return { record, queue: this.completeAdmissionIntake(record.id, { recordSweepJurisdiction: true, provenanceFlowStep: "admission:propose-record" }) };
+  }
+
+  private refreshAdmissionQueueAfterSeverity(recordId: number, input: { admissionLevel: string; workScale: string }): { record: RecordRow; facets: FacetRow[]; gate: unknown; queue: AdmissionQueueRow[] } {
+    this.assertVocabularyTerm("admission_level", input.admissionLevel);
+    this.assertVocabularyTerm("work_scale", input.workScale);
+    this.replaceSingleFacet(recordId, "admission_level", input.admissionLevel);
+    this.replaceSingleFacet(recordId, "work_scale", input.workScale);
+    return { record: this.getRecord(recordId), facets: this.listFacets(recordId), gate: this.gateComposition(recordId), queue: this.readAdmissionQueue() };
+  }
+
+  private completeAdmissionIntake(recordId: number, completion: AdmissionIntakeCompletion = {}): AdmissionQueueRow[] {
+    if (completion.recordSweepJurisdiction) this.recordJurisdictionEvent(recordId, "sweep");
+    if (completion.provenanceFlowStep) this.recordProposeProvenance(recordId, completion.provenanceFlowStep);
+    return this.readAdmissionQueue();
+  }
+
+  private readAdmissionQueue(): AdmissionQueueRow[] {
     return this.db.prepare(`
       SELECT r.*
       FROM records r
@@ -617,28 +667,6 @@ export class WorldStore {
         r.updated_at DESC,
         r.id DESC
     `).all().map((row) => this.withAdmissionFacets(rowToRecord(row as Record<string, unknown>)));
-  }
-
-  proposeDraftToAdmission(id: number, input: { title?: string; truthLayer: string }): { record: RecordRow; queue: AdmissionQueueRow[] } {
-    const record = this.convertDraft(id, { recordTypeKey: "canon_fact", title: input.title, truthLayer: input.truthLayer, canonStatus: "proposed" });
-    this.recordJurisdictionEvent(record.id, "sweep");
-    this.recordProposeProvenance(record.id, "admission:propose-draft");
-    return { record, queue: this.admissionQueue() };
-  }
-
-  proposeRecordToAdmission(id: number): { record: RecordRow; queue: AdmissionQueueRow[] } {
-    const record = this.getRecord(id);
-    this.recordJurisdictionEvent(id, "sweep");
-    this.recordProposeProvenance(id, "admission:propose-record");
-    return { record, queue: this.admissionQueue() };
-  }
-
-  declareAdmissionSeverity(recordId: number, input: { admissionLevel: string; workScale: string }): { record: RecordRow; facets: FacetRow[]; gate: unknown; queue: AdmissionQueueRow[] } {
-    this.assertVocabularyTerm("admission_level", input.admissionLevel);
-    this.assertVocabularyTerm("work_scale", input.workScale);
-    this.replaceSingleFacet(recordId, "admission_level", input.admissionLevel);
-    this.replaceSingleFacet(recordId, "work_scale", input.workScale);
-    return { record: this.getRecord(recordId), facets: this.listFacets(recordId), gate: this.gateComposition(recordId), queue: this.admissionQueue() };
   }
 
   gateComposition(recordId: number): unknown {
@@ -978,9 +1006,12 @@ export class WorldStore {
   }
 
   proposeFactFromPropagation(input: { flowId: number; title: string; body: string; truthLayer: string }): { record: RecordRow; queue: AdmissionQueueRow[] } {
+    return this.intakePropagationProposal(input);
+  }
+
+  private intakePropagationProposal(input: { flowId: number; title: string; body: string; truthLayer: string }): { record: RecordRow; queue: AdmissionQueueRow[] } {
     const flow = this.propagationFlow(input.flowId);
     const record = this.createRecord({ recordTypeKey: "canon_fact", title: input.title, body: input.body, truthLayer: input.truthLayer, canonStatus: "proposed" });
-    this.recordJurisdictionEvent(record.id, "sweep");
     this.db.prepare(`
       INSERT INTO propagation_surfaced_proposals (flow_id, proposal_record_id, report_record_id, flow_step)
       VALUES (?, ?, ?, 'propagation:surface-proposal')
@@ -989,7 +1020,7 @@ export class WorldStore {
       this.createLink(record.id, flow.propagation_report_record_id, "derived_from", "Fact surfaced by propagation report");
     }
     this.db.prepare("UPDATE flow_instances SET current_step = 'propagation:surface-proposal' WHERE id = ?").run(input.flowId);
-    return { record, queue: this.admissionQueue() };
+    return { record, queue: this.completeAdmissionIntake(record.id, { recordSweepJurisdiction: true }) };
   }
 
   skipPropagationStep(input: { flowId?: number; stepKey: string; admissionLevel?: string; workScale?: string; reason?: string }): RecordRow {

@@ -24,9 +24,18 @@ Recommendation shape: *"Define a port at the seam, implement an HTTP adapter for
 
 Third-party services (Stripe, Twilio, etc.) you don't control. The deepened module takes the external dependency as an injected port; tests provide a mock adapter.
 
+## Historical/versioned contracts
+
+Some seams are real because callers live at different points in time rather than behind different runtime adapters: migrations, seed snapshots, file formats, import/export schemas, and protocol versions.
+
+For these, the deepening move is to freeze the historical contract behind its own small interface or data snapshot. Do not import the current runtime catalog, schema helper, or UI option source into a historical migration when future edits to that source would rewrite old behavior.
+
+Test through the versioned behavior: migrate an old artifact, import an old file, or exercise the old protocol shape. The current implementation may still have one production adapter; the seam earns its keep because locality protects historical behavior from current changes.
+
 ## Seam discipline
 
 - **One adapter means a hypothetical seam. Two adapters means a real one.** Don't introduce a port unless at least two adapters are justified (typically production + test). A single-adapter seam is just indirection.
+- **Version can justify a seam.** The two-adapter test catches speculative ports; it is not a veto on seams that separate historical contracts from current runtime behavior.
 - **Internal seams vs external seams.** A deep module can have internal seams (private to its implementation, used by its own tests) as well as the external seam at its interface. Don't expose internal seams through the interface just because tests use them.
 
 ## Testing strategy: replace, don't layer

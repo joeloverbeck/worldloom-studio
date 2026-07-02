@@ -11,15 +11,19 @@ Surface architectural friction and propose **deepening opportunities** — refac
 This command is _informed_ by the project's domain model and built on a shared design vocabulary:
 
 - Run the `/codebase-design` skill for the architecture vocabulary (**module**, **interface**, **depth**, **seam**, **adapter**, **leverage**, **locality**) and its principles (the deletion test, "the interface is the test surface", "one adapter = hypothetical seam, two = real"). Use these terms exactly in every suggestion — don't drift into "component," "service," "API," or "boundary."
-- The domain language in `CONTEXT.md` gives names to good seams; ADRs in `docs/adr/` record decisions this command should not re-litigate.
+- The domain language in the repo's configured domain docs gives names to good seams; ADRs and foundational principles record decisions this command should not re-litigate.
 
 ## Process
 
 ### 1. Explore
 
-Read the project's domain glossary (`CONTEXT.md`) and any ADRs in the area you're touching first.
+Read the project's domain docs and architectural authorities before exploring code:
 
-Then use the Agent tool with `subagent_type=Explore` to walk the codebase. Don't follow rigid heuristics — explore organically and note where you experience friction:
+- If `docs/agents/domain.md` exists, follow it. Otherwise, read `CONTEXT-MAP.md` when present and then the relevant mapped `CONTEXT.md` files; fall back to root `CONTEXT.md` when there is no map. If any of these files are absent, proceed silently.
+- Read ADRs that touch the area: `docs/adr/` for system-wide decisions, and context-scoped ADRs where the repo's domain-doc rules point to them.
+- Read `docs/principles/README.md` if it exists, then any principle files relevant to the area you're reviewing. Use the authority order and conformance rule from that README when ranking candidates.
+
+Then use the Agent tool with `subagent_type=Explore` to walk the codebase. If that tool or subagent is unavailable, do the exploration directly with the same questions and state in your notes that no Explore subagent was available. Don't follow rigid heuristics — explore organically and note where you experience friction:
 
 - Where does understanding one concept require bouncing between many small modules?
 - Where are modules **shallow** — interface nearly as complex as the implementation?
@@ -31,7 +35,7 @@ Apply the **deletion test** to anything you suspect is shallow: would deleting i
 
 ### 2. Present candidates as an HTML report
 
-Write a self-contained HTML file to the OS temp directory so nothing lands in the repo. Resolve the temp dir from `$TMPDIR`, falling back to `/tmp` (or `%TEMP%` on Windows), and write to `<tmpdir>/architecture-review-<timestamp>.html` so each run gets a fresh file. Open it for the user — `xdg-open <path>` on Linux, `open <path>` on macOS, `start <path>` on Windows — and tell them the absolute path.
+Write a self-contained HTML file to the OS temp directory so nothing lands in the repo. Resolve the temp dir from `$TMPDIR`, falling back to `/tmp` (or `%TEMP%` on Windows), and write to `<tmpdir>/architecture-review-<timestamp>.html` so each run gets a fresh file. Open it for the user when the environment allows — `xdg-open <path>` on Linux, `open <path>` on macOS, `start <path>` on Windows. Prefer a detached/background opener when the command would otherwise stay attached (for example, `xdg-open <path> >/dev/null 2>&1 &`). If the opener fails in a headless, sandboxed, or GUI-less environment, do not treat report generation as failed; tell the user the absolute path and the opener command that failed.
 
 The report uses **Tailwind via CDN** for layout and styling, and **Mermaid via CDN** for diagrams where a graph/flow/sequence reliably communicates the structure. Mix Mermaid with hand-crafted CSS/SVG visuals — use Mermaid when relationships are graph-shaped (call graphs, dependencies, sequences), and hand-built divs/SVG when you want something more editorial (mass diagrams, cross-sections, collapse animations). Each candidate gets a **before/after visualisation**. Be visual.
 
@@ -43,12 +47,13 @@ For each candidate, render a card with:
 - **Benefits** — explained in terms of locality and leverage, and how tests would improve
 - **Before / After diagram** — side-by-side, custom-drawn, illustrating the shallowness and the deepening
 - **Recommendation strength** — one of `Strong`, `Worth exploring`, `Speculative`, rendered as a badge
+- **Principle / ADR conflict** — if applicable, one warning callout explaining why the conflict may still be worth reopening
 
 End the report with a **Top recommendation** section: which candidate you'd tackle first and why.
 
-**Use CONTEXT.md vocabulary for the domain, and the `/codebase-design` vocabulary for the architecture.** If `CONTEXT.md` defines "Order," talk about "the Order intake module" — not "the FooBarHandler," and not "the Order service."
+**Use vocabulary from the relevant domain glossary, and the `/codebase-design` vocabulary for the architecture.** If the glossary defines "Order," talk about "the Order intake module" — not "the FooBarHandler," and not "the Order service."
 
-**ADR conflicts**: if a candidate contradicts an existing ADR, only surface it when the friction is real enough to warrant revisiting the ADR. Mark it clearly in the card (e.g. a warning callout: _"contradicts ADR-0007 — but worth reopening because…"_). Don't list every theoretical refactor an ADR forbids.
+**Principle / ADR conflicts**: if a candidate contradicts a foundational principle or an existing ADR, only surface it when the friction is real enough to warrant revisiting that authority. Mark it clearly in the card (e.g. a warning callout: _"contradicts ADR-0007 — but worth reopening because…"_). Don't list every theoretical refactor an ADR forbids.
 
 See [HTML-REPORT.md](HTML-REPORT.md) for the full HTML scaffold, diagram patterns, and styling guidance.
 
@@ -60,7 +65,19 @@ Once the user picks a candidate, run the `/grilling` skill to walk the design tr
 
 Side effects happen inline as decisions crystallize — run the `/domain-modeling` skill to keep the domain model current as you go:
 
-- **Naming a deepened module after a concept not in `CONTEXT.md`?** Add the term to `CONTEXT.md`. Create the file lazily if it doesn't exist.
-- **Sharpening a fuzzy term during the conversation?** Update `CONTEXT.md` right there.
+- **Naming a deepened module after a concept not in the relevant domain glossary?** Add the term to the relevant context's `CONTEXT.md`. If the repo uses `CONTEXT-MAP.md`, choose the mapped context first; if the right context is unclear, ask instead of writing to root `CONTEXT.md`. Create files lazily only when there is something concrete to write.
+- **Sharpening a fuzzy term during the conversation?** Update the relevant context's `CONTEXT.md` right there.
 - **User rejects the candidate with a load-bearing reason?** Offer an ADR, framed as: _"Want me to record this as an ADR so future architecture reviews don't re-suggest it?"_ Only offer when the reason would actually be needed by a future explorer to avoid re-suggesting the same thing — skip ephemeral reasons ("not worth it right now") and self-evident ones.
 - **Want to explore alternative interfaces for the deepened module?** Run the `/codebase-design` skill and use its design-it-twice parallel sub-agent pattern.
+
+### 4. Implementation handoff
+
+If the user asks to implement the selected candidate after grilling, summarize the agreed decisions before editing:
+
+- Selected candidate and target modules
+- Relevant domain context/glossary and any domain-model updates already made
+- Constraints and dependencies the user accepted
+- Whether the change is behavior-preserving; default to behavior-preserving unless the user explicitly approved a behavior change
+- Expected tests and docs to update
+
+Then switch to the repo's implementation workflow (`/implement` when there is an issue or PRD, otherwise the local coding guidelines). Keep edits scoped to the agreed candidate. Verify with focused tests plus any relevant full gates, and include doc/ADR/principle checks when those authorities changed or were used to justify the design.

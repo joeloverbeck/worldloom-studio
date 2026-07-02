@@ -103,6 +103,7 @@ describe("WorldStore", () => {
     const db = new Database(path);
     db.exec("BEGIN");
     db.exec(migration001);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'consequence_disposition'").get()).toMatchObject({ count: 0 });
     const recordId = Number(db.prepare(`
       INSERT INTO records (short_id, record_type_key, title, body, truth_layer, canon_status)
       VALUES ('FAC-99', 'canon_fact', 'Preserved fact', 'Body from v1', 'Objective canon', 'proposed')
@@ -113,6 +114,7 @@ describe("WorldStore", () => {
     const migrated = WorldStore.open(path);
     expect(migrated.db.pragma("user_version", { simple: true })).toBe(3);
     expect(migrated.getRecord(recordId)).toMatchObject({ body: "Body from v1" });
+    expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'consequence_disposition'").get()).toMatchObject({ count: 4 });
     expect(migrated.sectionHeadings("world_kernel")).toEqual(expect.arrayContaining([
       expect.objectContaining({ heading: "World premise" })
     ]));
@@ -194,10 +196,35 @@ describe("WorldStore", () => {
       seeds: [{ title: "Echo bridges answer", body: "The bridges answer questions at dawn", truthLayer: "Objective canon", canonStatus: "proposed" }]
     }) as { report: { id: number }; records: Array<{ id: number; canonStatus: string }> };
     expect(result.records).toMatchObject([{ canonStatus: "proposed" }]);
+    expect(store.admissionQueue()).toEqual(expect.arrayContaining([expect.objectContaining({ id: result.records[0]!.id, canonStatus: "proposed" })]));
     expect(store.listLinks(result.records[0]!.id)).toEqual(expect.arrayContaining([
       expect.objectContaining({ toRecordId: kernelStep.kernel.id, linkTypeKey: "derived_from" }),
       expect.objectContaining({ toRecordId: result.report.id, linkTypeKey: "derived_from" })
     ]));
+    store.close();
+  });
+
+  it("routes draft and record proposals through admission queue intake without changing behavior", () => {
+    const store = WorldStore.create(tempPath("admission-intake.sqlite"));
+    const draft = store.createDraft({ title: "Market rumor", body: "Bell sellers form a guild." });
+    const draftProposal = store.proposeDraftToAdmission(draft.id, { truthLayer: "Objective canon" });
+
+    expect(draftProposal.record).toMatchObject({ recordTypeKey: "canon_fact", title: "Market rumor", canonStatus: "proposed" });
+    expect(draftProposal.queue).toEqual(expect.arrayContaining([expect.objectContaining({ id: draftProposal.record.id })]));
+    expect(store.listLinks(draftProposal.record.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ linkTypeKey: "derived_from", note: "Propose action provenance" })
+    ]));
+    expect(store.db.prepare("SELECT COUNT(*) AS count FROM jurisdiction_events WHERE record_id = ? AND origin = 'sweep'").get(draftProposal.record.id)).toMatchObject({ count: 1 });
+
+    const existing = store.createRecord({ recordTypeKey: "canon_fact", title: "Existing queue fact", body: "Already proposed", ...explicitJudgment });
+    const recordProposal = store.proposeRecordToAdmission(existing.id);
+
+    expect(recordProposal.record).toMatchObject({ id: existing.id, truthLayer: "Objective canon", canonStatus: "proposed" });
+    expect(recordProposal.queue).toEqual(expect.arrayContaining([expect.objectContaining({ id: existing.id })]));
+    expect(store.listLinks(existing.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ linkTypeKey: "derived_from", note: "Propose action provenance" })
+    ]));
+    expect(store.db.prepare("SELECT COUNT(*) AS count FROM jurisdiction_events WHERE record_id = ? AND origin = 'sweep'").get(existing.id)).toMatchObject({ count: 1 });
     store.close();
   });
 
@@ -352,6 +379,7 @@ describe("WorldStore", () => {
     });
     expect(proposal.record).toMatchObject({ recordTypeKey: "canon_fact", canonStatus: "proposed" });
     expect(proposal.queue).toEqual(expect.arrayContaining([expect.objectContaining({ id: proposal.record.id })]));
+    expect(store.db.prepare("SELECT COUNT(*) AS count FROM jurisdiction_events WHERE record_id = ? AND origin = 'sweep'").get(proposal.record.id)).toMatchObject({ count: 1 });
 
     const closed = store.closePropagationRun(flow.id);
     expect(closed.report).toMatchObject({ recordTypeKey: "propagation_report", canonStatus: "accepted" });

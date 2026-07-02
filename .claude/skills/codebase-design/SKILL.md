@@ -7,6 +7,14 @@ description: Shared vocabulary for designing deep modules. Use when the user wan
 
 Design **deep modules**: a lot of behaviour behind a small interface, placed at a clean seam, testable through that interface. Use this language and these principles wherever code is being designed or restructured. The aim is leverage for callers, locality for maintainers, and testability for everyone.
 
+## Repo authorities
+
+When using this vocabulary inside a repo, honor that repo's design authorities before recommending a seam or interface:
+
+- If `docs/agents/domain.md` exists, follow it to find the relevant domain glossary. Otherwise, read `CONTEXT-MAP.md` when present and then the relevant mapped `CONTEXT.md` files; fall back to root `CONTEXT.md` when there is no map.
+- Read `docs/principles/README.md` if it exists, then any principle files and ADRs relevant to the module being designed.
+- If a proposed interface or seam contradicts a principle or ADR, surface the contradiction explicitly and explain why it may be worth reopening.
+
 ## Glossary
 
 Use these terms exactly — don't substitute "component," "service," "API," or "boundary." Consistent language is the whole point.
@@ -62,7 +70,7 @@ When designing an interface, ask:
 - **Depth is a property of the interface, not the implementation.** A deep module can be internally composed of small, mockable, swappable parts — they just aren't part of the interface. A module can have **internal seams** (private to its implementation, used by its own tests) as well as the **external seam** at its interface.
 - **The deletion test.** Imagine deleting the module. If complexity vanishes, it was a pass-through. If complexity reappears across N callers, it was earning its keep.
 - **The interface is the test surface.** Callers and tests cross the same seam. If you want to test *past* the interface, the module is probably the wrong shape.
-- **One adapter means a hypothetical seam. Two adapters means a real one.** Don't introduce a seam unless something actually varies across it.
+- **One adapter means a hypothetical seam. Two adapters means a real one.** Don't introduce a seam unless something actually varies across it. Runtime adapters are the common signal; historical/versioned contracts can also justify a seam when current behavior must not rewrite old behavior.
 
 ## Designing for testability
 

@@ -1,4 +1,9 @@
-import { LINK_TYPES, RECORD_TYPES, VOCABULARY_TERMS } from "@worldloom/shared";
+import {
+  MIGRATION_001_LINK_TYPES,
+  MIGRATION_001_RECORD_TYPES,
+  MIGRATION_001_VOCABULARY_TERMS,
+  MIGRATION_003_CONSEQUENCE_DISPOSITIONS
+} from "./migration-snapshots.js";
 
 export const APPLICATION_ID = 0x574c4f4d;
 export const CURRENT_SCHEMA_VERSION = 3;
@@ -43,20 +48,20 @@ CREATE TABLE IF NOT EXISTS record_types (
   untested_surface INTEGER NOT NULL DEFAULT 0 CHECK (untested_surface IN (0, 1))
 ) STRICT;
 
-${RECORD_TYPES.map((recordType) => `INSERT OR IGNORE INTO record_types (key, label, namespace, mutation_regime, package_source, untested_surface) VALUES (${sqlString(recordType.key)}, ${sqlString(recordType.label)}, ${sqlString(recordType.namespace)}, ${sqlString(recordType.mutationRegime)}, ${sqlString(recordType.packageSource)}, ${recordType.untestedSurface ? 1 : 0});`).join("\n")}
+${MIGRATION_001_RECORD_TYPES.map((recordType) => `INSERT OR IGNORE INTO record_types (key, label, namespace, mutation_regime, package_source, untested_surface) VALUES (${sqlString(recordType.key)}, ${sqlString(recordType.label)}, ${sqlString(recordType.namespace)}, ${sqlString(recordType.mutationRegime)}, ${sqlString(recordType.packageSource)}, ${"untestedSurface" in recordType && recordType.untestedSurface ? 1 : 0});`).join("\n")}
 
 CREATE TABLE IF NOT EXISTS record_type_sequences (
   record_type_key TEXT PRIMARY KEY REFERENCES record_types(key) ON DELETE CASCADE,
   next_value INTEGER NOT NULL CHECK (next_value > 0)
 ) STRICT;
 
-${RECORD_TYPES.map((recordType) => `INSERT OR IGNORE INTO record_type_sequences (record_type_key, next_value) VALUES (${sqlString(recordType.key)}, 1);`).join("\n")}
+${MIGRATION_001_RECORD_TYPES.map((recordType) => `INSERT OR IGNORE INTO record_type_sequences (record_type_key, next_value) VALUES (${sqlString(recordType.key)}, 1);`).join("\n")}
 
 CREATE TABLE IF NOT EXISTS vocabularies (
   name TEXT PRIMARY KEY
 ) STRICT;
 
-${[...new Set(VOCABULARY_TERMS.map((term) => term.vocabulary))]
+${[...new Set(MIGRATION_001_VOCABULARY_TERMS.map((term) => term.vocabulary))]
   .map((vocabulary) => `INSERT OR IGNORE INTO vocabularies (name) VALUES (${sqlString(vocabulary)});`)
   .join("\n")}
 
@@ -70,7 +75,7 @@ CREATE TABLE IF NOT EXISTS vocabulary_terms (
   UNIQUE (vocabulary, term)
 ) STRICT;
 
-${VOCABULARY_TERMS.map((term) => `INSERT OR IGNORE INTO vocabulary_terms (vocabulary, term, package_source, extension_allowed, seeded_other) VALUES (${sqlString(term.vocabulary)}, ${sqlString(term.term)}, ${sqlString(term.packageSource)}, ${term.extensionAllowed ? 1 : 0}, ${term.seededOther ? 1 : 0});`).join("\n")}
+${MIGRATION_001_VOCABULARY_TERMS.map((term) => `INSERT OR IGNORE INTO vocabulary_terms (vocabulary, term, package_source, extension_allowed, seeded_other) VALUES (${sqlString(term.vocabulary)}, ${sqlString(term.term)}, ${sqlString(term.packageSource)}, ${term.extensionAllowed ? 1 : 0}, ${term.seededOther ? 1 : 0});`).join("\n")}
 
 CREATE TABLE IF NOT EXISTS link_types (
   key TEXT PRIMARY KEY,
@@ -78,7 +83,7 @@ CREATE TABLE IF NOT EXISTS link_types (
   package_source TEXT NOT NULL
 ) STRICT;
 
-${LINK_TYPES.map((linkType) => `INSERT OR IGNORE INTO link_types (key, label, package_source) VALUES (${sqlString(linkType.key)}, ${sqlString(linkType.label)}, ${sqlString(linkType.packageSource)});`).join("\n")}
+${MIGRATION_001_LINK_TYPES.map((linkType) => `INSERT OR IGNORE INTO link_types (key, label, package_source) VALUES (${sqlString(linkType.key)}, ${sqlString(linkType.label)}, ${sqlString(linkType.packageSource)});`).join("\n")}
 
 CREATE TABLE IF NOT EXISTS records (
   id INTEGER PRIMARY KEY,
@@ -512,7 +517,7 @@ const propagationReportHeadings = [
 ] as const;
 
 export const migration003 = `
-${VOCABULARY_TERMS.filter((term) => term.vocabulary === "consequence_disposition")
+${MIGRATION_003_CONSEQUENCE_DISPOSITIONS
   .map((term) => `INSERT OR IGNORE INTO vocabularies (name) VALUES (${sqlString(term.vocabulary)});
 INSERT OR IGNORE INTO vocabulary_terms (vocabulary, term, package_source, extension_allowed, seeded_other) VALUES (${sqlString(term.vocabulary)}, ${sqlString(term.term)}, ${sqlString(term.packageSource)}, ${term.extensionAllowed ? 1 : 0}, ${term.seededOther ? 1 : 0});`)
   .join("\n")}

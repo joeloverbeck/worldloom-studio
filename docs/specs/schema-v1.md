@@ -17,7 +17,7 @@ Guided flows are out of scope. The schema makes every package record type usable
 
 ## Record Types and Mutation Regimes
 
-Record types are stored in a seeded `record_types` table and referenced by records. The shared catalog in `packages/shared` is the source used by migration seed data, API validation, and UI options.
+Record types are stored in a seeded `record_types` table and referenced by records. Migration seed data is owned by immutable per-migration snapshots; the shared catalog in `packages/shared` is the current source for API validation and UI options. When the current catalog changes, a new migration owns the seed delta instead of changing historical migrations.
 
 ### Card Regime
 
