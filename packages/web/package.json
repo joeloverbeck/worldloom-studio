@@ -9,7 +9,7 @@
     "typecheck": "pnpm --filter @worldloom/shared build && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "^4.6.0",
+    "@vitejs/plugin-react": "^6.0.3",
     "@worldloom/shared": "workspace:*",
     "vite": "^7.0.2",
     "react": "^19.1.0",
