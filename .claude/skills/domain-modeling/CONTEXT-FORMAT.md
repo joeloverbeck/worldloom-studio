@@ -28,6 +28,7 @@ _Avoid_: Client, buyer, account
 - **Keep definitions tight.** One or two sentences max. Define what it IS, not what it does.
 - **Only include terms specific to this project's context.** General programming concepts (timeouts, error types, utility patterns) don't belong even if the project uses them extensively. Before adding a term, ask: is this a concept unique to this context, or a general programming concept? Only the former belongs.
 - **Group terms under subheadings** when natural clusters emerge. If all terms belong to a single cohesive area, a flat list is fine.
+- **Defer to an authoritative domain glossary when one exists.** When the domain ships its own glossary document (a methodology package, a standards spec), open `CONTEXT.md` with a deference rule naming it, and define only the terms this project's layer introduces on top — never restate or paraphrase upstream terms, or the two definitions will drift.
 
 ## Single vs multi-context repos
 
@@ -56,5 +57,6 @@ The skill infers which structure applies:
 - If `CONTEXT-MAP.md` exists, read it to find contexts
 - If only a root `CONTEXT.md` exists, single context
 - If neither exists, create a root `CONTEXT.md` lazily when the first term is resolved
+- A repo *declared* multi-context (e.g. in its agent docs) but with zero or one actual contexts still starts with a root `CONTEXT.md`; create `CONTEXT-MAP.md` only when a second context actually exists
 
 When multiple contexts exist, infer which one the current topic relates to. If unclear, ask.

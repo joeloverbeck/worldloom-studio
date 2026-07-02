@@ -85,6 +85,15 @@ conformance target)* — distinct from *primary (load-bearing)* entries. This st
 from auditing or "correcting" code the scope intentions exclude. Call out the primary entries
 explicitly; group the rest with the boundary-awareness purpose stated once.
 
+**Directory-scoped entries.** When the read mandate covers an entire directory with one
+uniform reason (e.g. the target commands "read all of `docs/<package>/`"), a per-file list
+adds bulk without informing Session 2. Sanctioned shape: a single entry stating the directory
+glob, the file count at authoring time, the ordering rule Session 2 should follow (the
+package's own authority order if it declares one), the group reason stated once, and per-file
+flags only for the entries carrying extra weight *for this target*. This composes with the
+SKILL.md Step 5 large-package economy; the stated file count lets Session 2's §8 self-check
+detect an incomplete sweep.
+
 ### 3. Settled intentions
 
 The decisions the interview resolved — the heart of why Session 2 is *locked*. State each as a
