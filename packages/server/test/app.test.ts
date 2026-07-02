@@ -46,6 +46,18 @@ describe("HTTP API", () => {
     expect(missingJudgment.status).toBe(400);
     expect(await json(missingJudgment)).toMatchObject({ error: expect.stringContaining("explicit steward choices") });
 
+    const vocabularies = await json<{ terms: Array<{ vocabulary: string; term: string }> }>(await app.request("/api/vocabularies"));
+    expect(vocabularies.terms).toEqual(expect.arrayContaining([
+      expect.objectContaining({ vocabulary: "repair_operation", term: "add constraint" }),
+      expect.objectContaining({ vocabulary: "contradiction_disposition", term: "repair required" }),
+      expect.objectContaining({ vocabulary: "preservation_operation", term: "consecrate" }),
+      expect.objectContaining({ vocabulary: "retcon_type", term: "hard retcon" }),
+      expect.objectContaining({ vocabulary: "protected_effect_type", term: "sacred opacity" })
+    ]));
+    expect(vocabularies.terms).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ vocabulary: "repair_operation", term: "branch" })
+    ]));
+
     const failedOpen = await app.request("/api/worlds/open", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -554,5 +566,150 @@ describe("HTTP API", () => {
       links: expect.arrayContaining([expect.objectContaining({ toRecordId: closedJson.report.id, linkTypeKey: "supersedes" })])
     });
     expect(await json(await app.request("/api/search?q=mortuary"))).toMatchObject({ records: expect.arrayContaining([expect.objectContaining({ id: closedJson.report.id })]) });
+  });
+
+  it("drives contradiction repair and mystery boundary governance through the HTTP seam", async () => {
+    const app = createApp();
+    const path = tempPath("contradiction-world.sqlite");
+    expect((await app.request("/api/worlds/create", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path })
+    })).status).toBe(201);
+
+    const fact = await json<{ record: { id: number; shortId: string } }>(await app.request("/api/records", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recordTypeKey: "canon_fact", title: "Bridge remains", body: "The bridge survived the flood.", truthLayer: "Objective canon", canonStatus: "accepted" })
+    }));
+    const flow = await json<{ flow: { id: number } }>(await app.request("/api/contradiction/runs/start", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sourceRecordId: fact.record.id, implicatedRecordIds: [fact.record.id], title: "Bridge conflict" })
+    }));
+    expect((await app.request("/api/contradiction/triage", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowId: flow.flow.id, stepKey: "contradiction_statement", body: "The bridge survived; later records require it destroyed." })
+    })).status).toBe(201);
+    expect((await app.request("/api/contradiction/scale", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowId: flow.flow.id, workScale: "major" })
+    })).status).toBe(201);
+    expect((await app.request("/api/contradiction/disposition", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowId: flow.flow.id, disposition: "repair required" })
+    })).status).toBe(201);
+    const refusedClose = await app.request(`/api/contradiction/runs/${flow.flow.id}/close`, { method: "POST" });
+    expect(refusedClose.status).toBe(400);
+    expect(await json(refusedClose)).toMatchObject({ error: expect.stringContaining("repair operations") });
+
+    const prompt = await json<{ prompt: string }>(await app.request("/api/prompts/generate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ templateKey: "repair_challenge", recordId: fact.record.id, stepKey: "contradiction:repair" })
+    }));
+    expect(prompt.prompt).toContain("Contradiction hunter");
+    const advisory = await json<{ record: { id: number } }>(await app.request("/api/advisory-artifacts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ stepKey: "contradiction:repair", promptText: prompt.prompt, responseText: "Challenge response" })
+    }));
+
+    expect((await app.request("/api/contradiction/repairs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowId: flow.flow.id, operations: ["clarify scope"], repairText: "The bridge right survived; the stone span fell." })
+    })).status).toBe(201);
+    expect((await app.request("/api/contradiction/repair-targets", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowId: flow.flow.id, recordId: fact.record.id, nextCanonStatus: "quarantined", newBody: "The stone span fell; the bridge right survived.", advisoryRecordId: advisory.record.id })
+    })).status).toBe(201);
+    const proposed = await json<{ record: { id: number; canonStatus: string }; queue: Array<{ id: number }> }>(await app.request("/api/contradiction/propose-fact", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowId: flow.flow.id, title: "Bridge right survives the span", body: "A ferry charter inherits bridge toll law.", truthLayer: "Objective canon" })
+    }));
+    expect(proposed.record.canonStatus).toBe("proposed");
+    expect(proposed.queue).toEqual(expect.arrayContaining([expect.objectContaining({ id: proposed.record.id })]));
+    const closed = await app.request(`/api/contradiction/runs/${flow.flow.id}/close`, { method: "POST" });
+    expect(closed.status).toBe(201);
+    const closedJson = await json<{ report: { id: number; recordTypeKey: string } }>(closed);
+    expect(closedJson.report.recordTypeKey).toBe("contradiction_report");
+    expect(await json(await app.request(`/api/links?recordId=${proposed.record.id}`))).toMatchObject({
+      links: expect.arrayContaining([expect.objectContaining({ toRecordId: closedJson.report.id, linkTypeKey: "derived_from" })])
+    });
+
+    const propagationFlow = await json<{ flow: { id: number } }>(await app.request("/api/propagation/runs/start", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ factRecordId: fact.record.id })
+    }));
+    const consequence = await json<{ consequence: { id: number } }>(await app.request("/api/propagation/consequences", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowId: propagationFlow.flow.id, orderKey: "first", body: "Pilgrims route noon travel around the speaking chapel.", pressure: "high" })
+    }));
+    expect((await app.request("/api/propagation/dispositions", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ consequenceId: consequence.consequence.id, disposition: "protected as a mystery boundary", preservationBoundary: "author-secret" })
+    })).status).toBe(201);
+    const propagationClosed = await json<{ report: { id: number } }>(await app.request(`/api/propagation/runs/${propagationFlow.flow.id}/close`, { method: "POST" }));
+    const owed = await json<{ queue: Array<{ propagationDispositionId: number; protectedRecordId: number }> }>(await app.request("/api/contradiction/owed-boundaries"));
+    expect(owed.queue).toEqual([expect.objectContaining({ protectedRecordId: fact.record.id })]);
+    const ledger = await json<{ record: { id: number } }>(await app.request("/api/contradiction/mystery-ledgers", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        propagationDispositionId: owed.queue[0]!.propagationDispositionId,
+        title: "Chapel mouth opacity",
+        protectedRecordId: fact.record.id,
+        propagationReportRecordId: propagationClosed.report.id,
+        effectType: "sacred opacity",
+        mysteryState: "author-secret",
+        preservationBoundary: "author-secret",
+        sections: { "Protected effect type": "sacred opacity", "Puzzle question, if any": "none", "What is fixed": "The mouth speaks at noon." }
+      })
+    }));
+    expect(ledger.record.id).toEqual(expect.any(Number));
+    expect(await json(await app.request("/api/contradiction/owed-boundaries"))).toMatchObject({ queue: [] });
+
+    const mysteryFlow = await json<{ flow: { id: number } }>(await app.request("/api/contradiction/runs/start", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sourceRecordId: fact.record.id, implicatedRecordIds: [fact.record.id], title: "Mystery conflict" })
+    }));
+    await app.request("/api/contradiction/triage", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowId: mysteryFlow.flow.id, stepKey: "contradiction_statement", body: "A repair touches the sacred origin." })
+    });
+    await app.request("/api/contradiction/scale", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowId: mysteryFlow.flow.id, workScale: "major" })
+    });
+    await app.request("/api/contradiction/disposition", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowId: mysteryFlow.flow.id, disposition: "mystery-preserving conflict" })
+    });
+    expect((await app.request(`/api/contradiction/runs/${mysteryFlow.flow.id}/close`, { method: "POST" })).status).toBe(400);
+    const checklist = await json<{ checklist: { sacredOpacityGuardRequired: boolean } }>(await app.request("/api/contradiction/preservation-checklists", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowId: mysteryFlow.flow.id, ledgerRecordId: ledger.record.id, protectedRecordId: fact.record.id, operation: "consecrate", effectType: "sacred opacity", body: "Preserve sacred refusal.", sacredGuardBody: "Costs remain fixed." })
+    }));
+    expect(checklist.checklist.sacredOpacityGuardRequired).toBe(true);
+    expect((await app.request(`/api/contradiction/runs/${mysteryFlow.flow.id}/close`, { method: "POST" })).status).toBe(201);
+    expect((await app.request("/api/contradiction/skip", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowId: mysteryFlow.flow.id, stepKey: "boundary_guard", workScale: "major" })
+    })).status).toBe(400);
   });
 });

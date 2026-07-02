@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
-import { APPLICATION_ID, migration001 } from "../src/schema.js";
+import { APPLICATION_ID, migration001, migration002, migration003 } from "../src/schema.js";
 import { WorldStore } from "../src/world-store.js";
 
 let tempDirs: string[] = [];
@@ -30,12 +30,13 @@ describe("WorldStore", () => {
     const store = WorldStore.create(path);
 
     expect(store.db.pragma("application_id", { simple: true })).toBe(APPLICATION_ID);
-    expect(store.db.pragma("user_version", { simple: true })).toBe(3);
+    expect(store.db.pragma("user_version", { simple: true })).toBe(4);
     expect(store.db.pragma("journal_mode", { simple: true })).toBe("wal");
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM record_types").get()).toMatchObject({ count: 26 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM link_types").get()).toMatchObject({ count: 24 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'canon_status'").get()).toMatchObject({ count: 11 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'consequence_disposition'").get()).toMatchObject({ count: 4 });
+    expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'contradiction_disposition'").get()).toMatchObject({ count: 7 });
     expect(store.promptTemplates()).toEqual(expect.arrayContaining([
       expect.objectContaining({ key: "admission_prerequisite_audit" }),
       expect.objectContaining({ key: "admission_constraint_challenge" }),
@@ -69,9 +70,9 @@ describe("WorldStore", () => {
     oldDb.close();
 
     const migrated = WorldStore.open(oldPath);
-    expect(migrated.db.pragma("user_version", { simple: true })).toBe(3);
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(4);
     migrated.close();
-    expect(readdirSync(join(oldPath, "..")).some((name) => name.includes("pre-migration-v0-to-v3"))).toBe(true);
+    expect(readdirSync(join(oldPath, "..")).some((name) => name.includes("pre-migration-v0-to-v4"))).toBe(true);
 
     const corruptPath = tempPath("corrupt.sqlite");
     writeFileSync(corruptPath, "not sqlite");
@@ -112,14 +113,14 @@ describe("WorldStore", () => {
     db.close();
 
     const migrated = WorldStore.open(path);
-    expect(migrated.db.pragma("user_version", { simple: true })).toBe(3);
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(4);
     expect(migrated.getRecord(recordId)).toMatchObject({ body: "Body from v1" });
     expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'consequence_disposition'").get()).toMatchObject({ count: 4 });
     expect(migrated.sectionHeadings("world_kernel")).toEqual(expect.arrayContaining([
       expect.objectContaining({ heading: "World premise" })
     ]));
     migrated.close();
-    expect(readdirSync(join(path, "..")).some((name) => name.includes("pre-migration-v1-to-v3"))).toBe(true);
+    expect(readdirSync(join(path, "..")).some((name) => name.includes("pre-migration-v1-to-v4"))).toBe(true);
 
     const newerPath = tempPath("newer.sqlite");
     const newer = new Database(newerPath);
@@ -127,6 +128,49 @@ describe("WorldStore", () => {
     newer.pragma("user_version = 99");
     newer.close();
     expect(() => WorldStore.open(newerPath)).toThrow(/newer than this app/);
+  });
+
+  it("migrates v3 files to the contradiction vocabulary seed delta with backup", () => {
+    const path = tempPath("v3.sqlite");
+    const db = new Database(path);
+    db.exec("BEGIN");
+    db.exec(migration001);
+    db.exec(migration002);
+    db.exec(migration003);
+    db.exec("COMMIT");
+    expect(db.pragma("user_version", { simple: true })).toBe(3);
+    db.close();
+
+    const migrated = WorldStore.open(path);
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(4);
+    expect(readdirSync(join(path, "..")).some((name) => name.includes("pre-migration-v3-to-v4"))).toBe(true);
+
+    const repairTerms = (migrated.db.prepare("SELECT term FROM vocabulary_terms WHERE vocabulary = 'repair_operation'").all() as Array<{ term: string }>)
+      .map((row) => row.term)
+      .sort();
+    expect(repairTerms).toEqual([
+      "add constraint",
+      "clarify scope",
+      "diffuse unevenly",
+      "historicize",
+      "institutionalize",
+      "localize",
+      "price the fact",
+      "quarantine",
+      "reject",
+      "reinterpret",
+      "retcon",
+      "split"
+    ].sort());
+    expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'repair_operation' AND term IN ('branch', 'supersede', 'deprecate')").get()).toMatchObject({ count: 0 });
+    expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'contradiction_disposition'").get()).toMatchObject({ count: 7 });
+    expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'preservation_operation'").get()).toMatchObject({ count: 7 });
+    expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'retcon_type'").get()).toMatchObject({ count: 6 });
+    expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'protected_effect_type'").get()).toMatchObject({ count: 6 });
+    expect(migrated.db.prepare("SELECT * FROM seed_divergences WHERE key = 'contradiction_report_foundational_work_scale'").get()).toMatchObject({
+      package_source: "docs/worldbuilding-system/templates/contradiction_report.md"
+    });
+    migrated.close();
   });
 
   it("stores sectioned prose with card history, report immutability, and FTS coverage", () => {
@@ -406,6 +450,213 @@ describe("WorldStore", () => {
       VALUES (?, 'sweep', 'accept')
     `).run(proposal.record.id)).toThrow(/CHECK/);
     secondConnection.close();
+    store.close();
+  });
+
+  it("works contradiction triage with disposition-gated close and append-only reports", () => {
+    const store = WorldStore.create(tempPath("contradiction.sqlite"));
+    const fact = store.createRecord({ recordTypeKey: "canon_fact", title: "Bridge remains", body: "The bridge survived the flood.", truthLayer: "Objective canon", canonStatus: "accepted" });
+    const flow = store.startContradictionRun({ sourceRecordId: fact.id, implicatedRecordIds: [fact.id], title: "Bridge conflict" }) as { id: number; current_step: string };
+    expect(flow.current_step).toBe("contradiction:entry");
+    expect(store.startContradictionRun({ sourceRecordId: fact.id, implicatedRecordIds: [fact.id], title: "Bridge conflict" })).toMatchObject({ id: flow.id });
+
+    store.recordContradictionTriage({ flowId: flow.id, stepKey: "contradiction_statement", body: "The bridge survived; the same bridge was destroyed." });
+    store.recordContradictionTriage({ flowId: flow.id, stepKey: "truth_layers", body: "Both claims are Objective canon." });
+    expect(() => store.recordContradictionTriage({ flowId: flow.id, stepKey: "invented_step", body: "This row would not render." })).toThrow(/Unknown contradiction triage step/);
+    store.declareContradictionWorkScale({ flowId: flow.id, workScale: "major" });
+    expect(() => store.closeContradictionRun(flow.id)).toThrow(/disposition/);
+    store.setContradictionDisposition({ flowId: flow.id, disposition: "not a contradiction", note: "The destroyed bridge was a downstream copy." });
+
+    const closed = store.closeContradictionRun(flow.id);
+    expect(closed.report).toMatchObject({ recordTypeKey: "contradiction_report", canonStatus: "accepted" });
+    expect(closed.flow).toMatchObject({ state: "complete", current_step: "contradiction:complete" });
+    expect(store.listSections(closed.report.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ heading: "Contradiction statement", body: expect.stringContaining("bridge survived") }),
+      expect.objectContaining({ heading: "Disposition", body: expect.stringContaining("not a contradiction") })
+    ]));
+    expect(store.listLinks(closed.report.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ fromRecordId: closed.report.id, toRecordId: fact.id, linkTypeKey: "derived_from" })
+    ]));
+
+    const secondConnection = new Database(store.path);
+    secondConnection.pragma("foreign_keys = ON");
+    expect(() => secondConnection.prepare("UPDATE records SET body = 'Changed' WHERE id = ?").run(closed.report.id)).toThrow(/append-only/);
+    secondConnection.close();
+    store.close();
+  });
+
+  it("applies repair jurisdiction, standing changes, history, and repair-created admission proposals", () => {
+    const store = WorldStore.create(tempPath("repair.sqlite"));
+    const fact = store.createRecord({ recordTypeKey: "canon_fact", title: "Bridge remains", body: "The bridge survived the flood.", truthLayer: "Objective canon", canonStatus: "accepted" });
+    const flow = store.startContradictionRun({ sourceRecordId: fact.id, implicatedRecordIds: [fact.id], title: "Repair bridge conflict" }) as { id: number };
+    store.recordContradictionTriage({ flowId: flow.id, stepKey: "contradiction_statement", body: "The bridge survived; later records require it destroyed." });
+    store.declareContradictionWorkScale({ flowId: flow.id, workScale: "major" });
+    store.setContradictionDisposition({ flowId: flow.id, disposition: "repair required" });
+    expect(() => store.closeContradictionRun(flow.id)).toThrow(/repair operations/);
+    expect(() => store.recordContradictionRepair({ flowId: flow.id, operations: ["accept"], repairText: "Admission operation must not be accepted as a repair." })).toThrow(/Unknown repair_operation term|unknown repair operation/i);
+
+    const prompt = store.generatePrompt({ templateKey: "repair_challenge", recordId: fact.id, stepKey: "contradiction:repair" }).prompt;
+    const advisory = store.createAdvisoryArtifact({ stepKey: "contradiction:repair", promptText: prompt, responseText: "Challenge response" });
+    store.disposeAdvisoryArtifact(advisory.id, { disposition: "standing ruling", note: "Preserve the flood consequence.", standingRuling: true });
+    const editedBoundaryTemplate = store.updatePromptTemplate("boundary_guard", "Custom boundary pressure") as { current_text: string; current_version: number };
+    expect(editedBoundaryTemplate).toMatchObject({ current_text: "Custom boundary pressure", current_version: 2 });
+    expect(store.revertPromptTemplate("boundary_guard")).toMatchObject({ current_text: expect.stringContaining("Pressure-test the preservation boundary"), current_version: 3 });
+    store.recordContradictionRepair({ flowId: flow.id, operations: ["clarify scope", "add constraint"], repairText: "The bridge survived only as a ferry charter; the stone span fell." });
+    store.addContradictionRepairTarget({
+      flowId: flow.id,
+      recordId: fact.id,
+      nextCanonStatus: "quarantined",
+      newBody: "The stone span fell; a ferry charter preserved the bridge right.",
+      advisoryRecordId: advisory.id
+    });
+    const proposal = store.proposeFactFromContradiction({
+      flowId: flow.id,
+      title: "Ferry charter inherits bridge tolls",
+      body: "The ferry charter keeps bridge toll law alive after the stone span falls.",
+      truthLayer: "Objective canon"
+    });
+    expect(proposal.queue).toEqual(expect.arrayContaining([expect.objectContaining({ id: proposal.record.id, canonStatus: "proposed" })]));
+
+    const closed = store.closeContradictionRun(flow.id);
+    expect(store.getRecord(fact.id)).toMatchObject({ body: "The stone span fell; a ferry charter preserved the bridge right.", canonStatus: "quarantined" });
+    expect(store.history(fact.id)).toEqual(expect.arrayContaining([expect.objectContaining({ retired_body: "The bridge survived the flood." })]));
+    expect(store.db.prepare("SELECT repair_operation FROM jurisdiction_events WHERE record_id = ? AND origin = 'repair' ORDER BY id").all(fact.id)).toEqual([
+      { repair_operation: "clarify scope" },
+      { repair_operation: "add constraint" }
+    ]);
+    expect(store.listLinks(proposal.record.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ fromRecordId: proposal.record.id, toRecordId: closed.report.id, linkTypeKey: "derived_from" })
+    ]));
+    expect(store.listLinks(fact.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ fromRecordId: fact.id, toRecordId: advisory.id, linkTypeKey: "cites_advisory_artifact" })
+    ]));
+
+    const admissionFact = store.createRecord({ recordTypeKey: "canon_fact", title: "Admission cannot quarantine accepted", body: "Stable", truthLayer: "Objective canon", canonStatus: "accepted" });
+    expect(() => store.completeAdmissionGate({
+      recordId: admissionFact.id,
+      truthLayer: "Objective canon",
+      canonStatus: "quarantined",
+      operations: ["accept"],
+      consequenceText: "Trying the wrong jurisdiction."
+    })).toThrow(/illegal canon status transition/);
+    store.close();
+  });
+
+  it("enforces retcon costs, repair propagation debt, and contradiction skip thresholds", () => {
+    const store = WorldStore.create(tempPath("retcon.sqlite"));
+    const fact = store.createRecord({ recordTypeKey: "canon_fact", title: "Old calendar", body: "The flood happened in 900.", truthLayer: "Objective canon", canonStatus: "accepted" });
+    const flow = store.startContradictionRun({ sourceRecordId: fact.id, implicatedRecordIds: [fact.id], title: "Calendar retcon" }) as { id: number };
+    store.recordContradictionTriage({ flowId: flow.id, stepKey: "contradiction_statement", body: "The flood date conflicts with the coronation." });
+    store.declareContradictionWorkScale({ flowId: flow.id, workScale: "severe" });
+    store.setContradictionDisposition({ flowId: flow.id, disposition: "repair required" });
+    store.recordContradictionRepair({ flowId: flow.id, operations: ["retcon"], repairText: "Move the flood date to keep the coronation causal chain coherent." });
+    store.addContradictionRepairTarget({ flowId: flow.id, recordId: fact.id, nextCanonStatus: "superseded", newBody: "The flood happened in 905." });
+    expect(() => store.closeContradictionRun(flow.id)).toThrow(/retcon cost/);
+
+    store.recordContradictionRetconCosts({
+      flowId: flow.id,
+      retconType: "hard retcon",
+      costs: [{ cost: "continuity", text: "Earlier flood references need rereading." }]
+    });
+    const propagation = store.setContradictionRepairPropagation({ flowId: flow.id, action: "assign", debtName: "Propagate flood-date repair", body: "Calendar changes ripple through institutions." });
+    const closed = store.closeContradictionRun(flow.id);
+    expect(propagation.debtRecordId).toEqual(expect.any(Number));
+    expect(store.propagationQueue()).toEqual(expect.arrayContaining([expect.objectContaining({ id: propagation.debtRecordId })]));
+    expect(store.listLinks(closed.report.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ fromRecordId: closed.report.id, toRecordId: propagation.debtRecordId, linkTypeKey: "requires_follow_up" })
+    ]));
+
+    const declineFlow = store.startContradictionRun({ title: "Declined repair propagation" }) as { id: number };
+    expect(() => store.setContradictionRepairPropagation({ flowId: declineFlow.id, action: "decline", workScale: "major" })).toThrow(/reason/);
+    const declined = store.setContradictionRepairPropagation({ flowId: declineFlow.id, action: "decline", workScale: "minor" });
+    expect(store.getRecord(declined.skipRecordId!)).toMatchObject({ recordTypeKey: "skip_record", body: expect.stringContaining("Reason not collected") });
+    expect(() => store.skipContradictionStep({ flowId: declineFlow.id, stepKey: "repair_challenge", workScale: "major" })).toThrow(/reason/);
+    store.close();
+  });
+
+  it("drains owed boundaries into mystery ledgers and gates mystery-preserving close on a checklist", () => {
+    const store = WorldStore.create(tempPath("mystery.sqlite"));
+    const fact = store.createRecord({ recordTypeKey: "canon_fact", title: "Chapel mouth", body: "The chapel mouth speaks at noon.", truthLayer: "Objective canon", canonStatus: "accepted" });
+    const propagationFlow = store.startPropagationRun({ factRecordId: fact.id }) as { id: number };
+    const consequence = store.addPropagationConsequence({
+      flowId: propagationFlow.id,
+      orderKey: "first",
+      body: "Pilgrims route their noon travel around the speaking chapel.",
+      pressure: "high"
+    });
+    store.dispositionPropagationConsequence({
+      consequenceId: consequence.id,
+      disposition: "protected as a mystery boundary",
+      preservationBoundary: "author-secret",
+      note: "Do not explain the speaking origin."
+    });
+    const propagationClosed = store.closePropagationRun(propagationFlow.id);
+    const queue = store.owedBoundariesQueue();
+    expect(queue).toEqual([expect.objectContaining({ protectedRecordId: fact.id, propagationReportRecordId: propagationClosed.report.id })]);
+
+    const ledger = store.createMysteryLedgerEntry({
+      propagationDispositionId: queue[0]!.propagationDispositionId,
+      title: "Chapel mouth opacity",
+      protectedRecordId: fact.id,
+      propagationReportRecordId: propagationClosed.report.id,
+      effectType: "sacred opacity",
+      mysteryState: "author-secret",
+      preservationBoundary: "author-secret",
+      sections: {
+        "Protected effect type": "sacred opacity",
+        "Puzzle question, if any": "none",
+        "What is fixed": "The mouth speaks at noon and sunset.",
+        "What is secret or undecided": "The origin remains author-secret.",
+        "Damaging explanations": "A mechanical speaker would flatten the sacred effect.",
+        "Preserved consequences": "Candles gutter blue and witnesses lose one memory.",
+        "Reveal permissions": "Partial witness consequences may be revealed.",
+        "Reveal prohibitions": "The origin must not be explained."
+      }
+    });
+    expect(store.owedBoundariesQueue()).toEqual([]);
+    expect(store.listFacets(ledger.record.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ vocabulary: "protected_effect_type", term: "sacred opacity" }),
+      expect.objectContaining({ vocabulary: "mystery_state", term: "author-secret" }),
+      expect.objectContaining({ vocabulary: "preservation_boundary", term: "author-secret" })
+    ]));
+    expect(store.listLinks(ledger.record.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ fromRecordId: ledger.record.id, toRecordId: fact.id, linkTypeKey: "preserves_boundary_for" }),
+      expect.objectContaining({ fromRecordId: ledger.record.id, toRecordId: propagationClosed.report.id, linkTypeKey: "derived_from" })
+    ]));
+    store.createMysteryLedgerEntry({
+      ledgerRecordId: ledger.record.id,
+      title: "Chapel mouth opacity",
+      protectedRecordId: fact.id,
+      propagationReportRecordId: propagationClosed.report.id,
+      effectType: "sacred opacity",
+      mysteryState: "author-secret",
+      preservationBoundary: "author-secret",
+      sections: {
+        "Protected effect type": "sacred opacity",
+        "Puzzle question, if any": "none",
+        "What is fixed": "The mouth speaks at noon, sunset, and eclipse."
+      }
+    });
+    expect(store.sectionHistory(ledger.record.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ retired_heading: "What is fixed", retired_body: "The mouth speaks at noon and sunset." })
+    ]));
+
+    const flow = store.startContradictionRun({ sourceRecordId: fact.id, implicatedRecordIds: [fact.id], title: "Mystery-preserving conflict" }) as { id: number };
+    store.recordContradictionTriage({ flowId: flow.id, stepKey: "contradiction_statement", body: "A later repair touches the sacred speaking origin." });
+    store.declareContradictionWorkScale({ flowId: flow.id, workScale: "major" });
+    store.setContradictionDisposition({ flowId: flow.id, disposition: "mystery-preserving conflict" });
+    expect(() => store.closeContradictionRun(flow.id)).toThrow(/preservation checklist/);
+    const checklist = store.completeMysteryPreservationChecklist({
+      flowId: flow.id,
+      ledgerRecordId: ledger.record.id,
+      protectedRecordId: fact.id,
+      operation: "consecrate",
+      effectType: "sacred opacity",
+      body: "The repair preserves the sacred refusal while keeping costs visible.",
+      sacredGuardBody: "Origin refused; noon/sunset timing, blue candles, memory cost, and witness records stay fixed."
+    });
+    expect(checklist.sacredOpacityGuardRequired).toBe(true);
+    expect(store.closeContradictionRun(flow.id).report).toMatchObject({ recordTypeKey: "contradiction_report" });
     store.close();
   });
 
