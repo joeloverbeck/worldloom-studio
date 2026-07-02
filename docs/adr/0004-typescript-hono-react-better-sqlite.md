@@ -4,17 +4,26 @@ Worldloom Studio uses TypeScript throughout, with a pnpm workspace split into `p
 
 The local native process is a Hono server running on Node via `@hono/node-server`. The browser UI is React + Vite. The canonical store is SQLite through `better-sqlite3`. Tests use Vitest in every package.
 
-This promotes ADR 0002's React + Vite working lean to decided, and discharges ADR 0002's owed stack ADR before implementation starts.
+This promotes ADR 0002's React + Vite working lean to decided through ADR 0002's own named revision path, and discharges ADR 0002's owed stack ADR before implementation starts.
 
 ## Decisions
 
-- **Language:** TypeScript for shared schema/catalog definitions, server code, tests, and UI.
-- **SQLite binding:** `better-sqlite3`, because its synchronous single-writer API matches the local one-process model and exposes the SQLite capabilities ADR 0001 requires: STRICT tables, triggers, FTS5, `PRAGMA user_version`, `VACUUM INTO`, WAL, and foreign-key enforcement.
-- **Future SQLite escape hatch:** `node:sqlite` is the preferred zero-dependency successor once its API, FTS5 behavior, and backup ergonomics are stable enough for this app's file-longevity guarantees.
-- **Server:** Hono with the Node adapter, because the v1 server is a small localhost JSON API plus static frontend host.
-- **Frontend:** React + Vite, because the UI needs generic record editing surfaces now and later flow-specific screens without adding a desktop wrapper.
-- **Test runner:** Vitest, so the same runner covers server, world-file, shared, and web seams.
-- **Migration runner:** bespoke, in repo. Migrations are numbered, immutable, forward-only SQL scripts applied via `PRAGMA user_version`; each migration runs in a transaction and every open of an older world creates a pre-migration backup first.
+- **Language:** TypeScript for shared schema/catalog definitions, server code, tests, and UI. One language keeps the solo-maintained type surface small while still letting record kinds, vocabulary names, link types, and API payloads live once in `packages/shared`.
+- **SQLite binding:** `better-sqlite3`, because its synchronous single-writer API matches the local one-process model and exposes the SQLite capabilities ADR 0001 requires: STRICT tables, triggers, FTS5, `PRAGMA user_version`, `VACUUM INTO`, WAL, and foreign-key enforcement. It satisfies ADR 0002's native-binding criterion now instead of making the first world-file layer prove feature support through a weaker abstraction.
+- **Future SQLite escape hatch:** `node:sqlite` is the preferred zero-dependency successor once its API is stable and this project has verified FTS5, trigger behavior, `VACUUM INTO`, WAL, foreign-key enforcement, and migration backup ergonomics against real world files. The switch condition is feature parity for ADR 0001's guarantees, not merely availability in Node.
+- **Server:** Hono with the Node adapter, because the v1 server is a small localhost JSON API plus static frontend host. It keeps routing and testing lightweight, works directly in TypeScript, and does not impose an application framework lifecycle that would become solo-maintenance drag.
+- **Frontend:** React + Vite, because the UI needs generic record editing surfaces now and later flow-specific screens without adding a desktop wrapper. Vite keeps the browser shell cheap to build, and React gives enough component structure for repeated record/facet editors without deciding a larger app framework.
+- **Test runner:** Vitest, so the same runner covers server HTTP seams, world-file behavior, shared type/catalog checks, and web components. This avoids maintaining separate unit and browser-era runners before the app has enough surface area to justify them.
+- **Workspace:** pnpm workspace with `packages/server`, `packages/web`, and `packages/shared`. pnpm's workspace model gives deterministic local package links with low tool weight, and the package split matches ADR 0002's server/browser boundary plus the W-5 type-level single-source requirement.
+- **Migration runner:** bespoke, in repo. Migrations are numbered, immutable, forward-only SQL scripts applied via `PRAGMA user_version`; each migration runs in a transaction; every open of an older world creates a pre-migration backup first with `VACUUM INTO`; and the runner must tolerate arbitrarily old world files.
+
+## Considered options
+
+- **`node:sqlite` immediately** — attractive because it would remove the native npm dependency, but rejected for v1 until it is stable and the project has verified the exact SQLite features ADR 0001 binds: STRICT tables, FTS5 external-content indexes, triggers, `PRAGMA user_version`, WAL, foreign keys, and `VACUUM INTO`. It remains the named successor because it would reduce decade-scale dependency risk once it satisfies those guarantees.
+- **Async SQLite wrappers or ORM/migration stacks** — rejected for the first implementation slice. Worldloom needs SQLite's own integrity surface, not an ORM-shaped domain model, and ADR 0001's migration rule is specific: numbered immutable forward-only SQL, transactional application, `PRAGMA user_version`, and a `VACUUM INTO` backup before migration. A third-party migration table would add ceremony while bypassing the file's native version signal.
+- **Express/Fastify instead of Hono** — viable for a small JSON API, but Hono is the smaller fit for a localhost-only server that mainly exposes typed handlers and static assets. The maintenance criterion favors the least framework surface that still has a plain Node adapter and testable request handling.
+- **A heavier frontend framework or desktop wrapper from build start** — rejected by ADR 0002's scope. React + Vite is the smallest promotion of the existing lean that can support generic editors and later guided flows while keeping browser storage non-canonical and desktop packaging deferred.
+- **Separate test runners per package** — rejected. The ratified seams are HTTP API behavior and world-file behavior; Vitest can exercise both against real temp files and also cover shared/web code, so multiple runners would only raise maintenance cost at this stage.
 
 ## World-file open posture
 
@@ -26,7 +35,7 @@ Opening a world file performs a defensive sequence:
 4. Before applying any migration, create a timestamped sibling backup with `VACUUM INTO`.
 5. Apply only forward migrations; unknown future schema versions are rejected plainly.
 
-Corruption, wrong-application files, and future schema versions are reported as open failures. The server does not attempt repair without a future explicit repair flow.
+Corruption, wrong-application files, and future schema versions are reported as open failures before any migration writes occur. The server does not attempt repair without a future explicit repair flow.
 
 ## Backup cadence
 
