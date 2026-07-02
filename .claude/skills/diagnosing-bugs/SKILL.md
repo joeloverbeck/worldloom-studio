@@ -15,6 +15,12 @@ When exploring the codebase, read `CONTEXT.md` (if it exists) to get a clear men
 
 Spend disproportionate effort here. **Be aggressive. Be creative. Refuse to give up.**
 
+### Remote / CI failures
+
+When the reported failure is remote (CI, GitHub Actions, hosted logs, production trace), first collect the authoritative failure artifact: failing command, job/check name, log snippet, runner/runtime details, input payload, or captured trace. That artifact defines the user's symptom. It is not itself the feedback loop; use it to build a local or agent-runnable loop that can reproduce the same failure mode.
+
+For CI, package, build, workflow, or generated-output failures, match the runner's clean state before trusting a local pass. Ignored build output, generated files, caches, and stale dist artifacts can mask the bug. Use `git status --ignored`, a clean checkout/worktree, or an explicit remove/move of ignored generated artifacts to prove the precondition before running the loop.
+
 ### Ways to construct one — try them in roughly this order
 
 1. **Failing test** at whatever seam reaches the bug — unit, integration, e2e.
@@ -91,6 +97,8 @@ If you cannot state the prediction, the hypothesis is a vibe — discard or shar
 
 **Show the ranked list to the user before testing.** They often have domain knowledge that re-ranks instantly ("we just deployed a change to #3"), or know hypotheses they've already ruled out. Cheap checkpoint, big time saver. Don't block on it — proceed with your ranking if the user is AFK.
 
+In autonomous/default coding-agent contexts, post the ranked hypotheses and proceed with the top-ranked non-destructive probe unless the user interrupts. Stop for approval only when the probe is destructive, high-risk, or needs external access the current permissions do not allow.
+
 ## Phase 4 — Instrument
 
 Each probe must map to a specific prediction from Phase 3. **Change one variable at a time.**
@@ -120,6 +128,8 @@ If a correct seam exists:
 3. Apply the fix.
 4. Watch it pass.
 5. Re-run the Phase 1 feedback loop against the original (un-minimised) scenario.
+
+For build, workflow, package-script, or CI-contract bugs, the regression may be the checked-in command contract plus the minimised precondition, rather than a new source-level test. Example: a package script that must pass from a clean checkout with ignored `dist/` absent. Do not invent a duplicate test around package-manager behavior when the real contract is the gate command itself; document the precondition and verify that command from that state.
 
 ## Phase 6 — Cleanup + post-mortem
 
