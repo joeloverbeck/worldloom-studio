@@ -59,6 +59,16 @@ export const createApp = (options: AppOptions = {}) => {
     return c.json({ path: activeWorld.snapshot(input.destinationPath) });
   });
 
+  app.post("/api/worlds/export/markdown", async (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      const input = await body<{ destinationPath: string }>(c);
+      return c.json(activeWorld.exportWorldMarkdown(input.destinationPath));
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
   app.get("/api/vocabularies", (c) => {
     if (!activeWorld) return c.json({ error: "No world is open" }, 409);
     return c.json({ terms: activeWorld.vocabularies() });
@@ -101,6 +111,15 @@ export const createApp = (options: AppOptions = {}) => {
   app.get("/api/records/:id/history", (c) => {
     if (!activeWorld) return c.json({ error: "No world is open" }, 409);
     return c.json({ history: activeWorld.history(Number(c.req.param("id"))) });
+  });
+
+  app.get("/api/records/:id/export/markdown", (c) => {
+    if (!activeWorld) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ markdown: activeWorld.exportRecordMarkdown(Number(c.req.param("id"))) });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
   });
 
   app.get("/api/records/:id/facets", (c) => {

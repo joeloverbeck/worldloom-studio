@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
-import { dirname, resolve } from "node:path";
-import { existsSync, mkdirSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { APPLICATION_ID, CURRENT_SCHEMA_VERSION, migration001, migration002, migration003, migration004 } from "./schema.js";
 import {
   addContradictionRepairTarget as addContradictionFlowRepairTarget,
@@ -46,7 +46,7 @@ import {
   warnsForOpenCanonDebt,
   type DeclaredSeverity
 } from "./severity-policy.js";
-import { LINK_TYPES, RECORD_TYPE_BY_KEY } from "@worldloom/shared";
+import { LINK_TYPES, RECORD_TYPES, RECORD_TYPE_BY_KEY } from "@worldloom/shared";
 
 export type {
   ContradictionRepairPropagationRow,
@@ -128,6 +128,12 @@ export interface TraversalRow extends LinkRow {
   depth: number;
 }
 
+export interface MarkdownWorldExportResult {
+  directory: string;
+  indexPath: string;
+  files: string[];
+}
+
 export interface AdmissionQueueRow extends RecordRow {
   admissionLevel: string | null;
   workScale: string | null;
@@ -139,6 +145,12 @@ type AdmissionSeedInput = { title: string; body: string; truthLayer: string; can
 type AdmissionIntakeCompletion = {
   recordSweepJurisdiction?: boolean;
   provenanceFlowStep?: string;
+};
+
+type ExportEntry = {
+  record: RecordRow;
+  filename: string;
+  markdown: string;
 };
 
 const rowToRecord = (row: Record<string, unknown>): RecordRow => ({
@@ -232,8 +244,38 @@ export class WorldStore {
     return destination;
   }
 
+  exportRecordMarkdown(recordId: number): string {
+    return this.renderRecordMarkdown(this.getRecord(recordId));
+  }
+
+  exportWorldMarkdown(destinationPath: string): MarkdownWorldExportResult {
+    if (!destinationPath?.trim()) throw new Error("markdown export requires a destination directory");
+    const destination = resolve(destinationPath);
+    mkdirSync(destination, { recursive: true });
+    this.removePreviousMarkdownExportFiles(destination);
+
+    const entries = this.recordsForMarkdownExport().map((record) => ({
+      record,
+      filename: this.markdownFilename(record),
+      markdown: this.renderRecordMarkdown(record)
+    }));
+
+    for (const entry of entries) {
+      writeFileSync(join(destination, entry.filename), entry.markdown, "utf8");
+    }
+
+    const index = this.renderMarkdownIndex(entries);
+    const indexPath = join(destination, "index.md");
+    writeFileSync(indexPath, index, "utf8");
+    return { directory: destination, indexPath, files: [...entries.map((entry) => entry.filename), "index.md"] };
+  }
+
   integrityCheck(): string {
     return String(this.db.pragma("integrity_check", { simple: true }));
+  }
+
+  schemaVersion(): number {
+    return Number(this.db.pragma("user_version", { simple: true }));
   }
 
   listRecords(): RecordRow[] {
@@ -1230,5 +1272,167 @@ export class WorldStore {
   private backupPath(label: string): string {
     const timestamp = new Date().toISOString().replaceAll(/[:.]/g, "-");
     return `${this.path}.${label}.${timestamp}.sqlite`;
+  }
+
+  private recordsForMarkdownExport(): RecordRow[] {
+    const rows = this.db.prepare("SELECT * FROM records ORDER BY id").all().map((row) => rowToRecord(row as Record<string, unknown>));
+    const typePosition = new Map(RECORD_TYPES.map((recordType, index) => [recordType.key, index]));
+    return rows.sort((left, right) => {
+      const leftType = typePosition.get(left.recordTypeKey) ?? Number.MAX_SAFE_INTEGER;
+      const rightType = typePosition.get(right.recordTypeKey) ?? Number.MAX_SAFE_INTEGER;
+      if (leftType !== rightType) return leftType - rightType;
+      return left.id - right.id;
+    });
+  }
+
+  private renderRecordMarkdown(record: RecordRow): string {
+    const recordType = this.assertRecordType(record.recordTypeKey);
+    const sections = this.listSections(record.id).filter((section) => section.body.trim());
+    const facets = this.listFacets(record.id);
+    const links = this.markdownLinkReferences(record.id);
+    const recordHistory = this.history(record.id) as Array<Record<string, unknown>>;
+    const sectionHistory = this.sectionHistory(record.id) as Array<Record<string, unknown>>;
+    const advisoryDispositions = record.recordTypeKey === "advisory_artifact" ? this.advisoryDispositionRows(record.id) : [];
+
+    const lines = [
+      `# ${record.shortId} - ${record.title}`,
+      "",
+      `Source world: ${this.path}`,
+      `Schema version: ${this.schemaVersion()}`,
+      `Record type: ${recordType.label} (\`${record.recordTypeKey}\`)`,
+      `Mutation regime: ${recordType.mutationRegime}`,
+      `Package source: \`${recordType.packageSource}\``,
+      `Truth layer: ${record.truthLayer ?? "unset"}`,
+      `Canon status: ${record.canonStatus ?? "unset"}`
+    ];
+
+    if (record.body.trim()) {
+      lines.push("", "## Record prose", "", record.body);
+    }
+
+    if (sections.length) {
+      for (const section of sections) {
+        lines.push("", `## ${section.heading}`, "", section.body);
+      }
+    }
+
+    if (facets.length) {
+      lines.push("", "## Facets", "");
+      for (const facet of facets) lines.push(`- ${facet.vocabulary}: ${facet.term}`);
+    }
+
+    if (links.length) {
+      lines.push("", "## Links", "");
+      for (const link of links) lines.push(`- ${link}`);
+    }
+
+    if (advisoryDispositions.length) {
+      lines.push("", "## Advisory dispositions", "");
+      for (const row of advisoryDispositions) {
+        const note = String(row.note ?? "").trim();
+        lines.push(`- ${row.disposition}${note ? `: ${note}` : ""}${row.standing_ruling ? " (standing ruling)" : ""}`);
+      }
+    }
+
+    if (recordHistory.length || sectionHistory.length) {
+      lines.push("", "## History notes", "");
+      if (recordHistory.length) {
+        lines.push("### Record wording", "");
+        for (const row of recordHistory) {
+          lines.push(`- Sequence ${row.sequence} retired at ${row.retired_at}`);
+          lines.push(`  - Title: ${row.retired_title}`);
+          if (String(row.retired_body ?? "").trim()) lines.push("  - Body:", this.indentMarkdown(String(row.retired_body)));
+        }
+      }
+      if (sectionHistory.length) {
+        lines.push("### Section wording", "");
+        for (const row of sectionHistory) {
+          lines.push(`- Sequence ${row.sequence} retired from ${row.retired_heading} at ${row.retired_at}`);
+          if (String(row.retired_body ?? "").trim()) lines.push(this.indentMarkdown(String(row.retired_body)));
+        }
+      }
+    }
+
+    return `${lines.join("\n").trimEnd()}\n`;
+  }
+
+  private renderMarkdownIndex(entries: ExportEntry[]): string {
+    const lines = [
+      "# Worldloom Markdown Export",
+      "",
+      `Source world: ${this.path}`,
+      `Schema version: ${this.schemaVersion()}`
+    ];
+
+    for (const recordType of RECORD_TYPES) {
+      const group = entries.filter((entry) => entry.record.recordTypeKey === recordType.key);
+      if (!group.length) continue;
+      lines.push("", `## ${recordType.label}`, "");
+      for (const entry of group) {
+        lines.push(`- [${entry.record.shortId} - ${entry.record.title}](${entry.filename})`);
+      }
+    }
+
+    lines.push(
+      "",
+      "<!-- worldloom-export-files",
+      ...entries.map((entry) => entry.filename),
+      "-->"
+    );
+
+    return `${lines.join("\n").trimEnd()}\n`;
+  }
+
+  private markdownFilename(record: RecordRow): string {
+    const slug = record.title
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80);
+    return slug ? `${record.shortId}-${slug}.md` : `${record.shortId}.md`;
+  }
+
+  private removePreviousMarkdownExportFiles(destination: string): void {
+    const indexPath = join(destination, "index.md");
+    if (!existsSync(indexPath)) return;
+    const match = readFileSync(indexPath, "utf8").match(/<!-- worldloom-export-files\n([\s\S]*?)\n-->/);
+    if (!match) return;
+    for (const filename of match[1].split("\n").map((line) => line.trim()).filter(Boolean)) {
+      if (filename !== basename(filename) || !filename.endsWith(".md") || filename === "index.md") continue;
+      rmSync(join(destination, filename), { force: true });
+    }
+  }
+
+  private markdownLinkReferences(recordId: number): string[] {
+    return this.db.prepare(`
+      SELECT rl.*,
+             source.short_id AS source_short_id,
+             source.title AS source_title,
+             target.short_id AS target_short_id,
+             target.title AS target_title
+      FROM record_links rl
+      JOIN records source ON source.id = rl.from_record_id
+      JOIN records target ON target.id = rl.to_record_id
+      WHERE rl.from_record_id = @recordId OR rl.to_record_id = @recordId
+      ORDER BY rl.id
+    `).all({ recordId }).map((row) => {
+      const values = row as Record<string, unknown>;
+      const outgoing = Number(values.from_record_id) === recordId;
+      const direction = outgoing ? "outgoing" : "incoming";
+      const arrow = outgoing ? "->" : "<-";
+      const targetShortId = outgoing ? values.target_short_id : values.source_short_id;
+      const targetTitle = outgoing ? values.target_title : values.source_title;
+      const note = String(values.note ?? "").trim();
+      return `${direction} ${values.link_type_key} ${arrow} ${targetShortId} - ${targetTitle}${note ? ` (${note})` : ""}`;
+    });
+  }
+
+  private advisoryDispositionRows(recordId: number): Array<Record<string, unknown>> {
+    return this.db.prepare("SELECT * FROM advisory_dispositions WHERE advisory_record_id = ? ORDER BY id").all(recordId) as Array<Record<string, unknown>>;
+  }
+
+  private indentMarkdown(value: string): string {
+    return value.split("\n").map((line) => `    ${line}`).join("\n");
   }
 }
