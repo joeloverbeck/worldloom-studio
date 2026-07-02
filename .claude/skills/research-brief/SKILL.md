@@ -28,7 +28,7 @@ The emitted brief is **self-contained**: Session 2 has none of this session's co
 Do NOT Write the brief file or refresh the manifest until BOTH hold:
 (a) confidence has reached ~95% — via the interview, OR via an early-exit — explicit ("just go") or implicit (user unavailable; Step 4 §Early exit) — with remaining gaps written into the brief as explicit, labeled assumptions, OR because scope arrived pre-settled from exploration alone (Step 4 §Interview-skip; carry any residual gaps as labeled assumptions); AND
 (b) the Step 5 brief outline + settled-intentions summary has been presented in chat and the user has approved it (silence on a section while answering other questions counts as approval; an explicit objection re-opens that section and requires re-presenting the correction first). If the user is unavailable — an `AskUserQuestion` timeout, or an autonomous run where blocking is not an option — (b) converts from a blocking request into a record: still present the outline in chat, proceed without approval, and flag every unapproved assumption prominently in the Step 7 summary so the user can correct it before using the brief. On such runs the mid-turn outline text may never render to the user — the outline's substance must be recoverable without it: the brief's §3 plus the Step 7 summary must together carry every settled intention, assumption, and flag the outline presented.
-The skill mutates only `reports/`. It NEVER edits `docs/`, `specs/`, `.claude/skills/`, or source code.
+The skill mutates only `reports/`. It NEVER edits `docs/`, `.claude/skills/`, or source code.
 </HARD-GATE>
 
 ## Invocation
@@ -59,7 +59,7 @@ A target may carry a **dominant type plus a secondary** (e.g. a hardening pass w
 
 The point of authoring here is that Claude can read the repo directly — so the *user never types out what the researcher should read*. Build, from exploration:
 
-- the **authority-ordered read list**. If the repo defines an explicit authority order among its docs, order §2 by it; otherwise infer a sensible root→detail order (README / overview → architecture / design → specs / roadmap → reference), then relevant `reports/`, `specs/`, `archive/`. Each entry gets a one-line reason it is load-bearing for *this* target.
+- the **authority-ordered read list**. If the repo defines an explicit authority order among its docs, order §2 by it; otherwise infer a sensible root→detail order (README / overview → architecture / design → docs/specs / roadmap → reference), then relevant `reports/`, `docs/specs/`, `archive/`. Each entry gets a one-line reason it is load-bearing for *this* target.
 - the **relevant code seams** Session 2 should inspect (name files/modules, don't paste them — Session 2 reads them itself);
 - any **prior report / spec / archived work** that already bears on the target, so the brief frames the task as a delta rather than a cold start. When the target is a follow-up to an earlier brief, name the predecessor `reports/<...>-research-brief.md` explicitly and state what it already delivered (see `references/brief-template.md` §1) so Session 2 does not re-commission completed work.
 
@@ -152,6 +152,6 @@ This is an inline-completion deliverable — no next-steps menu. Surface any adj
 - **Self-containment is the contract.** Session 2 has none of this session's context. Every path, decision, constraint, and acceptance check it needs lives in the brief plus the uploaded manifest (remote-fetch) or the repository itself (local-session) — never implied.
 - **This session authors; Session 2 researches.** Don't perform the deep research here. The brief *commissions* it — whichever executor channel consumes it.
 - **Locked, no questions.** The emitted brief instructs Session 2 to produce directly and NOT interview or ask clarifying questions — the interview already happened here.
-- **Mutates only `reports/`.** Never touch `docs/`, `specs/`, `.claude/skills/`, or source.
+- **Mutates only `reports/`.** Never touch `docs/`, `.claude/skills/`, or source.
 - **No scope inflation.** The brief commissions what was asked. Resist "while we're at it" additions to the deliverable spec.
 - **Ground constraints in this repo, not a template.** Derive §6 doctrine & constraints from what exploration actually finds (this repo's own authority docs, invariants, conventions) — do not import constraints from another project.

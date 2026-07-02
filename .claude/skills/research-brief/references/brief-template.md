@@ -26,7 +26,7 @@ confirming it contains the §2 read-list). Example shape:
 > The uploaded manifest is the path inventory of the `<owner>/worldloom-studio` repo — a web
 > app to create and maintain fictional worlds from a continuity and causality perspective.
 > [State the repo's authority order among docs if one exists; otherwise: root README →
-> architecture/design → specs/roadmap → reference.] Fetch every file from commit `<HEAD>` —
+> architecture/design → docs/specs/roadmap → reference.] Fetch every file from commit `<HEAD>` —
 > the manifest reflects that tree. (If a referenced report cites a different "commit of
 > record," note the divergence here and use the verified HEAD, not the report's string. If you
 > then reassure Session 2 that a predecessor's findings carry forward *because the target files
@@ -67,7 +67,7 @@ mandate harder instead.
 An explicit, ordered path list — every file Session 2 must read before producing — each with a
 one-line reason it is load-bearing *for this target*. Built from Step 2 exploration. Order by
 the repo's own authority tier if it defines one; otherwise root→detail (overview → architecture
-→ specs → reference). Example shape:
+→ docs/specs → reference). Example shape:
 
 ```
 Read these in full, in this order:
@@ -215,7 +215,7 @@ taxonomy — describe the *kinds* of reads to seek out and resolve them against 
 
 | Target type | Load-bearing reads to seek out (beyond README) |
 |---|---|
-| **new-spec / new-feature** | the architecture/design doc for the touched area; any spec index, roadmap, or ledger; sibling specs/features; the existing code seams for that area. |
+| **new-spec / new-feature** | the architecture/design doc for the touched area; any docs/specs index, roadmap, or ledger; sibling specs/features; the existing code seams for that area. |
 | **thorny-fix** | the design contract for the affected area; the relevant code seams; any report/issue notes touching the defect; the tests covering it and the acceptance the fix must still satisfy. |
 | **hardening** | the invariants / constraints the system must uphold; the subsystem's design + code seams; prior hardening notes or reports; the validation / test coverage. A hardening pass can deliver *either* a recommendation report or a numbered implementation spec — the ask decides (§7); for a spec deliverable, union in the **new-spec** row's reads via a `(secondary: new-spec)` classification. |
 | **foundational / doc-overhaul** | the doc tier being overhauled plus every tier above it in the repo's authority order (authority flows downward); the doc index / authority map; cross-references in lower tiers that the overhaul will invalidate (read as **boundary-awareness** to run the tier-fit test — what belongs at this altitude vs. elsewhere — and route out-of-scope findings forward rather than amending them here). |

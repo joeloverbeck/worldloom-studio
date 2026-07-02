@@ -23,7 +23,7 @@ Per the outlook §1: spec-writing can start now; implementation is blocked only 
 | 8 | Test setup | **Vitest** | One test runner for server and web (couples to Vite); schema behavior tests (append-only triggers, history writes, jurisdiction CHECKs) run against real temp-file SQLite databases, per outlook §5.2's "those triggers *are* W-3/W-6 enforcement." |
 | 9 | Repo layout | **pnpm workspace: `packages/server`, `packages/web`, `packages/shared`** | Shared record types in one source package serves W-5 (record once, view anywhere) at the type level. |
 | 10 | Frontend | **Ratify React + Vite in ADR 0004** | Promotes ADR 0002's working lean to decided; the test-setup pick already couples to Vite. |
-| 11 | Spec home | **`specs/` at the repo root** *(ratified by the steward, superseding the session's `docs/specs/` recommendation)* | Every spec carries the conformance rule's "Principles" section (`docs/principles/README.md`). |
+| 11 | Spec home | **`docs/specs/`** *(steward correction: these are durable specifications, not local PRDs or ticket queues)* | Every spec carries the conformance rule's "Principles" section (`docs/principles/README.md`). |
 | 12 | W-4 scoping | **Accept as edited; no revert** | Outlook §3.4 offers a revert if the stricter form was deliberate hardening; the evidence (no ratified exception flag anywhere, which domain-fidelity would require) says drift. |
 | 13 | Conformance tightening | **Not adopted** | Principle-ID citations stay optional, per the outlook's own default: no process hardening without a felt failure. |
 
@@ -39,7 +39,7 @@ Done (`3a41567`). The `.claude/skills/research-brief` working-tree edits predate
 
 ### Step 2 — The schema spec
 
-`specs/` — the first spec, with a Principles section. It owns, explicitly (outlook §5.3, so nothing is guessed silently):
+`docs/specs/` — the first spec, with a Principles section. It owns, explicitly (outlook §5.3, so nothing is guessed silently):
 
 1. **Vocabulary seed appendix** — every controlled vocabulary enumerated, each cited to its defining package file; the §5.1 divergences seeded per the outlook's interim rules (fact-type from the fact card's own list; ledger columns govern the "five items"; constraint tags from `03` with `22`'s extras as pre-seeded "other" rows; contradiction types from the report template's 10).
 2. **Record-type enumeration** — wider than the 19 templates: gate results, pass reports, ledger rows, seed decompositions, QA scorecards; each assigned its mutation regime per W-6 post-edit.
