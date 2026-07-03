@@ -188,11 +188,18 @@ label {
   gap: 6px;
 }
 
+.chips span,
 .chips button {
   height: auto;
   min-height: 30px;
   background: #fffdfa;
   color: #1f3d36;
+  border: 1px solid #b8b2a5;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 8px;
+  font-size: 0.85rem;
 }
 
 .recent {
@@ -224,6 +231,11 @@ label {
   border-radius: 8px;
   background: #fffdfa;
   padding: 12px 96px 12px 14px;
+}
+
+.records article.selected {
+  border-color: #1f3d36;
+  box-shadow: inset 3px 0 0 #1f3d36;
 }
 
 .records article p,

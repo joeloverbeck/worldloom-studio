@@ -4,6 +4,7 @@ import { APP_VERSION, LINK_TYPES, RECORD_TYPES, type HealthPayload } from "@worl
 import { ActiveWorldSession } from "./active-world-session.js";
 import type { FacetInput, RecordInput } from "./world-file.js";
 import * as AdmissionFlow from "./admission-flow.js";
+import * as CanonWorkbench from "./canon-workbench.js";
 import * as CanonDebt from "./canon-debt.js";
 import * as ContradictionFlow from "./contradiction-flow.js";
 import * as CreationFlow from "./creation-flow.js";
@@ -18,6 +19,9 @@ interface AppOptions {
 const activeWorldSession = new ActiveWorldSession();
 
 const body = async <T>(c: { req: { json: () => Promise<T> } }): Promise<T> => c.req.json();
+
+const listQuery = (value?: string): string[] =>
+  value?.split(",").map((item) => item.trim()).filter(Boolean) ?? [];
 
 export const createApp = (options: AppOptions = {}) => {
   const app = new Hono();
@@ -515,6 +519,34 @@ export const createApp = (options: AppOptions = {}) => {
     if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
     try {
       return c.json({ debt: CanonDebt.closeCanonDebt(activeWorldSession.current, Number(c.req.param("id"))) });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.get("/api/canon-workbench/current", (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    return c.json(CanonWorkbench.currentCanon(activeWorldSession.current, {
+      recordTypes: listQuery(c.req.query("recordType")),
+      truthLayers: listQuery(c.req.query("truthLayer")),
+      canonStatuses: listQuery(c.req.query("canonStatus")),
+      consequenceModes: listQuery(c.req.query("consequenceMode")),
+      continuityScope: c.req.query("continuityScope")?.trim() || undefined,
+      openCanonDebt: c.req.query("openCanonDebt") === "true",
+      q: c.req.query("q") ?? undefined,
+      branchRelevant: c.req.query("branchRelevant") === "true"
+    }));
+  });
+
+  app.get("/api/canon-workbench/audit", (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    return c.json(CanonWorkbench.auditTrail(activeWorldSession.current));
+  });
+
+  app.get("/api/canon-workbench/records/:id", (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(CanonWorkbench.recordDetail(activeWorldSession.current, Number(c.req.param("id"))));
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }

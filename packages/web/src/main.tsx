@@ -172,8 +172,86 @@ interface PromptTemplate {
   current_version: number;
 }
 
+interface CanonWorkbenchCurrentRow {
+  id: number;
+  shortId: string;
+  title: string;
+  recordTypeKey: string;
+  recordTypeLabel: string;
+  truthLayer: string;
+  canonStatus: string;
+  continuityScope: string;
+  relationshipMarkers: {
+    hasOpenDebt: boolean;
+    hasAdvisoryUse: boolean;
+    typedLinkTypes: string[];
+  };
+}
+
+interface CanonWorkbenchRecordRef {
+  id: number;
+  shortId: string;
+  title: string;
+  recordTypeKey: string;
+  recordTypeLabel?: string;
+  mutationRegime?: "card" | "report";
+  truthLayer?: string;
+  canonStatus?: string;
+  continuityScope?: string;
+  body?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface CanonWorkbenchAuditItem {
+  record: CanonWorkbenchRecordRef;
+  authoredAt: string;
+  attachments: {
+    recordHistory: unknown[];
+    sectionHistory: unknown[];
+    skipRecords: CanonWorkbenchRecordRef[];
+    canonDebtEvents: Array<{ record: CanonWorkbenchRecordRef; history: unknown[] }>;
+    advisoryArtifacts: Array<{ record: CanonWorkbenchRecordRef; dispositions: unknown[] }>;
+    standingRulings: unknown[];
+    advisoryDispositions: unknown[];
+    jurisdictionEvents: unknown[];
+    typedLinkCreations: Array<{ id: number; linkTypeKey: string }>;
+    flowRelationships: unknown[];
+  };
+  affectedCurrentRecords: CanonWorkbenchRecordRef[];
+}
+
+interface CanonWorkbenchDetail {
+  record: CanonWorkbenchRecordRef & {
+    body: string;
+    recordTypeLabel: string;
+    truthLayer: string;
+    canonStatus: string;
+    continuityScope: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+  facets: FacetRow[];
+  sections: SectionRow[];
+  outgoingLinks: Array<LinkRow & { target: CanonWorkbenchRecordRef | null }>;
+  incomingLinks: Array<LinkRow & { source: CanonWorkbenchRecordRef | null }>;
+  recordHistory: unknown[];
+  sectionHistory: unknown[];
+  relatedReports: CanonWorkbenchRecordRef[];
+  canonDebt: CanonWorkbenchRecordRef[];
+  skipRecords: CanonWorkbenchRecordRef[];
+  advisoryArtifacts: Array<{ record: CanonWorkbenchRecordRef; dispositions: unknown[] }>;
+  standingRulings: unknown[];
+  advisoryDispositions: unknown[];
+  exportAffordance: { method: "GET"; href: string };
+}
+
 interface AppProps {
   initialRecords?: RecordRow[];
+  initialOpenWorld?: string | null;
+  initialCanonCurrent?: CanonWorkbenchCurrentRow[];
+  initialCanonAudit?: CanonWorkbenchAuditItem[];
+  initialCanonDetail?: CanonWorkbenchDetail | null;
 }
 
 const storedToken = () => typeof window === "undefined" ? "" : window.localStorage.getItem("worldloom-token") ?? "";
@@ -234,10 +312,16 @@ const emptyQaFloorConditions: QaFloorConditions = {
   lacksInstitutionOrModeEquivalent: false
 };
 
-function App({ initialRecords = [] }: AppProps = {}) {
+function App({
+  initialRecords = [],
+  initialOpenWorld = null,
+  initialCanonCurrent = [],
+  initialCanonAudit = [],
+  initialCanonDetail = null
+}: AppProps = {}) {
   const [token, setToken] = useState(storedToken());
   const [worldPath, setWorldPath] = useState("");
-  const [openWorld, setOpenWorld] = useState<string | null>(null);
+  const [openWorld, setOpenWorld] = useState<string | null>(initialOpenWorld);
   const [serverVersion, setServerVersion] = useState("");
   const [message, setMessage] = useState("");
   const [recordTypes, setRecordTypes] = useState<RecordTypeDefinition[]>([]);
@@ -327,6 +411,19 @@ function App({ initialRecords = [] }: AppProps = {}) {
   const [propagationDispositionTerm, setPropagationDispositionTerm] = useState("answered");
   const [propagationConsequenceId, setPropagationConsequenceId] = useState("");
   const [propagationBoundary, setPropagationBoundary] = useState("");
+  const [canonCurrentRows, setCanonCurrentRows] = useState<CanonWorkbenchCurrentRow[]>(initialCanonCurrent);
+  const [canonAuditTrail, setCanonAuditTrail] = useState<CanonWorkbenchAuditItem[]>(initialCanonAudit);
+  const [canonDetail, setCanonDetail] = useState<CanonWorkbenchDetail | null>(initialCanonDetail);
+  const [selectedCanonRecordId, setSelectedCanonRecordId] = useState<number | null>(initialCanonDetail?.record.id ?? null);
+  const [selectedAuditReportId, setSelectedAuditReportId] = useState<number | null>(initialCanonAudit[0]?.record.id ?? null);
+  const [canonWorkbenchQuery, setCanonWorkbenchQuery] = useState("");
+  const [canonWorkbenchRecordType, setCanonWorkbenchRecordType] = useState("");
+  const [canonWorkbenchTruthLayer, setCanonWorkbenchTruthLayer] = useState("");
+  const [canonWorkbenchStatus, setCanonWorkbenchStatus] = useState("");
+  const [canonWorkbenchConsequenceMode, setCanonWorkbenchConsequenceMode] = useState("");
+  const [canonWorkbenchScope, setCanonWorkbenchScope] = useState("");
+  const [canonWorkbenchOpenDebt, setCanonWorkbenchOpenDebt] = useState(false);
+  const [canonWorkbenchBranchRelevant, setCanonWorkbenchBranchRelevant] = useState(false);
 
   const truthLayers = useMemo(() => terms.filter((term) => term.vocabulary === "truth_layer"), [terms]);
   const canonStatuses = useMemo(() => terms.filter((term) => term.vocabulary === "canon_status"), [terms]);
@@ -347,6 +444,10 @@ function App({ initialRecords = [] }: AppProps = {}) {
   const selectedAdmissionRecord = records.find((record) => record.id === Number(admissionRecordId));
   const promptOutFlowId = promptFlowKey === "creation" ? flowId : promptFlowKey === "propagation" ? propagationFlowId : promptFlowKey === "qa" ? qaFlowId : null;
   const promptOutRecordId = promptRecordId || (promptFlowKey === "admission" ? admissionRecordId : promptFlowKey === "propagation" ? propagationFactId : promptFlowKey === "qa" ? qaSubjectRecordId : "");
+  const relatedAuditItems = useMemo(() => selectedCanonRecordId == null
+    ? []
+    : canonAuditTrail.filter((item) => item.affectedCurrentRecords.some((record) => record.id === selectedCanonRecordId)),
+  [canonAuditTrail, selectedCanonRecordId]);
 
   useEffect(() => {
     if (!token) return;
@@ -384,7 +485,7 @@ function App({ initialRecords = [] }: AppProps = {}) {
   };
 
   const loadWorldData = async () => {
-    const [recordPayload, linkPayload, vocabularyPayload, headingPayload, draftPayload, templatePayload, queuePayload, debtPayload, propagationQueuePayload] = await Promise.all([
+    const [recordPayload, linkPayload, vocabularyPayload, headingPayload, draftPayload, templatePayload, queuePayload, debtPayload, propagationQueuePayload, canonCurrentPayload, canonAuditPayload] = await Promise.all([
       api<{ records: RecordRow[] }>("/api/records"),
       api<{ links: LinkRow[] }>("/api/links"),
       api<{ terms: VocabularyTerm[] }>("/api/vocabularies"),
@@ -393,7 +494,9 @@ function App({ initialRecords = [] }: AppProps = {}) {
       api<{ templates: PromptTemplate[] }>("/api/prompt-templates"),
       api<{ queue: AdmissionQueueRow[] }>("/api/admission/queue"),
       api<{ debt: RecordRow[] }>("/api/canon-debt?open=true"),
-      api<{ queue: PropagationQueueRow[] }>("/api/propagation/queue")
+      api<{ queue: PropagationQueueRow[] }>("/api/propagation/queue"),
+      api<{ rows: CanonWorkbenchCurrentRow[] }>("/api/canon-workbench/current"),
+      api<{ spine: CanonWorkbenchAuditItem[] }>("/api/canon-workbench/audit")
     ]);
     setRecords(recordPayload.records);
     setLinks(linkPayload.links);
@@ -404,6 +507,30 @@ function App({ initialRecords = [] }: AppProps = {}) {
     setAdmissionQueue(queuePayload.queue);
     setCanonDebt(debtPayload.debt);
     setPropagationQueue(propagationQueuePayload.queue);
+    setCanonCurrentRows(canonCurrentPayload.rows);
+    setCanonAuditTrail(canonAuditPayload.spine);
+  };
+
+  const loadCanonWorkbench = async () => {
+    const params = new URLSearchParams();
+    if (canonWorkbenchRecordType) params.set("recordType", canonWorkbenchRecordType);
+    if (canonWorkbenchTruthLayer) params.set("truthLayer", canonWorkbenchTruthLayer);
+    if (canonWorkbenchStatus) params.set("canonStatus", canonWorkbenchStatus);
+    if (canonWorkbenchConsequenceMode) params.set("consequenceMode", canonWorkbenchConsequenceMode);
+    if (canonWorkbenchScope) params.set("continuityScope", canonWorkbenchScope);
+    if (canonWorkbenchOpenDebt) params.set("openCanonDebt", "true");
+    if (canonWorkbenchBranchRelevant) params.set("branchRelevant", "true");
+    if (canonWorkbenchQuery) params.set("q", canonWorkbenchQuery);
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    const [currentPayload, auditPayload] = await Promise.all([
+      api<{ rows: CanonWorkbenchCurrentRow[] }>(`/api/canon-workbench/current${suffix}`),
+      api<{ spine: CanonWorkbenchAuditItem[] }>("/api/canon-workbench/audit")
+    ]);
+    setCanonCurrentRows(currentPayload.rows);
+    setCanonAuditTrail(auditPayload.spine);
+    if (selectedCanonRecordId != null) {
+      setCanonDetail(await api<CanonWorkbenchDetail>(`/api/canon-workbench/records/${selectedCanonRecordId}`));
+    }
   };
 
   const createOrOpen = async (mode: "create" | "open", selectedPath = worldPath) => {
@@ -550,6 +677,19 @@ function App({ initialRecords = [] }: AppProps = {}) {
     const payload = await api<{ markdown: string }>(`/api/records/${record.id}/export/markdown`);
     setExportedMarkdown(payload.markdown);
     setMessage(`Rendered markdown for ${record.shortId}`);
+  };
+
+  const selectCurrentCanonRow = async (row: CanonWorkbenchCurrentRow) => {
+    setSelectedCanonRecordId(row.id);
+    setSelectedAuditReportId(null);
+    setCanonDetail(await api<CanonWorkbenchDetail>(`/api/canon-workbench/records/${row.id}`));
+  };
+
+  const selectAuditTrailItem = async (item: CanonWorkbenchAuditItem) => {
+    setSelectedAuditReportId(item.record.id);
+    const selectedRecord = item.affectedCurrentRecords[0] ?? item.record;
+    setSelectedCanonRecordId(selectedRecord.id);
+    setCanonDetail(await api<CanonWorkbenchDetail>(`/api/canon-workbench/records/${selectedRecord.id}`));
   };
 
   const generatePrompt = async () => {
@@ -994,6 +1134,103 @@ function App({ initialRecords = [] }: AppProps = {}) {
             <strong>Operating Card</strong>
             <span>Source: docs/worldbuilding-system/operating_card.md</span>
             <span>Fill a lean world kernel, decompose seeds until each can be independently rejected, then admit later through `06`.</span>
+          </div>
+
+          <div className="panel canon-workbench">
+            <h2>Canon Workbench</h2>
+            {!openWorld ? (
+              <p className="status">No world is open</p>
+            ) : (
+              <>
+                <div className="grid compact-grid">
+                  <label>Canon Workbench text query<input value={canonWorkbenchQuery} onChange={(event) => setCanonWorkbenchQuery(event.target.value)} /></label>
+                  <label>Record type filter<select value={canonWorkbenchRecordType} onChange={(event) => setCanonWorkbenchRecordType(event.target.value)}>
+                    <option value="">All current card types</option>
+                    {recordTypes.filter((recordType) => recordType.mutationRegime === "card").map((recordType) => <option key={recordType.key} value={recordType.key}>{recordType.label}</option>)}
+                  </select></label>
+                  <label>Truth layer filter<select value={canonWorkbenchTruthLayer} onChange={(event) => setCanonWorkbenchTruthLayer(event.target.value)}>
+                    <option value="">Any truth layer</option>
+                    {truthLayers.map((term) => <option key={term.term}>{term.term}</option>)}
+                  </select></label>
+                  <label>Canon status filter<select value={canonWorkbenchStatus} onChange={(event) => setCanonWorkbenchStatus(event.target.value)}>
+                    <option value="">Default standing statuses</option>
+                    {canonStatuses.map((term) => <option key={term.term}>{term.term}</option>)}
+                  </select></label>
+                  <label>Consequence mode filter<select value={canonWorkbenchConsequenceMode} onChange={(event) => setCanonWorkbenchConsequenceMode(event.target.value)}>
+                    <option value="">Any consequence mode</option>
+                    {consequenceModes.map((term) => <option key={term.term}>{term.term}</option>)}
+                  </select></label>
+                  <label>Continuity scope filter<input value={canonWorkbenchScope} onChange={(event) => setCanonWorkbenchScope(event.target.value)} placeholder="main continuity" /></label>
+                </div>
+                <div className="row">
+                  <label className="inline-check"><input type="checkbox" checked={canonWorkbenchOpenDebt} onChange={(event) => setCanonWorkbenchOpenDebt(event.target.checked)} />Open canon debt</label>
+                  <label className="inline-check"><input type="checkbox" checked={canonWorkbenchBranchRelevant} onChange={(event) => setCanonWorkbenchBranchRelevant(event.target.checked)} />Branch-relevant filter</label>
+                  <button onClick={loadCanonWorkbench}>Refresh Workbench</button>
+                </div>
+                <div className="grid two">
+                  <section className="subpanel">
+                    <h3>Current Canon</h3>
+                    {canonCurrentRows.length === 0 && <p className="status">No current canon matches these filters</p>}
+                    <div className="records compact">
+                      {canonCurrentRows.map((row) => (
+                        <article key={row.id} className={selectedCanonRecordId === row.id ? "selected" : undefined}>
+                          <button onClick={() => void selectCurrentCanonRow(row)}>Select</button>
+                          <h3>{row.shortId} · {row.title}</h3>
+                          <p className="meta">{row.recordTypeLabel} · {row.truthLayer} · {row.canonStatus} · {row.continuityScope}</p>
+                          <div className="chips">
+                            {row.relationshipMarkers.hasOpenDebt && <span>Open debt</span>}
+                            {row.relationshipMarkers.hasAdvisoryUse && <span>Advisory use</span>}
+                            {row.relationshipMarkers.typedLinkTypes.map((linkType) => <span key={linkType}>{linkType}</span>)}
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                  <section className="subpanel">
+                    <h3>Audit Trail</h3>
+                    <div className="records compact">
+                      {canonAuditTrail.map((item) => (
+                        <article key={item.record.id} className={selectedAuditReportId === item.record.id ? "selected" : undefined}>
+                          <button onClick={() => void selectAuditTrailItem(item)}>Select</button>
+                          <h3>{item.record.shortId} · {item.record.title}</h3>
+                          <p className="meta">Report spine · {item.record.recordTypeKey} · {item.authoredAt}</p>
+                          <p>Affected current records: {item.affectedCurrentRecords.map((record) => `${record.shortId} ${record.title}`).join(", ") || "none"}</p>
+                          <p>Attached context: history {item.attachments.recordHistory.length}, sections {item.attachments.sectionHistory.length}, skips {item.attachments.skipRecords.length}, debt {item.attachments.canonDebtEvents.length}, advisory {item.attachments.advisoryArtifacts.length}, links {item.attachments.typedLinkCreations.length}</p>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                </div>
+                <section className="subpanel">
+                  <h3>Detail pane</h3>
+                  {canonDetail ? (
+                    <article>
+                      <h3>{canonDetail.record.shortId} · {canonDetail.record.title}</h3>
+                      <p className="meta">{canonDetail.record.recordTypeLabel} · {canonDetail.record.truthLayer} · {canonDetail.record.canonStatus} · {canonDetail.record.continuityScope}</p>
+                      <p>{canonDetail.record.body || "No prose yet."}</p>
+                      <div className="chips">
+                        {canonDetail.facets.map((facet) => <span key={facet.id}>{facet.vocabulary}: {facet.term}</span>)}
+                      </div>
+                      {canonDetail.sections.map((section) => (
+                        <div key={section.id} className="doctrine">
+                          <strong>{section.heading}</strong>
+                          <span>{section.body}</span>
+                        </div>
+                      ))}
+                      <p>Links: {canonDetail.outgoingLinks.length} outgoing, {canonDetail.incomingLinks.length} incoming</p>
+                      <p>History: {canonDetail.recordHistory.length} record, {canonDetail.sectionHistory.length} section</p>
+                      <p>Related reports: {canonDetail.relatedReports.map((record) => `${record.shortId} ${record.title}`).join(", ") || "none"}</p>
+                      <p>Canon debt: {canonDetail.canonDebt.map((record) => `${record.shortId} ${record.title}`).join(", ") || "none"}</p>
+                      <p>Skips: {canonDetail.skipRecords.length} · Advisory artifacts: {canonDetail.advisoryArtifacts.length} · Standing rulings: {canonDetail.standingRulings.length}</p>
+                      {relatedAuditItems.length > 0 && <p>Matching Audit Trail context: {relatedAuditItems.map((item) => item.record.shortId).join(", ")}</p>}
+                      <button onClick={() => { void api<{ markdown: string }>(canonDetail.exportAffordance.href).then((payload) => setExportedMarkdown(payload.markdown)); }}>Export Markdown</button>
+                    </article>
+                  ) : (
+                    <p className="status">Select a Current Canon row or Audit Trail item.</p>
+                  )}
+                </section>
+              </>
+            )}
           </div>
 
           <div className="panel">
