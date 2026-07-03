@@ -10,7 +10,7 @@ The issue tracker and triage label vocabulary should have been provided to you �
 
 ## Process
 
-1. Explore the repo to understand the current state of the codebase, if you haven't already. Use the project's domain glossary vocabulary throughout the PRD, and respect any ADRs in the area you're touching. Fetch the most recent published PRD issue(s) from the tracker and match their house style — title format, provenance preamble, story phrasing, and cross-referencing conventions.
+1. Explore the repo to understand the current state of the codebase, if you haven't already. Use the project's domain glossary vocabulary throughout the PRD, and respect any ADRs in the area you're touching. Fetch the most recent published PRD issue(s) from the tracker and match their house style — title format, provenance preamble, story phrasing, and cross-referencing conventions. Start with a compact issue list that fetches only small fields such as number, title, state, URL, labels, and updated time; do not include full bodies in a broad PRD list. Then fetch the one or two relevant PRDs by number with `gh issue view`.
 
 2. Sketch out the seams at which you're going to test the feature. Existing seams should be preferred to new ones. Use the highest seam possible. If new seams are needed, propose them at the highest point you can. The fewer seams across the codebase, the better - the ideal number is one.
 
@@ -18,7 +18,17 @@ When the PRD's scope includes non-code deliverables (ADRs, specs, doc packs), sk
 
 Check with the user that these seams match their expectations. If the confirmation goes unanswered (the user is away), proceed only when the sketch reuses existing seams unchanged — and record in Further Notes that seam confirmation timed out and the seams are open to veto. If the sketch proposes any new seam, stop without publishing and leave the sketch as the turn's deliverable.
 
-3. Write the PRD using the template below, then publish it to the project issue tracker. Title the issue `PRD: <name> — <key mechanisms>`, matching prior PRDs. Before publishing, sweep the whole PRD for ephemeral local paths (for example `/tmp/...`, temp files, or machine-local scratchpads); durable PRDs should summarize those artifacts' relevant conclusions or first archive the artifact somewhere durable before citing it. Verify the `ready-for-agent` label exists before creating the issue (create it per the project's triage-label doc if absent; a verification earlier in the same session suffices), then apply it - no need for additional triage. After creation, verify the published issue with `gh issue view`: confirm the title, body, `ready-for-agent` label, state, and URL before final reporting.
+3. Write the PRD using the template below, then publish it to the project issue tracker. Title the issue `PRD: <name> — <key mechanisms>`, matching prior PRDs.
+
+Before publishing, sweep the whole PRD for ephemeral local paths (for example `/tmp/...`, temp files, or machine-local scratchpads); durable PRDs should summarize those artifacts' relevant conclusions or first archive the artifact somewhere durable before citing it. Temporary body files are fine as local staging, but sweep the PRD body itself and never cite the staging path in the published issue.
+
+When the PRD cites a local ADR, spec, principle, methodology document, or issue/PR that was created or modified in this session, check its repo durability before publishing. If a cited local document is untracked or otherwise not yet durable, do not silently present it as a stable published artifact: either summarize its ratified conclusion without durable-citation wording, or record in Further Notes that the artifact is pending local repo publication. Do not add a second user checkpoint for this; the seam confirmation remains the sole checkpoint.
+
+Verify the `ready-for-agent` label exists before creating the issue (create it per the project's triage-label doc if absent; a verification earlier in the same session suffices), then apply it - no need for additional triage. After creation, verify the published issue with `gh issue view`: confirm the title, body, `ready-for-agent` label, state, and URL before final reporting. Prefer a compact verification query that checks key fields and body sections instead of dumping the full body, for example:
+
+```sh
+gh issue view <number> --json number,title,body,labels,state,url --jq '{number,title,state,url,labels:[.labels[].name],hasReady:(any(.labels[].name; . == "ready-for-agent")),hasPrinciples:(.body | contains("## Principles")),hasSeam:(.body | contains("Seam confirmation"))}'
+```
 
 <prd-template>
 

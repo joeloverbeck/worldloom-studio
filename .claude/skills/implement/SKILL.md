@@ -14,6 +14,7 @@ Before editing code, identify the authoritative work items.
 - If the user names a PRD issue, fetch the PRD and also list related open child issues, blockers, and linked implementation tickets from the issue tracker.
 - Treat the child issues as the implementation checklist unless the user explicitly says to implement only the parent PRD text.
 - If the user names a set of issues, fetch each issue body and comments.
+- For GitHub issue intake, use exact issue lookups with comments and structured fields, for example `gh issue view <n> --comments --json number,title,state,body,comments,labels,closed,closedAt,url`. For broad child or related-issue discovery, query compact fields first, then fetch exact bodies/comments only for the PRD and implementation issues that are in scope.
 - If any fetched PRD or issue has a `## Principles` section, read `docs/principles/README.md` for the authority order and conformance rule, then read named principle and ADR docs as needed before coding.
 - Build a progress ledger with one row per issue: issue number, title, dependencies/blockers, acceptance criteria, principles/ADR obligations or exceptions, planned evidence, test seams, and closeout state.
 - When the user names a child issue range and asks to close a parent PRD, list all related children, including children outside the requested range; mark out-of-range children as already closed, blocking, or intentionally excluded before closing the parent.
@@ -84,11 +85,14 @@ Before declaring completion, closing issues, or closing a parent PRD:
 - If the issue breakdown is wrong, comment with the proposed tracker correction instead of closing mismatched issues.
 - Run a final `git status --short`. For untracked verification artifacts, either remove them if safe, stage them if they are intended evidence, or explicitly report them in the final response.
 
+Mechanical audit-shape stop: before entering the closeout command gate, inspect the posted audit table. If it lacks both `Acceptance criterion or conformance check` and `Status` columns, or if any issue row summarizes multiple acceptance checkboxes without naming each one, stop and expand the audit before running any issue-close command.
+
 Closeout command gate: do not run `gh issue close`, `glab issue close`, or equivalent until all of these are true:
 
 - The pre-close audit table has been posted or otherwise captured, and every row for the issue being closed is `satisfied`.
 - Review evidence from section 3 is present, either as `code-review` output or an explicit fallback record.
 - The final commit SHA is known and matches the tree that passed required verification.
+- If the issue body, PRD text, acceptance criteria, or implementation includes UI/browser-visible behavior, closeout evidence includes a real browser smoke with route, action path, and observed outcome, or an explicit blocked note explaining why that smoke could not run.
 - For parent PRD closure, exact related child issue states have been verified by issue number, including any out-of-range children noted in the ledger.
 
 Use this compact pre-close audit shape unless the issue set needs more detail:

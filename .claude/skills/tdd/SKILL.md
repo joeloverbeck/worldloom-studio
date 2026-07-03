@@ -25,6 +25,8 @@ If a PRD or issue explicitly names proof seams, those count as pre-agreed after 
 
 Ask: "What's the public interface, and which seams should we test?"
 
+Static/source-level contract checks are exceptional. Use them only when an explicit acceptance criterion names a forbidden or required source contract, such as a route string, import, schema key, or generated artifact path. Label the evidence as a static contract check, keep the expected value tied to the spec, and pair it with a public behavior test or browser smoke when the feature is user-visible.
+
 ## Anti-patterns
 
 - **Implementation-coupled** — mocks internal collaborators, tests private methods, or verifies through a side channel (querying the database instead of using the interface). The tell: the test breaks when you refactor but behavior hasn't changed.
@@ -34,6 +36,14 @@ Ask: "What's the public interface, and which seams should we test?"
 ## Rules of the loop
 
 - **Red before green.** Write the failing test first, then only enough code to pass it. Don't anticipate future tests or add speculative features.
+- **Review findings restart the loop.** If review reveals missing behavior after the implementation is already green, add or adjust the smallest assertion first and run it red before fixing. If the code was already fixed to protect the tree or unblock verification, record that red-first was skipped and why.
 - **Record the loop.** For each slice, keep lightweight evidence of the red command and expected failure, then the green command. If red-first is skipped, say why.
 - **One slice at a time.** One seam, one test, one minimal implementation per cycle. When a vertical slice legitimately spans several public seams, write the smallest tracer-bullet test at each seam, keep the issue/audit mapping explicit, and avoid bulk tests that are not tied to an acceptance criterion.
+- **Shared-boundary issue families still need tracer bullets.** When PRD child issues share one implementation boundary and separate red-green cycles would be artificial, write the smallest red tracer at each agreed seam, record the red failures by seam and issue, then implement the shared boundary while keeping the acceptance mapping explicit.
 - **Refactoring is not part of the loop.** It belongs to the review stage (see the `code-review` skill), not the red → green implementation cycle.
+
+For shared-boundary issue families, this compact evidence shape is enough unless the repo asks for more detail:
+
+| Issue | Seam | Red command/failure | Green command | Acceptance covered |
+|---|---|---|---|---|
+| #N | public interface under test | command plus expected failure | command that passed | criterion or checkbox |

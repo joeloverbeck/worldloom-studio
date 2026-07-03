@@ -20,7 +20,19 @@ Characteristics:
 - Uses public API only
 - Survives internal refactors
 - Describes WHAT, not HOW
-- One logical assertion per test
+- One behavior contract per test; multiple assertions are fine when they jointly prove that contract and each expected value comes from the spec or a worked example
+
+**Static contract checks**: Use these only when the spec names a source-level contract, such as a required route string or a forbidden legacy import. Pair them with public-interface coverage when behavior is user-visible.
+
+```typescript
+import { readFileSync } from "node:fs";
+
+// ACCEPTABLE EXCEPTION: The spec forbids calling the legacy endpoint.
+test("prompt-out browser surface does not call the legacy creation skip route", () => {
+  const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
+  expect(source).not.toContain("/api/flows/creation/skip");
+});
+```
 
 ## Bad Tests
 
