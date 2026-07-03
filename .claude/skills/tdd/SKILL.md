@@ -9,6 +9,8 @@ TDD is the red → green loop. This skill is the reference that makes that loop 
 
 When exploring the codebase, read `CONTEXT.md` (if it exists) so test names and interface vocabulary match the project's domain language, and respect ADRs in the area you're touching.
 
+Before the first red test, record whether `CONTEXT.md` exists and was read, and note any ADRs or principle docs that shape the test vocabulary or seam choice.
+
 ## What a good test is
 
 Tests verify behavior through public interfaces, not implementation details. Code can change entirely; tests shouldn't. A good test reads like a specification — "user can checkout with valid cart" tells you exactly what capability exists — and survives refactors because it doesn't care about internal structure.
@@ -40,10 +42,11 @@ Static/source-level contract checks are exceptional. Use them only when an expli
 - **Record the loop.** For each slice, keep lightweight evidence of the red command and expected failure, then the green command. If red-first is skipped, say why.
 - **One slice at a time.** One seam, one test, one minimal implementation per cycle. When a vertical slice legitimately spans several public seams, write the smallest tracer-bullet test at each seam, keep the issue/audit mapping explicit, and avoid bulk tests that are not tied to an acceptance criterion.
 - **Shared-boundary issue families still need tracer bullets.** When PRD child issues share one implementation boundary and separate red-green cycles would be artificial, write the smallest red tracer at each agreed seam, record the red failures by seam and issue, then implement the shared boundary while keeping the acceptance mapping explicit.
+- **Shared-boundary closeout hard stop.** Do not enter closeout for a shared-boundary issue family until the compact evidence table below has one row per agreed seam, or an explicit red-first skip reason is recorded for each seam that could not reasonably go red first.
 - **Refactoring is not part of the loop.** It belongs to the review stage (see the `code-review` skill), not the red → green implementation cycle.
 
 For shared-boundary issue families, this compact evidence shape is enough unless the repo asks for more detail:
 
-| Issue | Seam | Red command/failure | Green command | Acceptance covered |
-|---|---|---|---|---|
-| #N | public interface under test | command plus expected failure | command that passed | criterion or checkbox |
+| Issue | Seam | Red command/failure | Green command | Acceptance covered | Review fix / red-first skip reason |
+|---|---|---|---|---|---|
+| #N | public interface under test | command plus expected failure | command that passed | criterion or checkbox | finding fixed with red-first evidence, or why red-first was skipped |

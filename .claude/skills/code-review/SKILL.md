@@ -22,6 +22,8 @@ Exception: when invoked as part of implementation closeout after the implementat
 
 Capture the diff command once: `git diff <fixed-point>...HEAD` (three-dot, so the comparison is against the merge-base). Also note the list of commits via `git log <fixed-point>..HEAD --oneline`.
 
+Run `git status --short` before fixing the review inputs. If the worktree is dirty, state whether the review covers only the committed diff or also staged/unstaged work. The default implementation-closeout review covers committed changes only; label dirty files as excluded unless the user asked for a work-in-progress review. For work-in-progress review, add `git diff --cached` and `git diff` as explicit inputs to both axes, alongside the committed diff when relevant.
+
 Before going further, confirm the fixed point resolves (`git rev-parse <fixed-point>`) and the diff is non-empty. A bad ref or empty diff should fail here — not inside two parallel sub-agents.
 
 ### 2. Identify the spec source
@@ -66,16 +68,27 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 
 Use the available sub-agent mechanism, if permitted, with two independent read-only review tasks. Prefer running the axes in parallel; if the tool surface uses different role names, choose the closest general read-only reviewer role. If sub-agents are unavailable or policy-blocked, run both axes locally against the same fixed point, keep the analysis separated under the same headings, and state that the fallback path was used.
 
+**Local fallback checklist** — use this when sub-agents cannot run:
+
+- State why fallback was used, such as unavailable tooling or policy-blocked delegation.
+- Reuse the same Standards and Spec inputs below, including standards-source files, spec sources, principle/ADR material, the diff command or WIP diff inputs, commit list, and the smell baseline.
+- Keep the outputs separated under `## Standards` and `## Spec`.
+- Cite the concrete standards/spec sources used for each axis.
+- Apply the smell baseline as judgement-call heuristics, not hard violations, and let documented repo standards override it.
+
 **Standards sub-agent prompt** — include:
 
 - The full diff command and commit list.
+- Any staged/unstaged WIP diff inputs captured in step 1.
 - The list of standards-source files you found in step 3, **plus the smell baseline from step 3** pasted in full — the sub-agent has no other access to it.
 - The brief: "Report — per file/hunk where relevant — (a) every place the diff violates a documented standard: cite the standard (file + the rule); and (b) any baseline smell you spot: name it and quote the hunk. Distinguish hard violations from judgement calls — documented-standard breaches can be hard, but baseline smells are always judgement calls, and a documented repo standard overrides the baseline. Skip anything tooling enforces. Under 400 words."
 
 **Spec sub-agent prompt** — include:
 
 - The diff command and commit list.
-- The path or fetched contents of the spec.
+- Any staged/unstaged WIP diff inputs captured in step 1.
+- The path(s), issue number(s), or fetched contents for every spec source.
+- If the spec source is a PRD child issue family, require a compact per-child coverage table: `Issue | Acceptance source | Evidence reviewed | Findings/residuals`. Every child issue under review should have a row before reporting zero residual Spec findings.
 - Any `## Principles` section from the spec source, plus `docs/principles/README.md` and named principle/ADR docs read in step 2.
 - The brief: "Report: (a) requirements the spec asked for that are missing or partial; (b) behaviour in the diff that wasn't asked for (scope creep); (c) requirements that look implemented but where the implementation looks wrong. Quote the spec line for each finding. Under 400 words."
 
@@ -87,7 +100,7 @@ Present the two reports under `## Standards` and `## Spec` headings, verbatim or
 
 End with a one-line summary: total findings per axis, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes — that's the reranking the separation exists to prevent.
 
-When this review is part of implementation closeout, report findings first. If fixes are made immediately, rerun the relevant verification, state whether the commit was amended or followed by a new commit, and include the review outcome in the implementation closeout evidence.
+When this review is part of implementation closeout, report findings first. If fixes are made immediately, rerun the relevant verification, state whether the commit was amended or followed by a new commit, and include the review outcome in the implementation closeout evidence. When a finding requires a behavior change, invoke the repo `tdd` skill where possible: add or adjust the smallest assertion first and run it red before fixing. If the code was already fixed to protect the tree or unblock verification, record that red-first was skipped and why.
 
 For immediate-fix closeout, use this compact shape after the two axis reports:
 

@@ -31,6 +31,7 @@ Break the plan into **tracer bullet** issues. Each code-bearing issue is a thin 
 - Each code-bearing slice delivers a narrow but COMPLETE path through every affected layer (schema, API, UI, tests)
 - If the source plan explicitly excludes a layer, such as "no schema change" or "server boundary first; no browser redesign", do not invent work in that layer. Instead, make the slice's acceptance criteria assert the excluded layer remains unchanged or consumes existing behavior through compatibility checks.
 - A completed slice is demoable or verifiable on its own
+- When the repo's architecture makes a sub-application seam (for example an HTTP app or server-boundary seam) the demoable integration boundary — and the fetched house style confirms it, e.g. prior flows shipped verified at that seam with the browser as a later or absent consumer — a slice may complete at that seam rather than the browser. Deliver the UI as a distinct consumer slice whose acceptance criteria assert it consumes server-returned shapes and duplicates no server policy. This is the sanctioned exception to the one-layer caution above: verifiable-at-the-seam satisfies "demoable," and the UI-consumer slice is not the drift the rule guards against.
 - Any prefactoring should be done before the code-bearing slices it eases
 - Plan items that are documents (ADRs, specs) become ordinary blocker issues verified by review/conformance mechanisms, not vertical slices — only code-bearing items owe the all-layers rule
 - When a slice's behavior is deliberately completed by a later slice, state the handoff explicitly in both issue bodies (what this slice leaves open, which slice closes it), so neither implementer duplicates or drops the seam
@@ -57,7 +58,7 @@ Ask the user:
 - Are the dependency relationships correct?
 - Should any slices be merged or split further?
 
-Iterate until the user approves the breakdown. If the environment provides a timed approval mechanism and the approval question times out with no response (the user is away), proceed with the proposed breakdown, state in the conversation that it was applied unapproved, and offer post-hoc adjustment (merge/split/re-wire, closing issues if needed) when the user returns. If no timed approval mechanism is available, ask a plain-text approval question and stop before publishing unless the user has explicitly pre-authorized publication; do not treat tool unavailability as a timeout.
+Iterate until the user approves the breakdown. If the environment provides a timed approval mechanism and the approval question times out with no response, weigh re-asking once before proceeding — especially right after a long context dump (the user may have been reading rather than away) or when publishing is consequential (creating several real issues at once). Only on a second timeout (the user is away) proceed with the proposed breakdown, state in the conversation that it was applied unapproved, and offer post-hoc adjustment (merge/split/re-wire, closing issues if needed) when the user returns. If no timed approval mechanism is available, ask a plain-text approval question and stop before publishing unless the user has explicitly pre-authorized publication; do not treat tool unavailability as a timeout.
 
 ### 5. Publish the issues to the issue tracker
 
