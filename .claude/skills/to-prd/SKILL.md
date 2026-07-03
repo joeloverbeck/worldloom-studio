@@ -18,7 +18,7 @@ When the PRD's scope includes non-code deliverables (ADRs, specs, doc packs), sk
 
 Check with the user that these seams match their expectations. If the confirmation goes unanswered (the user is away), proceed only when the sketch reuses existing seams unchanged — and record in Further Notes that seam confirmation timed out and the seams are open to veto. If the sketch proposes any new seam, stop without publishing and leave the sketch as the turn's deliverable.
 
-3. Write the PRD using the template below, then publish it to the project issue tracker. Title the issue `PRD: <name> — <key mechanisms>`, matching prior PRDs. Verify the `ready-for-agent` label exists before creating the issue (create it per the project's triage-label doc if absent; a verification earlier in the same session suffices), then apply it - no need for additional triage.
+3. Write the PRD using the template below, then publish it to the project issue tracker. Title the issue `PRD: <name> — <key mechanisms>`, matching prior PRDs. Before publishing, sweep the whole PRD for ephemeral local paths (for example `/tmp/...`, temp files, or machine-local scratchpads); durable PRDs should summarize those artifacts' relevant conclusions or first archive the artifact somewhere durable before citing it. Verify the `ready-for-agent` label exists before creating the issue (create it per the project's triage-label doc if absent; a verification earlier in the same session suffices), then apply it - no need for additional triage. After creation, verify the published issue with `gh issue view`: confirm the title, body, `ready-for-agent` label, state, and URL before final reporting.
 
 <prd-template>
 

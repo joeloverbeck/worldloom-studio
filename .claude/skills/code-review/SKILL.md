@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Review the changes since a fixed point (commit, branch, tag, or merge-base) along two axes — Standards (does the code follow this repo's documented coding standards?) and Spec (does the code match what the originating issue/PRD asked for?). Runs both reviews in parallel sub-agents and reports them side by side. Use when the user wants to review a branch, a PR, work-in-progress changes, or asks to "review since X".
+description: Review the changes since a fixed point (commit, branch, tag, or merge-base) along two axes — Standards (does the code follow this repo's documented coding standards?) and Spec (does the code match what the originating issue/PRD asked for?). Prefers parallel sub-agents when policy permits, otherwise runs a local two-axis fallback. Use when the user wants to review a branch, a PR, work-in-progress changes, or asks to "review since X".
 ---
 
 Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
@@ -34,9 +34,13 @@ Look for the originating spec, in this order:
 4. A PRD/spec file under `docs/specs/`, `docs/`, or `.scratch/` matching the branch name or feature.
 5. If nothing is found, ask the user where the spec is. If they say there isn't one, the **Spec** sub-agent will skip and report "no spec available".
 
+If the chosen issue, PRD, or spec has a `## Principles` section, read `docs/principles/README.md` for the authority order and conformance rule, then read any named principle documents and ADRs needed to judge the change. Treat those principle and ADR references as part of the Spec axis: they are conformance requirements, not optional background. If the diff contradicts one, flag it explicitly in the review using the repo's contradiction wording.
+
 ### 3. Identify the standards sources
 
 Anything in the repo that documents how code should be written, such as `CODING_STANDARDS.md` or `CONTRIBUTING.md`.
+
+Also include root agent instructions such as `CLAUDE.md` or `AGENTS.md`, plus repo agent docs they point to, when they define coding, review, tracker, or verification conventions. Principle documents identified in step 2 belong to the Spec axis unless they also state a coding or workflow convention.
 
 On top of whatever the repo documents, the Standards axis always carries the **smell baseline** below — a fixed set of Fowler code smells (_Refactoring_, ch.3) that applies even when a repo documents nothing. Two rules bind it:
 
@@ -72,6 +76,7 @@ Use the available sub-agent mechanism, if permitted, with two independent read-o
 
 - The diff command and commit list.
 - The path or fetched contents of the spec.
+- Any `## Principles` section from the spec source, plus `docs/principles/README.md` and named principle/ADR docs read in step 2.
 - The brief: "Report: (a) requirements the spec asked for that are missing or partial; (b) behaviour in the diff that wasn't asked for (scope creep); (c) requirements that look implemented but where the implementation looks wrong. Quote the spec line for each finding. Under 400 words."
 
 If the spec is missing, skip the Spec sub-agent and note this in the final report.
