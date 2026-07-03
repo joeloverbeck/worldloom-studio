@@ -85,24 +85,6 @@ export interface AdmissionQueueRow extends RecordRow {
 
 export type FlowInstanceRow = Record<string, unknown>;
 
-export interface PromptTemplateRow {
-  key: string;
-  role_name: string;
-  original_text: string;
-  package_source: string;
-  current_version: number;
-  current_text: string;
-}
-
-export interface AdvisoryDispositionRow {
-  id: number;
-  advisory_record_id: number;
-  disposition: string;
-  note: string;
-  standing_ruling: number;
-  created_at: string;
-}
-
 export interface QaTestCatalogRow {
   number: number;
   name: string;
@@ -483,47 +465,6 @@ export class WorldFile {
       return created;
     })();
     return record;
-  }
-
-  promptTemplateRows(): PromptTemplateRow[] {
-    return this.db.prepare(`
-      SELECT pt.*, ptv.text AS current_text
-      FROM prompt_templates pt
-      JOIN prompt_template_versions ptv ON ptv.template_key = pt.key AND ptv.version = pt.current_version
-      ORDER BY pt.key
-    `).all() as PromptTemplateRow[];
-  }
-
-  promptTemplateRow(key: string): PromptTemplateRow {
-    const row = this.db.prepare(`
-      SELECT pt.*, ptv.text AS current_text
-      FROM prompt_templates pt
-      JOIN prompt_template_versions ptv ON ptv.template_key = pt.key AND ptv.version = pt.current_version
-      WHERE pt.key = ?
-    `).get(key) as PromptTemplateRow | undefined;
-    if (!row) throw new Error(`Prompt template not found: ${key}`);
-    return row;
-  }
-
-  appendPromptTemplateVersion(key: string, text: string): PromptTemplateRow {
-    const current = this.db.prepare("SELECT * FROM prompt_templates WHERE key = ?").get(key) as { current_version: number } | undefined;
-    if (!current) throw new Error(`Prompt template not found: ${key}`);
-    const nextVersion = current.current_version + 1;
-    this.db.transaction(() => {
-      this.db.prepare("INSERT INTO prompt_template_versions (template_key, version, text) VALUES (?, ?, ?)").run(key, nextVersion, text);
-      this.db.prepare("UPDATE prompt_templates SET current_version = ? WHERE key = ?").run(nextVersion, key);
-    })();
-    return this.promptTemplateRow(key);
-  }
-
-  insertAdvisoryDisposition(advisoryRecordId: number, input: { disposition: string; note?: string; standingRuling?: boolean }): AdvisoryDispositionRow {
-    this.getRecord(advisoryRecordId);
-    this.assertVocabularyTerm("advisory_disposition", input.disposition);
-    const result = this.db.prepare(`
-      INSERT INTO advisory_dispositions (advisory_record_id, disposition, note, standing_ruling)
-      VALUES (?, ?, ?, ?)
-    `).run(advisoryRecordId, input.disposition, input.note ?? "", input.standingRuling ? 1 : 0);
-    return this.db.prepare("SELECT * FROM advisory_dispositions WHERE id = ?").get(result.lastInsertRowid) as AdvisoryDispositionRow;
   }
 
   createCanonDebt(input: { name: string; scope: string; assignee: string; body?: string }): RecordRow {
@@ -1436,23 +1377,6 @@ export class WorldFile {
   private nextFacetPosition(recordId: number, vocabulary: string): number {
     const row = this.db.prepare("SELECT COALESCE(MAX(position), 0) + 1 AS next FROM record_facets WHERE record_id = ? AND vocabulary = ?").get(recordId, vocabulary) as { next: number };
     return row.next;
-  }
-
-  promptRecordContext(recordId: number): string {
-    const record = this.getRecord(recordId);
-    const sections = this.listSections(recordId);
-    return [
-      `${record.shortId} ${record.title}`,
-      `Type: ${record.recordTypeKey}`,
-      `Truth layer: ${record.truthLayer ?? "unset"}`,
-      `Canon status: ${record.canonStatus ?? "unset"}`,
-      record.body,
-      ...sections.map((section) => `## ${section.heading}\n${section.body}`)
-    ].filter(Boolean).join("\n");
-  }
-
-  standingRulingRows(): Array<{ disposition: string; note: string }> {
-    return this.db.prepare("SELECT disposition, note FROM advisory_dispositions WHERE standing_ruling = 1 ORDER BY id").all() as Array<{ disposition: string; note: string }>;
   }
 
   private ensurePromptTemplates(): void {
