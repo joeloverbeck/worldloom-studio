@@ -1,16 +1,29 @@
 import { describe, expect, it } from "vitest";
+import { admissionGatePolicy, admissionQueueSortKey, warnsForOpenCanonDebt } from "../src/admission-flow.js";
 import {
-  admissionGatePolicy,
-  admissionQueueSortKey,
-  propagationCoveragePolicy,
+  isCatastrophicSeverity,
+  isFoundationalSeverity,
+  isMajorOrHigher,
   requiresSkipReason,
-  warnsForOpenCanonDebt,
   type DeclaredSeverity
 } from "../src/severity-policy.js";
 
 const severity = (admissionLevel: string | null, workScale: string | null): DeclaredSeverity => ({ admissionLevel, workScale });
 
 describe("severity policy", () => {
+  it("exposes neutral threshold questions separately from admission policy", () => {
+    expect(isMajorOrHigher(severity("2", "moderate"))).toBe(false);
+    expect(isMajorOrHigher(severity("3", "minor"))).toBe(true);
+    expect(isMajorOrHigher(severity("1", "major"))).toBe(true);
+
+    expect(isFoundationalSeverity(severity("3", "major"))).toBe(false);
+    expect(isFoundationalSeverity(severity("4", "major"))).toBe(true);
+    expect(isFoundationalSeverity(severity("1", "severe"))).toBe(true);
+
+    expect(isCatastrophicSeverity(severity("1", "catastrophic"))).toBe(true);
+    expect(isCatastrophicSeverity(severity("5", "minor"))).toBe(true);
+  });
+
   it("produces admission queue sort keys from declared severity only", () => {
     expect(admissionQueueSortKey(severity("5", "catastrophic"))).toEqual({ workScaleRank: 1, admissionLevelRank: 5 });
     expect(admissionQueueSortKey(severity("2", "moderate"))).toEqual({ workScaleRank: 4, admissionLevelRank: 2 });
@@ -45,18 +58,9 @@ describe("severity policy", () => {
     expect(warnsForOpenCanonDebt(severity("1", "severe"))).toBe(true);
   });
 
-  it("maps declared severity to the current propagation coverage levels", () => {
-    expect(propagationCoveragePolicy(severity("2", "moderate"))).toEqual({
-      requiredCoverage: "immediate effects and one ordinary-life residue when relevant",
-      requiredDomainCount: 1
-    });
-    expect(propagationCoveragePolicy(severity("3", "minor"))).toEqual({
-      requiredCoverage: "multiple orders and direct/dependency/reaction domains",
-      requiredDomainCount: 3
-    });
-    expect(propagationCoveragePolicy(severity("4", "minor"))).toEqual({
-      requiredCoverage: "full domain-atlas sweep",
-      requiredDomainCount: "all"
-    });
+  it("keeps admission debt warnings in admission-owned policy", () => {
+    expect(warnsForOpenCanonDebt(severity("3", "major"))).toBe(false);
+    expect(warnsForOpenCanonDebt(severity("4", "major"))).toBe(true);
+    expect(warnsForOpenCanonDebt(severity("1", "severe"))).toBe(true);
   });
 });

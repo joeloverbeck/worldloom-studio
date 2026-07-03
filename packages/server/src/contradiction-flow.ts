@@ -1,5 +1,5 @@
 import { requiresSkipReason } from "./severity-policy.js";
-import { routeRecordToAdmissionQueue } from "./admission-flow.js";
+import { intakeProposedFact } from "./admission-flow.js";
 import { createSkipRecord } from "./flow-support.js";
 import type { AdmissionQueueRow, RecordRow, SectionInput, WorldFile } from "./world-file.js";
 
@@ -289,18 +289,30 @@ export const proposeFactFromContradiction = (
   store: WorldFile,
   input: { flowId: number; title: string; body: string; truthLayer: string }
 ): { record: RecordRow; queue: AdmissionQueueRow[] } => {
-  const flow = readContradictionFlow(store, input.flowId);
-  const record = store.createRecord({ recordTypeKey: "canon_fact", title: input.title, body: input.body, truthLayer: input.truthLayer, canonStatus: "proposed" });
-  store.insertContradictionRepairCreatedProposal({
-    flowId: input.flowId,
-    proposalRecordId: record.id,
-    reportRecordId: flow.contradiction_report_record_id
+  return store.atomicWrite(() => {
+    const flow = readContradictionFlow(store, input.flowId);
+    const intake = intakeProposedFact(store, {
+      origin: "contradiction-repair-created-fact",
+      candidate: {
+        title: input.title,
+        body: input.body,
+        truthLayer: input.truthLayer,
+        canonStatus: "proposed"
+      },
+      sourceLinks: flow.contradiction_report_record_id == null
+        ? []
+        : [{ recordId: flow.contradiction_report_record_id, note: "Fact surfaced by contradiction repair report" }],
+      recordSweepJurisdiction: true,
+      provenanceFlowStep: "contradiction:surface-proposal"
+    });
+    store.insertContradictionRepairCreatedProposal({
+      flowId: input.flowId,
+      proposalRecordId: intake.record.id,
+      reportRecordId: flow.contradiction_report_record_id
+    });
+    store.updateFlowInstance(input.flowId, { currentStep: "contradiction:surface-proposal" });
+    return intake;
   });
-  if (flow.contradiction_report_record_id != null) {
-    safeLink(store, record.id, flow.contradiction_report_record_id, "derived_from", "Fact surfaced by contradiction repair report");
-  }
-  store.updateFlowInstance(input.flowId, { currentStep: "contradiction:surface-proposal" });
-  return { record, queue: routeRecordToAdmissionQueue(store, record.id, { recordSweepJurisdiction: true }) };
 };
 
 export const recordContradictionRetconCosts = (
@@ -505,6 +517,8 @@ const writeContradictionReport = (store: WorldFile, flowId: number): RecordRow =
   const selectedDisposition = disposition(store, flowId)!;
   const selectedWorkScale = workScale(store, flowId)!;
   const operations = repairOperations(store, flowId);
+  const proposalRows = store.contradictionRepairCreatedProposals(flowId) as Array<{ proposal_record_id: number }>;
+  const proposals = proposalRows.map((row) => store.getRecord(Number(row.proposal_record_id)));
   const costs = retconCosts(store, flowId);
   const targets = repairTargets(store, flowId);
   const propagation = repairPropagation(store, flowId);
@@ -533,6 +547,7 @@ const writeContradictionReport = (store: WorldFile, flowId: number): RecordRow =
     if (heading === "Resulting canon status or branch decision") return targets.map((row) => `Record ${row.record_id} -> ${row.next_canon_status}`).join("\n");
     if (heading === "Close audit") return [
       "Disposition recorded.",
+      `Repair-created proposals: ${proposals.map((proposal) => `${proposal.shortId} ${proposal.title} (${proposal.canonStatus})`).join("; ") || "none"}.`,
       operations.some((row) => row.operation === "retcon") ? "Retcon cost recorded." : "No retcon operation recorded.",
       selectedDisposition.disposition === "mystery-preserving conflict" ? "Preservation checklist completed." : "No mystery-preserving close gate."
     ].join("\n");

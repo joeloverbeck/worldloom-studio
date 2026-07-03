@@ -14,6 +14,10 @@ _Avoid_: project file, save file, workspace
 An ordered, resumable, interleavable sequence of steps that implements a package protocol over the record store.
 _Avoid_: wizard, pipeline
 
+**Admission flow**:
+The app flow that applies the upstream admission protocol to proposed facts; it is the only app flow that changes canon standing.
+_Avoid_: approval workflow, review flow
+
 **Draft space**:
 The ungated workspace for notes, half-formed seeds, and pasted material; nothing in it is under canon governance until proposed for admission.
 _Avoid_: sandbox, scratchpad, inbox

@@ -1,22 +1,143 @@
 import {
-  admissionGatePolicy,
-  admissionQueueSortKey,
+  isCatastrophicSeverity,
+  isFoundationalSeverity,
+  isMajorOrHigher,
   requiresSkipReason,
-  warnsForOpenCanonDebt,
   type DeclaredSeverity
 } from "./severity-policy.js";
 import { createSkipRecord } from "./flow-support.js";
 import type { AdmissionQueueRow, FacetRow, RecordRow, WorldFile } from "./world-file.js";
+
+export type AdmissionGatePath = "minor_ledger" | "full_gate";
+
+export interface AdmissionGatePolicy {
+  path: AdmissionGatePath;
+  doctrine: string[];
+  steps: string[];
+}
+
+export interface AdmissionQueueSortKey {
+  workScaleRank: number;
+  admissionLevelRank: number;
+}
 
 type AdmissionIntakeCompletion = {
   recordSweepJurisdiction?: boolean;
   provenanceFlowStep?: string;
 };
 
+type AdmissionSourceLink = {
+  recordId: number;
+  note: string;
+};
+
+type AdmissionCandidate = {
+  title: string;
+  body?: string;
+  truthLayer: string;
+  canonStatus: string;
+};
+
+export type AdmissionIntakeInput =
+  | (AdmissionIntakeCompletion & {
+      origin: "draft";
+      draftId: number;
+      candidate: Omit<AdmissionCandidate, "body">;
+      sourceLinks?: AdmissionSourceLink[];
+    })
+  | (AdmissionIntakeCompletion & {
+      origin: "existing-record";
+      recordId: number;
+      sourceLinks?: AdmissionSourceLink[];
+    })
+  | (AdmissionIntakeCompletion & {
+      origin: "creation-seed" | "propagation-surfaced-fact" | "contradiction-repair-created-fact" | "future-flow";
+      candidate: AdmissionCandidate;
+      sourceLinks?: AdmissionSourceLink[];
+    });
+
+const WORK_SCALE_QUEUE_RANK: Record<string, number> = {
+  catastrophic: 1,
+  severe: 2,
+  major: 3,
+  moderate: 4,
+  minor: 5
+};
+
+const MINOR_LEDGER_STEPS = [
+  "fact statement",
+  "scope",
+  "truth layer",
+  "canon status",
+  "constraint tags",
+  "admission operations",
+  "one consequence check"
+];
+
+const FULL_GATE_STEPS = [
+  "fact statement",
+  "scope",
+  "type",
+  "truth layer",
+  "canon status",
+  "constraint tags",
+  "dependencies",
+  "costs/access/bottlenecks",
+  "shock-cone summary",
+  "institutions or quiet-domain declaration",
+  "evidence/belief note",
+  "contradiction and mystery risk",
+  "follow-up debt"
+];
+
+const FOUNDATIONAL_GATE_STEPS = [
+  "temporal/spatial passes",
+  "branch implications",
+  "mystery/aesthetic checks",
+  "QA follow-up"
+];
+
+const CATASTROPHIC_GATE_STEPS = [
+  "explicit decision record",
+  "rollback/branch plan"
+];
+
 const declaredSeverityFromFacets = (facets: FacetRow[]): DeclaredSeverity => ({
   admissionLevel: facets.find((facet) => facet.vocabulary === "admission_level")?.term ?? null,
   workScale: facets.find((facet) => facet.vocabulary === "work_scale")?.term ?? null
 });
+
+export const admissionQueueSortKey = (severity: DeclaredSeverity): AdmissionQueueSortKey => {
+  const admissionLevelRank = severity.admissionLevel == null ? -1 : Number.parseInt(severity.admissionLevel, 10);
+  return {
+    workScaleRank: WORK_SCALE_QUEUE_RANK[severity.workScale ?? ""] ?? 6,
+    admissionLevelRank: Number.isNaN(admissionLevelRank) ? 0 : admissionLevelRank
+  };
+};
+
+export const admissionGatePolicy = (severity: DeclaredSeverity): AdmissionGatePolicy => {
+  const fullGate = isMajorOrHigher(severity);
+  const foundational = isFoundationalSeverity(severity);
+  const catastrophic = isCatastrophicSeverity(severity);
+  const steps = fullGate
+    ? [
+        ...FULL_GATE_STEPS,
+        ...(foundational ? FOUNDATIONAL_GATE_STEPS : []),
+        ...(catastrophic ? CATASTROPHIC_GATE_STEPS : [])
+      ]
+    : [...MINOR_LEDGER_STEPS];
+
+  return {
+    path: fullGate ? "full_gate" : "minor_ledger",
+    doctrine: [
+      "docs/worldbuilding-system/06_canon_fact_admission_protocol.md",
+      fullGate ? "docs/worldbuilding-system/checklists/canon_fact_gate.md" : "docs/worldbuilding-system/templates/admission_ledger.md"
+    ],
+    steps
+  };
+};
+
+export const warnsForOpenCanonDebt = (severity: DeclaredSeverity): boolean => isFoundationalSeverity(severity);
 
 const withAdmissionFacets = (worldFile: WorldFile, record: RecordRow): AdmissionQueueRow => {
   const facets = worldFile.listFacets(record.id);
@@ -47,10 +168,55 @@ export const routeRecordToAdmissionQueue = (
   recordId: number,
   completion: AdmissionIntakeCompletion = {}
 ): AdmissionQueueRow[] => {
-  if (completion.recordSweepJurisdiction) worldFile.recordJurisdictionEvent(recordId, { origin: "sweep" });
-  if (completion.provenanceFlowStep) worldFile.recordProposeProvenance(recordId, completion.provenanceFlowStep);
-  return admissionQueue(worldFile);
+  return intakeProposedFact(worldFile, { origin: "existing-record", recordId, ...completion }).queue;
 };
+
+const applyAdmissionIntakeCompletion = (
+  worldFile: WorldFile,
+  record: RecordRow,
+  input: AdmissionIntakeInput
+): { record: RecordRow; queue: AdmissionQueueRow[] } => {
+  for (const sourceLink of input.sourceLinks ?? []) {
+    worldFile.createLinkIfMissing(record.id, sourceLink.recordId, "derived_from", sourceLink.note);
+  }
+  if (input.recordSweepJurisdiction) worldFile.recordJurisdictionEvent(record.id, { origin: "sweep" });
+  if (input.provenanceFlowStep) worldFile.recordProposeProvenance(record.id, input.provenanceFlowStep);
+  return { record, queue: admissionQueue(worldFile) };
+};
+
+export const intakeProposedFact = (
+  worldFile: WorldFile,
+  input: AdmissionIntakeInput
+): { record: RecordRow; queue: AdmissionQueueRow[] } =>
+  worldFile.atomicWrite(() => {
+    if (input.origin === "existing-record") {
+      return applyAdmissionIntakeCompletion(worldFile, worldFile.getRecord(input.recordId), input);
+    }
+    if (input.origin === "draft") {
+      if (!input.candidate.truthLayer || !input.candidate.canonStatus) {
+        throw new Error("draft intake requires explicit truth layer and canon status");
+      }
+      const record = worldFile.convertDraft(input.draftId, {
+        recordTypeKey: "canon_fact",
+        title: input.candidate.title,
+        truthLayer: input.candidate.truthLayer,
+        canonStatus: input.candidate.canonStatus
+      });
+      return applyAdmissionIntakeCompletion(worldFile, record, input);
+    }
+
+    if (!input.candidate.truthLayer || !input.candidate.canonStatus) {
+      throw new Error("admission intake requires explicit truth layer and canon status");
+    }
+    const record = worldFile.createRecord({
+      recordTypeKey: "canon_fact",
+      title: input.candidate.title,
+      body: input.candidate.body,
+      truthLayer: input.candidate.truthLayer,
+      canonStatus: input.candidate.canonStatus
+    });
+    return applyAdmissionIntakeCompletion(worldFile, record, input);
+  });
 
 export const parkCreationSeedForAdmission = (
   worldFile: WorldFile,
@@ -59,11 +225,14 @@ export const parkCreationSeedForAdmission = (
   reportRecordId: number
 ): RecordRow => {
   if (!seed.truthLayer || !seed.canonStatus) throw new Error("seed parking requires explicit truth layer and canon status");
-  const record = worldFile.createRecord({ recordTypeKey: "canon_fact", title: seed.title, body: seed.body, truthLayer: seed.truthLayer, canonStatus: seed.canonStatus });
-  worldFile.createLink(record.id, kernelRecordId, "derived_from", "Seed decomposed from world kernel");
-  worldFile.createLink(record.id, reportRecordId, "derived_from", "Seed recorded by decomposition report");
-  routeRecordToAdmissionQueue(worldFile, record.id);
-  return record;
+  return intakeProposedFact(worldFile, {
+    origin: "creation-seed",
+    candidate: seed,
+    sourceLinks: [
+      { recordId: kernelRecordId, note: "Seed decomposed from world kernel" },
+      { recordId: reportRecordId, note: "Seed recorded by decomposition report" }
+    ]
+  }).record;
 };
 
 export const proposeDraftToAdmission = (
@@ -71,18 +240,23 @@ export const proposeDraftToAdmission = (
   id: number,
   input: { title?: string; truthLayer: string }
 ): { record: RecordRow; queue: AdmissionQueueRow[] } =>
-  worldFile.atomicWrite(() => {
-    const record = worldFile.convertDraft(id, { recordTypeKey: "canon_fact", title: input.title, truthLayer: input.truthLayer, canonStatus: "proposed" });
-    return { record, queue: routeRecordToAdmissionQueue(worldFile, record.id, { recordSweepJurisdiction: true, provenanceFlowStep: "admission:propose-draft" }) };
+  intakeProposedFact(worldFile, {
+    origin: "draft",
+    draftId: id,
+    candidate: { title: input.title ?? worldFile.getDraft(id).title, truthLayer: input.truthLayer, canonStatus: "proposed" },
+    recordSweepJurisdiction: true,
+    provenanceFlowStep: "admission:propose-draft"
   });
 
 export const proposeRecordToAdmission = (
   worldFile: WorldFile,
   id: number
 ): { record: RecordRow; queue: AdmissionQueueRow[] } =>
-  worldFile.atomicWrite(() => {
-    const record = worldFile.getRecord(id);
-    return { record, queue: routeRecordToAdmissionQueue(worldFile, record.id, { recordSweepJurisdiction: true, provenanceFlowStep: "admission:propose-record" }) };
+  intakeProposedFact(worldFile, {
+    origin: "existing-record",
+    recordId: id,
+    recordSweepJurisdiction: true,
+    provenanceFlowStep: "admission:propose-record"
   });
 
 export const gateComposition = (worldFile: WorldFile, recordId: number): unknown => {

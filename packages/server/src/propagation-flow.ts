@@ -1,5 +1,5 @@
-import { propagationCoveragePolicy, requiresSkipReason, type DeclaredSeverity } from "./severity-policy.js";
-import { routeRecordToAdmissionQueue } from "./admission-flow.js";
+import { isFoundationalSeverity, isMajorOrHigher, requiresSkipReason, type DeclaredSeverity } from "./severity-policy.js";
+import { intakeProposedFact } from "./admission-flow.js";
 import { createSkipRecord } from "./flow-support.js";
 import type { AdmissionQueueRow, FacetRow, RecordRow, WorldFile } from "./world-file.js";
 
@@ -49,6 +49,13 @@ export interface PropagationFlowRow {
   propagation_fact_record_id: number;
   propagation_debt_record_id: number | null;
   propagation_report_record_id: number | null;
+}
+
+type PropagationRequiredDomainCount = number | "all";
+
+interface PropagationCoveragePolicy {
+  requiredCoverage: string;
+  requiredDomainCount: PropagationRequiredDomainCount;
 }
 
 const PROPAGATION_ORDERS = [
@@ -115,6 +122,25 @@ const declaredSeverityFromFacets = (facets: FacetRow[]): DeclaredSeverity => ({
   admissionLevel: facets.find((facet) => facet.vocabulary === "admission_level")?.term ?? null,
   workScale: facets.find((facet) => facet.vocabulary === "work_scale")?.term ?? null
 });
+
+const propagationCoveragePolicy = (severity: DeclaredSeverity): PropagationCoveragePolicy => {
+  if (isFoundationalSeverity(severity)) {
+    return {
+      requiredCoverage: "full domain-atlas sweep",
+      requiredDomainCount: "all"
+    };
+  }
+  if (isMajorOrHigher(severity)) {
+    return {
+      requiredCoverage: "multiple orders and direct/dependency/reaction domains",
+      requiredDomainCount: 3
+    };
+  }
+  return {
+    requiredCoverage: "immediate effects and one ordinary-life residue when relevant",
+    requiredDomainCount: 1
+  };
+};
 
 const readPropagationFlow = (store: WorldFile, flowId: number): PropagationFlowRow => {
   const flow = store.getFlowInstance(flowId, "propagation");
@@ -252,14 +278,26 @@ export const proposeFactFromPropagation = (
   store: WorldFile,
   input: { flowId: number; title: string; body: string; truthLayer: string }
 ): { record: RecordRow; queue: AdmissionQueueRow[] } => {
-  const flow = readPropagationFlow(store, input.flowId);
-  const record = store.createRecord({ recordTypeKey: "canon_fact", title: input.title, body: input.body, truthLayer: input.truthLayer, canonStatus: "proposed" });
-  store.insertPropagationSurfacedProposal({ flowId: input.flowId, proposalRecordId: record.id, reportRecordId: flow.propagation_report_record_id ?? null, flowStep: "propagation:surface-proposal" });
-  if (flow.propagation_report_record_id != null) {
-    store.createLink(record.id, flow.propagation_report_record_id, "derived_from", "Fact surfaced by propagation report");
-  }
-  store.updateFlowInstance(input.flowId, { currentStep: "propagation:surface-proposal" });
-  return { record, queue: routeRecordToAdmissionQueue(store, record.id, { recordSweepJurisdiction: true }) };
+  return store.atomicWrite(() => {
+    const flow = readPropagationFlow(store, input.flowId);
+    const intake = intakeProposedFact(store, {
+      origin: "propagation-surfaced-fact",
+      candidate: {
+        title: input.title,
+        body: input.body,
+        truthLayer: input.truthLayer,
+        canonStatus: "proposed"
+      },
+      sourceLinks: flow.propagation_report_record_id == null
+        ? []
+        : [{ recordId: flow.propagation_report_record_id, note: "Fact surfaced by propagation report" }],
+      recordSweepJurisdiction: true,
+      provenanceFlowStep: "propagation:surface-proposal"
+    });
+    store.insertPropagationSurfacedProposal({ flowId: input.flowId, proposalRecordId: intake.record.id, reportRecordId: flow.propagation_report_record_id ?? null, flowStep: "propagation:surface-proposal" });
+    store.updateFlowInstance(input.flowId, { currentStep: "propagation:surface-proposal" });
+    return intake;
+  });
 };
 
 export const skipPropagationStep = (
@@ -293,7 +331,7 @@ export const closePropagationRun = (store: WorldFile, flowId: number): { flow: u
     store.assignPropagationReportToSurfacedProposals(flowId, report.id);
     const proposalRows = store.propagationSurfacedProposals(flowId) as Array<{ proposal_record_id: number }>;
     for (const row of proposalRows) {
-      store.createLink(row.proposal_record_id, report.id, "derived_from", "Fact surfaced by propagation report");
+      store.createLinkIfMissing(row.proposal_record_id, report.id, "derived_from", "Fact surfaced by propagation report");
     }
     const debt = flow.propagation_debt_record_id == null ? null : store.closeCanonDebt(flow.propagation_debt_record_id);
     const updatedFlow = store.updateFlowInstance(flowId, { state: "complete", currentStep: "propagation:complete", propagationReportRecordId: report.id });

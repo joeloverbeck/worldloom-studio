@@ -348,11 +348,25 @@ describe("HTTP API", () => {
     expect(badGate.status).toBe(400);
     expect(await json(badGate)).toMatchObject({ error: expect.stringContaining("written consequence") });
 
-    const debt = await json<{ debt: { id: number } }>(await app.request("/api/admission/debt", {
+    const debt = await json<{ debt: { id: number } }>(await app.request("/api/canon-debt", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ name: "Unpriced bell crossings", scope: "economy", assignee: "steward" })
     }));
+    expect(await json(await app.request("/api/canon-debt?open=true"))).toMatchObject({
+      debt: expect.arrayContaining([expect.objectContaining({ id: debt.debt.id })])
+    });
+    const compatibilityDebt = await json<{ debt: { id: number } }>(await app.request("/api/admission/debt", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Compatibility debt route", scope: "propagation", assignee: "steward" })
+    }));
+    expect(await json(await app.request("/api/admission/debt?open=true"))).toMatchObject({
+      debt: expect.arrayContaining([expect.objectContaining({ id: compatibilityDebt.debt.id })])
+    });
+    expect(await json(await app.request("/api/propagation/queue"))).toMatchObject({
+      queue: expect.arrayContaining([expect.objectContaining({ id: compatibilityDebt.debt.id })])
+    });
     const completedGate = await app.request("/api/admission/gate/complete", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -372,7 +386,7 @@ describe("HTTP API", () => {
     expect(await json(completedGate)).toMatchObject({
       record: { canonStatus: "accepted with constraints" },
       gateResult: { recordTypeKey: "gate_result" },
-      warnings: [expect.objectContaining({ id: debt.debt.id })]
+      warnings: expect.arrayContaining([expect.objectContaining({ id: debt.debt.id })])
     });
 
     const minorBatch = await app.request("/api/admission/minor-batch", {
@@ -414,7 +428,8 @@ describe("HTTP API", () => {
       body: JSON.stringify({ recordId: seed.record.id, stepKey: "canon_change_proposal", admissionLevel: "3", workScale: "major" })
     });
     expect(majorSkip.status).toBe(400);
-    expect((await app.request(`/api/admission/debt/${debt.debt.id}/close`, { method: "POST" })).status).toBe(200);
+    expect((await app.request(`/api/canon-debt/${debt.debt.id}/close`, { method: "POST" })).status).toBe(200);
+    expect((await app.request(`/api/admission/debt/${compatibilityDebt.debt.id}/close`, { method: "POST" })).status).toBe(200);
   });
 
   it("drives propagation queue, run work, dispositions, report, proposal routing, prompts, and skips through the HTTP seam", async () => {
@@ -436,7 +451,7 @@ describe("HTTP API", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ admissionLevel: "4", workScale: "severe" })
     })).status).toBe(200);
-    const debt = await json<{ debt: { id: number } }>(await app.request("/api/admission/debt", {
+    const debt = await json<{ debt: { id: number } }>(await app.request("/api/canon-debt", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ name: `Propagation owed for ${fact.record.shortId}`, scope: "propagation", assignee: "steward", body: "Admission owed a shock cone." })
@@ -543,6 +558,9 @@ describe("HTTP API", () => {
     }));
     expect(proposed.record.canonStatus).toBe("proposed");
     expect(proposed.queue).toEqual(expect.arrayContaining([expect.objectContaining({ id: proposed.record.id })]));
+    expect(await json(await app.request(`/api/links?recordId=${proposed.record.id}`))).toMatchObject({
+      links: expect.arrayContaining([expect.objectContaining({ linkTypeKey: "derived_from", note: "Propose action provenance" })])
+    });
 
     const closed = await app.request(`/api/propagation/runs/${flow.flow.id}/close`, { method: "POST" });
     expect(closed.status).toBe(201);
@@ -553,6 +571,9 @@ describe("HTTP API", () => {
     });
     expect(await json(await app.request(`/api/links?recordId=${proposed.record.id}`))).toMatchObject({
       links: expect.arrayContaining([expect.objectContaining({ toRecordId: closedJson.report.id, linkTypeKey: "derived_from" })])
+    });
+    expect(await json(await app.request(`/api/records/${closedJson.report.id}/sections`))).toMatchObject({
+      sections: expect.arrayContaining([expect.objectContaining({ heading: "Surfaced proposals", body: expect.stringContaining("Mortuary toll scrip exists") })])
     });
     const correction = await app.request(`/api/propagation/reports/${closedJson.report.id}/corrections`, {
       method: "POST",
@@ -635,12 +656,18 @@ describe("HTTP API", () => {
     }));
     expect(proposed.record.canonStatus).toBe("proposed");
     expect(proposed.queue).toEqual(expect.arrayContaining([expect.objectContaining({ id: proposed.record.id })]));
+    expect(await json(await app.request(`/api/links?recordId=${proposed.record.id}`))).toMatchObject({
+      links: expect.arrayContaining([expect.objectContaining({ linkTypeKey: "derived_from", note: "Propose action provenance" })])
+    });
     const closed = await app.request(`/api/contradiction/runs/${flow.flow.id}/close`, { method: "POST" });
     expect(closed.status).toBe(201);
     const closedJson = await json<{ report: { id: number; recordTypeKey: string } }>(closed);
     expect(closedJson.report.recordTypeKey).toBe("contradiction_report");
     expect(await json(await app.request(`/api/links?recordId=${proposed.record.id}`))).toMatchObject({
       links: expect.arrayContaining([expect.objectContaining({ toRecordId: closedJson.report.id, linkTypeKey: "derived_from" })])
+    });
+    expect(await json(await app.request(`/api/records/${closedJson.report.id}/sections`))).toMatchObject({
+      sections: expect.arrayContaining([expect.objectContaining({ heading: "Close audit", body: expect.stringContaining("Bridge right survives the span") })])
     });
 
     const propagationFlow = await json<{ flow: { id: number } }>(await app.request("/api/propagation/runs/start", {

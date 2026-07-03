@@ -41,6 +41,12 @@ describe("WorldFile", () => {
       const source = readFileSync(new URL(`../src/${moduleName}`, import.meta.url), "utf8");
       expect(source).not.toMatch(/store\.db|\.db\.prepare|\.db\.transaction/);
     }
+
+    for (const moduleName of ["propagation-flow.ts", "contradiction-flow.ts"]) {
+      const source = readFileSync(new URL(`../src/${moduleName}`, import.meta.url), "utf8");
+      expect(source).toContain("intakeProposedFact");
+      expect(source).not.toMatch(/createRecord\(\{\s*recordTypeKey:\s*"canon_fact"/);
+    }
   });
 
   it("creates a world file with application id, schema version, and seeded catalogs", () => {
@@ -287,6 +293,27 @@ describe("WorldFile", () => {
       expect.objectContaining({ linkTypeKey: "derived_from", note: "Propose action provenance" })
     ]));
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM jurisdiction_events WHERE record_id = ? AND origin = 'sweep'").get(existing.id)).toMatchObject({ count: 1 });
+
+    const flowProposal = AdmissionFlow.intakeProposedFact(store, {
+      origin: "future-flow",
+      candidate: {
+        title: "QA surfaced fact",
+        body: "A later QA flow can surface this without minting records itself.",
+        truthLayer: "Objective canon",
+        canonStatus: "proposed"
+      },
+      sourceLinks: [{ recordId: existing.id, note: "Future flow source context" }],
+      recordSweepJurisdiction: true,
+      provenanceFlowStep: "future-flow:surface-proposal"
+    });
+
+    expect(flowProposal.record).toMatchObject({ recordTypeKey: "canon_fact", title: "QA surfaced fact", canonStatus: "proposed" });
+    expect(flowProposal.queue).toEqual(expect.arrayContaining([expect.objectContaining({ id: flowProposal.record.id })]));
+    expect(store.listLinks(flowProposal.record.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ toRecordId: existing.id, linkTypeKey: "derived_from", note: "Future flow source context" }),
+      expect.objectContaining({ linkTypeKey: "derived_from", note: "Propose action provenance" })
+    ]));
+    expect(store.db.prepare("SELECT COUNT(*) AS count FROM jurisdiction_events WHERE record_id = ? AND origin = 'sweep'").get(flowProposal.record.id)).toMatchObject({ count: 1 });
     store.close();
   });
 
@@ -442,6 +469,9 @@ describe("WorldFile", () => {
     expect(proposal.record).toMatchObject({ recordTypeKey: "canon_fact", canonStatus: "proposed" });
     expect(proposal.queue).toEqual(expect.arrayContaining([expect.objectContaining({ id: proposal.record.id })]));
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM jurisdiction_events WHERE record_id = ? AND origin = 'sweep'").get(proposal.record.id)).toMatchObject({ count: 1 });
+    expect(store.listLinks(proposal.record.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ linkTypeKey: "derived_from", note: "Propose action provenance" })
+    ]));
 
     const closed = PropagationFlow.closePropagationRun(store, flow.id);
     expect(closed.report).toMatchObject({ recordTypeKey: "propagation_report", canonStatus: "accepted" });
@@ -534,6 +564,9 @@ describe("WorldFile", () => {
       truthLayer: "Objective canon"
     });
     expect(proposal.queue).toEqual(expect.arrayContaining([expect.objectContaining({ id: proposal.record.id, canonStatus: "proposed" })]));
+    expect(store.listLinks(proposal.record.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ linkTypeKey: "derived_from", note: "Propose action provenance" })
+    ]));
 
     const closed = ContradictionFlow.closeContradictionRun(store, flow.id);
     expect(store.getRecord(fact.id)).toMatchObject({ body: "The stone span fell; a ferry charter preserved the bridge right.", canonStatus: "quarantined" });

@@ -272,7 +272,7 @@ function App({ initialRecords = [] }: AppProps = {}) {
       api<{ drafts: DraftRow[] }>("/api/drafts"),
       api<{ templates: PromptTemplate[] }>("/api/prompt-templates"),
       api<{ queue: AdmissionQueueRow[] }>("/api/admission/queue"),
-      api<{ debt: RecordRow[] }>("/api/admission/debt?open=true"),
+      api<{ debt: RecordRow[] }>("/api/canon-debt?open=true"),
       api<{ queue: PropagationQueueRow[] }>("/api/propagation/queue")
     ]);
     setRecords(recordPayload.records);
@@ -580,7 +580,7 @@ function App({ initialRecords = [] }: AppProps = {}) {
   };
 
   const createDebt = async () => {
-    await api("/api/admission/debt", {
+    await api("/api/canon-debt", {
       method: "POST",
       body: JSON.stringify({ name: canonDebtName, scope: "admission", assignee: "steward" })
     });
@@ -589,7 +589,7 @@ function App({ initialRecords = [] }: AppProps = {}) {
   };
 
   const closeDebt = async (debt: RecordRow) => {
-    await api(`/api/admission/debt/${debt.id}/close`, { method: "POST" });
+    await api(`/api/canon-debt/${debt.id}/close`, { method: "POST" });
     await loadWorldData();
   };
 

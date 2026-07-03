@@ -4,6 +4,7 @@ import { APP_VERSION, LINK_TYPES, RECORD_TYPES, type HealthPayload } from "@worl
 import { ActiveWorldSession } from "./active-world-session.js";
 import type { FacetInput, RecordInput } from "./world-file.js";
 import * as AdmissionFlow from "./admission-flow.js";
+import * as CanonDebt from "./canon-debt.js";
 import * as ContradictionFlow from "./contradiction-flow.js";
 import * as CreationFlow from "./creation-flow.js";
 import * as PropagationFlow from "./propagation-flow.js";
@@ -397,15 +398,38 @@ export const createApp = (options: AppOptions = {}) => {
     }
   });
 
+  app.get("/api/canon-debt", (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    return c.json({ debt: CanonDebt.listCanonDebt(activeWorldSession.current, c.req.query("open") === "true") });
+  });
+
+  app.post("/api/canon-debt", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ debt: CanonDebt.createCanonDebt(activeWorldSession.current, await body<{ name: string; scope: string; assignee: string; body?: string }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/canon-debt/:id/close", (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ debt: CanonDebt.closeCanonDebt(activeWorldSession.current, Number(c.req.param("id"))) });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
   app.get("/api/admission/debt", (c) => {
     if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
-    return c.json({ debt: activeWorldSession.current.listCanonDebt(c.req.query("open") === "true") });
+    return c.json({ debt: CanonDebt.listCanonDebt(activeWorldSession.current, c.req.query("open") === "true") });
   });
 
   app.post("/api/admission/debt", async (c) => {
     if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
     try {
-      return c.json({ debt: activeWorldSession.current.createCanonDebt(await body<{ name: string; scope: string; assignee: string; body?: string }>(c)) }, 201);
+      return c.json({ debt: CanonDebt.createCanonDebt(activeWorldSession.current, await body<{ name: string; scope: string; assignee: string; body?: string }>(c)) }, 201);
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }
@@ -414,7 +438,7 @@ export const createApp = (options: AppOptions = {}) => {
   app.post("/api/admission/debt/:id/close", (c) => {
     if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
     try {
-      return c.json({ debt: activeWorldSession.current.closeCanonDebt(Number(c.req.param("id"))) });
+      return c.json({ debt: CanonDebt.closeCanonDebt(activeWorldSession.current, Number(c.req.param("id"))) });
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }
