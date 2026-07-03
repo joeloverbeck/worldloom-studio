@@ -178,6 +178,7 @@ function App({ initialRecords = [] }: AppProps = {}) {
   const [linkTypeKey, setLinkTypeKey] = useState("depends_on");
   const [promptRecordId, setPromptRecordId] = useState("");
   const [promptTemplateKey, setPromptTemplateKey] = useState("kernel_pressure");
+  const [promptFlowKey, setPromptFlowKey] = useState<"creation" | "admission" | "propagation" | "contradiction">("creation");
   const [promptText, setPromptText] = useState("");
   const [templateEdit, setTemplateEdit] = useState("");
   const [responseText, setResponseText] = useState("");
@@ -227,6 +228,8 @@ function App({ initialRecords = [] }: AppProps = {}) {
   const selectedHeadings = headings.filter((heading) => heading.record_type_key === recordTypeKey);
   const selectedTemplate = templates.find((template) => template.key === promptTemplateKey);
   const selectedAdmissionRecord = records.find((record) => record.id === Number(admissionRecordId));
+  const promptOutFlowId = promptFlowKey === "creation" ? flowId : promptFlowKey === "propagation" ? propagationFlowId : null;
+  const promptOutRecordId = promptRecordId || (promptFlowKey === "admission" ? admissionRecordId : promptFlowKey === "propagation" ? propagationFactId : "");
 
   useEffect(() => {
     if (!token) return;
@@ -433,9 +436,15 @@ function App({ initialRecords = [] }: AppProps = {}) {
   };
 
   const generatePrompt = async () => {
-    const payload = await api<{ prompt: string }>("/api/prompts/generate", {
+    const payload = await api<{ prompt: string }>("/api/prompt-out/generate", {
       method: "POST",
-      body: JSON.stringify({ templateKey: promptTemplateKey, recordId: promptRecordId ? Number(promptRecordId) : undefined, stepKey: promptTemplateKey })
+      body: JSON.stringify({
+        flowKey: promptFlowKey,
+        flowId: promptOutFlowId ?? undefined,
+        templateKey: promptTemplateKey,
+        recordId: promptOutRecordId ? Number(promptOutRecordId) : undefined,
+        stepKey: promptTemplateKey
+      })
     });
     setPromptText(payload.prompt);
   };
@@ -454,11 +463,17 @@ function App({ initialRecords = [] }: AppProps = {}) {
   };
 
   const storeAdvisory = async () => {
-    const artifact = await api<{ record: RecordRow }>("/api/advisory-artifacts", {
+    const artifact = await api<{ record: RecordRow }>("/api/prompt-out/advisory-artifacts", {
       method: "POST",
-      body: JSON.stringify({ stepKey: promptTemplateKey, promptText, responseText })
+      body: JSON.stringify({
+        flowKey: promptFlowKey,
+        flowId: promptOutFlowId ?? undefined,
+        stepKey: promptTemplateKey,
+        promptText,
+        responseText
+      })
     });
-    await api(`/api/advisory-artifacts/${artifact.record.id}/dispositions`, {
+    await api(`/api/prompt-out/advisory-artifacts/${artifact.record.id}/dispositions`, {
       method: "POST",
       body: JSON.stringify({ disposition, note: responseText, standingRuling: disposition === "standing ruling" })
     });
@@ -483,9 +498,17 @@ function App({ initialRecords = [] }: AppProps = {}) {
   };
 
   const skipPrompt = async () => {
-    await api("/api/flows/creation/skip", {
+    await api("/api/prompt-out/skip", {
       method: "POST",
-      body: JSON.stringify({ flowId, stepKey: promptTemplateKey })
+      body: JSON.stringify({
+        flowKey: promptFlowKey,
+        flowId: promptOutFlowId ?? undefined,
+        recordId: promptFlowKey === "admission" && admissionRecordId ? Number(admissionRecordId) : undefined,
+        stepKey: promptTemplateKey,
+        admissionLevel: admissionLevel || undefined,
+        workScale: workScale || undefined,
+        reason: gateNotApplicable || undefined
+      })
     });
     await loadWorldData();
   };
@@ -796,6 +819,12 @@ function App({ initialRecords = [] }: AppProps = {}) {
             </section>
             <section className="subpanel">
               <h2>Prompt-out</h2>
+              <label>Prompt context<select value={promptFlowKey} onChange={(event) => setPromptFlowKey(event.target.value as "creation" | "admission" | "propagation" | "contradiction")}>
+                <option value="creation">Creation</option>
+                <option value="admission">Admission</option>
+                <option value="propagation">Propagation</option>
+                <option value="contradiction">Contradiction</option>
+              </select></label>
               <label>Template<select value={promptTemplateKey} onChange={(event) => setPromptTemplateKey(event.target.value)}>{templates.map((template) => <option key={template.key} value={template.key}>{template.role_name} v{template.current_version}</option>)}</select></label>
               {selectedTemplate && (
                 <div className="doctrine">

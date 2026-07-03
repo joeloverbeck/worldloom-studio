@@ -1,6 +1,5 @@
-import { requiresSkipReason } from "./severity-policy.js";
 import { intakeProposedFact } from "./admission-flow.js";
-import { createSkipRecord } from "./flow-support.js";
+import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, RecordRow, SectionInput, WorldFile } from "./world-file.js";
 
 export interface OwedBoundaryRow {
@@ -344,12 +343,14 @@ export const setContradictionRepairPropagation = (
     if (!input.debtName?.trim()) throw new Error("assigned repair propagation requires a debt name");
     debtRecordId = store.createCanonDebt({ name: input.debtName, scope: "propagation", assignee: "steward", body: input.body }).id;
   } else {
-    const severity = {
-      admissionLevel: input.admissionLevel ?? null,
-      workScale: input.workScale ?? workScale(store, input.flowId) ?? null
-    };
-    if (requiresSkipReason(severity) && !input.reason?.trim()) throw new Error("major contradiction skips require a reason");
-    const skip = createSkipRecord(store, { stepKey: "contradiction:repair-propagation", reason: input.reason });
+    const skip = PromptOut.recordPromptOutSkip(store, {
+      flowKey: "contradiction",
+      flowId: input.flowId,
+      stepKey: "contradiction:repair-propagation",
+      admissionLevel: input.admissionLevel,
+      workScale: input.workScale ?? workScale(store, input.flowId),
+      reason: input.reason
+    });
     skipRecordId = skip.id;
     if (flow.contradiction_source_record_id != null) safeLink(store, skip.id, flow.contradiction_source_record_id, "derived_from", "Repair propagation declined");
   }
@@ -435,10 +436,11 @@ export const skipContradictionStep = (
   input: { flowId?: number; stepKey: string; admissionLevel?: string; workScale?: string; reason?: string }
 ): RecordRow => {
   const flow = input.flowId == null ? null : readContradictionFlow(store, input.flowId);
-  if (requiresSkipReason({ admissionLevel: input.admissionLevel ?? null, workScale: input.workScale ?? (input.flowId == null ? null : workScale(store, input.flowId)) ?? null }) && !input.reason?.trim()) {
-    throw new Error("major contradiction skips require a reason");
-  }
-  const record = createSkipRecord(store, { stepKey: input.stepKey, reason: input.reason });
+  const record = PromptOut.recordPromptOutSkip(store, {
+    flowKey: "contradiction",
+    ...input,
+    workScale: input.workScale ?? (input.flowId == null ? undefined : workScale(store, input.flowId) ?? undefined)
+  });
   if (flow?.contradiction_source_record_id != null) safeLink(store, record.id, flow.contradiction_source_record_id, "derived_from", "Contradiction instrument declined");
   if (input.flowId != null) store.updateFlowInstance(input.flowId, { currentStep: `contradiction:skip:${input.stepKey}` });
   return record;
@@ -504,8 +506,10 @@ const applyRepairTarget = (
   }
   safeLink(store, target.record_id, reportId, "derived_from", "Record repaired by contradiction report");
   if (target.advisory_record_id != null) {
-    safeLink(store, target.record_id, target.advisory_record_id, "derived_from", "Repair informed by advisory material");
-    safeLink(store, target.record_id, target.advisory_record_id, "cites_advisory_artifact", "Verbatim contradiction advisory artifact consulted");
+    PromptOut.linkExplicitAdvisoryUse(store, target.record_id, target.advisory_record_id, {
+      derivedFromNote: "Repair informed by advisory material",
+      citationNote: "Verbatim contradiction advisory artifact consulted"
+    });
   }
 };
 

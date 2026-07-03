@@ -7,6 +7,7 @@ import * as AdmissionFlow from "./admission-flow.js";
 import * as CanonDebt from "./canon-debt.js";
 import * as ContradictionFlow from "./contradiction-flow.js";
 import * as CreationFlow from "./creation-flow.js";
+import * as PromptOut from "./prompt-out.js";
 import * as PropagationFlow from "./propagation-flow.js";
 
 interface AppOptions {
@@ -82,7 +83,8 @@ export const createApp = (options: AppOptions = {}) => {
     if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
     try {
       const input = await body<RecordInput & { advisoryRecordId?: number }>(c);
-      return c.json({ record: activeWorldSession.current.createRecordWithProvenance(input, input.advisoryRecordId) }, 201);
+      const { advisoryRecordId, ...recordInput } = input;
+      return c.json({ record: PromptOut.createRecordWithExplicitAdvisoryUse(activeWorldSession.current, recordInput, advisoryRecordId) }, 201);
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }
@@ -218,14 +220,14 @@ export const createApp = (options: AppOptions = {}) => {
 
   app.get("/api/prompt-templates", (c) => {
     if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
-    return c.json({ templates: activeWorldSession.current.promptTemplates() });
+    return c.json({ templates: PromptOut.listPromptTemplates(activeWorldSession.current) });
   });
 
   app.patch("/api/prompt-templates/:key", async (c) => {
     if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
     try {
       const input = await body<{ text: string }>(c);
-      return c.json({ template: activeWorldSession.current.updatePromptTemplate(c.req.param("key"), input.text) });
+      return c.json({ template: PromptOut.updatePromptTemplate(activeWorldSession.current, c.req.param("key"), input.text) });
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }
@@ -234,7 +236,7 @@ export const createApp = (options: AppOptions = {}) => {
   app.post("/api/prompt-templates/:key/revert", (c) => {
     if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
     try {
-      return c.json({ template: activeWorldSession.current.revertPromptTemplate(c.req.param("key")) });
+      return c.json({ template: PromptOut.revertPromptTemplate(activeWorldSession.current, c.req.param("key")) });
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }
@@ -243,7 +245,8 @@ export const createApp = (options: AppOptions = {}) => {
   app.post("/api/prompts/generate", async (c) => {
     if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
     try {
-      return c.json(activeWorldSession.current.generatePrompt(await body<{ templateKey: string; recordId?: number; stepKey?: string }>(c)));
+      const result = PromptOut.generatePrompt(activeWorldSession.current, await body<{ templateKey: string; recordId?: number; stepKey?: string }>(c));
+      return c.json({ prompt: result.prompt });
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }
@@ -252,7 +255,7 @@ export const createApp = (options: AppOptions = {}) => {
   app.post("/api/advisory-artifacts", async (c) => {
     if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
     try {
-      return c.json({ record: activeWorldSession.current.createAdvisoryArtifact(await body<{ stepKey: string; promptText: string; responseText: string }>(c)) }, 201);
+      return c.json({ record: PromptOut.storeAdvisoryResponse(activeWorldSession.current, await body<{ stepKey: string; promptText: string; responseText: string }>(c)) }, 201);
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }
@@ -261,7 +264,76 @@ export const createApp = (options: AppOptions = {}) => {
   app.post("/api/advisory-artifacts/:id/dispositions", async (c) => {
     if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
     try {
-      return c.json({ disposition: activeWorldSession.current.disposeAdvisoryArtifact(Number(c.req.param("id")), await body<{ disposition: string; note?: string; standingRuling?: boolean }>(c)) }, 201);
+      return c.json({ disposition: PromptOut.disposeAdvisoryArtifact(activeWorldSession.current, Number(c.req.param("id")), await body<{ disposition: string; note?: string; standingRuling?: boolean }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/prompt-out/generate", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(PromptOut.generatePrompt(activeWorldSession.current, await body<{
+        flowKey?: string;
+        flowId?: number;
+        templateKey: string;
+        recordId?: number;
+        stepKey?: string;
+      }>(c)));
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/prompt-out/advisory-artifacts", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ record: PromptOut.storeAdvisoryResponse(activeWorldSession.current, await body<{
+        flowKey?: string;
+        flowId?: number;
+        stepKey: string;
+        promptText: string;
+        responseText: string;
+      }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/prompt-out/advisory-artifacts/:id/dispositions", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ disposition: PromptOut.disposeAdvisoryArtifact(activeWorldSession.current, Number(c.req.param("id")), await body<{ disposition: string; note?: string; standingRuling?: boolean }>(c)) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/prompt-out/skip", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      const input = await body<{
+        flowKey: string;
+        flowId?: number;
+        recordId?: number;
+        stepKey: string;
+        admissionLevel?: string;
+        workScale?: string;
+        reason?: string;
+      }>(c);
+      if (input.flowKey === "creation") {
+        return c.json({ record: CreationFlow.recordCreationSkip(activeWorldSession.current, input) }, 201);
+      }
+      if (input.flowKey === "admission") {
+        return c.json({ record: AdmissionFlow.declineAdmissionInstrument(activeWorldSession.current, input) }, 201);
+      }
+      if (input.flowKey === "propagation") {
+        return c.json({ record: PropagationFlow.skipPropagationStep(activeWorldSession.current, input) }, 201);
+      }
+      if (input.flowKey === "contradiction") {
+        return c.json({ record: ContradictionFlow.skipContradictionStep(activeWorldSession.current, input) }, 201);
+      }
+      return c.json({ record: PromptOut.recordPromptOutSkip(activeWorldSession.current, input) }, 201);
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }

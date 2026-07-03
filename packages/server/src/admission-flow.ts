@@ -2,10 +2,9 @@ import {
   isCatastrophicSeverity,
   isFoundationalSeverity,
   isMajorOrHigher,
-  requiresSkipReason,
   type DeclaredSeverity
 } from "./severity-policy.js";
-import { createSkipRecord } from "./flow-support.js";
+import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, FacetRow, RecordRow, WorldFile } from "./world-file.js";
 
 export type AdmissionGatePath = "minor_ledger" | "full_gate";
@@ -394,8 +393,10 @@ export const completeAdmissionGate = (
     });
     worldFile.createLink(record.id, gateResult.id, "derived_from", "Admission gate result");
     if (input.advisoryRecordId != null) {
-      worldFile.createLink(record.id, input.advisoryRecordId, "derived_from", "Admission decision informed by advisory material");
-      worldFile.createLink(record.id, input.advisoryRecordId, "cites_advisory_artifact", "Verbatim admission advisory artifact consulted");
+      PromptOut.linkExplicitAdvisoryUse(worldFile, record.id, input.advisoryRecordId, {
+        derivedFromNote: "Admission decision informed by advisory material",
+        citationNote: "Verbatim admission advisory artifact consulted"
+      });
     }
     if (input.followUpDebt) {
       worldFile.createCanonDebt({ name: `Propagation owed for ${record.shortId}`, scope: "propagation", assignee: "steward", body: input.followUpDebt });
@@ -433,10 +434,7 @@ export const declineAdmissionInstrument = (
   worldFile: WorldFile,
   input: { recordId?: number; stepKey: string; admissionLevel?: string; workScale?: string; reason?: string }
 ): RecordRow => {
-  if (requiresSkipReason({ admissionLevel: input.admissionLevel ?? null, workScale: input.workScale ?? null }) && !input.reason?.trim()) {
-    throw new Error("major admission skips require a reason");
-  }
-  const record = createSkipRecord(worldFile, { stepKey: input.stepKey, reason: input.reason });
+  const record = PromptOut.recordPromptOutSkip(worldFile, { flowKey: "admission", ...input });
   if (input.recordId != null) worldFile.createLink(record.id, input.recordId, "derived_from", "Admission instrument declined");
   return record;
 };

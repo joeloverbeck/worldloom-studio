@@ -290,6 +290,116 @@ describe("HTTP API", () => {
     expect(await json(decomposed)).toMatchObject({ records: [{ canonStatus: "proposed" }] });
   });
 
+  it("exposes flow-aware Prompt-out routes for prompts, advisory artifacts, dispositions, and skips", async () => {
+    const app = createApp();
+    const path = tempPath("prompt-out-world.sqlite");
+    expect((await app.request("/api/worlds/create", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path })
+    })).status).toBe(201);
+
+    const fact = await json<{ record: { id: number } }>(await app.request("/api/records", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recordTypeKey: "canon_fact", title: "Toll ghosts", body: "Ghosts testify over bridge tolls.", ...explicitJudgment })
+    }));
+
+    const generated = await json<{ prompt: string; promptOut: { flowKey: string; stepKey: string } }>(await app.request("/api/prompt-out/generate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        flowKey: "admission",
+        templateKey: "admission_prerequisite_audit",
+        recordId: fact.record.id,
+        stepKey: "admission:dependencies"
+      })
+    }));
+    expect(generated.promptOut).toMatchObject({ flowKey: "admission", stepKey: "admission:dependencies" });
+    expect(generated.prompt).toContain("Prerequisite auditor");
+    expect(generated.prompt).toContain("Toll ghosts");
+
+    const advisory = await json<{ record: { id: number; recordTypeKey: string; body: string } }>(await app.request("/api/prompt-out/advisory-artifacts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        flowKey: "admission",
+        flowId: 44,
+        stepKey: "admission:dependencies",
+        promptText: generated.prompt,
+        responseText: "Name the enforcement office."
+      })
+    }));
+    expect(advisory.record.recordTypeKey).toBe("advisory_artifact");
+    expect(advisory.record.body).toContain("Flow: admission");
+    expect(advisory.record.body).toContain("Flow id: 44");
+    expect(advisory.record.body).toContain("Step: admission:dependencies");
+    expect((await app.request(`/api/prompt-out/advisory-artifacts/${advisory.record.id}/dispositions`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ disposition: "standing ruling", note: "Keep enforcement offices named.", standingRuling: true })
+    })).status).toBe(201);
+    expect((await json<{ prompt: string }>(await app.request("/api/prompt-out/generate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowKey: "admission", templateKey: "admission_prerequisite_audit", recordId: fact.record.id, stepKey: "admission:dependencies" })
+    }))).prompt).toContain("Keep enforcement offices named.");
+
+    const creationFlow = await json<{ flow: { id: number } }>(await app.request("/api/flows/creation/start", { method: "POST" }));
+    expect((await app.request("/api/prompt-out/skip", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowKey: "creation", flowId: creationFlow.flow.id, stepKey: "creation:kernel_prompt", workScale: "minor" })
+    })).status).toBe(201);
+
+    const admissionSkip = await json<{ record: { id: number } }>(await app.request("/api/prompt-out/skip", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowKey: "admission", recordId: fact.record.id, stepKey: "admission:dependencies", admissionLevel: "1", workScale: "minor" })
+    }));
+    expect(await json(await app.request(`/api/links?recordId=${admissionSkip.record.id}`))).toMatchObject({
+      links: expect.arrayContaining([expect.objectContaining({ toRecordId: fact.record.id, linkTypeKey: "derived_from" })])
+    });
+
+    const propagationFlow = await json<{ flow: { id: number } }>(await app.request("/api/propagation/runs/start", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ factRecordId: fact.record.id })
+    }));
+    const propagationSkipResponse = await app.request("/api/prompt-out/skip", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowKey: "propagation", flowId: propagationFlow.flow.id, stepKey: "propagation:first", workScale: "minor" })
+    });
+    expect(propagationSkipResponse.status).toBe(201);
+    const propagationSkip = await json<{ record: { body: string } }>(propagationSkipResponse);
+    expect(propagationSkip.record.body).toContain("Flow: propagation");
+    expect(propagationSkip.record.body).toContain(`Flow id: ${propagationFlow.flow.id}`);
+    expect(propagationSkip.record.body).toContain("Step: propagation:first");
+    expect(await json(await app.request(`/api/propagation/runs/${propagationFlow.flow.id}`))).toMatchObject({
+      flow: expect.objectContaining({ current_step: "propagation:skip:propagation:first" })
+    });
+    expect((await app.request("/api/prompt-out/skip", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowKey: "propagation", flowId: propagationFlow.flow.id, stepKey: "propagation:domain-atlas", workScale: "major" })
+    })).status).toBe(400);
+
+    const contradictionFlow = await json<{ flow: { id: number } }>(await app.request("/api/contradiction/runs/start", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sourceRecordId: fact.record.id, title: "Prompt-out skip contradiction" })
+    }));
+    expect((await app.request("/api/prompt-out/skip", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowKey: "contradiction", flowId: contradictionFlow.flow.id, stepKey: "contradiction:boundary_guard", workScale: "minor" })
+    })).status).toBe(201);
+    expect(await json(await app.request(`/api/contradiction/runs/${contradictionFlow.flow.id}`))).toMatchObject({
+      flow: expect.objectContaining({ current_step: "contradiction:skip:contradiction:boundary_guard" })
+    });
+  });
+
   it("drives admission queue, severity, ledger, gate, audit, skips, debt, and prompts through the HTTP seam", async () => {
     const app = createApp();
     const path = tempPath("admission-world.sqlite");

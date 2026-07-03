@@ -1,6 +1,6 @@
-import { isFoundationalSeverity, isMajorOrHigher, requiresSkipReason, type DeclaredSeverity } from "./severity-policy.js";
+import { isFoundationalSeverity, isMajorOrHigher, type DeclaredSeverity } from "./severity-policy.js";
 import { intakeProposedFact } from "./admission-flow.js";
-import { createSkipRecord } from "./flow-support.js";
+import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, FacetRow, RecordRow, WorldFile } from "./world-file.js";
 
 export interface PropagationQueueRow extends RecordRow {
@@ -304,10 +304,7 @@ export const skipPropagationStep = (
   store: WorldFile,
   input: { flowId?: number; stepKey: string; admissionLevel?: string; workScale?: string; reason?: string }
 ): RecordRow => {
-  if (requiresSkipReason({ admissionLevel: input.admissionLevel ?? null, workScale: input.workScale ?? null }) && !input.reason?.trim()) {
-    throw new Error("major propagation skips require a reason");
-  }
-  const record = createSkipRecord(store, { stepKey: input.stepKey, reason: input.reason });
+  const record = PromptOut.recordPromptOutSkip(store, { flowKey: "propagation", ...input });
   if (input.flowId != null) {
     const flow = readPropagationFlow(store, input.flowId);
     store.createLink(record.id, flow.propagation_fact_record_id, "derived_from", "Propagation step declined");

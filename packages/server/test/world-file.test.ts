@@ -8,6 +8,7 @@ import { WorldFile } from "../src/world-file.js";
 import * as AdmissionFlow from "../src/admission-flow.js";
 import * as ContradictionFlow from "../src/contradiction-flow.js";
 import * as CreationFlow from "../src/creation-flow.js";
+import * as PromptOut from "../src/prompt-out.js";
 import * as PropagationFlow from "../src/propagation-flow.js";
 
 let tempDirs: string[] = [];
@@ -61,7 +62,7 @@ describe("WorldFile", () => {
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'canon_status'").get()).toMatchObject({ count: 11 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'consequence_disposition'").get()).toMatchObject({ count: 4 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'contradiction_disposition'").get()).toMatchObject({ count: 7 });
-    expect(store.promptTemplates()).toEqual(expect.arrayContaining([
+    expect(PromptOut.listPromptTemplates(store)).toEqual(expect.arrayContaining([
       expect.objectContaining({ key: "admission_prerequisite_audit" }),
       expect.objectContaining({ key: "admission_constraint_challenge" }),
       expect.objectContaining({ key: "propagation_consequence_scout" })
@@ -79,7 +80,7 @@ describe("WorldFile", () => {
     store.close();
 
     const reopened = WorldFile.open(path);
-    expect(reopened.promptTemplates()).toEqual(expect.arrayContaining([
+    expect(PromptOut.listPromptTemplates(reopened)).toEqual(expect.arrayContaining([
       expect.objectContaining({ key: "admission_prerequisite_audit" }),
       expect.objectContaining({ key: "admission_constraint_challenge" })
     ]));
@@ -241,14 +242,14 @@ describe("WorldFile", () => {
     expect(converted).toMatchObject({ title: "Raw seed", canonStatus: "proposed" });
     expect(store.listDrafts()).toEqual([]);
 
-    const prompt = store.generatePrompt({ templateKey: "kernel_pressure", recordId: fact.id, stepKey: "kernel" }).prompt;
+    const prompt = PromptOut.generatePrompt(store, { templateKey: "kernel_pressure", recordId: fact.id, stepKey: "kernel" }).prompt;
     expect(prompt).toContain("Record context");
     expect(prompt).toContain("Vocabulary guardrail");
-    const advisory = store.createAdvisoryArtifact({ stepKey: "kernel", promptText: prompt, responseText: "Pressure response verbatim" });
-    store.disposeAdvisoryArtifact(advisory.id, { disposition: "standing ruling", note: "Prefer concrete institutional pressure", standingRuling: true });
-    expect(store.generatePrompt({ templateKey: "kernel_pressure", recordId: fact.id }).prompt).toContain("Prefer concrete institutional pressure");
+    const advisory = PromptOut.storeAdvisoryResponse(store, { stepKey: "kernel", promptText: prompt, responseText: "Pressure response verbatim" });
+    PromptOut.disposeAdvisoryArtifact(store, advisory.id, { disposition: "standing ruling", note: "Prefer concrete institutional pressure", standingRuling: true });
+    expect(PromptOut.generatePrompt(store, { templateKey: "kernel_pressure", recordId: fact.id }).prompt).toContain("Prefer concrete institutional pressure");
 
-    const authored = store.createRecordWithProvenance({ recordTypeKey: "canon_fact", title: "Authored with context", body: "Steward wording", ...explicitJudgment }, advisory.id);
+    const authored = PromptOut.createRecordWithExplicitAdvisoryUse(store, { recordTypeKey: "canon_fact", title: "Authored with context", body: "Steward wording", ...explicitJudgment }, advisory.id);
     expect(store.listLinks(authored.id)).toEqual(expect.arrayContaining([
       expect.objectContaining({ fromRecordId: authored.id, toRecordId: advisory.id, linkTypeKey: "derived_from" }),
       expect.objectContaining({ fromRecordId: authored.id, toRecordId: advisory.id, linkTypeKey: "cites_advisory_artifact" })
@@ -543,12 +544,12 @@ describe("WorldFile", () => {
     expect(() => ContradictionFlow.closeContradictionRun(store, flow.id)).toThrow(/repair operations/);
     expect(() => ContradictionFlow.recordContradictionRepair(store, { flowId: flow.id, operations: ["accept"], repairText: "Admission operation must not be accepted as a repair." })).toThrow(/Unknown repair_operation term|unknown repair operation/i);
 
-    const prompt = store.generatePrompt({ templateKey: "repair_challenge", recordId: fact.id, stepKey: "contradiction:repair" }).prompt;
-    const advisory = store.createAdvisoryArtifact({ stepKey: "contradiction:repair", promptText: prompt, responseText: "Challenge response" });
-    store.disposeAdvisoryArtifact(advisory.id, { disposition: "standing ruling", note: "Preserve the flood consequence.", standingRuling: true });
-    const editedBoundaryTemplate = store.updatePromptTemplate("boundary_guard", "Custom boundary pressure") as { current_text: string; current_version: number };
+    const prompt = PromptOut.generatePrompt(store, { templateKey: "repair_challenge", recordId: fact.id, stepKey: "contradiction:repair" }).prompt;
+    const advisory = PromptOut.storeAdvisoryResponse(store, { stepKey: "contradiction:repair", promptText: prompt, responseText: "Challenge response" });
+    PromptOut.disposeAdvisoryArtifact(store, advisory.id, { disposition: "standing ruling", note: "Preserve the flood consequence.", standingRuling: true });
+    const editedBoundaryTemplate = PromptOut.updatePromptTemplate(store, "boundary_guard", "Custom boundary pressure") as { current_text: string; current_version: number };
     expect(editedBoundaryTemplate).toMatchObject({ current_text: "Custom boundary pressure", current_version: 2 });
-    expect(store.revertPromptTemplate("boundary_guard")).toMatchObject({ current_text: expect.stringContaining("Pressure-test the preservation boundary"), current_version: 3 });
+    expect(PromptOut.revertPromptTemplate(store, "boundary_guard")).toMatchObject({ current_text: expect.stringContaining("Pressure-test the preservation boundary"), current_version: 3 });
     ContradictionFlow.recordContradictionRepair(store, { flowId: flow.id, operations: ["clarify scope", "add constraint"], repairText: "The bridge survived only as a ferry charter; the stone span fell." });
     ContradictionFlow.addContradictionRepairTarget(store, {
       flowId: flow.id,

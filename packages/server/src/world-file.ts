@@ -85,6 +85,24 @@ export interface AdmissionQueueRow extends RecordRow {
 
 export type FlowInstanceRow = Record<string, unknown>;
 
+export interface PromptTemplateRow {
+  key: string;
+  role_name: string;
+  original_text: string;
+  package_source: string;
+  current_version: number;
+  current_text: string;
+}
+
+export interface AdvisoryDispositionRow {
+  id: number;
+  advisory_record_id: number;
+  disposition: string;
+  note: string;
+  standing_ruling: number;
+  created_at: string;
+}
+
 type FlowInstanceInput = {
   flowKey: string;
   currentStep: string;
@@ -263,15 +281,6 @@ export class WorldFile {
     return this.getRecord(Number(result.lastInsertRowid));
   }
 
-  createRecordWithProvenance(input: RecordInput, advisoryRecordId?: number): RecordRow {
-    const record = this.createRecord(input);
-    if (advisoryRecordId != null) {
-      this.createLink(record.id, advisoryRecordId, "derived_from", "Steward authored with advisory material on the table");
-      this.createLink(record.id, advisoryRecordId, "cites_advisory_artifact", "Verbatim advisory artifact consulted");
-    }
-    return record;
-  }
-
   updateRecord(id: number, input: Partial<Omit<RecordInput, "recordTypeKey">>): RecordRow {
     const current = this.getRecord(id);
     this.db.prepare(`
@@ -414,16 +423,27 @@ export class WorldFile {
     return record;
   }
 
-  promptTemplates(): unknown[] {
+  promptTemplateRows(): PromptTemplateRow[] {
     return this.db.prepare(`
       SELECT pt.*, ptv.text AS current_text
       FROM prompt_templates pt
       JOIN prompt_template_versions ptv ON ptv.template_key = pt.key AND ptv.version = pt.current_version
       ORDER BY pt.key
-    `).all();
+    `).all() as PromptTemplateRow[];
   }
 
-  updatePromptTemplate(key: string, text: string): unknown {
+  promptTemplateRow(key: string): PromptTemplateRow {
+    const row = this.db.prepare(`
+      SELECT pt.*, ptv.text AS current_text
+      FROM prompt_templates pt
+      JOIN prompt_template_versions ptv ON ptv.template_key = pt.key AND ptv.version = pt.current_version
+      WHERE pt.key = ?
+    `).get(key) as PromptTemplateRow | undefined;
+    if (!row) throw new Error(`Prompt template not found: ${key}`);
+    return row;
+  }
+
+  appendPromptTemplateVersion(key: string, text: string): PromptTemplateRow {
     const current = this.db.prepare("SELECT * FROM prompt_templates WHERE key = ?").get(key) as { current_version: number } | undefined;
     if (!current) throw new Error(`Prompt template not found: ${key}`);
     const nextVersion = current.current_version + 1;
@@ -431,62 +451,17 @@ export class WorldFile {
       this.db.prepare("INSERT INTO prompt_template_versions (template_key, version, text) VALUES (?, ?, ?)").run(key, nextVersion, text);
       this.db.prepare("UPDATE prompt_templates SET current_version = ? WHERE key = ?").run(nextVersion, key);
     })();
-    return this.db.prepare(`
-      SELECT pt.*, ptv.text AS current_text
-      FROM prompt_templates pt
-      JOIN prompt_template_versions ptv ON ptv.template_key = pt.key AND ptv.version = pt.current_version
-      WHERE pt.key = ?
-    `).get(key);
+    return this.promptTemplateRow(key);
   }
 
-  revertPromptTemplate(key: string): unknown {
-    const template = this.db.prepare("SELECT original_text FROM prompt_templates WHERE key = ?").get(key) as { original_text: string } | undefined;
-    if (!template) throw new Error(`Prompt template not found: ${key}`);
-    return this.updatePromptTemplate(key, template.original_text);
-  }
-
-  generatePrompt(input: { templateKey: string; recordId?: number; stepKey?: string }): { prompt: string } {
-    const template = this.db.prepare(`
-      SELECT pt.key, pt.role_name, pt.original_text, pt.package_source, ptv.text AS current_text
-      FROM prompt_templates pt
-      JOIN prompt_template_versions ptv ON ptv.template_key = pt.key AND ptv.version = pt.current_version
-      WHERE pt.key = ?
-    `).get(input.templateKey) as Record<string, unknown> | undefined;
-    if (!template) throw new Error(`Prompt template not found: ${input.templateKey}`);
-    const recordContext = input.recordId == null ? "No record context selected." : this.recordPromptContext(input.recordId);
-    const rulings = this.standingRulings();
-    return {
-      prompt: [
-        `Role framing (${template.role_name}): ask for pressure, not answers. The steward's material comes first; do not write final canon.`,
-        `Default prompt derivation (${template.package_source}): ${template.current_text}`,
-        "Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories.",
-        "Label assumptions instruction: separate direct consequences from speculative assumptions and mark unadmitted assumptions plainly.",
-        `Standing rulings: ${rulings.length ? rulings.map((row) => `${row.disposition}: ${row.note}`).join("; ") : "none"}.`,
-        `Step: ${input.stepKey ?? input.templateKey}`,
-        "Record context:",
-        recordContext
-      ].join("\n\n")
-    };
-  }
-
-  createAdvisoryArtifact(input: { stepKey: string; promptText: string; responseText: string }): RecordRow {
-    return this.createRecord({
-      recordTypeKey: "advisory_artifact",
-      title: `Advisory artifact: ${input.stepKey}`,
-      body: [`Prompt:`, input.promptText, `Response:`, input.responseText].join("\n\n"),
-      truthLayer: "disputed claim",
-      canonStatus: "proposed"
-    });
-  }
-
-  disposeAdvisoryArtifact(advisoryRecordId: number, input: { disposition: string; note?: string; standingRuling?: boolean }): unknown {
+  insertAdvisoryDisposition(advisoryRecordId: number, input: { disposition: string; note?: string; standingRuling?: boolean }): AdvisoryDispositionRow {
     this.getRecord(advisoryRecordId);
     this.assertVocabularyTerm("advisory_disposition", input.disposition);
     const result = this.db.prepare(`
       INSERT INTO advisory_dispositions (advisory_record_id, disposition, note, standing_ruling)
       VALUES (?, ?, ?, ?)
     `).run(advisoryRecordId, input.disposition, input.note ?? "", input.standingRuling ? 1 : 0);
-    return this.db.prepare("SELECT * FROM advisory_dispositions WHERE id = ?").get(result.lastInsertRowid);
+    return this.db.prepare("SELECT * FROM advisory_dispositions WHERE id = ?").get(result.lastInsertRowid) as AdvisoryDispositionRow;
   }
 
   createCanonDebt(input: { name: string; scope: string; assignee: string; body?: string }): RecordRow {
@@ -1128,7 +1103,7 @@ export class WorldFile {
     return row.next;
   }
 
-  private recordPromptContext(recordId: number): string {
+  promptRecordContext(recordId: number): string {
     const record = this.getRecord(recordId);
     const sections = this.listSections(recordId);
     return [
@@ -1141,7 +1116,7 @@ export class WorldFile {
     ].filter(Boolean).join("\n");
   }
 
-  private standingRulings(): Array<{ disposition: string; note: string }> {
+  standingRulingRows(): Array<{ disposition: string; note: string }> {
     return this.db.prepare("SELECT disposition, note FROM advisory_dispositions WHERE standing_ruling = 1 ORDER BY id").all() as Array<{ disposition: string; note: string }>;
   }
 

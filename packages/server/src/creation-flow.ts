@@ -1,5 +1,5 @@
 import { parkCreationSeedForAdmission } from "./admission-flow.js";
-import { createSkipRecord } from "./flow-support.js";
+import * as PromptOut from "./prompt-out.js";
 import type { RecordRow, WorldFile } from "./world-file.js";
 
 type AdmissionSeedInput = { title: string; body: string; truthLayer: string; canonStatus: string };
@@ -40,8 +40,8 @@ export const saveKernelStep = (
 
 export const recordCreationSkip = (
   worldFile: WorldFile,
-  input: { flowId?: number; stepKey: string; reason?: string }
-): RecordRow => createSkipRecord(worldFile, input);
+  input: { flowId?: number; stepKey: string; admissionLevel?: string; workScale?: string; reason?: string }
+): RecordRow => PromptOut.recordPromptOutSkip(worldFile, { flowKey: "creation", ...input });
 
 export const decomposeSeeds = (
   worldFile: WorldFile,
