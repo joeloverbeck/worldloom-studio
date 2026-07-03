@@ -56,6 +56,25 @@ describe("WorldFile", () => {
     expect(qaSource).not.toMatch(/updateRecord\([^)]*canonStatus/);
   });
 
+  it("keeps Prompt-out single-caller persistence out of the WorldFile public surface", () => {
+    const worldFileSource = readFileSync(new URL("../src/world-file.ts", import.meta.url), "utf8");
+    expect(worldFileSource).not.toMatch(/\bpromptTemplateRows\b/);
+    expect(worldFileSource).not.toMatch(/\bpromptTemplateRow\b/);
+    expect(worldFileSource).not.toMatch(/\bappendPromptTemplateVersion\b/);
+    expect(worldFileSource).not.toMatch(/\bpromptRecordContext\b/);
+    expect(worldFileSource).not.toMatch(/\bstandingRulingRows\b/);
+    expect(worldFileSource).not.toMatch(/\binsertAdvisoryDisposition\b/);
+    expect(worldFileSource).not.toMatch(/\bPromptTemplateRow\b/);
+    expect(worldFileSource).not.toMatch(/\bAdvisoryDispositionRow\b/);
+
+    const promptOutSource = readFileSync(new URL("../src/prompt-out.ts", import.meta.url), "utf8");
+    const worldFileImport = promptOutSource.split("\n").find((line) => line.includes("./world-file.js")) ?? "";
+    expect(promptOutSource).toMatch(/\bworld\.db\.prepare\b/);
+    expect(promptOutSource).toMatch(/\bworld\.atomicWrite\b/);
+    expect(worldFileImport).not.toContain("PromptTemplateRow");
+    expect(worldFileImport).not.toContain("AdvisoryDispositionRow");
+  });
+
   it("creates a world file with application id, schema version, and seeded catalogs", () => {
     const path = tempPath("world.sqlite");
     const store = WorldFile.create(path);

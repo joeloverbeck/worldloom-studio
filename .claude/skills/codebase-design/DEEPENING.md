@@ -8,11 +8,11 @@ When assessing a candidate for deepening, classify its dependencies. The categor
 
 ### 1. In-process
 
-Pure computation, in-memory state, no I/O. Always deepenable — merge the modules and test through the new interface directly. No adapter needed.
+Pure computation, in-memory state, no I/O. Always deepenable — merge the modules and test through the new interface directly. No adapter needed. An embedded database (SQLite / `better-sqlite3`) is *not* in-process despite running in the same process — it does file I/O and is exercised against a stand-in in tests, so it belongs under Local-substitutable.
 
 ### 2. Local-substitutable
 
-Dependencies that have local test stand-ins (PGLite for Postgres, in-memory filesystem). Deepenable if the stand-in exists. The deepened module is tested with the stand-in running in the test suite. The seam is internal; no port at the module's external interface.
+Dependencies that have local test stand-ins (PGLite for Postgres, an embedded SQLite database on a temp file or `:memory:`, an in-memory filesystem). Deepenable if the stand-in exists. The deepened module is tested with the stand-in running in the test suite. The seam is internal; no port at the module's external interface.
 
 ### 3. Remote but owned (Ports & Adapters)
 
