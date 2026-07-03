@@ -9,6 +9,7 @@ import * as ContradictionFlow from "./contradiction-flow.js";
 import * as CreationFlow from "./creation-flow.js";
 import * as PromptOut from "./prompt-out.js";
 import * as PropagationFlow from "./propagation-flow.js";
+import * as QaFlow from "./qa-flow.js";
 
 interface AppOptions {
   token?: string;
@@ -332,6 +333,9 @@ export const createApp = (options: AppOptions = {}) => {
       }
       if (input.flowKey === "contradiction") {
         return c.json({ record: ContradictionFlow.skipContradictionStep(activeWorldSession.current, input) }, 201);
+      }
+      if (input.flowKey === "qa") {
+        return c.json({ record: QaFlow.skipQaStep(activeWorldSession.current, input) }, 201);
       }
       return c.json({ record: PromptOut.recordPromptOutSkip(activeWorldSession.current, input) }, 201);
     } catch (error) {
@@ -747,6 +751,102 @@ export const createApp = (options: AppOptions = {}) => {
     if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
     try {
       return c.json(ContradictionFlow.closeContradictionRun(activeWorldSession.current, Number(c.req.param("id"))), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/qa/passes/start", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(QaFlow.startQaPass(activeWorldSession.current, await body<{
+        subjectType: "record" | "world";
+        subjectRecordId?: number;
+        title?: string;
+      }>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.get("/api/qa/passes/:id", (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(QaFlow.getQaPass(activeWorldSession.current, Number(c.req.param("id"))));
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/qa/scores", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(QaFlow.recordQaScore(activeWorldSession.current, await body<{
+        flowId: number;
+        testNumber: number;
+        score: "0" | "1" | "2" | "3" | "na";
+        naReason?: string;
+        notes?: string;
+        requiredRepair?: string;
+        loadBearing?: boolean;
+        repairRouted?: boolean;
+      }>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/qa/profile", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(QaFlow.recordQaProfile(activeWorldSession.current, await body<{
+        flowId: number;
+        fields: QaFlow.QaProfileFields;
+        recordLinkIds?: number[];
+        debtLinkIds?: number[];
+      }>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/qa/floor", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(QaFlow.recordQaFloor(activeWorldSession.current, await body<{
+        flowId: number;
+        conditions: QaFlow.QaFloorConditions;
+        override?: boolean;
+        overrideReason?: string;
+        admissionLevel?: string;
+        workScale?: string;
+      }>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/qa/repairs", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(QaFlow.routeQaRepair(activeWorldSession.current, await body<{
+        flowId: number;
+        testNumber: number;
+        repairKind: "fact" | "canon_debt";
+        repairText: string;
+        debtKind?: string;
+        debtName?: string;
+        candidate?: { title: string; body: string; truthLayer: string };
+      }>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/qa/passes/:id/finalize", (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(QaFlow.finalizeQaPass(activeWorldSession.current, Number(c.req.param("id"))), 201);
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }

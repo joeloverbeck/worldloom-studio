@@ -55,6 +55,7 @@ export const RECORD_TYPES: RecordTypeDefinition[] = [
   { key: "gate_result", label: "Gate result", namespace: "GAT", mutationRegime: "report", packageSource: "docs/worldbuilding-system/06_canon_fact_admission_protocol.md" },
   { key: "pass_report", label: "Pass report", namespace: "PAS", mutationRegime: "report", packageSource: "docs/worldbuilding-system/21_templates_index.md", untestedSurface: true },
   { key: "qa_scorecard", label: "QA scorecard", namespace: "QA", mutationRegime: "report", packageSource: "docs/worldbuilding-system/18_quality_assurance_tests.md" },
+  { key: "qa_pass", label: "QA pass", namespace: "QAP", mutationRegime: "report", packageSource: "docs/worldbuilding-system/18_quality_assurance_tests.md" },
   { key: "seed_decomposition", label: "Seed decomposition", namespace: "SEE", mutationRegime: "report", packageSource: "docs/worldbuilding-system/05_creation_protocol.md" },
   { key: "advisory_artifact", label: "Advisory artifact", namespace: "ADV", mutationRegime: "report", packageSource: "docs/worldbuilding-system/20_ai_assisted_workflow.md" }
 ];
@@ -83,7 +84,8 @@ export const LINK_TYPES: LinkTypeDefinition[] = [
   { key: "branches_from", label: "branches from", packageSource: "docs/worldbuilding-system/15_branching_versioning_and_collaboration.md" },
   { key: "merge_candidate_for", label: "merge candidate for", packageSource: "docs/worldbuilding-system/15_branching_versioning_and_collaboration.md" },
   { key: "preserves_boundary_for", label: "preserves boundary for", packageSource: "docs/worldbuilding-system/13_contradiction_retcon_and_mystery.md" },
-  { key: "requires_follow_up", label: "requires follow-up", packageSource: "docs/worldbuilding-system/checklists/branching_collaboration_sweep.md" }
+  { key: "requires_follow_up", label: "requires follow-up", packageSource: "docs/worldbuilding-system/checklists/branching_collaboration_sweep.md" },
+  { key: "assesses", label: "assesses", packageSource: "docs/worldbuilding-system/18_quality_assurance_tests.md" }
 ];
 
 const terms = (vocabulary: string, packageSource: string, values: string[], extensionAllowed = false, seededOther = false): VocabularyTerm[] =>

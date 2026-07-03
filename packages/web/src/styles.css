@@ -148,6 +148,34 @@ label {
   overflow-wrap: anywhere;
 }
 
+.doctrine {
+  display: grid;
+  gap: 4px;
+  color: #34433e;
+  border-left: 3px solid #6d7f54;
+  padding-left: 10px;
+}
+
+.doctrine span {
+  overflow-wrap: anywhere;
+}
+
+.inline-check {
+  display: inline-flex;
+  width: auto;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.inline-check input {
+  width: auto;
+}
+
+.compact-grid {
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+}
+
 .subpanel h2,
 .subpanel h3 {
   margin: 0;

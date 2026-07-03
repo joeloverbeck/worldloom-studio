@@ -9,9 +9,10 @@ import {
   MIGRATION_001_VOCABULARY_TERMS,
   MIGRATION_003_CONSEQUENCE_DISPOSITIONS
 } from "./migration-snapshots.js";
+import { QA_RED_TEAM_PROMPT_TEXT, QA_TEST_CATALOG } from "./qa-catalog.js";
 
 export const APPLICATION_ID = 0x574c4f4d;
-export const CURRENT_SCHEMA_VERSION = 4;
+export const CURRENT_SCHEMA_VERSION = 5;
 
 const sqlString = (value: string): string => `'${value.replaceAll("'", "''")}'`;
 
@@ -879,4 +880,185 @@ BEGIN
 END;
 
 PRAGMA user_version = 4;
+`;
+
+const qaPassHeadings = [
+  [1, "Subject and run"],
+  [2, "Score summary"],
+  [3, "Regression profile"],
+  [4, "Pass/fail floor"],
+  [5, "Repair routing"],
+  [6, "Prompt-out and skips"],
+  [7, "Close audit"]
+] as const;
+
+const qaCatalogSeedSql = QA_TEST_CATALOG.map((test) => `INSERT OR IGNORE INTO qa_test_catalog (
+  number,
+  name,
+  cluster,
+  package_source,
+  failure_smell,
+  weak_anchor,
+  adequate_anchor,
+  strong_anchor,
+  mode_benchmark
+) VALUES (
+  ${test.number},
+  ${sqlString(test.name)},
+  ${sqlString(test.cluster)},
+  ${sqlString(test.packageSource)},
+  ${sqlString(test.failureSmell)},
+  ${sqlString(test.anchors.weak)},
+  ${sqlString(test.anchors.adequate)},
+  ${sqlString(test.anchors.strong)},
+  ${sqlString(test.modeBenchmark)}
+);`).join("\n");
+
+export const migration005 = `
+INSERT OR IGNORE INTO record_types (key, label, namespace, mutation_regime, package_source, untested_surface)
+VALUES ('qa_pass', 'QA pass', 'QAP', 'report', 'docs/worldbuilding-system/18_quality_assurance_tests.md', 0);
+
+INSERT OR IGNORE INTO record_type_sequences (record_type_key, next_value)
+VALUES ('qa_pass', 1);
+
+INSERT OR IGNORE INTO link_types (key, label, package_source)
+VALUES ('assesses', 'assesses', 'docs/worldbuilding-system/18_quality_assurance_tests.md');
+
+${qaPassHeadings.map(([position, heading]) => `INSERT OR IGNORE INTO record_section_headings (record_type_key, position, heading, package_source) VALUES ('qa_pass', ${position}, ${sqlString(heading)}, 'docs/worldbuilding-system/18_quality_assurance_tests.md');`).join("\n")}
+
+CREATE TABLE IF NOT EXISTS qa_test_catalog (
+  number INTEGER PRIMARY KEY CHECK (number BETWEEN 1 AND 28),
+  name TEXT NOT NULL,
+  cluster TEXT NOT NULL,
+  package_source TEXT NOT NULL,
+  failure_smell TEXT NOT NULL,
+  weak_anchor TEXT NOT NULL,
+  adequate_anchor TEXT NOT NULL,
+  strong_anchor TEXT NOT NULL,
+  mode_benchmark TEXT NOT NULL
+) STRICT;
+
+${qaCatalogSeedSql}
+
+ALTER TABLE flow_instances ADD COLUMN qa_subject_record_id INTEGER REFERENCES records(id);
+ALTER TABLE flow_instances ADD COLUMN qa_pass_record_id INTEGER REFERENCES records(id);
+
+CREATE TABLE IF NOT EXISTS qa_test_scores (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  qa_pass_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  test_number INTEGER NOT NULL REFERENCES qa_test_catalog(number),
+  score TEXT NOT NULL CHECK (score IN ('0', '1', '2', '3', 'na')),
+  na_reason TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT '',
+  required_repair TEXT NOT NULL DEFAULT '',
+  load_bearing INTEGER NOT NULL DEFAULT 0 CHECK (load_bearing IN (0, 1)),
+  repair_routed INTEGER NOT NULL DEFAULT 0 CHECK (repair_routed IN (0, 1)),
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (qa_pass_record_id, test_number),
+  CHECK (score != 'na' OR length(trim(na_reason)) > 0)
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS qa_test_scores_na_reason
+BEFORE INSERT ON qa_test_scores
+WHEN new.score = 'na' AND length(trim(new.na_reason)) = 0
+BEGIN
+  SELECT RAISE(ABORT, 'n/a reason required');
+END;
+
+CREATE TRIGGER IF NOT EXISTS qa_test_scores_na_reason_update
+BEFORE UPDATE ON qa_test_scores
+WHEN new.score = 'na' AND length(trim(new.na_reason)) = 0
+BEGIN
+  SELECT RAISE(ABORT, 'n/a reason required');
+END;
+
+CREATE TRIGGER IF NOT EXISTS qa_test_scores_touch_updated_at
+AFTER UPDATE ON qa_test_scores
+WHEN old.updated_at = new.updated_at
+BEGIN
+  UPDATE qa_test_scores SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = new.id;
+END;
+
+CREATE TABLE IF NOT EXISTS qa_regression_profiles (
+  qa_pass_record_id INTEGER PRIMARY KEY REFERENCES records(id) ON DELETE CASCADE,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  strongest_domain TEXT NOT NULL DEFAULT '',
+  weakest_domain TEXT NOT NULL DEFAULT '',
+  most_dangerous_under_propagated_fact TEXT NOT NULL DEFAULT '',
+  most_likely_contradiction TEXT NOT NULL DEFAULT '',
+  most_fragile_mystery TEXT NOT NULL DEFAULT '',
+  most_overloaded_constraint TEXT NOT NULL DEFAULT '',
+  most_suspicious_absent_institution_response TEXT NOT NULL DEFAULT '',
+  most_at_risk_aesthetic_drift TEXT NOT NULL DEFAULT '',
+  canon_debt_before_foundational_facts TEXT NOT NULL DEFAULT '',
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS qa_regression_profiles_touch_updated_at
+AFTER UPDATE ON qa_regression_profiles
+WHEN old.updated_at = new.updated_at
+BEGIN
+  UPDATE qa_regression_profiles SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE qa_pass_record_id = new.qa_pass_record_id;
+END;
+
+CREATE TABLE IF NOT EXISTS qa_floor_verdicts (
+  qa_pass_record_id INTEGER PRIMARY KEY REFERENCES records(id) ON DELETE CASCADE,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  repeatable_high_impact_capability INTEGER NOT NULL CHECK (repeatable_high_impact_capability IN (0, 1)),
+  lacks_access_limits INTEGER NOT NULL CHECK (lacks_access_limits IN (0, 1)),
+  lacks_cost INTEGER NOT NULL CHECK (lacks_cost IN (0, 1)),
+  lacks_countermeasure INTEGER NOT NULL CHECK (lacks_countermeasure IN (0, 1)),
+  lacks_actor_adaptation INTEGER NOT NULL CHECK (lacks_actor_adaptation IN (0, 1)),
+  lacks_temporal_residue INTEGER NOT NULL CHECK (lacks_temporal_residue IN (0, 1)),
+  lacks_distribution_pattern INTEGER NOT NULL CHECK (lacks_distribution_pattern IN (0, 1)),
+  lacks_institution_or_mode_equivalent INTEGER NOT NULL CHECK (lacks_institution_or_mode_equivalent IN (0, 1)),
+  triggered INTEGER NOT NULL CHECK (triggered IN (0, 1)),
+  override INTEGER NOT NULL DEFAULT 0 CHECK (override IN (0, 1)),
+  override_reason TEXT NOT NULL DEFAULT '',
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS qa_floor_verdicts_touch_updated_at
+AFTER UPDATE ON qa_floor_verdicts
+WHEN old.updated_at = new.updated_at
+BEGIN
+  UPDATE qa_floor_verdicts SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE qa_pass_record_id = new.qa_pass_record_id;
+END;
+
+CREATE TABLE IF NOT EXISTS qa_repairs (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  qa_pass_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  test_number INTEGER NOT NULL REFERENCES qa_test_catalog(number),
+  repair_kind TEXT NOT NULL CHECK (repair_kind IN ('fact', 'canon_debt')),
+  debt_kind TEXT,
+  repair_text TEXT NOT NULL,
+  proposal_record_id INTEGER REFERENCES records(id),
+  debt_record_id INTEGER REFERENCES records(id),
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  CHECK (
+    (repair_kind = 'fact' AND proposal_record_id IS NOT NULL AND debt_record_id IS NULL)
+    OR (repair_kind = 'canon_debt' AND debt_record_id IS NOT NULL AND proposal_record_id IS NULL)
+  )
+) STRICT;
+
+INSERT OR IGNORE INTO prompt_templates (key, role_name, original_text, package_source) VALUES
+  ('qa_red_team', 'QA hostile reader', ${sqlString(QA_RED_TEAM_PROMPT_TEXT)}, 'docs/worldbuilding-system/18_quality_assurance_tests.md');
+
+INSERT OR IGNORE INTO prompt_template_versions (template_key, version, text)
+SELECT key, 1, original_text FROM prompt_templates WHERE key = 'qa_red_team';
+
+PRAGMA user_version = 5;
 `;

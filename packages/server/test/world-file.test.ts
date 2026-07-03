@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
-import { APPLICATION_ID, migration001, migration002, migration003 } from "../src/schema.js";
+import { APPLICATION_ID, migration001, migration002, migration003, migration004 } from "../src/schema.js";
 import { WorldFile } from "../src/world-file.js";
 import * as AdmissionFlow from "../src/admission-flow.js";
 import * as ContradictionFlow from "../src/contradiction-flow.js";
@@ -35,7 +35,8 @@ describe("WorldFile", () => {
       "admission-flow.ts",
       "creation-flow.ts",
       "propagation-flow.ts",
-      "contradiction-flow.ts"
+      "contradiction-flow.ts",
+      "qa-flow.ts"
     ];
 
     for (const moduleName of flowModules) {
@@ -48,6 +49,11 @@ describe("WorldFile", () => {
       expect(source).toContain("intakeProposedFact");
       expect(source).not.toMatch(/createRecord\(\{\s*recordTypeKey:\s*"canon_fact"/);
     }
+
+    const qaSource = readFileSync(new URL("../src/qa-flow.ts", import.meta.url), "utf8");
+    expect(qaSource).toContain("intakeProposedFact");
+    expect(qaSource).not.toMatch(/store\.db|\.db\.prepare|\.db\.transaction/);
+    expect(qaSource).not.toMatch(/updateRecord\([^)]*canonStatus/);
   });
 
   it("creates a world file with application id, schema version, and seeded catalogs", () => {
@@ -55,17 +61,21 @@ describe("WorldFile", () => {
     const store = WorldFile.create(path);
 
     expect(store.db.pragma("application_id", { simple: true })).toBe(APPLICATION_ID);
-    expect(store.db.pragma("user_version", { simple: true })).toBe(4);
+    expect(store.db.pragma("user_version", { simple: true })).toBe(5);
     expect(store.db.pragma("journal_mode", { simple: true })).toBe("wal");
-    expect(store.db.prepare("SELECT COUNT(*) AS count FROM record_types").get()).toMatchObject({ count: 26 });
-    expect(store.db.prepare("SELECT COUNT(*) AS count FROM link_types").get()).toMatchObject({ count: 24 });
+    expect(store.db.prepare("SELECT COUNT(*) AS count FROM record_types").get()).toMatchObject({ count: 27 });
+    expect(store.db.prepare("SELECT COUNT(*) AS count FROM link_types").get()).toMatchObject({ count: 25 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'canon_status'").get()).toMatchObject({ count: 11 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'consequence_disposition'").get()).toMatchObject({ count: 4 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'contradiction_disposition'").get()).toMatchObject({ count: 7 });
+    expect(store.db.prepare("SELECT COUNT(*) AS count FROM qa_test_catalog").get()).toMatchObject({ count: 28 });
+    expect(store.db.prepare("SELECT mutation_regime FROM record_types WHERE key = 'qa_pass'").get()).toMatchObject({ mutation_regime: "report" });
+    expect(store.db.prepare("SELECT label FROM link_types WHERE key = 'assesses'").get()).toMatchObject({ label: "assesses" });
     expect(PromptOut.listPromptTemplates(store)).toEqual(expect.arrayContaining([
       expect.objectContaining({ key: "admission_prerequisite_audit" }),
       expect.objectContaining({ key: "admission_constraint_challenge" }),
-      expect.objectContaining({ key: "propagation_consequence_scout" })
+      expect.objectContaining({ key: "propagation_consequence_scout" }),
+      expect.objectContaining({ key: "qa_red_team" })
     ]));
     expect(store.db.prepare("SELECT strict FROM pragma_table_list WHERE name = 'records'").get()).toMatchObject({ strict: 1 });
 
@@ -95,9 +105,9 @@ describe("WorldFile", () => {
     oldDb.close();
 
     const migrated = WorldFile.open(oldPath);
-    expect(migrated.db.pragma("user_version", { simple: true })).toBe(4);
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(5);
     migrated.close();
-    expect(readdirSync(join(oldPath, "..")).some((name) => name.includes("pre-migration-v0-to-v4"))).toBe(true);
+    expect(readdirSync(join(oldPath, "..")).some((name) => name.includes("pre-migration-v0-to-v5"))).toBe(true);
 
     const corruptPath = tempPath("corrupt.sqlite");
     writeFileSync(corruptPath, "not sqlite");
@@ -138,14 +148,14 @@ describe("WorldFile", () => {
     db.close();
 
     const migrated = WorldFile.open(path);
-    expect(migrated.db.pragma("user_version", { simple: true })).toBe(4);
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(5);
     expect(migrated.getRecord(recordId)).toMatchObject({ body: "Body from v1" });
     expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'consequence_disposition'").get()).toMatchObject({ count: 4 });
     expect(migrated.sectionHeadings("world_kernel")).toEqual(expect.arrayContaining([
       expect.objectContaining({ heading: "World premise" })
     ]));
     migrated.close();
-    expect(readdirSync(join(path, "..")).some((name) => name.includes("pre-migration-v1-to-v4"))).toBe(true);
+    expect(readdirSync(join(path, "..")).some((name) => name.includes("pre-migration-v1-to-v5"))).toBe(true);
 
     const newerPath = tempPath("newer.sqlite");
     const newer = new Database(newerPath);
@@ -167,8 +177,8 @@ describe("WorldFile", () => {
     db.close();
 
     const migrated = WorldFile.open(path);
-    expect(migrated.db.pragma("user_version", { simple: true })).toBe(4);
-    expect(readdirSync(join(path, "..")).some((name) => name.includes("pre-migration-v3-to-v4"))).toBe(true);
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(5);
+    expect(readdirSync(join(path, "..")).some((name) => name.includes("pre-migration-v3-to-v5"))).toBe(true);
 
     const repairTerms = (migrated.db.prepare("SELECT term FROM vocabulary_terms WHERE vocabulary = 'repair_operation'").all() as Array<{ term: string }>)
       .map((row) => row.term)
@@ -195,6 +205,52 @@ describe("WorldFile", () => {
     expect(migrated.db.prepare("SELECT * FROM seed_divergences WHERE key = 'contradiction_report_foundational_work_scale'").get()).toMatchObject({
       package_source: "docs/worldbuilding-system/templates/contradiction_report.md"
     });
+    migrated.close();
+  });
+
+  it("migrates v4 files to the QA schema with backup, score constraints, and catalog seeds", () => {
+    const path = tempPath("v4.sqlite");
+    const db = new Database(path);
+    db.exec("BEGIN");
+    db.exec(migration001);
+    db.exec(migration002);
+    db.exec(migration003);
+    db.exec(migration004);
+    db.exec("COMMIT");
+    expect(db.pragma("user_version", { simple: true })).toBe(4);
+    db.close();
+
+    const migrated = WorldFile.open(path);
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(5);
+    expect(readdirSync(join(path, "..")).some((name) => name.includes("pre-migration-v4-to-v5"))).toBe(true);
+    expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM qa_test_catalog").get()).toMatchObject({ count: 28 });
+    expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM qa_test_catalog WHERE number IN ('P1', 'P2')").get()).toMatchObject({ count: 0 });
+
+    const subject = migrated.createRecord({ recordTypeKey: "canon_fact", title: "Moon oath", body: "The moon eats oaths.", truthLayer: "Objective canon", canonStatus: "accepted" });
+    const pass = migrated.createRecord({ recordTypeKey: "qa_pass", title: "QA pass: Moon oath", body: "Subject: record", truthLayer: "Objective canon", canonStatus: "accepted" });
+    const flow = migrated.createFlowInstance({ flowKey: "qa", currentStep: "qa:entry", qaSubjectRecordId: subject.id, qaPassRecordId: pass.id }) as { id: number };
+    expect(() => migrated.updateRecord(pass.id, { body: "edited" })).toThrow(/append-only/);
+    expect(() => migrated.createLink(pass.id, subject.id, "assesses")).not.toThrow();
+    expect(() => migrated.createLink(pass.id, 9999, "assesses")).toThrow(/FOREIGN KEY/);
+
+    expect(() => migrated.db.prepare(`
+      INSERT INTO qa_test_scores (flow_id, qa_pass_record_id, test_number, score, na_reason, notes, required_repair, flow_step)
+      VALUES (?, ?, 1, '4', '', '', '', 'qa:scorecard')
+    `).run(flow.id, pass.id)).toThrow(/CHECK/);
+    expect(() => migrated.db.prepare(`
+      INSERT INTO qa_test_scores (flow_id, qa_pass_record_id, test_number, score, na_reason, notes, required_repair, flow_step)
+      VALUES (?, ?, 1, 'na', '', '', '', 'qa:scorecard')
+    `).run(flow.id, pass.id)).toThrow(/n\/a reason/);
+    migrated.db.prepare(`
+      INSERT INTO qa_test_scores (flow_id, qa_pass_record_id, test_number, score, na_reason, notes, required_repair, flow_step)
+      VALUES (?, ?, 1, 'na', 'No capability applies.', 'Single-record pass.', '', 'qa:scorecard')
+    `).run(flow.id, pass.id);
+    migrated.db.prepare(`
+      INSERT INTO qa_test_scores (flow_id, qa_pass_record_id, test_number, score, na_reason, notes, required_repair, flow_step)
+      VALUES (?, ?, 2, '0', '', 'Prerequisites absent.', 'Name the prior condition.', 'qa:scorecard')
+    `).run(flow.id, pass.id);
+    expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM qa_test_scores WHERE qa_pass_record_id = ?").get(pass.id)).toMatchObject({ count: 2 });
+
     migrated.close();
   });
 

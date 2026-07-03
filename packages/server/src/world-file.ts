@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { basename, dirname, join, resolve } from "node:path";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { APPLICATION_ID, CURRENT_SCHEMA_VERSION, migration001, migration002, migration003, migration004 } from "./schema.js";
+import { APPLICATION_ID, CURRENT_SCHEMA_VERSION, migration001, migration002, migration003, migration004, migration005 } from "./schema.js";
 import { LINK_TYPES, RECORD_TYPES, RECORD_TYPE_BY_KEY } from "@worldloom/shared";
 
 export interface RecordInput {
@@ -103,6 +103,36 @@ export interface AdvisoryDispositionRow {
   created_at: string;
 }
 
+export interface QaTestCatalogRow {
+  number: number;
+  name: string;
+  cluster: string;
+  packageSource: string;
+  failureSmell: string;
+  anchors: {
+    weak: string;
+    adequate: string;
+    strong: string;
+  };
+  modeBenchmark: string;
+}
+
+export interface QaScoreRow {
+  id: number;
+  flowId: number;
+  qaPassRecordId: number;
+  testNumber: number;
+  score: "0" | "1" | "2" | "3" | "na";
+  naReason: string;
+  notes: string;
+  requiredRepair: string;
+  loadBearing: boolean;
+  repairRouted: boolean;
+  flowStep: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 type FlowInstanceInput = {
   flowKey: string;
   currentStep: string;
@@ -112,6 +142,8 @@ type FlowInstanceInput = {
   propagationReportRecordId?: number | null;
   contradictionSourceRecordId?: number | null;
   contradictionReportRecordId?: number | null;
+  qaSubjectRecordId?: number | null;
+  qaPassRecordId?: number | null;
 };
 
 type FlowInstanceUpdate = Partial<Omit<FlowInstanceInput, "flowKey"> & { state: string }>;
@@ -163,6 +195,36 @@ const rowToDraft = (row: Record<string, unknown>): DraftRow => ({
   id: Number(row.id),
   title: String(row.title),
   body: String(row.body ?? ""),
+  createdAt: String(row.created_at),
+  updatedAt: String(row.updated_at)
+});
+
+const rowToQaTestCatalog = (row: Record<string, unknown>): QaTestCatalogRow => ({
+  number: Number(row.number),
+  name: String(row.name),
+  cluster: String(row.cluster),
+  packageSource: String(row.package_source),
+  failureSmell: String(row.failure_smell),
+  anchors: {
+    weak: String(row.weak_anchor),
+    adequate: String(row.adequate_anchor),
+    strong: String(row.strong_anchor)
+  },
+  modeBenchmark: String(row.mode_benchmark)
+});
+
+const rowToQaScore = (row: Record<string, unknown>): QaScoreRow => ({
+  id: Number(row.id),
+  flowId: Number(row.flow_id),
+  qaPassRecordId: Number(row.qa_pass_record_id),
+  testNumber: Number(row.test_number),
+  score: String(row.score) as QaScoreRow["score"],
+  naReason: String(row.na_reason ?? ""),
+  notes: String(row.notes ?? ""),
+  requiredRepair: String(row.required_repair ?? ""),
+  loadBearing: Number(row.load_bearing) === 1,
+  repairRouted: Number(row.repair_routed) === 1,
+  flowStep: String(row.flow_step),
   createdAt: String(row.created_at),
   updatedAt: String(row.updated_at)
 });
@@ -578,7 +640,9 @@ export class WorldFile {
         propagation_debt_record_id,
         propagation_report_record_id,
         contradiction_source_record_id,
-        contradiction_report_record_id
+        contradiction_report_record_id,
+        qa_subject_record_id,
+        qa_pass_record_id
       )
       VALUES (
         @flowKey,
@@ -588,7 +652,9 @@ export class WorldFile {
         @propagationDebtRecordId,
         @propagationReportRecordId,
         @contradictionSourceRecordId,
-        @contradictionReportRecordId
+        @contradictionReportRecordId,
+        @qaSubjectRecordId,
+        @qaPassRecordId
       )
     `).run({
       flowKey: input.flowKey,
@@ -598,7 +664,9 @@ export class WorldFile {
       propagationDebtRecordId: input.propagationDebtRecordId ?? null,
       propagationReportRecordId: input.propagationReportRecordId ?? null,
       contradictionSourceRecordId: input.contradictionSourceRecordId ?? null,
-      contradictionReportRecordId: input.contradictionReportRecordId ?? null
+      contradictionReportRecordId: input.contradictionReportRecordId ?? null,
+      qaSubjectRecordId: input.qaSubjectRecordId ?? null,
+      qaPassRecordId: input.qaPassRecordId ?? null
     });
     return this.getFlowInstance(Number(result.lastInsertRowid));
   }
@@ -612,7 +680,9 @@ export class WorldFile {
       ["propagationDebtRecordId", "propagation_debt_record_id"],
       ["propagationReportRecordId", "propagation_report_record_id"],
       ["contradictionSourceRecordId", "contradiction_source_record_id"],
-      ["contradictionReportRecordId", "contradiction_report_record_id"]
+      ["contradictionReportRecordId", "contradiction_report_record_id"],
+      ["qaSubjectRecordId", "qa_subject_record_id"],
+      ["qaPassRecordId", "qa_pass_record_id"]
     ];
     const setClauses: string[] = [];
     const values: Record<string, unknown> = { id };
@@ -937,6 +1007,261 @@ export class WorldFile {
     return this.db.prepare("SELECT * FROM mystery_preservation_checklists WHERE flow_id = ? ORDER BY id").all(flowId) as FlowInstanceRow[];
   }
 
+  findInProgressQaFlow(subjectRecordId: number | null): FlowInstanceRow | null {
+    return (this.db.prepare(`
+      SELECT *
+      FROM flow_instances
+      WHERE flow_key = 'qa'
+        AND state = 'in_progress'
+        AND COALESCE(qa_subject_record_id, 0) = COALESCE(?, 0)
+      ORDER BY id DESC
+      LIMIT 1
+    `).get(subjectRecordId) as FlowInstanceRow | undefined) ?? null;
+  }
+
+  qaTestCatalog(): QaTestCatalogRow[] {
+    return this.db.prepare("SELECT * FROM qa_test_catalog ORDER BY number").all().map((row) => rowToQaTestCatalog(row as Record<string, unknown>));
+  }
+
+  qaTestByNumber(testNumber: number): QaTestCatalogRow {
+    const row = this.db.prepare("SELECT * FROM qa_test_catalog WHERE number = ?").get(testNumber);
+    if (!row) throw new Error(`QA test not found: ${testNumber}`);
+    return rowToQaTestCatalog(row as Record<string, unknown>);
+  }
+
+  qaScores(flowId: number): QaScoreRow[] {
+    return this.db.prepare("SELECT * FROM qa_test_scores WHERE flow_id = ? ORDER BY test_number").all(flowId).map((row) => rowToQaScore(row as Record<string, unknown>));
+  }
+
+  upsertQaScore(input: {
+    flowId: number;
+    qaPassRecordId: number;
+    testNumber: number;
+    score: "0" | "1" | "2" | "3" | "na";
+    naReason?: string;
+    notes?: string;
+    requiredRepair?: string;
+    loadBearing?: boolean;
+    repairRouted?: boolean;
+    flowStep: string;
+  }): QaScoreRow {
+    this.qaTestByNumber(input.testNumber);
+    this.db.prepare(`
+      INSERT INTO qa_test_scores (
+        flow_id,
+        qa_pass_record_id,
+        test_number,
+        score,
+        na_reason,
+        notes,
+        required_repair,
+        load_bearing,
+        repair_routed,
+        flow_step
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(qa_pass_record_id, test_number) DO UPDATE SET
+        score = excluded.score,
+        na_reason = excluded.na_reason,
+        notes = excluded.notes,
+        required_repair = excluded.required_repair,
+        load_bearing = excluded.load_bearing,
+        repair_routed = excluded.repair_routed,
+        flow_step = excluded.flow_step
+    `).run(
+      input.flowId,
+      input.qaPassRecordId,
+      input.testNumber,
+      input.score,
+      input.naReason ?? "",
+      input.notes ?? "",
+      input.requiredRepair ?? "",
+      input.loadBearing ? 1 : 0,
+      input.repairRouted ? 1 : 0,
+      input.flowStep
+    );
+    return rowToQaScore(this.db.prepare("SELECT * FROM qa_test_scores WHERE qa_pass_record_id = ? AND test_number = ?").get(input.qaPassRecordId, input.testNumber) as Record<string, unknown>);
+  }
+
+  qaRegressionProfile(flowId: number): FlowInstanceRow | null {
+    return (this.db.prepare("SELECT * FROM qa_regression_profiles WHERE flow_id = ?").get(flowId) as FlowInstanceRow | undefined) ?? null;
+  }
+
+  upsertQaRegressionProfile(input: {
+    flowId: number;
+    qaPassRecordId: number;
+    fields: {
+      strongestDomain: string;
+      weakestDomain: string;
+      mostDangerousUnderPropagatedFact: string;
+      mostLikelyContradiction: string;
+      mostFragileMystery: string;
+      mostOverloadedConstraint: string;
+      mostSuspiciousAbsentInstitutionResponse: string;
+      mostAtRiskAestheticDrift: string;
+      canonDebtBeforeFoundationalFacts: string;
+    };
+    flowStep: string;
+  }): FlowInstanceRow {
+    this.db.prepare(`
+      INSERT INTO qa_regression_profiles (
+        qa_pass_record_id,
+        flow_id,
+        strongest_domain,
+        weakest_domain,
+        most_dangerous_under_propagated_fact,
+        most_likely_contradiction,
+        most_fragile_mystery,
+        most_overloaded_constraint,
+        most_suspicious_absent_institution_response,
+        most_at_risk_aesthetic_drift,
+        canon_debt_before_foundational_facts,
+        flow_step
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(qa_pass_record_id) DO UPDATE SET
+        strongest_domain = excluded.strongest_domain,
+        weakest_domain = excluded.weakest_domain,
+        most_dangerous_under_propagated_fact = excluded.most_dangerous_under_propagated_fact,
+        most_likely_contradiction = excluded.most_likely_contradiction,
+        most_fragile_mystery = excluded.most_fragile_mystery,
+        most_overloaded_constraint = excluded.most_overloaded_constraint,
+        most_suspicious_absent_institution_response = excluded.most_suspicious_absent_institution_response,
+        most_at_risk_aesthetic_drift = excluded.most_at_risk_aesthetic_drift,
+        canon_debt_before_foundational_facts = excluded.canon_debt_before_foundational_facts,
+        flow_step = excluded.flow_step
+    `).run(
+      input.qaPassRecordId,
+      input.flowId,
+      input.fields.strongestDomain,
+      input.fields.weakestDomain,
+      input.fields.mostDangerousUnderPropagatedFact,
+      input.fields.mostLikelyContradiction,
+      input.fields.mostFragileMystery,
+      input.fields.mostOverloadedConstraint,
+      input.fields.mostSuspiciousAbsentInstitutionResponse,
+      input.fields.mostAtRiskAestheticDrift,
+      input.fields.canonDebtBeforeFoundationalFacts,
+      input.flowStep
+    );
+    return this.qaRegressionProfile(input.flowId)!;
+  }
+
+  qaFloorVerdict(flowId: number): FlowInstanceRow | null {
+    return (this.db.prepare("SELECT * FROM qa_floor_verdicts WHERE flow_id = ?").get(flowId) as FlowInstanceRow | undefined) ?? null;
+  }
+
+  upsertQaFloorVerdict(input: {
+    flowId: number;
+    qaPassRecordId: number;
+    conditions: {
+      repeatableHighImpactCapability: boolean;
+      lacksAccessLimits: boolean;
+      lacksCost: boolean;
+      lacksCountermeasure: boolean;
+      lacksActorAdaptation: boolean;
+      lacksTemporalResidue: boolean;
+      lacksDistributionPattern: boolean;
+      lacksInstitutionOrModeEquivalent: boolean;
+    };
+    triggered: boolean;
+    override: boolean;
+    overrideReason?: string;
+    flowStep: string;
+  }): FlowInstanceRow {
+    this.db.prepare(`
+      INSERT INTO qa_floor_verdicts (
+        qa_pass_record_id,
+        flow_id,
+        repeatable_high_impact_capability,
+        lacks_access_limits,
+        lacks_cost,
+        lacks_countermeasure,
+        lacks_actor_adaptation,
+        lacks_temporal_residue,
+        lacks_distribution_pattern,
+        lacks_institution_or_mode_equivalent,
+        triggered,
+        override,
+        override_reason,
+        flow_step
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(qa_pass_record_id) DO UPDATE SET
+        repeatable_high_impact_capability = excluded.repeatable_high_impact_capability,
+        lacks_access_limits = excluded.lacks_access_limits,
+        lacks_cost = excluded.lacks_cost,
+        lacks_countermeasure = excluded.lacks_countermeasure,
+        lacks_actor_adaptation = excluded.lacks_actor_adaptation,
+        lacks_temporal_residue = excluded.lacks_temporal_residue,
+        lacks_distribution_pattern = excluded.lacks_distribution_pattern,
+        lacks_institution_or_mode_equivalent = excluded.lacks_institution_or_mode_equivalent,
+        triggered = excluded.triggered,
+        override = excluded.override,
+        override_reason = excluded.override_reason,
+        flow_step = excluded.flow_step
+    `).run(
+      input.qaPassRecordId,
+      input.flowId,
+      input.conditions.repeatableHighImpactCapability ? 1 : 0,
+      input.conditions.lacksAccessLimits ? 1 : 0,
+      input.conditions.lacksCost ? 1 : 0,
+      input.conditions.lacksCountermeasure ? 1 : 0,
+      input.conditions.lacksActorAdaptation ? 1 : 0,
+      input.conditions.lacksTemporalResidue ? 1 : 0,
+      input.conditions.lacksDistributionPattern ? 1 : 0,
+      input.conditions.lacksInstitutionOrModeEquivalent ? 1 : 0,
+      input.triggered ? 1 : 0,
+      input.override ? 1 : 0,
+      input.overrideReason ?? "",
+      input.flowStep
+    );
+    return this.qaFloorVerdict(input.flowId)!;
+  }
+
+  insertQaRepair(input: {
+    flowId: number;
+    qaPassRecordId: number;
+    testNumber: number;
+    repairKind: "fact" | "canon_debt";
+    debtKind?: string;
+    repairText: string;
+    proposalRecordId?: number | null;
+    debtRecordId?: number | null;
+    flowStep: string;
+  }): FlowInstanceRow {
+    this.qaTestByNumber(input.testNumber);
+    const result = this.db.prepare(`
+      INSERT INTO qa_repairs (
+        flow_id,
+        qa_pass_record_id,
+        test_number,
+        repair_kind,
+        debt_kind,
+        repair_text,
+        proposal_record_id,
+        debt_record_id,
+        flow_step
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      input.flowId,
+      input.qaPassRecordId,
+      input.testNumber,
+      input.repairKind,
+      input.debtKind ?? null,
+      input.repairText,
+      input.proposalRecordId ?? null,
+      input.debtRecordId ?? null,
+      input.flowStep
+    );
+    return this.db.prepare("SELECT * FROM qa_repairs WHERE id = ?").get(result.lastInsertRowid) as FlowInstanceRow;
+  }
+
+  qaRepairs(flowId: number): FlowInstanceRow[] {
+    return this.db.prepare("SELECT * FROM qa_repairs WHERE flow_id = ? ORDER BY id").all(flowId) as FlowInstanceRow[];
+  }
+
   private configureConnection(): void {
     this.db.pragma("foreign_keys = ON");
     this.db.pragma("busy_timeout = 5000");
@@ -984,6 +1309,16 @@ export class WorldFile {
       this.db.exec("BEGIN");
       try {
         this.db.exec(migration004);
+        this.db.exec("COMMIT");
+      } catch (error) {
+        this.db.exec("ROLLBACK");
+        throw error;
+      }
+    }
+    if (version < 5) {
+      this.db.exec("BEGIN");
+      try {
+        this.db.exec(migration005);
         this.db.exec("COMMIT");
       } catch (error) {
         this.db.exec("ROLLBACK");
@@ -1146,6 +1481,11 @@ export class WorldFile {
         key: "boundary_guard",
         roleName: "Mystery guardian",
         text: "Pressure-test the preservation boundary, protected effect type, explanation-pressure operation, reveal permissions, reveal prohibitions, and sacred-opacity accountability. Protect consequence; do not solve by default."
+      },
+      {
+        key: "qa_red_team",
+        roleName: "QA hostile reader",
+        text: "Run a QA red-team pass as a hostile reader. Ask for pressure, not answers. Do not write final canon.\nUse the eight red-team questions from docs/worldbuilding-system/18_quality_assurance_tests.md."
       }
     ];
     this.db.transaction(() => {

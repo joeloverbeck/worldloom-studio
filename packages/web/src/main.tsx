@@ -101,6 +101,69 @@ interface PropagationPlan {
   doctrine: { signatureTests: string[]; stoppingRules: string[] };
 }
 
+interface QaTest {
+  number: number;
+  name: string;
+  cluster: string;
+  failureSmell: string;
+  anchors: {
+    weak: string;
+    adequate: string;
+    strong: string;
+  };
+  modeBenchmark: string;
+}
+
+interface QaScore {
+  id: number;
+  testNumber: number;
+  score: "0" | "1" | "2" | "3" | "na";
+  naReason: string;
+  notes: string;
+  requiredRepair: string;
+  loadBearing: boolean;
+  repairRouted: boolean;
+}
+
+interface QaBand {
+  color: "unscored" | "green" | "yellow" | "red";
+  reason: string;
+  persisted: false;
+}
+
+interface QaScorecard {
+  tests: QaTest[];
+  subjectMode: string | null;
+  doctrine: {
+    redFlags: string[];
+    modeBenchmarks: string[];
+    repairLoop: string[];
+  };
+}
+
+interface QaProfileFields {
+  strongestDomain: string;
+  weakestDomain: string;
+  mostDangerousUnderPropagatedFact: string;
+  mostLikelyContradiction: string;
+  mostFragileMystery: string;
+  mostOverloadedConstraint: string;
+  mostSuspiciousAbsentInstitutionResponse: string;
+  mostAtRiskAestheticDrift: string;
+  canonDebtBeforeFoundationalFacts: string;
+}
+
+interface QaFloorConditions {
+  repeatableHighImpactCapability: boolean;
+  lacksAccessLimits: boolean;
+  lacksCost: boolean;
+  lacksCountermeasure: boolean;
+  lacksActorAdaptation: boolean;
+  lacksTemporalResidue: boolean;
+  lacksDistributionPattern: boolean;
+  lacksInstitutionOrModeEquivalent: boolean;
+}
+
 interface PromptTemplate {
   key: string;
   role_name: string;
@@ -137,6 +200,40 @@ const emptyRecordForm = {
   canonStatus: ""
 };
 
+const emptyQaProfile: QaProfileFields = {
+  strongestDomain: "",
+  weakestDomain: "",
+  mostDangerousUnderPropagatedFact: "",
+  mostLikelyContradiction: "",
+  mostFragileMystery: "",
+  mostOverloadedConstraint: "",
+  mostSuspiciousAbsentInstitutionResponse: "",
+  mostAtRiskAestheticDrift: "",
+  canonDebtBeforeFoundationalFacts: ""
+};
+
+const qaFloorConditionLabels: Record<keyof QaFloorConditions, string> = {
+  repeatableHighImpactCapability: "Repeatable high-impact capability",
+  lacksAccessLimits: "No access limits",
+  lacksCost: "No cost",
+  lacksCountermeasure: "No countermeasure",
+  lacksActorAdaptation: "No actor adaptation",
+  lacksTemporalResidue: "No temporal residue",
+  lacksDistributionPattern: "No distribution pattern",
+  lacksInstitutionOrModeEquivalent: "No institution or mode-equivalent response"
+};
+
+const emptyQaFloorConditions: QaFloorConditions = {
+  repeatableHighImpactCapability: false,
+  lacksAccessLimits: false,
+  lacksCost: false,
+  lacksCountermeasure: false,
+  lacksActorAdaptation: false,
+  lacksTemporalResidue: false,
+  lacksDistributionPattern: false,
+  lacksInstitutionOrModeEquivalent: false
+};
+
 function App({ initialRecords = [] }: AppProps = {}) {
   const [token, setToken] = useState(storedToken());
   const [worldPath, setWorldPath] = useState("");
@@ -161,6 +258,26 @@ function App({ initialRecords = [] }: AppProps = {}) {
   const [propagationConsequences, setPropagationConsequences] = useState<PropagationConsequence[]>([]);
   const [propagationDomains, setPropagationDomains] = useState<PropagationDomain[]>([]);
   const [propagationDispositions, setPropagationDispositions] = useState<PropagationDisposition[]>([]);
+  const [qaFlowId, setQaFlowId] = useState<number | null>(null);
+  const [qaPassId, setQaPassId] = useState<number | null>(null);
+  const [qaSubjectType, setQaSubjectType] = useState<"record" | "world">("record");
+  const [qaSubjectRecordId, setQaSubjectRecordId] = useState("");
+  const [qaScorecard, setQaScorecard] = useState<QaScorecard | null>(null);
+  const [qaScores, setQaScores] = useState<QaScore[]>([]);
+  const [qaBand, setQaBand] = useState<QaBand | null>(null);
+  const [qaTestNumber, setQaTestNumber] = useState("1");
+  const [qaScore, setQaScore] = useState<"0" | "1" | "2" | "3" | "na">("2");
+  const [qaNaReason, setQaNaReason] = useState("");
+  const [qaNotes, setQaNotes] = useState("");
+  const [qaRequiredRepair, setQaRequiredRepair] = useState("");
+  const [qaLoadBearing, setQaLoadBearing] = useState(false);
+  const [qaRepairRouted, setQaRepairRouted] = useState(false);
+  const [qaProfile, setQaProfile] = useState<QaProfileFields>(emptyQaProfile);
+  const [qaFloorConditions, setQaFloorConditions] = useState<QaFloorConditions>(emptyQaFloorConditions);
+  const [qaFloorOverride, setQaFloorOverride] = useState(false);
+  const [qaFloorOverrideReason, setQaFloorOverrideReason] = useState("");
+  const [qaRepairKind, setQaRepairKind] = useState<"fact" | "canon_debt">("fact");
+  const [qaDebtKind, setQaDebtKind] = useState("contradiction");
   const [search, setSearch] = useState("");
   const [snapshotPath, setSnapshotPath] = useState("");
   const [exportDirectory, setExportDirectory] = useState("");
@@ -178,7 +295,7 @@ function App({ initialRecords = [] }: AppProps = {}) {
   const [linkTypeKey, setLinkTypeKey] = useState("depends_on");
   const [promptRecordId, setPromptRecordId] = useState("");
   const [promptTemplateKey, setPromptTemplateKey] = useState("kernel_pressure");
-  const [promptFlowKey, setPromptFlowKey] = useState<"creation" | "admission" | "propagation" | "contradiction">("creation");
+  const [promptFlowKey, setPromptFlowKey] = useState<"creation" | "admission" | "propagation" | "contradiction" | "qa">("creation");
   const [promptText, setPromptText] = useState("");
   const [templateEdit, setTemplateEdit] = useState("");
   const [responseText, setResponseText] = useState("");
@@ -228,8 +345,8 @@ function App({ initialRecords = [] }: AppProps = {}) {
   const selectedHeadings = headings.filter((heading) => heading.record_type_key === recordTypeKey);
   const selectedTemplate = templates.find((template) => template.key === promptTemplateKey);
   const selectedAdmissionRecord = records.find((record) => record.id === Number(admissionRecordId));
-  const promptOutFlowId = promptFlowKey === "creation" ? flowId : promptFlowKey === "propagation" ? propagationFlowId : null;
-  const promptOutRecordId = promptRecordId || (promptFlowKey === "admission" ? admissionRecordId : promptFlowKey === "propagation" ? propagationFactId : "");
+  const promptOutFlowId = promptFlowKey === "creation" ? flowId : promptFlowKey === "propagation" ? propagationFlowId : promptFlowKey === "qa" ? qaFlowId : null;
+  const promptOutRecordId = promptRecordId || (promptFlowKey === "admission" ? admissionRecordId : promptFlowKey === "propagation" ? propagationFactId : promptFlowKey === "qa" ? qaSubjectRecordId : "");
 
   useEffect(() => {
     if (!token) return;
@@ -720,6 +837,121 @@ function App({ initialRecords = [] }: AppProps = {}) {
     await loadWorldData();
   };
 
+  const applyQaPayload = (payload: {
+    flow?: { id: number };
+    pass?: { id: number };
+    scorecard?: QaScorecard;
+    scores?: QaScore[];
+    band?: QaBand;
+  }) => {
+    if (payload.flow?.id != null) setQaFlowId(payload.flow.id);
+    if (payload.pass?.id != null) setQaPassId(payload.pass.id);
+    if (payload.scorecard) {
+      setQaScorecard(payload.scorecard);
+      setQaTestNumber(String(payload.scorecard.tests[0]?.number ?? 1));
+    }
+    if (payload.scores) setQaScores(payload.scores);
+    if (payload.band) setQaBand(payload.band);
+  };
+
+  const startQaPass = async () => {
+    const payload = await api<{ flow: { id: number }; pass: { id: number }; scorecard: QaScorecard; band: QaBand }>("/api/qa/passes/start", {
+      method: "POST",
+      body: JSON.stringify({
+        subjectType: qaSubjectType,
+        subjectRecordId: qaSubjectType === "record" ? Number(qaSubjectRecordId) : undefined,
+        title: qaSubjectType === "record" ? undefined : "Whole-world QA pass"
+      })
+    });
+    applyQaPayload(payload);
+    setMessage(`Started QA pass ${payload.pass.id}`);
+    await loadWorldData();
+  };
+
+  const refreshQaPass = async () => {
+    if (qaFlowId == null) return;
+    applyQaPayload(await api<{ flow: { id: number }; pass: { id: number }; scorecard: QaScorecard; scores: QaScore[]; band: QaBand }>(`/api/qa/passes/${qaFlowId}`));
+  };
+
+  const saveQaScore = async () => {
+    if (qaFlowId == null) return;
+    const payload = await api<{ scores: QaScore[]; band: QaBand }>("/api/qa/scores", {
+      method: "POST",
+      body: JSON.stringify({
+        flowId: qaFlowId,
+        testNumber: Number(qaTestNumber),
+        score: qaScore,
+        naReason: qaNaReason || undefined,
+        notes: qaNotes,
+        requiredRepair: qaRequiredRepair,
+        loadBearing: qaLoadBearing,
+        repairRouted: qaRepairRouted
+      })
+    });
+    setQaScores(payload.scores);
+    setQaBand(payload.band);
+    setQaNaReason("");
+    setQaNotes("");
+    setQaRequiredRepair("");
+  };
+
+  const saveQaProfile = async () => {
+    if (qaFlowId == null) return;
+    await api("/api/qa/profile", {
+      method: "POST",
+      body: JSON.stringify({
+        flowId: qaFlowId,
+        fields: qaProfile,
+        recordLinkIds: qaSubjectRecordId ? [Number(qaSubjectRecordId)] : []
+      })
+    });
+    await refreshQaPass();
+  };
+
+  const saveQaFloor = async () => {
+    if (qaFlowId == null) return;
+    const payload = await api<{ verdict: unknown }>("/api/qa/floor", {
+      method: "POST",
+      body: JSON.stringify({
+        flowId: qaFlowId,
+        conditions: qaFloorConditions,
+        override: qaFloorOverride,
+        overrideReason: qaFloorOverrideReason || undefined,
+        admissionLevel: admissionLevel || undefined,
+        workScale: workScale || undefined
+      })
+    });
+    setMessage(`QA floor recorded: ${JSON.stringify(payload.verdict)}`);
+  };
+
+  const routeQaRepair = async () => {
+    if (qaFlowId == null) return;
+    await api("/api/qa/repairs", {
+      method: "POST",
+      body: JSON.stringify({
+        flowId: qaFlowId,
+        testNumber: Number(qaTestNumber),
+        repairKind: qaRepairKind,
+        repairText: qaRequiredRepair,
+        debtKind: qaRepairKind === "canon_debt" ? qaDebtKind : undefined,
+        debtName: qaRepairKind === "canon_debt" ? (canonDebtName || "QA canon debt") : undefined,
+        candidate: qaRepairKind === "fact"
+          ? { title: recordForm.title || "QA surfaced fact", body: recordForm.body || qaRequiredRepair, truthLayer: recordForm.truthLayer || "Objective canon" }
+          : undefined
+      })
+    });
+    await refreshQaPass();
+    await loadWorldData();
+  };
+
+  const finalizeQaPass = async () => {
+    if (qaFlowId == null) return;
+    const payload = await api<{ flow: { current_step: string }; pass: RecordRow; band: QaBand }>(`/api/qa/passes/${qaFlowId}/finalize`, { method: "POST" });
+    setQaBand(payload.band);
+    setMessage(`Finalized QA pass ${payload.pass.shortId}`);
+    await loadWorldData();
+  };
+
   return (
     <main>
       <header className="topbar">
@@ -819,11 +1051,12 @@ function App({ initialRecords = [] }: AppProps = {}) {
             </section>
             <section className="subpanel">
               <h2>Prompt-out</h2>
-              <label>Prompt context<select value={promptFlowKey} onChange={(event) => setPromptFlowKey(event.target.value as "creation" | "admission" | "propagation" | "contradiction")}>
+              <label>Prompt context<select value={promptFlowKey} onChange={(event) => setPromptFlowKey(event.target.value as "creation" | "admission" | "propagation" | "contradiction" | "qa")}>
                 <option value="creation">Creation</option>
                 <option value="admission">Admission</option>
                 <option value="propagation">Propagation</option>
                 <option value="contradiction">Contradiction</option>
+                <option value="qa">QA</option>
               </select></label>
               <label>Template<select value={promptTemplateKey} onChange={(event) => setPromptTemplateKey(event.target.value)}>{templates.map((template) => <option key={template.key} value={template.key}>{template.role_name} v{template.current_version}</option>)}</select></label>
               {selectedTemplate && (
@@ -964,6 +1197,117 @@ function App({ initialRecords = [] }: AppProps = {}) {
                   <p>{domain.declaration || "swept"}</p>
                 </article>
               ))}
+            </div>
+          </div>
+
+          <div className="panel">
+            <h2>QA flow</h2>
+            <div className="doctrine">
+              <strong>Scorecard</strong>
+              <span>Source: docs/worldbuilding-system/18_quality_assurance_tests.md.</span>
+              <span>{qaBand ? `Band: ${qaBand.color} - ${qaBand.reason}` : "Start or refresh a QA pass to load scorecard policy."}</span>
+              {qaScorecard?.subjectMode && <span>Consequence mode: {qaScorecard.subjectMode}</span>}
+            </div>
+            <div className="grid">
+              <label>Subject type<select value={qaSubjectType} onChange={(event) => setQaSubjectType(event.target.value as "record" | "world")}>
+                <option value="record">record</option>
+                <option value="world">world</option>
+              </select></label>
+              <label>Subject record id<input value={qaSubjectRecordId} onChange={(event) => setQaSubjectRecordId(event.target.value)} /></label>
+              <label>Flow id<input value={qaFlowId ?? ""} onChange={(event) => setQaFlowId(event.target.value ? Number(event.target.value) : null)} /></label>
+            </div>
+            <div className="row">
+              <button onClick={startQaPass} disabled={!openWorld || (qaSubjectType === "record" && !qaSubjectRecordId)}>Start QA Pass</button>
+              <button onClick={refreshQaPass} disabled={!openWorld || qaFlowId == null}>Refresh QA Pass</button>
+              <button onClick={finalizeQaPass} disabled={!openWorld || qaFlowId == null}>Finalize QA Pass</button>
+              {qaPassId != null && <span className="status">Pass {qaPassId}</span>}
+            </div>
+            <div className="subpanel">
+              <h3>28-test scorecard</h3>
+              <div className="grid">
+                <label>Test<select value={qaTestNumber} onChange={(event) => setQaTestNumber(event.target.value)}>
+                  {(qaScorecard?.tests ?? []).map((test) => <option key={test.number} value={test.number}>{test.number}. {test.name}</option>)}
+                </select></label>
+                <label>Score<select value={qaScore} onChange={(event) => setQaScore(event.target.value as "0" | "1" | "2" | "3" | "na")}>
+                  <option value="0">0</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="na">n/a</option>
+                </select></label>
+                <label>N/A reason<input value={qaNaReason} onChange={(event) => setQaNaReason(event.target.value)} /></label>
+              </div>
+              <label>Notes<textarea rows={3} value={qaNotes} onChange={(event) => setQaNotes(event.target.value)} /></label>
+              <label>Required repair<textarea rows={3} value={qaRequiredRepair} onChange={(event) => setQaRequiredRepair(event.target.value)} /></label>
+              <div className="row">
+                <label className="inline-check"><input type="checkbox" checked={qaLoadBearing} onChange={(event) => setQaLoadBearing(event.target.checked)} />Load-bearing</label>
+                <label className="inline-check"><input type="checkbox" checked={qaRepairRouted} onChange={(event) => setQaRepairRouted(event.target.checked)} />Repair routed</label>
+                <button onClick={saveQaScore} disabled={qaFlowId == null}>Save QA Score</button>
+              </div>
+              <div className="records compact">
+                {(qaScorecard?.tests ?? []).map((test) => (
+                  <article key={test.number}>
+                    <button onClick={() => setQaTestNumber(String(test.number))}>Select</button>
+                    <h3>{test.number}. {test.name}</h3>
+                    <p className="meta">{test.cluster} · {qaScores.find((score) => score.testNumber === test.number)?.score ?? "unscored"}</p>
+                    <p>{test.failureSmell}</p>
+                    <p>{test.anchors.weak} / {test.anchors.adequate} / {test.anchors.strong}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+            <div className="subpanel">
+              <h3>Regression profile</h3>
+              <div className="grid">
+                <label>Strongest domain<input value={qaProfile.strongestDomain} onChange={(event) => setQaProfile({ ...qaProfile, strongestDomain: event.target.value })} /></label>
+                <label>Weakest domain<input value={qaProfile.weakestDomain} onChange={(event) => setQaProfile({ ...qaProfile, weakestDomain: event.target.value })} /></label>
+                <label>Under-propagated fact<input value={qaProfile.mostDangerousUnderPropagatedFact} onChange={(event) => setQaProfile({ ...qaProfile, mostDangerousUnderPropagatedFact: event.target.value })} /></label>
+              </div>
+              <div className="grid">
+                <label>Likely contradiction<input value={qaProfile.mostLikelyContradiction} onChange={(event) => setQaProfile({ ...qaProfile, mostLikelyContradiction: event.target.value })} /></label>
+                <label>Fragile mystery<input value={qaProfile.mostFragileMystery} onChange={(event) => setQaProfile({ ...qaProfile, mostFragileMystery: event.target.value })} /></label>
+                <label>Overloaded constraint<input value={qaProfile.mostOverloadedConstraint} onChange={(event) => setQaProfile({ ...qaProfile, mostOverloadedConstraint: event.target.value })} /></label>
+              </div>
+              <div className="grid">
+                <label>Absent institution response<input value={qaProfile.mostSuspiciousAbsentInstitutionResponse} onChange={(event) => setQaProfile({ ...qaProfile, mostSuspiciousAbsentInstitutionResponse: event.target.value })} /></label>
+                <label>Aesthetic drift<input value={qaProfile.mostAtRiskAestheticDrift} onChange={(event) => setQaProfile({ ...qaProfile, mostAtRiskAestheticDrift: event.target.value })} /></label>
+                <label>Blocking canon debt<input value={qaProfile.canonDebtBeforeFoundationalFacts} onChange={(event) => setQaProfile({ ...qaProfile, canonDebtBeforeFoundationalFacts: event.target.value })} /></label>
+              </div>
+              <button onClick={saveQaProfile} disabled={qaFlowId == null}>Save Regression Profile</button>
+            </div>
+            <div className="subpanel">
+              <h3>Repair loop and floor</h3>
+              <div className="doctrine">
+                <strong>Repair loop</strong>
+                <span>{qaScorecard?.doctrine.repairLoop.join(" ") ?? "Load the scorecard to see repair doctrine."}</span>
+                <span>{qaScorecard?.doctrine.redFlags.slice(0, 3).join(" · ") ?? ""}</span>
+              </div>
+              <div className="grid">
+                <label>Repair kind<select value={qaRepairKind} onChange={(event) => setQaRepairKind(event.target.value as "fact" | "canon_debt")}>
+                  <option value="fact">fact</option>
+                  <option value="canon_debt">canon debt</option>
+                </select></label>
+                <label>Debt kind<input value={qaDebtKind} onChange={(event) => setQaDebtKind(event.target.value)} /></label>
+                <label>Debt name<input value={canonDebtName} onChange={(event) => setCanonDebtName(event.target.value)} /></label>
+              </div>
+              <div className="grid compact-grid">
+                {(Object.entries(qaFloorConditionLabels) as Array<[keyof QaFloorConditions, string]>).map(([key, label]) => (
+                  <label className="inline-check" key={key}>
+                    <input
+                      type="checkbox"
+                      checked={qaFloorConditions[key]}
+                      onChange={(event) => setQaFloorConditions({ ...qaFloorConditions, [key]: event.target.checked })}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              <div className="row">
+                <button onClick={routeQaRepair} disabled={qaFlowId == null || !qaRequiredRepair.trim()}>Route QA Repair</button>
+                <label className="inline-check"><input type="checkbox" checked={qaFloorOverride} onChange={(event) => setQaFloorOverride(event.target.checked)} />Override floor</label>
+              </div>
+              <label>Floor override reason<input value={qaFloorOverrideReason} onChange={(event) => setQaFloorOverrideReason(event.target.value)} /></label>
+              <button onClick={saveQaFloor} disabled={qaFlowId == null}>Record Floor Advisory</button>
             </div>
           </div>
 
