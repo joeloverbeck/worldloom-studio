@@ -80,7 +80,7 @@ Commit your work to the current branch.
 
 Before declaring completion, closing issues, or closing a parent PRD:
 
-- Produce a pre-close per-issue audit before closing any issue: every acceptance criterion and required principles/ADR conformance check mapped to concrete evidence, with status `satisfied`, `blocked`, or `not done`. Default to one row per acceptance criterion or conformance check; do not group acceptance checkboxes into one prose row unless the row names each checkbox explicitly.
+- Produce a pre-close per-issue audit before closing any issue: every acceptance criterion and required principles/ADR conformance check mapped to concrete evidence, with status `satisfied`, `blocked`, or `not done`. Default to one row per acceptance criterion or conformance check; do not group acceptance checkboxes into one prose row unless the row names each checkbox explicitly. Capture the audit in one durable sink before closeout: the conversation, a tracker comment on the issue or parent PRD, or another durable tracker artifact. If the audit is not in the conversation, each affected closeout comment must link the durable audit sink.
 - Close only issues whose criteria are all satisfied, using a comment that includes the commit SHA and verification evidence.
 - If review found or fixed issues, or if a review fallback path was used, include the review outcome in each affected issue's closeout comment or in a clearly linked parent rollup.
 - If the issue or parent PRD has a `## Principles` section, include the conformance result or deliberate steward-approved exception in the closeout evidence.
@@ -102,6 +102,7 @@ Closeout command gate: do not run `gh issue close`, `glab issue close`, or equiv
 - The pre-close audit table has been posted or otherwise captured, and every row for the issue being closed is `satisfied`.
 - Review evidence from section 3 is present, either as `code-review` output or an explicit fallback record.
 - The final commit SHA is known and matches the tree that passed required verification.
+- For remote tracker closeout that cites a commit, the final SHA is reachable from the intended remote branch, or closeout evidence explicitly states that the SHA is local-only and why that is acceptable.
 - If the issue body, PRD text, acceptance criteria, or implementation includes UI/browser-visible behavior, closeout evidence includes a real browser smoke with route, action path, and observed outcome, or an explicit blocked note explaining why that smoke could not run. For browser-consumed API-only changes, browser-executed `fetch` evidence with observed status/JSON is acceptable.
 - For parent PRD closure, exact related child issue states have been verified by issue number, including any out-of-range children noted in the ledger.
 
@@ -111,4 +112,4 @@ Use this compact pre-close audit shape unless the issue set needs more detail:
 |---|---|---|---|
 | #N | ... | commit/tests/browser route/store seam/etc. | satisfied / blocked / not done |
 
-Do not close an issue until its audit rows are posted or otherwise captured in the conversation, and every row for that issue is `satisfied`.
+Do not close an issue until its audit rows are posted or otherwise captured in an allowed durable sink, and every row for that issue is `satisfied`.

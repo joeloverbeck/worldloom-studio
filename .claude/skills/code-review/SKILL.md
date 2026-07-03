@@ -78,6 +78,28 @@ Use the available sub-agent mechanism, if permitted, with two independent read-o
 - Apply the smell baseline as judgement-call heuristics, not hard violations, and let documented repo standards override it.
 - End with the required axis summary: `Standards <count/worst>, Spec <count/worst>`.
 
+Mandatory local fallback output — paste this shape even when both axes have zero findings:
+
+```markdown
+## Standards
+
+Fallback used: <unavailable tooling / policy-blocked delegation / other reason>.
+Sources reviewed: <standards-source files, root agent instructions, smell baseline>.
+Findings: <none / bullets with file+hunk and standard or smell label>.
+
+## Spec
+
+Sources reviewed: <issue/PRD/spec files, Principles/ADRs when applicable>.
+
+| Issue | Acceptance source | Evidence reviewed | Findings/residuals |
+|---|---|---|---|
+| #N | <issue/spec/criterion> | <diff/tests/docs reviewed> | <none / finding> |
+
+Findings: <none / bullets with quoted spec line>.
+
+Axis summary: Standards <count/worst>, Spec <count/worst>
+```
+
 **Standards sub-agent prompt** — include:
 
 - The full diff command and commit list.

@@ -53,6 +53,8 @@ Present the proposed breakdown as a numbered list. For each slice, show:
 - **Blocked by**: which other slices (if any) must complete first
 - **User stories covered**: which user stories this addresses (if the source material has them)
 
+If the source user stories are unnumbered, assign temporary story ordinals in source order (`US1`, `US2`, etc.) for the proposal. Either include a one-line mapping or quote enough of each covered story that the references are unambiguous; the ordinals are proposal aids, not published requirement IDs unless the source already uses them.
+
 Include a one-line prefactoring verdict for the whole breakdown ("Prefactoring: none needed because …", or a prefactor slice placed before all code-bearing slices — position 1, or immediately after any document blockers), so the reader can tell the check ran.
 
 Ask the user:
@@ -72,6 +74,8 @@ Temporary issue-body files are acceptable as local transport for `gh issue creat
 Publish issues in dependency order (blockers first) so you can reference real issue identifiers in the "Blocked by" field. The paved path is placeholder substitution: write bodies with placeholder tokens for backward references, chain creation to stop on first failure, substitute each real returned number into dependent bodies before creating them, and verify the published references afterward. Batch publishing with predicted identifiers is a fallback, acceptable only when references point strictly backward, creation is chained to stop on first failure, and each returned number is verified against its prediction — correct via issue edits on any mismatch; otherwise create one at a time. Forward references — a handoff naming the later slice that closes it — are written by slice *title*, never identifier: titles are stable within the breakdown and need no post-publication edits; identifiers are reserved for backward references like "Blocked by".
 
 After publishing, verify every created issue with `gh issue view`: confirm title, body, triage label, state, parent reference, and blocker references. If verification finds a defect, fix it with the issue tracker edit command and re-verify the corrected issue before final reporting. Before final reporting, produce a compact ledger mapping each approved slice number/title to the created issue number and URL, and confirm the created count equals the approved count.
+
+Remove any temporary issue-body files you created, run `git status --short`, and include only remaining pre-existing or intentional dirty files in the final report.
 
 For compact child-issue verification, prefer a query shaped like this, adjusting `hasBlocker` for the expected blocker reference or replacing it with a no-blocker check:
 

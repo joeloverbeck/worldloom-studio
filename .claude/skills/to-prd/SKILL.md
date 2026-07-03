@@ -26,11 +26,23 @@ Before publishing, sweep the whole PRD for ephemeral local paths (for example `/
 
 When the PRD cites a local ADR, spec, principle, methodology document, or issue/PR that was created or modified in this session — or ratified this session as a decision to author later but not yet written — check its repo durability before publishing. If a cited local document is untracked or otherwise not yet durable, do not silently present it as a stable published artifact: either summarize its ratified conclusion without durable-citation wording, or record in Further Notes that the artifact is pending local repo publication (for a ratified-but-unwritten artifact, note it as pending authoring and publication, not merely publication). Do not add a second user checkpoint for this; the seam confirmation remains the sole checkpoint.
 
-Verify the `ready-for-agent` label exists before creating the issue (create it per the project's triage-label doc if absent; a verification earlier in the same session suffices), then apply it - no need for additional triage. After creation, verify the published issue with `gh issue view`: confirm the title, body, `ready-for-agent` label, state, URL, every required PRD section, seam-confirmation note, and absence of machine-local path leakage before final reporting. Prefer a compact verification query that checks key fields and body sections instead of dumping the full body, for example:
+Before creating the issue, run a template-conformance pass over the body, not just a section-presence scan:
+
+- The body starts with an untitled provenance preamble and does not repeat the title as an H1.
+- `## User Stories` is a numbered list, and each story follows `As an <actor>, I want <feature>, so that <benefit>` rather than a looser bullet or `I can` format.
+- `## Testing Decisions` states the external-behavior testing rule, names the tested modules or surfaces, names prior-art tests descriptively rather than by file path, and records the seam-confirmation outcome.
+- `## Principles` names the touched principle documents and ADRs, affirms non-contradiction with them, and flags any deliberate exception before implementation.
+- `## Further Notes` records the seam-confirmation outcome: answered with the ratified seams, or timed out with the seams open to veto.
+
+If any item fails, edit the body before publishing. After publication, if the verification query shows a section exists but the section is malformed or incomplete under this checklist, edit the issue and re-run verification before final reporting.
+
+Verify the `ready-for-agent` label exists before creating the issue (create it per the project's triage-label doc if absent; a verification earlier in the same session suffices), then apply it - no need for additional triage. After creation, verify the published issue with `gh issue view`: confirm the title, body, `ready-for-agent` label, state, URL, every required PRD section, seam-confirmation note, template-conformance checklist, and absence of machine-local path leakage before final reporting. Prefer a compact verification query that checks key fields and body sections instead of dumping the full body, for example:
 
 ```sh
 gh issue view <number> --json number,title,body,labels,state,url --jq '{number,title,state,url,labels:[.labels[].name],hasReady:(any(.labels[].name; . == "ready-for-agent")),hasProblem:(.body | contains("## Problem Statement")),hasSolution:(.body | contains("## Solution")),hasStories:(.body | contains("## User Stories")),hasImplementation:(.body | contains("## Implementation Decisions")),hasTesting:(.body | contains("## Testing Decisions")),hasPrinciples:(.body | contains("## Principles")),hasOutOfScope:(.body | contains("## Out of Scope")),hasFurtherNotes:(.body | contains("## Further Notes")),hasSeam:(.body | contains("Seam confirmation")),hasNoTmp:((.body | contains("/tmp")) | not),hasNoHome:((.body | contains("/home/")) | not)}'
 ```
+
+Remove any temporary body file you created, run `git status --short`, and include only remaining pre-existing or intentional dirty files in the final report.
 
 <prd-template>
 
