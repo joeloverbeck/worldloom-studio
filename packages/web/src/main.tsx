@@ -164,6 +164,48 @@ interface QaFloorConditions {
   lacksInstitutionOrModeEquivalent: boolean;
 }
 
+interface Stage12Lens {
+  key: string;
+  label: string;
+  checklistGroup: string;
+}
+
+interface Stage12CloseBlocker {
+  kind: string;
+  key: string;
+  label: string;
+  message: string;
+}
+
+interface Stage12Run {
+  flow: { id: number; state: string; current_step: string };
+  report: RecordRow;
+  source: {
+    sourceType: string;
+    sourceRecordId: number | null;
+    sourceSectionHeading: string | null;
+    materialTitle: string;
+    materialBody: string;
+    sourceSummary: string;
+  };
+  doctrine: {
+    flowKey: string;
+    protocol: string;
+    checklist: string;
+    templateIndex: string;
+    lenses: Stage12Lens[];
+    completionRule: string;
+    browserPolicy: string;
+  };
+  coverage: Array<{ id: number; lensKey: string; lensLabel: string; body: string }>;
+  linkedCards: Array<{ id: number; cardTypeKey: string; lensKey: string | null; card: RecordRow }>;
+  proposals: Array<{ id: number; lensKey: string | null; record: RecordRow }>;
+  debt: Array<{ id: number; lensKey: string | null; record: RecordRow }>;
+  advisories: Array<{ id: number; stepKey: string; record: RecordRow }>;
+  skips: Array<{ id: number; stepKey: string; record: RecordRow; debt: RecordRow | null }>;
+  closeReadiness: { status: string; blockers: Stage12CloseBlocker[] };
+}
+
 interface PromptTemplate {
   key: string;
   role_name: string;
@@ -254,6 +296,8 @@ interface AppProps {
   initialCanonDetail?: CanonWorkbenchDetail | null;
 }
 
+type PromptFlowKey = "creation" | "admission" | "propagation" | "contradiction" | "qa" | "institutional_economic_suppression";
+
 const storedToken = () => typeof window === "undefined" ? "" : window.localStorage.getItem("worldloom-token") ?? "";
 
 const api = async <T,>(path: string, init?: RequestInit): Promise<T> => {
@@ -342,6 +386,21 @@ function App({
   const [propagationConsequences, setPropagationConsequences] = useState<PropagationConsequence[]>([]);
   const [propagationDomains, setPropagationDomains] = useState<PropagationDomain[]>([]);
   const [propagationDispositions, setPropagationDispositions] = useState<PropagationDisposition[]>([]);
+  const [stage12Run, setStage12Run] = useState<Stage12Run | null>(null);
+  const [stage12FlowId, setStage12FlowId] = useState<number | null>(null);
+  const [stage12SourceType, setStage12SourceType] = useState<"fact" | "under_review_fact" | "canon_debt" | "material" | "record_section" | "pass_report">("fact");
+  const [stage12SourceRecordId, setStage12SourceRecordId] = useState("");
+  const [stage12SourceSection, setStage12SourceSection] = useState("");
+  const [stage12MaterialTitle, setStage12MaterialTitle] = useState("");
+  const [stage12MaterialBody, setStage12MaterialBody] = useState("");
+  const [stage12LensKey, setStage12LensKey] = useState("action_arena");
+  const [stage12CoverageBody, setStage12CoverageBody] = useState("");
+  const [stage12CardType, setStage12CardType] = useState<"action_arena" | "institution" | "counter_institution">("action_arena");
+  const [stage12ExistingCardId, setStage12ExistingCardId] = useState("");
+  const [stage12CardRelation, setStage12CardRelation] = useState("");
+  const [stage12AdvisoryRecordId, setStage12AdvisoryRecordId] = useState("");
+  const [stage12SkipStep, setStage12SkipStep] = useState("black_market_depth");
+  const [stage12SkipUnresolved, setStage12SkipUnresolved] = useState(false);
   const [qaFlowId, setQaFlowId] = useState<number | null>(null);
   const [qaPassId, setQaPassId] = useState<number | null>(null);
   const [qaSubjectType, setQaSubjectType] = useState<"record" | "world">("record");
@@ -379,7 +438,7 @@ function App({
   const [linkTypeKey, setLinkTypeKey] = useState("depends_on");
   const [promptRecordId, setPromptRecordId] = useState("");
   const [promptTemplateKey, setPromptTemplateKey] = useState("kernel_pressure");
-  const [promptFlowKey, setPromptFlowKey] = useState<"creation" | "admission" | "propagation" | "contradiction" | "qa">("creation");
+  const [promptFlowKey, setPromptFlowKey] = useState<PromptFlowKey>("creation");
   const [promptText, setPromptText] = useState("");
   const [templateEdit, setTemplateEdit] = useState("");
   const [responseText, setResponseText] = useState("");
@@ -442,8 +501,24 @@ function App({
   const selectedHeadings = headings.filter((heading) => heading.record_type_key === recordTypeKey);
   const selectedTemplate = templates.find((template) => template.key === promptTemplateKey);
   const selectedAdmissionRecord = records.find((record) => record.id === Number(admissionRecordId));
-  const promptOutFlowId = promptFlowKey === "creation" ? flowId : promptFlowKey === "propagation" ? propagationFlowId : promptFlowKey === "qa" ? qaFlowId : null;
-  const promptOutRecordId = promptRecordId || (promptFlowKey === "admission" ? admissionRecordId : promptFlowKey === "propagation" ? propagationFactId : promptFlowKey === "qa" ? qaSubjectRecordId : "");
+  const promptOutFlowId = promptFlowKey === "creation"
+    ? flowId
+    : promptFlowKey === "propagation"
+      ? propagationFlowId
+      : promptFlowKey === "qa"
+        ? qaFlowId
+        : promptFlowKey === "institutional_economic_suppression"
+          ? stage12FlowId
+          : null;
+  const promptOutRecordId = promptRecordId || (promptFlowKey === "admission"
+    ? admissionRecordId
+    : promptFlowKey === "propagation"
+      ? propagationFactId
+      : promptFlowKey === "qa"
+        ? qaSubjectRecordId
+        : promptFlowKey === "institutional_economic_suppression"
+          ? stage12SourceRecordId
+          : "");
   const relatedAuditItems = useMemo(() => selectedCanonRecordId == null
     ? []
     : canonAuditTrail.filter((item) => item.affectedCurrentRecords.some((record) => record.id === selectedCanonRecordId)),
@@ -720,15 +795,23 @@ function App({
   };
 
   const storeAdvisory = async () => {
-    const artifact = await api<{ record: RecordRow }>("/api/prompt-out/advisory-artifacts", {
+    const stage12 = promptFlowKey === "institutional_economic_suppression" && promptOutFlowId != null;
+    const artifact = await api<{ record: RecordRow }>(stage12 ? "/api/institutional/advisory-artifacts" : "/api/prompt-out/advisory-artifacts", {
       method: "POST",
-      body: JSON.stringify({
-        flowKey: promptFlowKey,
-        flowId: promptOutFlowId ?? undefined,
-        stepKey: promptTemplateKey,
-        promptText,
-        responseText
-      })
+      body: JSON.stringify(stage12
+        ? {
+            flowId: promptOutFlowId,
+            stepKey: promptTemplateKey,
+            promptText,
+            responseText
+          }
+        : {
+            flowKey: promptFlowKey,
+            flowId: promptOutFlowId ?? undefined,
+            stepKey: promptTemplateKey,
+            promptText,
+            responseText
+          })
     });
     await api(`/api/prompt-out/advisory-artifacts/${artifact.record.id}/dispositions`, {
       method: "POST",
@@ -974,6 +1057,131 @@ function App({
     const payload = await api<{ report: RecordRow }>(`/api/propagation/runs/${propagationFlowId}/close`, { method: "POST" });
     setMessage(`Closed propagation run with ${payload.report.shortId}`);
     await loadPropagationRun(propagationFlowId);
+    await loadWorldData();
+  };
+
+  const applyStage12Run = (payload: Stage12Run) => {
+    setStage12Run(payload);
+    setStage12FlowId(payload.flow.id);
+    setStage12LensKey(payload.doctrine.lenses[0]?.key ?? "action_arena");
+    if (payload.source.sourceRecordId != null) setStage12SourceRecordId(String(payload.source.sourceRecordId));
+  };
+
+  const refreshStage12Run = async (flowId = stage12FlowId) => {
+    if (flowId == null) return;
+    applyStage12Run(await api<Stage12Run>(`/api/institutional/runs/${flowId}`));
+  };
+
+  const stage12StartPayload = () => {
+    if (stage12SourceType === "material") {
+      return { sourceType: stage12SourceType, materialTitle: stage12MaterialTitle, materialBody: stage12MaterialBody };
+    }
+    if (stage12SourceType === "record_section") {
+      return { sourceType: stage12SourceType, recordId: Number(stage12SourceRecordId), sectionHeading: stage12SourceSection };
+    }
+    if (stage12SourceType === "pass_report") {
+      return { sourceType: stage12SourceType, reportRecordId: Number(stage12SourceRecordId) };
+    }
+    return { sourceType: stage12SourceType, recordId: Number(stage12SourceRecordId) };
+  };
+
+  const startStage12Run = async () => {
+    const payload = await api<Stage12Run>("/api/institutional/runs/start", {
+      method: "POST",
+      body: JSON.stringify(stage12StartPayload())
+    });
+    applyStage12Run(payload);
+    setPromptFlowKey("institutional_economic_suppression");
+    setPromptTemplateKey("institution_economy_analyst");
+    await loadWorldData();
+  };
+
+  const saveStage12Coverage = async () => {
+    if (stage12FlowId == null) return;
+    await api("/api/institutional/coverage", {
+      method: "POST",
+      body: JSON.stringify({ flowId: stage12FlowId, lensKey: stage12LensKey, body: stage12CoverageBody })
+    });
+    setStage12CoverageBody("");
+    await refreshStage12Run(stage12FlowId);
+  };
+
+  const createOrLinkStage12Card = async () => {
+    if (stage12FlowId == null) return;
+    await api("/api/institutional/cards", {
+      method: "POST",
+      body: JSON.stringify({
+        flowId: stage12FlowId,
+        cardTypeKey: stage12CardType,
+        existingRecordId: stage12ExistingCardId ? Number(stage12ExistingCardId) : undefined,
+        title: recordForm.title || undefined,
+        body: recordForm.body || undefined,
+        lensKey: stage12LensKey,
+        relation: stage12CardRelation || undefined,
+        advisoryRecordId: stage12AdvisoryRecordId ? Number(stage12AdvisoryRecordId) : undefined
+      })
+    });
+    await refreshStage12Run(stage12FlowId);
+    await loadWorldData();
+  };
+
+  const routeStage12Proposal = async () => {
+    if (stage12FlowId == null) return;
+    await api("/api/institutional/proposals", {
+      method: "POST",
+      body: JSON.stringify({
+        flowId: stage12FlowId,
+        lensKey: stage12LensKey,
+        title: recordForm.title,
+        body: recordForm.body || stage12CoverageBody,
+        truthLayer: recordForm.truthLayer || "Objective canon",
+        advisoryRecordId: stage12AdvisoryRecordId ? Number(stage12AdvisoryRecordId) : undefined
+      })
+    });
+    await refreshStage12Run(stage12FlowId);
+    await loadWorldData();
+  };
+
+  const mintStage12Debt = async () => {
+    if (stage12FlowId == null) return;
+    await api("/api/institutional/debt", {
+      method: "POST",
+      body: JSON.stringify({
+        flowId: stage12FlowId,
+        lensKey: stage12LensKey,
+        name: canonDebtName || "Stage-12 follow-up debt",
+        reason: stage12CoverageBody || gateNotApplicable,
+        severityOrConsequenceMode: workScale || consequenceMode || undefined,
+        advisoryRecordId: stage12AdvisoryRecordId ? Number(stage12AdvisoryRecordId) : undefined
+      })
+    });
+    await refreshStage12Run(stage12FlowId);
+    await loadWorldData();
+  };
+
+  const recordStage12Skip = async () => {
+    if (stage12FlowId == null) return;
+    await api("/api/institutional/skips", {
+      method: "POST",
+      body: JSON.stringify({
+        flowId: stage12FlowId,
+        stepKey: stage12SkipStep,
+        admissionLevel: admissionLevel || undefined,
+        workScale: workScale || undefined,
+        reason: gateNotApplicable || undefined,
+        unresolved: stage12SkipUnresolved,
+        debtName: stage12SkipUnresolved ? (canonDebtName || "Stage-12 skipped-work debt") : undefined
+      })
+    });
+    await refreshStage12Run(stage12FlowId);
+    await loadWorldData();
+  };
+
+  const closeStage12Run = async () => {
+    if (stage12FlowId == null) return;
+    const payload = await api<Stage12Run>(`/api/institutional/runs/${stage12FlowId}/close`, { method: "POST" });
+    applyStage12Run(payload);
+    setMessage(`Closed stage-12 run with ${payload.report.shortId}`);
     await loadWorldData();
   };
 
@@ -1288,12 +1496,17 @@ function App({
             </section>
             <section className="subpanel">
               <h2>Prompt-out</h2>
-              <label>Prompt context<select value={promptFlowKey} onChange={(event) => setPromptFlowKey(event.target.value as "creation" | "admission" | "propagation" | "contradiction" | "qa")}>
+              <label>Prompt context<select value={promptFlowKey} onChange={(event) => {
+                const next = event.target.value as PromptFlowKey;
+                setPromptFlowKey(next);
+                if (next === "institutional_economic_suppression") setPromptTemplateKey("institution_economy_analyst");
+              }}>
                 <option value="creation">Creation</option>
                 <option value="admission">Admission</option>
                 <option value="propagation">Propagation</option>
                 <option value="contradiction">Contradiction</option>
                 <option value="qa">QA</option>
+                <option value="institutional_economic_suppression">Institutional / economic / suppression</option>
               </select></label>
               <label>Template<select value={promptTemplateKey} onChange={(event) => setPromptTemplateKey(event.target.value)}>{templates.map((template) => <option key={template.key} value={template.key}>{template.role_name} v{template.current_version}</option>)}</select></label>
               {selectedTemplate && (
@@ -1366,6 +1579,129 @@ function App({
                 </article>
               ))}
             </div>
+          </div>
+
+          <div className="panel">
+            <h2>Institutional, Economic, and Suppression flow</h2>
+            <div className="doctrine">
+              <strong>Doctrine and checklist</strong>
+              <span>{stage12Run ? `${stage12Run.doctrine.protocol} · ${stage12Run.doctrine.checklist}` : "Start or resume a stage-12 run to load server-returned doctrine."}</span>
+              <span>{stage12Run?.doctrine.completionRule ?? "The server owns close readiness and coverage policy."}</span>
+            </div>
+            <div className="grid">
+              <label>Source type<select value={stage12SourceType} onChange={(event) => setStage12SourceType(event.target.value as typeof stage12SourceType)}>
+                <option value="fact">fact</option>
+                <option value="under_review_fact">under-review fact</option>
+                <option value="canon_debt">canon debt</option>
+                <option value="material">selected material</option>
+                <option value="record_section">record section</option>
+                <option value="pass_report">pass report</option>
+              </select></label>
+              <label>Source or report id<input value={stage12SourceRecordId} onChange={(event) => setStage12SourceRecordId(event.target.value)} /></label>
+              <label>Section heading<input value={stage12SourceSection} onChange={(event) => setStage12SourceSection(event.target.value)} /></label>
+              <label>Flow id<input value={stage12FlowId ?? ""} onChange={(event) => setStage12FlowId(event.target.value ? Number(event.target.value) : null)} /></label>
+            </div>
+            <div className="grid">
+              <label>Material title<input value={stage12MaterialTitle} onChange={(event) => setStage12MaterialTitle(event.target.value)} /></label>
+              <label>Material body<textarea rows={2} value={stage12MaterialBody} onChange={(event) => setStage12MaterialBody(event.target.value)} /></label>
+            </div>
+            <div className="row">
+              <button onClick={startStage12Run} disabled={!openWorld || (stage12SourceType !== "material" && !stage12SourceRecordId) || (stage12SourceType === "material" && (!stage12MaterialTitle.trim() || !stage12MaterialBody.trim()))}>Start or Resume Stage-12</button>
+              <button onClick={() => void refreshStage12Run()} disabled={!openWorld || stage12FlowId == null}>Refresh Stage-12</button>
+              <button onClick={closeStage12Run} disabled={!openWorld || stage12FlowId == null}>Close Stage-12 Run</button>
+            </div>
+            {!stage12Run && (
+              <>
+                <section className="subpanel">
+                  <h3>Close blockers</h3>
+                  <p className="status">Start or refresh a run to load server-returned blockers.</p>
+                </section>
+                <div className="grid">
+                  <label>Coverage lens<select value={stage12LensKey} onChange={(event) => setStage12LensKey(event.target.value)}></select></label>
+                  <label>Stage-12 advisory id<input value={stage12AdvisoryRecordId} onChange={(event) => setStage12AdvisoryRecordId(event.target.value)} /></label>
+                </div>
+                <label>Coverage or outcome prose<textarea rows={4} value={stage12CoverageBody} onChange={(event) => setStage12CoverageBody(event.target.value)} /></label>
+                <div className="row">
+                  <button onClick={saveStage12Coverage} disabled>Save Coverage</button>
+                  <button onClick={routeStage12Proposal} disabled>Route Proposal</button>
+                  <button onClick={mintStage12Debt} disabled>Mint Stage-12 Debt</button>
+                </div>
+                <section className="subpanel">
+                  <h3>Create or Link Card</h3>
+                  <button onClick={createOrLinkStage12Card} disabled>Create or Link Card</button>
+                </section>
+                <section className="subpanel">
+                  <h3>Governed skip</h3>
+                  <button onClick={recordStage12Skip} disabled>Record Governed Skip</button>
+                </section>
+              </>
+            )}
+            {stage12Run && (
+              <>
+                <div className="doctrine">
+                  <strong>{stage12Run.report.shortId} · {stage12Run.source.sourceSummary}</strong>
+                  <span>{stage12Run.doctrine.browserPolicy}</span>
+                  <span>Run status: {stage12Run.flow.state} · close readiness: {stage12Run.closeReadiness.status}</span>
+                </div>
+                <section className="subpanel">
+                  <h3>Close blockers</h3>
+                  {stage12Run.closeReadiness.blockers.length === 0 ? (
+                    <p className="status">No server-returned blockers.</p>
+                  ) : (
+                    <ul>
+                      {stage12Run.closeReadiness.blockers.map((blocker) => <li key={blocker.key}>{blocker.label}: {blocker.message}</li>)}
+                    </ul>
+                  )}
+                </section>
+                <div className="grid">
+                  <label>Coverage lens<select value={stage12LensKey} onChange={(event) => setStage12LensKey(event.target.value)}>
+                    {stage12Run.doctrine.lenses.map((lens) => <option key={lens.key} value={lens.key}>{lens.label}</option>)}
+                  </select></label>
+                  <label>Stage-12 advisory id<input value={stage12AdvisoryRecordId} onChange={(event) => setStage12AdvisoryRecordId(event.target.value)} /></label>
+                </div>
+                <label>Coverage or outcome prose<textarea rows={4} value={stage12CoverageBody} onChange={(event) => setStage12CoverageBody(event.target.value)} /></label>
+                <div className="row">
+                  <button onClick={saveStage12Coverage} disabled={stage12FlowId == null || !stage12CoverageBody.trim()}>Save Coverage</button>
+                  <button onClick={routeStage12Proposal} disabled={stage12FlowId == null || !recordForm.title.trim() || !(recordForm.body || stage12CoverageBody).trim()}>Route Proposal</button>
+                  <button onClick={mintStage12Debt} disabled={stage12FlowId == null || !(canonDebtName || recordForm.title).trim() || !stage12CoverageBody.trim()}>Mint Stage-12 Debt</button>
+                </div>
+                <section className="subpanel">
+                  <h3>Create or Link Card</h3>
+                  <div className="grid">
+                    <label>Card type<select value={stage12CardType} onChange={(event) => setStage12CardType(event.target.value as typeof stage12CardType)}>
+                      <option value="action_arena">action_arena</option>
+                      <option value="institution">institution</option>
+                      <option value="counter_institution">counter_institution</option>
+                    </select></label>
+                    <label>Existing card id<input value={stage12ExistingCardId} onChange={(event) => setStage12ExistingCardId(event.target.value)} /></label>
+                    <label>Relation<input value={stage12CardRelation} onChange={(event) => setStage12CardRelation(event.target.value)} /></label>
+                  </div>
+                  <button onClick={createOrLinkStage12Card} disabled={stage12FlowId == null || (!stage12ExistingCardId && !recordForm.title.trim())}>Create or Link Card</button>
+                </section>
+                <section className="subpanel">
+                  <h3>Governed skip</h3>
+                  <div className="grid">
+                    <label>Skip step<input value={stage12SkipStep} onChange={(event) => setStage12SkipStep(event.target.value)} /></label>
+                    <label className="inline-check"><input type="checkbox" checked={stage12SkipUnresolved} onChange={(event) => setStage12SkipUnresolved(event.target.checked)} />Unresolved follow-up</label>
+                  </div>
+                  <button onClick={recordStage12Skip} disabled={stage12FlowId == null || !stage12SkipStep.trim()}>Record Governed Skip</button>
+                </section>
+                <div className="grid two">
+                  <section className="subpanel">
+                    <h3>Coverage</h3>
+                    {stage12Run.coverage.map((coverage) => <article key={coverage.id}><h3>{coverage.lensLabel}</h3><p>{coverage.body}</p></article>)}
+                  </section>
+                  <section className="subpanel">
+                    <h3>Outcomes</h3>
+                    <p>Cards: {stage12Run.linkedCards.map((card) => `${card.card.shortId} ${card.card.title}`).join(", ") || "none"}</p>
+                    <p>Proposals: {stage12Run.proposals.map((proposal) => `${proposal.record.shortId} ${proposal.record.title}`).join(", ") || "none"}</p>
+                    <p>Debt: {stage12Run.debt.map((debt) => `${debt.record.shortId} ${debt.record.title}`).join(", ") || "none"}</p>
+                    <p>Advisory: {stage12Run.advisories.map((advisory) => `${advisory.record.shortId} ${advisory.stepKey}`).join(", ") || "none"}</p>
+                    <p>Skips: {stage12Run.skips.map((skip) => `${skip.record.shortId} ${skip.stepKey}`).join(", ") || "none"}</p>
+                  </section>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="panel">

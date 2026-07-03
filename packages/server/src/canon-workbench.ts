@@ -457,7 +457,53 @@ const readFlowRelationships = (world: WorldFile, reportId: number) => {
     FROM contradiction_repair_created_proposals
     WHERE report_record_id = ?
   `).all(reportId).map((row) => ({ kind: "contradiction_repair_created_proposal", ...(row as DbRow) }));
-  return [...flowInstances, ...propagation, ...contradiction];
+  const stage12Subject = world.db.prepare(`
+    SELECT *
+    FROM stage12_run_sources
+    WHERE pass_report_record_id = ?
+  `).all(reportId).map((row) => ({ kind: "stage12_subject", ...(row as DbRow) }));
+  const stage12Cards = world.db.prepare(`
+    SELECT *
+    FROM stage12_linked_cards
+    WHERE pass_report_record_id = ?
+  `).all(reportId).map((row) => ({ kind: "stage12_linked_card", ...(row as DbRow) }));
+  const stage12Proposals = world.db.prepare(`
+    SELECT *
+    FROM stage12_proposals
+    WHERE pass_report_record_id = ?
+  `).all(reportId).map((row) => ({ kind: "stage12_proposal", ...(row as DbRow) }));
+  const stage12Debt = world.db.prepare(`
+    SELECT *
+    FROM stage12_debts
+    WHERE pass_report_record_id = ?
+  `).all(reportId).map((row) => ({ kind: "stage12_debt", ...(row as DbRow) }));
+  const stage12Advisories = world.db.prepare(`
+    SELECT *
+    FROM stage12_advisories
+    WHERE pass_report_record_id = ?
+  `).all(reportId).map((row) => ({ kind: "stage12_advisory", ...(row as DbRow) }));
+  const stage12AdvisoryUses = world.db.prepare(`
+    SELECT *
+    FROM stage12_advisory_uses
+    WHERE pass_report_record_id = ?
+  `).all(reportId).map((row) => ({ kind: "stage12_advisory_use", ...(row as DbRow) }));
+  const stage12Skips = world.db.prepare(`
+    SELECT *
+    FROM stage12_skips
+    WHERE pass_report_record_id = ?
+  `).all(reportId).map((row) => ({ kind: "stage12_skip", ...(row as DbRow) }));
+  return [
+    ...flowInstances,
+    ...propagation,
+    ...contradiction,
+    ...stage12Subject,
+    ...stage12Cards,
+    ...stage12Proposals,
+    ...stage12Debt,
+    ...stage12Advisories,
+    ...stage12AdvisoryUses,
+    ...stage12Skips
+  ];
 };
 
 const flowAffectedRecordIds = (relationships: Array<Record<string, unknown>>): number[] => {
@@ -469,7 +515,13 @@ const flowAffectedRecordIds = (relationships: Array<Record<string, unknown>>): n
       "contradiction_source_record_id",
       "qa_subject_record_id",
       "proposal_record_id",
-      "debt_record_id"
+      "debt_record_id",
+      "pass_report_record_id",
+      "source_record_id",
+      "card_record_id",
+      "advisory_record_id",
+      "skip_record_id",
+      "outcome_record_id"
     ]) {
       if (relationship[key] != null) ids.push(Number(relationship[key]));
     }

@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { basename, dirname, join, resolve } from "node:path";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { APPLICATION_ID, CURRENT_SCHEMA_VERSION, migration001, migration002, migration003, migration004, migration005 } from "./schema.js";
+import { APPLICATION_ID, CURRENT_SCHEMA_VERSION, migration001, migration002, migration003, migration004, migration005, migration006 } from "./schema.js";
 import { LINK_TYPES, RECORD_TYPES, RECORD_TYPE_BY_KEY } from "@worldloom/shared";
 
 export interface RecordInput {
@@ -1266,6 +1266,16 @@ export class WorldFile {
         throw error;
       }
     }
+    if (version < 6) {
+      this.db.exec("BEGIN");
+      try {
+        this.db.exec(migration006);
+        this.db.exec("COMMIT");
+      } catch (error) {
+        this.db.exec("ROLLBACK");
+        throw error;
+      }
+    }
     this.ensurePromptTemplates();
     this.db.pragma("journal_mode = WAL");
   }
@@ -1410,6 +1420,11 @@ export class WorldFile {
         key: "qa_red_team",
         roleName: "QA hostile reader",
         text: "Run a QA red-team pass as a hostile reader. Ask for pressure, not answers. Do not write final canon.\nUse the eight red-team questions from docs/worldbuilding-system/18_quality_assurance_tests.md."
+      },
+      {
+        key: "institution_economy_analyst",
+        roleName: "Institution/economy analyst",
+        text: "Pressure-test this institutional, economic, and suppression sweep. Work from steward-authored material first. Identify action arenas, rules-in-use, transaction costs, surplus capture, suppression residue, counter-institutions, daily-life residue, and power conflict. Do not admit facts; label surfaced facts as proposed-only and name unresolved canon debt."
       }
     ];
     this.db.transaction(() => {

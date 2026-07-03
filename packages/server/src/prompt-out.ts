@@ -170,6 +170,7 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
       "Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories.",
       "Label assumptions instruction: separate direct consequences from speculative assumptions and mark unadmitted assumptions plainly.",
       `Standing rulings: ${rulings.length ? rulings.map((row) => `${row.disposition}: ${row.note}`).join("; ") : "none"}.`,
+      ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey }),
       `Step: ${stepKey}`,
       "Record context:",
       recordContext

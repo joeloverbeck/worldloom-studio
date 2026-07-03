@@ -8,6 +8,7 @@ import * as CanonWorkbench from "./canon-workbench.js";
 import * as CanonDebt from "./canon-debt.js";
 import * as ContradictionFlow from "./contradiction-flow.js";
 import * as CreationFlow from "./creation-flow.js";
+import * as InstitutionalFlow from "./institutional-flow.js";
 import * as PromptOut from "./prompt-out.js";
 import * as PropagationFlow from "./propagation-flow.js";
 import * as QaFlow from "./qa-flow.js";
@@ -341,6 +342,9 @@ export const createApp = (options: AppOptions = {}) => {
       if (input.flowKey === "qa") {
         return c.json({ record: QaFlow.skipQaStep(activeWorldSession.current, input) }, 201);
       }
+      if (input.flowKey === InstitutionalFlow.FLOW_KEY) {
+        return c.json(InstitutionalFlow.skipStage12Step(activeWorldSession.current, { ...input, flowId: input.flowId ?? 0 }), 201);
+      }
       return c.json({ record: PromptOut.recordPromptOutSkip(activeWorldSession.current, input) }, 201);
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
@@ -642,6 +646,124 @@ export const createApp = (options: AppOptions = {}) => {
     if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
     try {
       return c.json({ report: PropagationFlow.correctPropagationReport(activeWorldSession.current, { originalReportId: Number(c.req.param("id")), ...(await body<{ title?: string; body: string }>(c)) }) }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/institutional/runs/start", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(InstitutionalFlow.startStage12Run(activeWorldSession.current, await body<InstitutionalFlow.StartStage12RunInput>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.get("/api/institutional/runs/:id", (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(InstitutionalFlow.getStage12Run(activeWorldSession.current, Number(c.req.param("id"))));
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/institutional/coverage", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(InstitutionalFlow.saveStage12Coverage(activeWorldSession.current, await body<{ flowId: number; lensKey: string; body: string }>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/institutional/cards", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(InstitutionalFlow.createOrLinkStage12Card(activeWorldSession.current, await body<{
+        flowId: number;
+        cardTypeKey: "action_arena" | "institution" | "counter_institution";
+        existingRecordId?: number;
+        title?: string;
+        body?: string;
+        lensKey?: string;
+        relation?: string;
+        advisoryRecordId?: number;
+      }>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/institutional/proposals", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(InstitutionalFlow.proposeFactFromStage12(activeWorldSession.current, await body<{
+        flowId: number;
+        lensKey: string;
+        title: string;
+        body: string;
+        truthLayer: string;
+        advisoryRecordId?: number;
+      }>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/institutional/debt", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(InstitutionalFlow.mintStage12Debt(activeWorldSession.current, await body<{
+        flowId: number;
+        lensKey: string;
+        name: string;
+        reason: string;
+        severityOrConsequenceMode?: string;
+        advisoryRecordId?: number;
+      }>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/institutional/advisory-artifacts", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(InstitutionalFlow.storeStage12Advisory(activeWorldSession.current, await body<{
+        flowId: number;
+        stepKey: string;
+        promptText: string;
+        responseText: string;
+      }>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/institutional/skips", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(InstitutionalFlow.skipStage12Step(activeWorldSession.current, await body<{
+        flowId: number;
+        stepKey: string;
+        admissionLevel?: string;
+        workScale?: string;
+        reason?: string;
+        unresolved?: boolean;
+        debtName?: string;
+        existingDebtRecordId?: number;
+      }>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/institutional/runs/:id/close", (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(InstitutionalFlow.closeStage12Run(activeWorldSession.current, Number(c.req.param("id"))), 201);
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }

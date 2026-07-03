@@ -80,7 +80,7 @@ describe("WorldFile", () => {
     const store = WorldFile.create(path);
 
     expect(store.db.pragma("application_id", { simple: true })).toBe(APPLICATION_ID);
-    expect(store.db.pragma("user_version", { simple: true })).toBe(5);
+    expect(store.db.pragma("user_version", { simple: true })).toBe(6);
     expect(store.db.pragma("journal_mode", { simple: true })).toBe("wal");
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM record_types").get()).toMatchObject({ count: 27 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM link_types").get()).toMatchObject({ count: 25 });
@@ -90,11 +90,14 @@ describe("WorldFile", () => {
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM qa_test_catalog").get()).toMatchObject({ count: 28 });
     expect(store.db.prepare("SELECT mutation_regime FROM record_types WHERE key = 'qa_pass'").get()).toMatchObject({ mutation_regime: "report" });
     expect(store.db.prepare("SELECT label FROM link_types WHERE key = 'assesses'").get()).toMatchObject({ label: "assesses" });
+    expect(store.db.prepare("SELECT heading FROM record_section_headings WHERE record_type_key = 'pass_report' AND position = 2").get()).toMatchObject({ heading: "Coverage lenses" });
+    expect(store.db.prepare("SELECT strict FROM pragma_table_list WHERE name = 'stage12_coverage'").get()).toMatchObject({ strict: 1 });
     expect(PromptOut.listPromptTemplates(store)).toEqual(expect.arrayContaining([
       expect.objectContaining({ key: "admission_prerequisite_audit" }),
       expect.objectContaining({ key: "admission_constraint_challenge" }),
       expect.objectContaining({ key: "propagation_consequence_scout" }),
-      expect.objectContaining({ key: "qa_red_team" })
+      expect.objectContaining({ key: "qa_red_team" }),
+      expect.objectContaining({ key: "institution_economy_analyst" })
     ]));
     expect(store.db.prepare("SELECT strict FROM pragma_table_list WHERE name = 'records'").get()).toMatchObject({ strict: 1 });
 
@@ -124,9 +127,9 @@ describe("WorldFile", () => {
     oldDb.close();
 
     const migrated = WorldFile.open(oldPath);
-    expect(migrated.db.pragma("user_version", { simple: true })).toBe(5);
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(6);
     migrated.close();
-    expect(readdirSync(join(oldPath, "..")).some((name) => name.includes("pre-migration-v0-to-v5"))).toBe(true);
+    expect(readdirSync(join(oldPath, "..")).some((name) => name.includes("pre-migration-v0-to-v6"))).toBe(true);
 
     const corruptPath = tempPath("corrupt.sqlite");
     writeFileSync(corruptPath, "not sqlite");
@@ -167,14 +170,14 @@ describe("WorldFile", () => {
     db.close();
 
     const migrated = WorldFile.open(path);
-    expect(migrated.db.pragma("user_version", { simple: true })).toBe(5);
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(6);
     expect(migrated.getRecord(recordId)).toMatchObject({ body: "Body from v1" });
     expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'consequence_disposition'").get()).toMatchObject({ count: 4 });
     expect(migrated.sectionHeadings("world_kernel")).toEqual(expect.arrayContaining([
       expect.objectContaining({ heading: "World premise" })
     ]));
     migrated.close();
-    expect(readdirSync(join(path, "..")).some((name) => name.includes("pre-migration-v1-to-v5"))).toBe(true);
+    expect(readdirSync(join(path, "..")).some((name) => name.includes("pre-migration-v1-to-v6"))).toBe(true);
 
     const newerPath = tempPath("newer.sqlite");
     const newer = new Database(newerPath);
@@ -196,8 +199,8 @@ describe("WorldFile", () => {
     db.close();
 
     const migrated = WorldFile.open(path);
-    expect(migrated.db.pragma("user_version", { simple: true })).toBe(5);
-    expect(readdirSync(join(path, "..")).some((name) => name.includes("pre-migration-v3-to-v5"))).toBe(true);
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(6);
+    expect(readdirSync(join(path, "..")).some((name) => name.includes("pre-migration-v3-to-v6"))).toBe(true);
 
     const repairTerms = (migrated.db.prepare("SELECT term FROM vocabulary_terms WHERE vocabulary = 'repair_operation'").all() as Array<{ term: string }>)
       .map((row) => row.term)
@@ -240,8 +243,8 @@ describe("WorldFile", () => {
     db.close();
 
     const migrated = WorldFile.open(path);
-    expect(migrated.db.pragma("user_version", { simple: true })).toBe(5);
-    expect(readdirSync(join(path, "..")).some((name) => name.includes("pre-migration-v4-to-v5"))).toBe(true);
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(6);
+    expect(readdirSync(join(path, "..")).some((name) => name.includes("pre-migration-v4-to-v6"))).toBe(true);
     expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM qa_test_catalog").get()).toMatchObject({ count: 28 });
     expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM qa_test_catalog WHERE number IN ('P1', 'P2')").get()).toMatchObject({ count: 0 });
 
