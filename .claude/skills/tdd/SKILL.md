@@ -42,6 +42,7 @@ When writing a static contract check, target the smallest source construct that 
 - **Red before green.** Write the failing test first, then only enough code to pass it. Don't anticipate future tests or add speculative features.
 - **Review findings restart the loop.** If review reveals missing behavior after the implementation is already green, add or adjust the smallest assertion first and run it red before fixing. If the code was already fixed to protect the tree or unblock verification, record that red-first was skipped and why.
 - **Record the loop.** For each slice, keep lightweight evidence of the red command and expected failure, then the green command. If red-first is skipped, say why. For focused commands, check the output confirms the intended file, seam, or assertion actually ran; if a package script does not forward file arguments cleanly, invoke the underlying runner directly.
+- **Docs-only and no-runnable criteria stay explicit.** If an acceptance criterion is a document deliverable, review/conformance claim, or otherwise has no runnable public seam, do not invent a test seam. Record red and green as `N/A`, cite the review/conformance evidence, and carry the no-runnable reason in the compact evidence table.
 - **One slice at a time.** One seam, one test, one minimal implementation per cycle. When a vertical slice legitimately spans several public seams, write the smallest tracer-bullet test at each seam, keep the issue/audit mapping explicit, and avoid bulk tests that are not tied to an acceptance criterion.
 - **Shared-boundary issue families still need tracer bullets.** When PRD child issues share one implementation boundary and separate red-green cycles would be artificial, write the smallest red tracer at each agreed seam, record the red failures by seam and issue, then implement the shared boundary while keeping the acceptance mapping explicit.
 - **Shared-boundary closeout hard stop.** Do not enter closeout for a shared-boundary issue family until the compact evidence table below has one row per agreed seam, or an explicit red-first skip reason is recorded for each seam that could not reasonably go red first.
@@ -49,6 +50,6 @@ When writing a static contract check, target the smallest source construct that 
 
 For shared-boundary issue families, this compact evidence shape is enough unless the repo asks for more detail:
 
-| Issue | Seam | Red command/failure | Green command | Acceptance covered | Review fix / red-first skip reason |
-|---|---|---|---|---|---|
-| #N | public interface under test | command plus expected failure | command that passed | criterion or checkbox | finding fixed with red-first evidence, or why red-first was skipped |
+| Issue | Context / doctrine read | Seam | Red command/failure | Green command | Acceptance covered | Review fix / red-first skip reason |
+|---|---|---|---|---|---|---|
+| #N | `CONTEXT.md` / ADRs / principles read or N/A | public interface under test, or no-runnable reason | command plus expected failure, or `N/A` | command that passed, or `N/A` | criterion or checkbox | finding fixed with red-first evidence, or why red-first was skipped |

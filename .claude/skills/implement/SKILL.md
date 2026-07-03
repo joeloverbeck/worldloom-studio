@@ -35,7 +35,7 @@ Post the ledger to the conversation before the first edit. Update it when depend
 
 ## 2. Work issue-by-issue
 
-Invoke the repo `tdd` skill where possible, at pre-agreed seams.
+Invoke the repo `tdd` skill where possible, at pre-agreed seams. If no seam has been pre-agreed, derive the conservative proposed seam from the acceptance criteria and existing architecture, announce it in the ledger or TDD evidence, follow the `tdd` skill's confirmation rule before writing tests at that seam, and keep it at the highest practical layer. For docs-only or no-runnable criteria, record that no runnable seam exists and use review/conformance evidence rather than inventing a test.
 
 Default to one issue at a time. If child issues are technically inseparable and an integrated implementation pass is the safer route, say so in the ledger, keep the ledger/audit per issue, and make the closeout evidence map each issue's criteria to the shared implementation and tests.
 
@@ -89,6 +89,7 @@ Before declaring completion, closing issues, or closing a parent PRD:
 - Before closing a parent PRD, verify related child issue states by exact issue numbers, not only by broad issue-search output.
 - After closing child issues or a parent PRD, verify the live tracker state again by exact issue numbers before final response.
 - If the session resumes, compacts, or is interrupted after closeout work but before the final response, rerun exact issue-state checks, final commit-SHA lookup, and `git status --short` before reporting completion.
+- If the session resumes or compacts after the pre-close audit but before issue-close commands, treat the audit as still usable only when current context contains the original audit table or a compacted summary preserving issue, acceptance criterion or conformance check, evidence, status, and that every in-scope row is `satisfied`. If that shape is missing or ambiguous, repost or expand the audit before running any close command.
 - If the issue breakdown is wrong, comment with the proposed tracker correction instead of closing mismatched issues.
 - Run a final `git status --short`. For untracked verification artifacts, either remove them if safe, stage them if they are intended evidence, or explicitly report them in the final response.
 

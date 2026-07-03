@@ -76,6 +76,7 @@ Use the available sub-agent mechanism, if permitted, with two independent read-o
 - For PRD child issue families, include the compact per-child coverage table `Issue | Acceptance source | Evidence reviewed | Findings/residuals` before reporting zero residual Spec findings.
 - Cite the concrete standards/spec sources used for each axis.
 - Apply the smell baseline as judgement-call heuristics, not hard violations, and let documented repo standards override it.
+- End with the required axis summary: `Standards <count/worst>, Spec <count/worst>`.
 
 **Standards sub-agent prompt** — include:
 
@@ -99,6 +100,8 @@ If the spec is missing, skip the Spec sub-agent and note this in the final repor
 
 Present the two reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings — the two axes are deliberately separate (see _Why two axes_). Do not omit these two-axis headings just because findings were fixed immediately; if time is short, use compact content under `## Standards` and `## Spec`.
 
+If the review resumes, compacts, or is interrupted before final reporting, revalidate the review frame before presenting results: rerun fixed-point resolution, `git status --short`, the non-empty diff check, and the commit list, then confirm the standards-source and spec-source lists are still present in context. If any source list is missing or stale, reconstruct it before reporting.
+
 End with a one-line summary: total findings per axis, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes — that's the reranking the separation exists to prevent.
 
 When this review is part of implementation closeout, report findings first. If fixes are made immediately, rerun the relevant verification, state whether the commit was amended or followed by a new commit, and include the review outcome in the implementation closeout evidence. When a finding requires a behavior change, invoke the repo `tdd` skill where possible: add or adjust the smallest assertion first and run it red before fixing. If the code was already fixed to protect the tree or unblock verification, record that red-first was skipped and why.
@@ -110,6 +113,7 @@ For immediate-fix closeout, use this compact shape after the two axis reports:
 - **Verification rerun**: `<commands and browser/manual checks>`
 - **Commit handling**: `<amended commit SHA / follow-up commit SHA / no commit yet>`
 - **Residual findings**: `<remaining Standards and Spec findings, or none>`
+- **Axis summary**: `Standards <count/worst>, Spec <count/worst>`
 
 ## Why two axes
 
