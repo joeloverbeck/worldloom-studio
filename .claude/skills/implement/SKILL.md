@@ -15,6 +15,7 @@ Before editing code, identify the authoritative work items.
 - Treat the child issues as the implementation checklist unless the user explicitly says to implement only the parent PRD text.
 - If the user names a set of issues, fetch each issue body and comments.
 - For GitHub issue intake, use exact issue lookups with comments and structured fields, for example `gh issue view <n> --comments --json number,title,state,body,comments,labels,closed,closedAt,url`. For broad child or related-issue discovery, query compact fields first, then fetch exact bodies/comments only for the PRD and implementation issues that are in scope.
+- For GitHub PRD child discovery, search all issue states for explicit parent references, for example `gh issue list --state all --search "#<parent>" --json number,title,state,labels,url`, then exact-view each candidate body/comments to confirm whether it is a child, blocker, linked implementation ticket, or merely mentions the parent. Do not infer parent closeout readiness from search output alone.
 - If any fetched PRD or issue has a `## Principles` section, read `docs/principles/README.md` for the authority order and conformance rule, then read named principle and ADR docs as needed before coding.
 - Build a progress ledger with one row per issue: issue number, title, dependencies/blockers, acceptance criteria, principles/ADR obligations or exceptions, planned evidence, test seams, and closeout state.
 - When the user names a child issue range and asks to close a parent PRD, list all related children, including children outside the requested range; mark out-of-range children as already closed, blocking, or intentionally excluded before closing the parent.
@@ -46,9 +47,12 @@ For each issue:
 - Mark blockers explicitly in the ledger instead of skipping the issue.
 - If implementation would contradict a named principle or ADR, stop and surface the exception before continuing.
 - When the issue body, PRD text, acceptance criteria, or implementation includes UI/browser-visible behavior, run a real browser smoke or record why it is blocked; include the route, action path, and observed outcome in the closeout evidence.
+- For browser-consumed API-only changes with no rendered UI change, a real browser page executing the route sequence via `fetch` qualifies as the browser smoke when the evidence records the route, action path, observed HTTP status or JSON, and server/browser cleanup.
 - If any later edit touches the UI, route handlers, browser-consumed API shapes, fixture/data setup, or action path covered by a browser/manual smoke, treat the earlier smoke as preliminary and rerun it on the final tree before closeout, or record why rerun is blocked.
 
-Run typechecking regularly and single test files regularly. Before closeout, read the root verification guidance and run the canonical gates required for the work's blast radius. In this repo, workflow, package, cross-package, or closeout-scale changes require `pnpm test`, `pnpm typecheck`, and `pnpm build`; do not report a lint, browser/e2e, or hard-audit gate as satisfied unless the repo adds that script and policy.
+Run typechecking regularly and single test files regularly. After a focused test command, check the output confirms the intended file or seam actually ran. If a package script does not forward file arguments cleanly, invoke the underlying runner directly, for example `pnpm --filter <pkg> exec vitest run test/file.test.ts`.
+
+Before closeout, read the root verification guidance and run the canonical gates required for the work's blast radius. In this repo, workflow, package, cross-package, or closeout-scale changes require `pnpm test`, `pnpm typecheck`, and `pnpm build`; do not report a lint, browser/e2e, or hard-audit gate as satisfied unless the repo adds that script and policy.
 
 Before committing, draft the pre-close audit row-by-row against each in-scope issue's acceptance criteria and Principles/ADR checks. Patch any row that would be `blocked` or `not done` before entering review, unless the right outcome is to leave that issue open.
 
@@ -97,7 +101,7 @@ Closeout command gate: do not run `gh issue close`, `glab issue close`, or equiv
 - The pre-close audit table has been posted or otherwise captured, and every row for the issue being closed is `satisfied`.
 - Review evidence from section 3 is present, either as `code-review` output or an explicit fallback record.
 - The final commit SHA is known and matches the tree that passed required verification.
-- If the issue body, PRD text, acceptance criteria, or implementation includes UI/browser-visible behavior, closeout evidence includes a real browser smoke with route, action path, and observed outcome, or an explicit blocked note explaining why that smoke could not run.
+- If the issue body, PRD text, acceptance criteria, or implementation includes UI/browser-visible behavior, closeout evidence includes a real browser smoke with route, action path, and observed outcome, or an explicit blocked note explaining why that smoke could not run. For browser-consumed API-only changes, browser-executed `fetch` evidence with observed status/JSON is acceptable.
 - For parent PRD closure, exact related child issue states have been verified by issue number, including any out-of-range children noted in the ledger.
 
 Use this compact pre-close audit shape unless the issue set needs more detail:

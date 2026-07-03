@@ -14,6 +14,7 @@ When using this vocabulary inside a repo, honor that repo's design authorities b
 - If `docs/agents/domain.md` exists, follow it to find the relevant domain glossary. Otherwise, read `CONTEXT-MAP.md` when present and then the relevant mapped `CONTEXT.md` files; fall back to root `CONTEXT.md` when there is no map.
 - Read `docs/principles/README.md` if it exists, then any principle files and ADRs relevant to the module being designed.
 - If a proposed interface or seam contradicts a principle or ADR, surface the contradiction explicitly and explain why it may be worth reopening.
+- If an authority already *endorses or anticipates* the proposed seam, surface that too — it shows the authorities were honored and the change is pre-ratified, which strengthens the recommendation.
 
 ## Glossary
 
@@ -102,6 +103,15 @@ Good interfaces make testing natural:
 
 3. **Small surface area.** Fewer methods = fewer tests needed. Fewer params = simpler test setup.
 
+## Dependency categories
+
+Every deepening candidate has dependencies; classify them, because the category decides how the deepened module is tested across its seam (and, in a report, the tag it carries). Full detail — including the "replace, don't layer" testing move — is in [DEEPENING.md](DEEPENING.md).
+
+- **In-process** — pure computation, in-memory state, no I/O. Merge and test through the new interface directly; no adapter needed. An embedded database (SQLite / `better-sqlite3`) is *not* in-process — it does file I/O; see local-substitutable.
+- **Local-substitutable** — a dependency with a local test stand-in (PGLite for Postgres, an embedded SQLite database on a temp file or `:memory:`, an in-memory filesystem). The stand-in runs in the test suite; the seam is internal, no port at the external interface.
+- **Ports & adapters** — your own service across a network/process boundary (an HTTP API, a localhost server). Define a port at the seam; inject an HTTP adapter in production and an in-memory adapter in tests.
+- **Mock** — a true external you don't control (Stripe, Twilio). Inject a port; tests provide a mock adapter.
+
 ## Relationships
 
 - A **Module** has exactly one **Interface** (the surface it presents to callers and tests).
@@ -118,5 +128,5 @@ Good interfaces make testing natural:
 
 ## Going deeper
 
-- **Deepening a cluster given its dependencies** — see [DEEPENING.md](DEEPENING.md): dependency categories, seam discipline, and replace-don't-layer testing.
+- **Deepening a cluster given its dependencies** — see [DEEPENING.md](DEEPENING.md): the dependency categories above expanded with per-category testing strategy, plus seam discipline and replace-don't-layer testing.
 - **Exploring alternative interfaces** — see [DESIGN-IT-TWICE.md](DESIGN-IT-TWICE.md): spin up parallel sub-agents to design the interface several radically different ways, then compare on depth, locality, and seam placement.

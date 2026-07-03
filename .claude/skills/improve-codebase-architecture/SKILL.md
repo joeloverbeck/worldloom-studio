@@ -23,7 +23,7 @@ Read the project's domain docs and architectural authorities before exploring co
 - Read ADRs that touch the area: `docs/adr/` for system-wide decisions, and context-scoped ADRs where the repo's domain-doc rules point to them.
 - Read `docs/principles/README.md` if it exists, then any principle files relevant to the area you're reviewing. Use the authority order and conformance rule from that README when ranking candidates.
 
-Then use the Agent tool with `subagent_type=Explore` to walk the codebase. If that tool or subagent is unavailable, do the exploration directly with the same questions and state in your notes that no Explore subagent was available. Don't follow rigid heuristics — explore organically and note where you experience friction:
+Explore in two registers. Use the Agent tool with `subagent_type=Explore` for **breadth** — naming conventions, cross-cutting duplication, per-package surveys — where you only need the conclusion, not the file dumps. Do the **depth/evidence** work with direct Read/grep yourself: the precise facts each candidate card must cite (method counts, deletion-test call-site checks, exact line references) need whole-file reads an Explore subagent won't reliably produce, since it reads excerpts and locates code rather than auditing it. If the Explore subagent is unavailable, do the breadth work directly too and note that no Explore subagent was available. Don't follow rigid heuristics — explore organically and note where you experience friction:
 
 - Where does understanding one concept require bouncing between many small modules?
 - Where are modules **shallow** — interface nearly as complex as the implementation?
@@ -35,7 +35,7 @@ Apply the **deletion test** to anything you suspect is shallow: would deleting i
 
 ### 2. Present candidates as an HTML report
 
-Write a self-contained HTML file to the OS temp directory so nothing lands in the repo. Resolve the temp dir from `$TMPDIR`, falling back to `/tmp` (or `%TEMP%` on Windows), and write to `<tmpdir>/architecture-review-<timestamp>.html` so each run gets a fresh file. Open it for the user when the environment allows — `xdg-open <path>` on Linux, `open <path>` on macOS, `start <path>` on Windows. Prefer a detached/background opener when the command would otherwise stay attached (for example, `xdg-open <path> >/dev/null 2>&1 &`). If the opener fails in a headless, sandboxed, or GUI-less environment, do not treat report generation as failed; tell the user the absolute path and the opener command that failed.
+Write a self-contained HTML file to the OS temp directory so nothing lands in the repo. Resolve the temp dir from `$TMPDIR`, falling back to `/tmp` (or `%TEMP%` on Windows), and write to `<tmpdir>/architecture-review-<timestamp>.html` so each run gets a fresh file. Open it for the user when the environment allows — `xdg-open <path>` on Linux, `open <path>` on macOS, `start <path>` on Windows, and on WSL `wslview <path>` or `explorer.exe "$(wslpath -w <path>)"` (a plain `xdg-open` usually no-ops silently under WSL). Prefer a detached/background opener when the command would otherwise stay attached (for example, `xdg-open <path> >/dev/null 2>&1 &`). A detached opener returns success immediately whether or not a GUI appeared, so you cannot detect its failure — **always** print the absolute path (and the exact opener command you ran) alongside dispatching it, not only on failure. Report generation is never treated as failed just because nothing visibly opened.
 
 The report uses **Tailwind via CDN** for layout and styling, and **Mermaid via CDN** for diagrams where a graph/flow/sequence reliably communicates the structure. Mix Mermaid with hand-crafted CSS/SVG visuals — use Mermaid when relationships are graph-shaped (call graphs, dependencies, sequences), and hand-built divs/SVG when you want something more editorial (mass diagrams, cross-sections, collapse animations). Each candidate gets a **before/after visualisation**. Be visual.
 
@@ -44,16 +44,16 @@ For each candidate, render a card with:
 - **Files** — which files/modules are involved
 - **Problem** — why the current architecture is causing friction
 - **Solution** — plain English description of what would change
-- **Benefits** — explained in terms of locality and leverage, and how tests would improve
+- **Wins** — the gain named in terms of locality and leverage, and how tests improve; rendered as the ≤6-word "Wins" bullets defined in HTML-REPORT.md
 - **Before / After diagram** — side-by-side, custom-drawn, illustrating the shallowness and the deepening
 - **Recommendation strength** — one of `Strong`, `Worth exploring`, `Speculative`, rendered as a badge
-- **Principle / ADR conflict** — if applicable, one warning callout explaining why the conflict may still be worth reopening
+- **Principle / ADR callout** — if applicable, either a *conflict* warning callout explaining why the conflict may still be worth reopening, or an *endorsement* callout naming an authority that already ratifies the candidate (ADRs that anticipate the change are common for well-aimed refactors)
 
 End the report with a **Top recommendation** section: which candidate you'd tackle first and why.
 
 **Use vocabulary from the relevant domain glossary, and the `/codebase-design` vocabulary for the architecture.** If the glossary defines "Order," talk about "the Order intake module" — not "the FooBarHandler," and not "the Order service."
 
-**Principle / ADR conflicts**: if a candidate contradicts a foundational principle or an existing ADR, only surface it when the friction is real enough to warrant revisiting that authority. Mark it clearly in the card (e.g. a warning callout: _"contradicts ADR-0007 — but worth reopening because…"_). Don't list every theoretical refactor an ADR forbids.
+**Principle / ADR callouts**: if a candidate contradicts a foundational principle or an existing ADR, only surface it when the friction is real enough to warrant revisiting that authority. Mark it clearly in the card as an amber *conflict* callout (e.g. _"contradicts ADR-0007 — but worth reopening because…"_). Don't list every theoretical refactor an ADR forbids. The inverse is at least as common and worth surfacing: when an authority already *endorses* the candidate, render an emerald *endorsement* callout naming it (e.g. _"Endorsed by ADR-0007 — the named methods have one consumer"_). Endorsement strengthens the recommendation by showing the authorities were read and the change is pre-ratified.
 
 See [HTML-REPORT.md](HTML-REPORT.md) for the full HTML scaffold, diagram patterns, and styling guidance.
 

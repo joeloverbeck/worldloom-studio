@@ -29,6 +29,8 @@ Ask: "What's the public interface, and which seams should we test?"
 
 Static/source-level contract checks are exceptional. Use them only when an explicit acceptance criterion names a forbidden or required source contract, such as a route string, import, schema key, or generated artifact path. Label the evidence as a static contract check, keep the expected value tied to the spec, and pair it with a public behavior test or browser smoke when the feature is user-visible.
 
+When writing a static contract check, target the smallest source construct that proves the contract. Avoid whole-file regex spans that can cross unrelated regions or match incidental text. After the red run, confirm the failure names the intended forbidden or required contract rather than a broader accidental match.
+
 ## Anti-patterns
 
 - **Implementation-coupled** — mocks internal collaborators, tests private methods, or verifies through a side channel (querying the database instead of using the interface). The tell: the test breaks when you refactor but behavior hasn't changed.
@@ -39,11 +41,11 @@ Static/source-level contract checks are exceptional. Use them only when an expli
 
 - **Red before green.** Write the failing test first, then only enough code to pass it. Don't anticipate future tests or add speculative features.
 - **Review findings restart the loop.** If review reveals missing behavior after the implementation is already green, add or adjust the smallest assertion first and run it red before fixing. If the code was already fixed to protect the tree or unblock verification, record that red-first was skipped and why.
-- **Record the loop.** For each slice, keep lightweight evidence of the red command and expected failure, then the green command. If red-first is skipped, say why.
+- **Record the loop.** For each slice, keep lightweight evidence of the red command and expected failure, then the green command. If red-first is skipped, say why. For focused commands, check the output confirms the intended file, seam, or assertion actually ran; if a package script does not forward file arguments cleanly, invoke the underlying runner directly.
 - **One slice at a time.** One seam, one test, one minimal implementation per cycle. When a vertical slice legitimately spans several public seams, write the smallest tracer-bullet test at each seam, keep the issue/audit mapping explicit, and avoid bulk tests that are not tied to an acceptance criterion.
 - **Shared-boundary issue families still need tracer bullets.** When PRD child issues share one implementation boundary and separate red-green cycles would be artificial, write the smallest red tracer at each agreed seam, record the red failures by seam and issue, then implement the shared boundary while keeping the acceptance mapping explicit.
 - **Shared-boundary closeout hard stop.** Do not enter closeout for a shared-boundary issue family until the compact evidence table below has one row per agreed seam, or an explicit red-first skip reason is recorded for each seam that could not reasonably go red first.
-- **Refactoring is not part of the loop.** It belongs to the review stage (see the `code-review` skill), not the red → green implementation cycle.
+- **Refactoring is not part of the loop.** Incidental cleanup belongs to the review stage (see the `code-review` skill), not the red → green implementation cycle. When the requested work is itself a behavior-preserving refactor with observable or static acceptance criteria, the loop can use a red tracer for the required contract plus behavior-preservation tests at the agreed seams.
 
 For shared-boundary issue families, this compact evidence shape is enough unless the repo asks for more detail:
 

@@ -66,13 +66,14 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 
 ### 4. Run both review axes
 
-Use the available sub-agent mechanism, if permitted, with two independent read-only review tasks. Prefer running the axes in parallel; if the tool surface uses different role names, choose the closest general read-only reviewer role. If sub-agents are unavailable or policy-blocked, run both axes locally against the same fixed point, keep the analysis separated under the same headings, and state that the fallback path was used.
+Use the available sub-agent mechanism, if permitted, with two independent read-only review tasks. Prefer running the axes in parallel; if the tool surface uses different role names, choose the closest general read-only reviewer role. If sub-agent tools may be deferred or lazy-loaded, perform the minimal tool-discovery check needed to inspect the surfaced sub-agent policy before deciding. If the discovered policy requires explicit user authorization to spawn agents and the user did not grant it, record `policy-blocked` and do not spawn. If sub-agents are unavailable or policy-blocked, run both axes locally against the same fixed point, keep the analysis separated under the same headings, and state that the fallback path was used.
 
 **Local fallback checklist** — use this when sub-agents cannot run:
 
 - State why fallback was used, such as unavailable tooling or policy-blocked delegation.
 - Reuse the same Standards and Spec inputs below, including standards-source files, spec sources, principle/ADR material, the diff command or WIP diff inputs, commit list, and the smell baseline.
 - Keep the outputs separated under `## Standards` and `## Spec`.
+- For PRD child issue families, include the compact per-child coverage table `Issue | Acceptance source | Evidence reviewed | Findings/residuals` before reporting zero residual Spec findings.
 - Cite the concrete standards/spec sources used for each axis.
 - Apply the smell baseline as judgement-call heuristics, not hard violations, and let documented repo standards override it.
 
