@@ -1,5 +1,7 @@
 import { propagationCoveragePolicy, requiresSkipReason, type DeclaredSeverity } from "./severity-policy.js";
-import type { AdmissionQueueRow, FacetRow, RecordRow, WorldStore } from "./world-store.js";
+import { routeRecordToAdmissionQueue } from "./admission-flow.js";
+import { createSkipRecord } from "./flow-support.js";
+import type { AdmissionQueueRow, FacetRow, RecordRow, WorldFile } from "./world-file.js";
 
 export interface PropagationQueueRow extends RecordRow {
   scope: string;
@@ -114,22 +116,8 @@ const declaredSeverityFromFacets = (facets: FacetRow[]): DeclaredSeverity => ({
   workScale: facets.find((facet) => facet.vocabulary === "work_scale")?.term ?? null
 });
 
-const assertVocabularyTerm = (store: WorldStore, vocabulary: string, term: string): void => {
-  const row = store.db.prepare("SELECT 1 FROM vocabulary_terms WHERE vocabulary = ? AND term = ?").get(vocabulary, term);
-  if (!row) throw new Error(`Unknown ${vocabulary} term: ${term}`);
-};
-
-const recordSweepJurisdiction = (store: WorldStore, recordId: number): void => {
-  store.getRecord(recordId);
-  store.db.prepare(`
-    INSERT INTO jurisdiction_events (record_id, origin, admission_decision_operation)
-    VALUES (?, 'sweep', NULL)
-  `).run(recordId);
-};
-
-const readPropagationFlow = (store: WorldStore, flowId: number): PropagationFlowRow => {
-  const flow = store.db.prepare("SELECT * FROM flow_instances WHERE id = ? AND flow_key = 'propagation'").get(flowId) as Record<string, unknown> | undefined;
-  if (!flow) throw new Error(`Propagation flow not found: ${flowId}`);
+const readPropagationFlow = (store: WorldFile, flowId: number): PropagationFlowRow => {
+  const flow = store.getFlowInstance(flowId, "propagation");
   if (flow.propagation_fact_record_id == null) throw new Error(`Propagation flow has no fact: ${flowId}`);
   return {
     id: Number(flow.id),
@@ -141,51 +129,25 @@ const readPropagationFlow = (store: WorldStore, flowId: number): PropagationFlow
   };
 };
 
-const propagationConsequences = (store: WorldStore, flowId: number): PropagationConsequenceRow[] =>
-  store.db.prepare("SELECT * FROM propagation_consequences WHERE flow_id = ? ORDER BY id").all(flowId)
-    .map((row) => rowToPropagationConsequence(row as Record<string, unknown>));
+const propagationConsequences = (store: WorldFile, flowId: number): PropagationConsequenceRow[] =>
+  store.propagationConsequences(flowId).map((row) => rowToPropagationConsequence(row));
 
-const propagationDomainSweeps = (store: WorldStore, flowId: number): PropagationDomainSweepRow[] =>
-  store.db.prepare("SELECT * FROM propagation_domain_sweeps WHERE flow_id = ? ORDER BY id").all(flowId)
-    .map((row) => rowToPropagationDomainSweep(row as Record<string, unknown>));
+const propagationDomainSweeps = (store: WorldFile, flowId: number): PropagationDomainSweepRow[] =>
+  store.propagationDomainSweeps(flowId).map((row) => rowToPropagationDomainSweep(row));
 
-const propagationDispositions = (store: WorldStore, flowId: number): PropagationDispositionRow[] =>
-  store.db.prepare(`
-    SELECT d.*
-    FROM propagation_consequence_dispositions d
-    JOIN propagation_consequences c ON c.id = d.consequence_id
-    WHERE c.flow_id = ?
-    ORDER BY d.id
-  `).all(flowId).map((row) => rowToPropagationDisposition(row as Record<string, unknown>));
+const propagationDispositions = (store: WorldFile, flowId: number): PropagationDispositionRow[] =>
+  store.propagationDispositions(flowId).map((row) => rowToPropagationDisposition(row));
 
-const undispositionedHighPressureConsequences = (store: WorldStore, flowId: number): PropagationConsequenceRow[] =>
-  store.db.prepare(`
-    SELECT c.*
-    FROM propagation_consequences c
-    LEFT JOIN propagation_consequence_dispositions d ON d.consequence_id = c.id
-    WHERE c.flow_id = ?
-      AND c.pressure = 'high'
-      AND d.id IS NULL
-    ORDER BY c.id
-  `).all(flowId).map((row) => rowToPropagationConsequence(row as Record<string, unknown>));
+const undispositionedHighPressureConsequences = (store: WorldFile, flowId: number): PropagationConsequenceRow[] =>
+  store.undispositionedHighPressurePropagationConsequences(flowId).map((row) => rowToPropagationConsequence(row));
 
-export const propagationQueue = (store: WorldStore): PropagationQueueRow[] =>
-  (store.db.prepare(`
-    SELECT id
-    FROM records
-    WHERE record_type_key = 'canon_debt'
-      AND canon_status != 'accepted'
-      AND (
-        lower(body) LIKE '%scope: propagation%'
-        OR lower(title) LIKE '%propagation owed%'
-      )
-    ORDER BY updated_at DESC, id DESC
-  `).all() as Array<{ id: number }>).map((row) => {
-    const record = store.getRecord(Number(row.id));
+export const propagationQueue = (store: WorldFile): PropagationQueueRow[] =>
+  store.propagationQueueRecordIds().map((id) => {
+    const record = store.getRecord(id);
     return { ...record, scope: "propagation", state: "open" };
   });
 
-export const propagationPlan = (store: WorldStore, recordId: number): unknown => {
+export const propagationPlan = (store: WorldFile, recordId: number): unknown => {
   const record = store.getRecord(recordId);
   const facets = store.listFacets(recordId);
   const severity = declaredSeverityFromFacets(facets);
@@ -207,31 +169,19 @@ export const propagationPlan = (store: WorldStore, recordId: number): unknown =>
   };
 };
 
-export const startPropagationRun = (store: WorldStore, input: { factRecordId: number; debtRecordId?: number }): unknown => {
+export const startPropagationRun = (store: WorldFile, input: { factRecordId: number; debtRecordId?: number }): unknown => {
   const fact = store.getRecord(input.factRecordId);
   if (input.debtRecordId != null) {
     const debt = store.getRecord(input.debtRecordId);
     if (debt.recordTypeKey !== "canon_debt") throw new Error("propagation debt must be a canon debt record");
     if (!propagationQueue(store).some((row) => row.id === debt.id)) throw new Error("debt is not an open propagation-scoped debt item");
   }
-  const existing = store.db.prepare(`
-    SELECT * FROM flow_instances
-    WHERE flow_key = 'propagation'
-      AND state = 'in_progress'
-      AND propagation_fact_record_id = ?
-      AND COALESCE(propagation_debt_record_id, 0) = COALESCE(?, 0)
-    ORDER BY id DESC
-    LIMIT 1
-  `).get(fact.id, input.debtRecordId ?? null);
+  const existing = store.findInProgressPropagationFlow(fact.id, input.debtRecordId);
   if (existing) return existing;
-  const result = store.db.prepare(`
-    INSERT INTO flow_instances (flow_key, current_step, propagation_fact_record_id, propagation_debt_record_id)
-    VALUES ('propagation', 'propagation:entry', ?, ?)
-  `).run(fact.id, input.debtRecordId ?? null);
-  return store.db.prepare("SELECT * FROM flow_instances WHERE id = ?").get(result.lastInsertRowid);
+  return store.createFlowInstance({ flowKey: "propagation", currentStep: "propagation:entry", propagationFactRecordId: fact.id, propagationDebtRecordId: input.debtRecordId ?? null });
 };
 
-export const getPropagationRun = (store: WorldStore, flowId: number): unknown => {
+export const getPropagationRun = (store: WorldFile, flowId: number): unknown => {
   const flow = readPropagationFlow(store, flowId);
   return {
     flow,
@@ -239,12 +189,12 @@ export const getPropagationRun = (store: WorldStore, flowId: number): unknown =>
     consequences: propagationConsequences(store, flowId),
     domainSweeps: propagationDomainSweeps(store, flowId),
     dispositions: propagationDispositions(store, flowId),
-    proposals: store.db.prepare("SELECT * FROM propagation_surfaced_proposals WHERE flow_id = ? ORDER BY id").all(flowId)
+    proposals: store.propagationSurfacedProposals(flowId)
   };
 };
 
 export const addPropagationConsequence = (
-  store: WorldStore,
+  store: WorldFile,
   input: { flowId: number; orderKey: string; domainName?: string; body: string; pressure?: "normal" | "high" }
 ): PropagationConsequenceRow => {
   const flow = readPropagationFlow(store, input.flowId);
@@ -252,43 +202,39 @@ export const addPropagationConsequence = (
   if (!order) throw new Error(`Unknown propagation order: ${input.orderKey}`);
   if (input.domainName && !DOMAIN_ATLAS.includes(input.domainName as (typeof DOMAIN_ATLAS)[number])) throw new Error(`Unknown domain: ${input.domainName}`);
   if (!input.body.trim()) throw new Error("propagation consequence requires steward-written prose");
-  const result = store.db.prepare(`
-    INSERT INTO propagation_consequences (flow_id, fact_record_id, order_key, order_label, domain_name, body, pressure, flow_step)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(input.flowId, flow.propagation_fact_record_id, order[0], order[1], input.domainName ?? null, input.body, input.pressure ?? "normal", `propagation:${order[0]}`);
-  store.db.prepare("UPDATE flow_instances SET current_step = ? WHERE id = ?").run(`propagation:${order[0]}`, input.flowId);
-  return rowToPropagationConsequence(store.db.prepare("SELECT * FROM propagation_consequences WHERE id = ?").get(result.lastInsertRowid) as Record<string, unknown>);
+  const row = store.insertPropagationConsequence({
+    flowId: input.flowId,
+    factRecordId: flow.propagation_fact_record_id,
+    orderKey: order[0],
+    orderLabel: order[1],
+    domainName: input.domainName,
+    body: input.body,
+    pressure: input.pressure ?? "normal",
+    flowStep: `propagation:${order[0]}`
+  });
+  store.updateFlowInstance(input.flowId, { currentStep: `propagation:${order[0]}` });
+  return rowToPropagationConsequence(row);
 };
 
 export const recordPropagationDomain = (
-  store: WorldStore,
+  store: WorldFile,
   input: { flowId: number; domainName: string; triage: "direct" | "dependency" | "reaction" | "negative"; declaration?: string }
 ): PropagationDomainSweepRow => {
   readPropagationFlow(store, input.flowId);
   if (!DOMAIN_ATLAS.includes(input.domainName as (typeof DOMAIN_ATLAS)[number])) throw new Error(`Unknown domain: ${input.domainName}`);
   if (input.triage === "negative" && !input.declaration?.trim()) throw new Error("negative domains require an explicit declaration");
-  const result = store.db.prepare(`
-    INSERT INTO propagation_domain_sweeps (flow_id, domain_name, triage, declaration, flow_step)
-    VALUES (?, ?, ?, ?, 'propagation:domain-atlas')
-    ON CONFLICT(flow_id, domain_name) DO UPDATE SET
-      triage = excluded.triage,
-      declaration = excluded.declaration,
-      flow_step = excluded.flow_step
-  `).run(input.flowId, input.domainName, input.triage, input.declaration ?? "");
-  store.db.prepare("UPDATE flow_instances SET current_step = 'propagation:domain-atlas' WHERE id = ?").run(input.flowId);
-  const row = result.lastInsertRowid
-    ? store.db.prepare("SELECT * FROM propagation_domain_sweeps WHERE id = ?").get(result.lastInsertRowid)
-    : store.db.prepare("SELECT * FROM propagation_domain_sweeps WHERE flow_id = ? AND domain_name = ?").get(input.flowId, input.domainName);
-  return rowToPropagationDomainSweep(row as Record<string, unknown>);
+  const row = store.upsertPropagationDomainSweep(input);
+  store.updateFlowInstance(input.flowId, { currentStep: "propagation:domain-atlas" });
+  return rowToPropagationDomainSweep(row);
 };
 
 export const dispositionPropagationConsequence = (
-  store: WorldStore,
+  store: WorldFile,
   input: { consequenceId: number; disposition: string; note?: string; debtName?: string; preservationBoundary?: string }
 ): PropagationDispositionRow => {
-  const consequence = store.db.prepare("SELECT * FROM propagation_consequences WHERE id = ?").get(input.consequenceId) as Record<string, unknown> | undefined;
+  const consequence = store.getPropagationConsequence(input.consequenceId);
   if (!consequence) throw new Error(`Propagation consequence not found: ${input.consequenceId}`);
-  assertVocabularyTerm(store, "consequence_disposition", input.disposition);
+  store.assertVocabularyTerm("consequence_disposition", input.disposition);
   let debtRecordId: number | null = null;
   if (input.disposition === "assigned as canon debt") {
     if (!input.debtName?.trim()) throw new Error("assigned-as-debt consequences require a named debt");
@@ -297,79 +243,72 @@ export const dispositionPropagationConsequence = (
   if (input.disposition === "protected as a mystery boundary" && !input.preservationBoundary?.trim()) {
     throw new Error("protected consequences require an explicit preservation boundary");
   }
-  const result = store.db.prepare(`
-    INSERT INTO propagation_consequence_dispositions (consequence_id, disposition, note, preservation_boundary, debt_record_id, flow_step)
-    VALUES (?, ?, ?, ?, ?, 'propagation:disposition')
-  `).run(input.consequenceId, input.disposition, input.note ?? "", input.preservationBoundary ?? null, debtRecordId);
-  store.db.prepare("UPDATE flow_instances SET current_step = 'propagation:disposition' WHERE id = ?").run(Number(consequence.flow_id));
-  return rowToPropagationDisposition(store.db.prepare("SELECT * FROM propagation_consequence_dispositions WHERE id = ?").get(result.lastInsertRowid) as Record<string, unknown>);
+  const row = store.insertPropagationDisposition({ consequenceId: input.consequenceId, disposition: input.disposition, note: input.note, preservationBoundary: input.preservationBoundary, debtRecordId });
+  store.updateFlowInstance(Number(consequence.flow_id), { currentStep: "propagation:disposition" });
+  return rowToPropagationDisposition(row);
 };
 
 export const proposeFactFromPropagation = (
-  store: WorldStore,
+  store: WorldFile,
   input: { flowId: number; title: string; body: string; truthLayer: string }
 ): { record: RecordRow; queue: AdmissionQueueRow[] } => {
   const flow = readPropagationFlow(store, input.flowId);
   const record = store.createRecord({ recordTypeKey: "canon_fact", title: input.title, body: input.body, truthLayer: input.truthLayer, canonStatus: "proposed" });
-  store.db.prepare(`
-    INSERT INTO propagation_surfaced_proposals (flow_id, proposal_record_id, report_record_id, flow_step)
-    VALUES (?, ?, ?, 'propagation:surface-proposal')
-  `).run(input.flowId, record.id, flow.propagation_report_record_id ?? null);
+  store.insertPropagationSurfacedProposal({ flowId: input.flowId, proposalRecordId: record.id, reportRecordId: flow.propagation_report_record_id ?? null, flowStep: "propagation:surface-proposal" });
   if (flow.propagation_report_record_id != null) {
     store.createLink(record.id, flow.propagation_report_record_id, "derived_from", "Fact surfaced by propagation report");
   }
-  store.db.prepare("UPDATE flow_instances SET current_step = 'propagation:surface-proposal' WHERE id = ?").run(input.flowId);
-  recordSweepJurisdiction(store, record.id);
-  return { record, queue: store.admissionQueue() };
+  store.updateFlowInstance(input.flowId, { currentStep: "propagation:surface-proposal" });
+  return { record, queue: routeRecordToAdmissionQueue(store, record.id, { recordSweepJurisdiction: true }) };
 };
 
 export const skipPropagationStep = (
-  store: WorldStore,
+  store: WorldFile,
   input: { flowId?: number; stepKey: string; admissionLevel?: string; workScale?: string; reason?: string }
 ): RecordRow => {
   if (requiresSkipReason({ admissionLevel: input.admissionLevel ?? null, workScale: input.workScale ?? null }) && !input.reason?.trim()) {
     throw new Error("major propagation skips require a reason");
   }
-  const record = store.recordSkip({ flowId: input.flowId, stepKey: input.stepKey, reason: input.reason });
+  const record = createSkipRecord(store, { stepKey: input.stepKey, reason: input.reason });
   if (input.flowId != null) {
     const flow = readPropagationFlow(store, input.flowId);
     store.createLink(record.id, flow.propagation_fact_record_id, "derived_from", "Propagation step declined");
-    store.db.prepare("UPDATE flow_instances SET current_step = ? WHERE id = ?").run(`propagation:skip:${input.stepKey}`, input.flowId);
+    store.updateFlowInstance(input.flowId, { currentStep: `propagation:skip:${input.stepKey}` });
   }
   return record;
 };
 
-export const closePropagationRun = (store: WorldStore, flowId: number): { flow: unknown; report: RecordRow; debt: RecordRow | null; missing: PropagationConsequenceRow[] } => {
+export const closePropagationRun = (store: WorldFile, flowId: number): { flow: unknown; report: RecordRow; debt: RecordRow | null; missing: PropagationConsequenceRow[] } => {
   const flow = readPropagationFlow(store, flowId);
   const missing = undispositionedHighPressureConsequences(store, flowId);
   if (missing.length) {
     throw new Error(`undispositioned high-pressure consequences: ${missing.map((row) => `#${row.id}`).join(", ")}`);
   }
-  return store.db.transaction(() => {
+  return store.atomicWrite(() => {
     const report = flow.propagation_report_record_id == null
       ? writePropagationReport(store, flowId)
       : store.getRecord(flow.propagation_report_record_id);
     const fact = store.getRecord(flow.propagation_fact_record_id);
     store.createLink(fact.id, report.id, "digest_of", "Fact card shock-cone digest points to propagation report");
-    store.db.prepare("UPDATE propagation_surfaced_proposals SET report_record_id = ? WHERE flow_id = ? AND report_record_id IS NULL").run(report.id, flowId);
-    const proposalRows = store.db.prepare("SELECT proposal_record_id FROM propagation_surfaced_proposals WHERE flow_id = ?").all(flowId) as Array<{ proposal_record_id: number }>;
+    store.assignPropagationReportToSurfacedProposals(flowId, report.id);
+    const proposalRows = store.propagationSurfacedProposals(flowId) as Array<{ proposal_record_id: number }>;
     for (const row of proposalRows) {
       store.createLink(row.proposal_record_id, report.id, "derived_from", "Fact surfaced by propagation report");
     }
     const debt = flow.propagation_debt_record_id == null ? null : store.closeCanonDebt(flow.propagation_debt_record_id);
-    store.db.prepare("UPDATE flow_instances SET state = 'complete', current_step = 'propagation:complete', propagation_report_record_id = ? WHERE id = ?").run(report.id, flowId);
-    return { flow: store.db.prepare("SELECT * FROM flow_instances WHERE id = ?").get(flowId), report, debt, missing: [] };
-  })();
+    const updatedFlow = store.updateFlowInstance(flowId, { state: "complete", currentStep: "propagation:complete", propagationReportRecordId: report.id });
+    return { flow: updatedFlow, report, debt, missing: [] };
+  });
 };
 
 export const correctPropagationReport = (
-  store: WorldStore,
+  store: WorldFile,
   input: { originalReportId: number; title?: string; body: string }
 ): RecordRow => {
   const original = store.getRecord(input.originalReportId);
   if (original.recordTypeKey !== "propagation_report") throw new Error("only propagation reports can be corrected through this route");
   if (!input.body.trim()) throw new Error("propagation report corrections require steward-written prose");
-  return store.db.transaction(() => {
+  return store.atomicWrite(() => {
     const correction = store.createRecord({
       recordTypeKey: "propagation_report",
       title: input.title ?? `Correction: ${original.shortId}`,
@@ -379,22 +318,17 @@ export const correctPropagationReport = (
     });
     store.createLink(correction.id, original.id, "supersedes", "Propagation report correction; original remains append-only");
     return correction;
-  })();
+  });
 };
 
-const writePropagationReport = (store: WorldStore, flowId: number): RecordRow => {
+const writePropagationReport = (store: WorldFile, flowId: number): RecordRow => {
   const flow = readPropagationFlow(store, flowId);
   const fact = store.getRecord(flow.propagation_fact_record_id);
   const consequences = propagationConsequences(store, flowId);
   const domainSweeps = propagationDomainSweeps(store, flowId);
   const dispositions = propagationDispositions(store, flowId);
   const dispositionByConsequence = new Map(dispositions.map((disposition) => [disposition.consequenceId, disposition]));
-  const proposalRows = store.db.prepare(`
-    SELECT proposal_record_id
-    FROM propagation_surfaced_proposals
-    WHERE flow_id = ?
-    ORDER BY id
-  `).all(flowId) as Array<{ proposal_record_id: number }>;
+  const proposalRows = store.propagationSurfacedProposals(flowId) as Array<{ proposal_record_id: number }>;
   const proposals = proposalRows.map((row) => store.getRecord(row.proposal_record_id));
   const body = [
     `Fact: ${fact.shortId} ${fact.title}`,

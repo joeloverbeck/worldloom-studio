@@ -109,8 +109,14 @@ interface PromptTemplate {
   current_version: number;
 }
 
+interface AppProps {
+  initialRecords?: RecordRow[];
+}
+
+const storedToken = () => typeof window === "undefined" ? "" : window.localStorage.getItem("worldloom-token") ?? "";
+
 const api = async <T,>(path: string, init?: RequestInit): Promise<T> => {
-  const token = localStorage.getItem("worldloom-token");
+  const token = storedToken();
   const response = await fetch(path, {
     ...init,
     headers: {
@@ -131,15 +137,15 @@ const emptyRecordForm = {
   canonStatus: ""
 };
 
-function App() {
-  const [token, setToken] = useState(localStorage.getItem("worldloom-token") ?? "");
+function App({ initialRecords = [] }: AppProps = {}) {
+  const [token, setToken] = useState(storedToken());
   const [worldPath, setWorldPath] = useState("");
   const [openWorld, setOpenWorld] = useState<string | null>(null);
   const [serverVersion, setServerVersion] = useState("");
   const [message, setMessage] = useState("");
   const [recordTypes, setRecordTypes] = useState<RecordTypeDefinition[]>([]);
   const [linkTypes, setLinkTypes] = useState<LinkTypeDefinition[]>([]);
-  const [records, setRecords] = useState<RecordRow[]>([]);
+  const [records, setRecords] = useState<RecordRow[]>(initialRecords);
   const [links, setLinks] = useState<LinkRow[]>([]);
   const [recentWorlds, setRecentWorlds] = useState<RecentWorld[]>([]);
   const [terms, setTerms] = useState<VocabularyTerm[]>([]);
@@ -157,6 +163,8 @@ function App() {
   const [propagationDispositions, setPropagationDispositions] = useState<PropagationDisposition[]>([]);
   const [search, setSearch] = useState("");
   const [snapshotPath, setSnapshotPath] = useState("");
+  const [exportDirectory, setExportDirectory] = useState("");
+  const [exportedMarkdown, setExportedMarkdown] = useState("");
   const [recordTypeKey, setRecordTypeKey] = useState("canon_fact");
   const [promotionRecordTypeKey, setPromotionRecordTypeKey] = useState("canon_fact");
   const [recordForm, setRecordForm] = useState(emptyRecordForm);
@@ -247,7 +255,7 @@ function App() {
 
   const rememberToken = (next: string) => {
     setToken(next);
-    localStorage.setItem("worldloom-token", next);
+    if (typeof window !== "undefined") window.localStorage.setItem("worldloom-token", next);
   };
 
   const loadRecentWorlds = async () => {
@@ -408,6 +416,20 @@ function App() {
       body: JSON.stringify({ destinationPath: snapshotPath || undefined })
     });
     setMessage(`Snapshot written to ${payload.path}`);
+  };
+
+  const exportWorldMarkdown = async () => {
+    const payload = await api<{ directory: string; files: string[] }>("/api/worlds/export/markdown", {
+      method: "POST",
+      body: JSON.stringify({ destinationPath: exportDirectory })
+    });
+    setMessage(`Markdown export written to ${payload.directory} (${payload.files.length} files)`);
+  };
+
+  const exportRecordMarkdown = async (record: RecordRow) => {
+    const payload = await api<{ markdown: string }>(`/api/records/${record.id}/export/markdown`);
+    setExportedMarkdown(payload.markdown);
+    setMessage(`Rendered markdown for ${record.shortId}`);
   };
 
   const generatePrompt = async () => {
@@ -694,6 +716,8 @@ function App() {
           </div>
           <label>Snapshot path<input value={snapshotPath} onChange={(event) => setSnapshotPath(event.target.value)} placeholder="/tmp/example.snapshot.sqlite" /></label>
           <button onClick={snapshot} disabled={!openWorld}>Snapshot</button>
+          <label>Markdown export directory<input value={exportDirectory} onChange={(event) => setExportDirectory(event.target.value)} placeholder="/tmp/example-markdown-export" /></label>
+          <button onClick={exportWorldMarkdown} disabled={!openWorld || !exportDirectory.trim()}>Export World Markdown</button>
           <div className="recent">
             {recentWorlds.map((recent) => <button key={recent.path} onClick={() => { setWorldPath(recent.path); void createOrOpen("open", recent.path); }}>{recent.path}</button>)}
           </div>
@@ -940,12 +964,22 @@ function App() {
 
           {message && <p className="status">{message}</p>}
 
+          {exportedMarkdown && (
+            <div className="panel">
+              <h2>Markdown export</h2>
+              <textarea rows={12} value={exportedMarkdown} readOnly />
+            </div>
+          )}
+
           <div className="records">
             {records.map((record) => (
               <article key={record.id}>
-                <button onClick={() => editRecord(record)}>Edit</button>
-                <button className="propose" onClick={() => proposeRecord(record)}>Propose</button>
-                {recordTypeByKey.get(record.recordTypeKey)?.mutationRegime === "card" && <button className="promote" onClick={() => promoteRecord(record)}>Promote</button>}
+                <div className="row">
+                  <button onClick={() => editRecord(record)}>Edit</button>
+                  <button onClick={() => proposeRecord(record)}>Propose</button>
+                  <button onClick={() => exportRecordMarkdown(record)}>Export Markdown</button>
+                  {recordTypeByKey.get(record.recordTypeKey)?.mutationRegime === "card" && <button onClick={() => promoteRecord(record)}>Promote</button>}
+                </div>
                 <h3>{record.shortId} · {record.title}</h3>
                 <p className="meta">{record.recordTypeKey} · {record.truthLayer ?? "no layer"} · {record.canonStatus ?? "no status"} · {record.updatedAt}</p>
                 <p>{record.body || "No prose yet."}</p>
@@ -964,4 +998,7 @@ function App() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+const rootElement = typeof document === "undefined" ? null : document.getElementById("root");
+if (rootElement) createRoot(rootElement).render(<App />);
+
+export { App };

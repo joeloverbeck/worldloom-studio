@@ -16,4 +16,4 @@ console.log(`Worldloom Studio server listening on http://${hostname}:${port}`);
 console.log(`WORLDLOOM_TOKEN=${token}`);
 
 export { createApp } from "./app.js";
-export { WorldStore } from "./world-store.js";
+export { WorldFile } from "./world-file.js";
