@@ -1392,6 +1392,18 @@ export class WorldFile {
   private ensurePromptTemplates(): void {
     const templates = [
       {
+        key: "kernel_pressure",
+        roleName: "Consequence scout",
+        text: "Pressure-test this steward-authored kernel as a pressure seed. Work from the kernel first, then surface direct consequences, speculative assumptions, ordinary-life residue, institutions, constraints, and quiet domains that the world may need to answer. Do not write first-draft or final canon; label surfaced facts as proposed-only.",
+        legacyText: "Given this canon fact and its constraints, list consequences across the domain atlas. Separate direct consequences from speculative ones. Do not invent new canon facts; label assumptions."
+      },
+      {
+        key: "decomposition_pressure",
+        roleName: "Prerequisite auditor",
+        text: "Pressure-test this steward-authored seed decomposition. Work from the split seeds first, then identify hidden prerequisites across hard, soft, economic, institutional, temporal, spatial, and psychological domains. Flag bundled seeds, missing prerequisites, and any prerequisite that needs its own canon admission. Do not write final canon; label assumptions plainly.",
+        legacyText: "What hard, soft, economic, institutional, temporal, spatial, and psychological prerequisites does this fact require? Flag any prerequisite that would itself need canon admission."
+      },
+      {
         key: "admission_prerequisite_audit",
         roleName: "Prerequisite auditor",
         text: "Pressure-test this proposed fact statement and its dependencies. Identify hard, soft, economic, institutional, temporal, spatial, and psychological prerequisites; flag any prerequisite that needs its own admission."
@@ -1437,6 +1449,12 @@ export class WorldFile {
           INSERT OR IGNORE INTO prompt_template_versions (template_key, version, text)
           VALUES (?, 1, ?)
         `).run(template.key, template.text);
+        if (template.legacyText) {
+          this.db.prepare("UPDATE prompt_templates SET original_text = ? WHERE key = ? AND original_text = ?")
+            .run(template.text, template.key, template.legacyText);
+          this.db.prepare("UPDATE prompt_template_versions SET text = ? WHERE template_key = ? AND version = 1 AND text = ?")
+            .run(template.text, template.key, template.legacyText);
+        }
       }
     })();
   }

@@ -259,7 +259,7 @@ describe("HTTP API", () => {
     });
     expect(editedTemplate.status).toBe(200);
     expect(await json(await app.request("/api/prompt-templates"))).toMatchObject({
-      templates: expect.arrayContaining([expect.objectContaining({ key: "kernel_pressure", current_text: "Custom pressure text", original_text: expect.stringContaining("Given this canon fact") })])
+      templates: expect.arrayContaining([expect.objectContaining({ key: "kernel_pressure", current_text: "Custom pressure text", original_text: expect.stringContaining("steward-authored kernel") })])
     });
     const revertedTemplate = await app.request("/api/prompt-templates/kernel_pressure/revert", { method: "POST" });
     expect(revertedTemplate.status).toBe(200);

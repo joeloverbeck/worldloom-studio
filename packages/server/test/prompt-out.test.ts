@@ -34,14 +34,14 @@ describe("Prompt-out module", () => {
     });
 
     expect(PromptOut.listPromptTemplates(store)).toEqual(expect.arrayContaining([
-      expect.objectContaining({ key: "kernel_pressure", current_text: expect.stringContaining("Given this canon fact") })
+      expect.objectContaining({ key: "kernel_pressure", current_text: expect.stringContaining("steward-authored kernel") })
     ]));
     expect(PromptOut.updatePromptTemplate(store, "kernel_pressure", "Custom kernel pressure")).toMatchObject({
       current_text: "Custom kernel pressure",
       current_version: 2
     });
     expect(PromptOut.revertPromptTemplate(store, "kernel_pressure")).toMatchObject({
-      current_text: expect.stringContaining("Given this canon fact"),
+      current_text: expect.stringContaining("steward-authored kernel"),
       current_version: 3
     });
 

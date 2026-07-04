@@ -119,6 +119,79 @@ describe("WorldFile", () => {
     reopened.close();
   });
 
+  it("re-seeds creation prompt templates and generates creation prompt-out when opening an existing world", () => {
+    const path = tempPath("existing-creation-prompts.sqlite");
+    const store = WorldFile.create(path);
+    const kernel = store.createRecord({
+      recordTypeKey: "world_kernel",
+      title: "Echo city kernel",
+      body: "A city built on echoes.",
+      ...explicitJudgment
+    });
+    const decomposition = store.createRecord({
+      recordTypeKey: "seed_decomposition",
+      title: "Echo seed split",
+      body: "Echo laws split into testimony, cost, and enforcement seeds.",
+      ...explicitJudgment
+    });
+    store.db.prepare("DELETE FROM prompt_template_versions WHERE template_key IN ('kernel_pressure', 'decomposition_pressure')").run();
+    store.db.prepare("DELETE FROM prompt_templates WHERE key IN ('kernel_pressure', 'decomposition_pressure')").run();
+    store.close();
+
+    const reopened = WorldFile.open(path);
+
+    expect(reopened.schemaVersion()).toBe(6);
+    expect(PromptOut.listPromptTemplates(reopened)).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: "kernel_pressure",
+        role_name: "Consequence scout",
+        package_source: "docs/worldbuilding-system/20_ai_assisted_workflow.md",
+        current_text: expect.stringContaining("steward-authored kernel")
+      }),
+      expect.objectContaining({
+        key: "decomposition_pressure",
+        role_name: "Prerequisite auditor",
+        package_source: "docs/worldbuilding-system/20_ai_assisted_workflow.md",
+        current_text: expect.stringContaining("hidden prerequisites")
+      })
+    ]));
+
+    const kernelPrompt = PromptOut.generatePrompt(reopened, {
+      flowKey: "creation",
+      templateKey: "kernel_pressure",
+      recordId: kernel.id,
+      stepKey: "creation:kernel"
+    });
+    expect(kernelPrompt.promptOut).toMatchObject({
+      flowKey: "creation",
+      stepKey: "creation:kernel",
+      templateKey: "kernel_pressure",
+      recordId: kernel.id
+    });
+    expect(kernelPrompt.prompt).toContain("Consequence scout");
+    expect(kernelPrompt.prompt).toContain("The steward's material comes first; do not write final canon");
+    expect(kernelPrompt.prompt).toContain("Vocabulary guardrail");
+    expect(kernelPrompt.prompt).toContain("A city built on echoes.");
+
+    const decompositionPrompt = PromptOut.generatePrompt(reopened, {
+      flowKey: "creation",
+      templateKey: "decomposition_pressure",
+      recordId: decomposition.id,
+      stepKey: "creation:decomposition"
+    });
+    expect(decompositionPrompt.promptOut).toMatchObject({
+      flowKey: "creation",
+      stepKey: "creation:decomposition",
+      templateKey: "decomposition_pressure",
+      recordId: decomposition.id
+    });
+    expect(decompositionPrompt.prompt).toContain("Prerequisite auditor");
+    expect(decompositionPrompt.prompt).toContain("Vocabulary guardrail");
+    expect(decompositionPrompt.prompt).toContain("Echo laws split into testimony, cost, and enforcement seeds.");
+
+    reopened.close();
+  });
+
   it("backs up an older world before migrating it and rejects corrupted files plainly", () => {
     const oldPath = tempPath("old.sqlite");
     const oldDb = new Database(oldPath);
