@@ -36,7 +36,7 @@ Post the ledger to the conversation before the first edit. Update it when depend
 
 ## 2. Work issue-by-issue
 
-Invoke the repo `tdd` skill where possible, at pre-agreed seams. If no seam has been pre-agreed, derive the conservative proposed seam from the acceptance criteria and existing architecture, announce it in the ledger or TDD evidence, follow the `tdd` skill's confirmation rule before writing tests at that seam, and keep it at the highest practical layer. For docs-only or no-runnable criteria, record that no runnable seam exists and use review/conformance evidence rather than inventing a test.
+Invoke the repo `tdd` skill where possible, at pre-agreed seams. If the issue or PRD explicitly names proof seams, treat them as pre-agreed after restating them in the ledger or TDD evidence, unless they conflict with live architecture. If no seam has been pre-agreed, derive the conservative proposed seam from the acceptance criteria and existing architecture, announce it in the ledger or TDD evidence, follow the `tdd` skill's confirmation rule before writing tests at that seam, and keep it at the highest practical layer. For docs-only or no-runnable criteria, record that no runnable seam exists and use review/conformance evidence rather than inventing a test.
 
 Default to one issue at a time. If child issues are technically inseparable and an integrated implementation pass is the safer route, say so in the ledger, keep the ledger/audit per issue, and make the closeout evidence map each issue's criteria to the shared implementation and tests.
 
@@ -58,31 +58,30 @@ Before closeout, read the root verification guidance and run the canonical gates
 
 Before committing, draft the pre-close audit row-by-row against each in-scope issue's acceptance criteria and Principles/ADR checks. Patch any row that would be `blocked` or `not done` before entering review, unless the right outcome is to leave that issue open.
 
-## 3. Review before commit
+## 3. Review before closeout
 
-Once done, invoke the repo `code-review` skill to review the work.
+Once the implementation is ready, invoke the repo `code-review` skill to review the work before pushing or closing issues.
 
 The repo's code-review skill expects a fixed point. Use one of these routes:
 
 - Commit the completed implementation locally, then run the `code-review` skill against `HEAD~1` or another fixed point before pushing or closing issues.
 - If committing first would be inappropriate, run an explicit pre-commit review against `git diff HEAD` and say that you are adapting the review because no committed fixed point exists yet.
-- If the `code-review` skill cannot run because a required mechanism is unavailable, including when sub-agents or other review tools are unavailable or policy-blocked, run a local two-axis review against the fixed point: standards/conventions and spec/acceptance. Document the deviation and its reason, fix any findings, rerun the relevant gates, and include the review outcome in closeout evidence.
-- If review fixes happen after the implementation commit, stage only implementation-owned files and intentionally either amend the implementation commit or create a follow-up commit. Refresh the final SHA after the last commit, rerun required gates on the final tree, and use that final SHA in closeout comments.
+- If the `code-review` skill cannot run because a required mechanism is unavailable, including when sub-agents or other review tools are unavailable or policy-blocked, run a local two-axis review against the fixed point: standards/conventions and spec/acceptance. Defer to the `code-review` skill's fixed-point and tool-policy discovery rules before choosing fallback, and record whether fallback is due to unavailable tooling or policy-blocked delegation. Document the deviation and its reason, fix any findings, rerun the relevant gates, and include the review outcome in closeout evidence.
+- If review finds no issues after the implementation commit, keep that commit as the final SHA; no second commit is needed. If review fixes happen after the implementation commit, stage only implementation-owned files and intentionally either amend the implementation commit or create a follow-up commit. Refresh the final SHA after the last commit, rerun required gates on the final tree, and use that final SHA in closeout comments.
 
 Review evidence is a closeout hard stop. Before running any issue-close command, record one of these lines in the conversation or closeout audit:
 
 - `Review: code-review against <fixed point>; outcome <no findings / findings fixed in SHA ...>; verification rerun <commands>.`
 - `Review fallback: <why code-review could not run>; standards/spec result <...>; fixes <none / SHA ...>; verification rerun <commands>.`
 
-Before staging or committing, rerun `git status --short`, identify unrelated existing changes, and stage only files owned by the implementation. Leave unrelated dirty files untouched and report them in the final response.
-
-Commit your work to the current branch.
+Before the implementation commit or any review-fix commit, rerun `git status --short`, identify unrelated existing changes, and stage only files owned by the implementation. Leave unrelated dirty files untouched and report them in the final response.
 
 ## 4. Completion audit and issue closeout
 
 Before declaring completion, closing issues, or closing a parent PRD:
 
-- Produce a pre-close per-issue audit before closing any issue: every acceptance criterion and required principles/ADR conformance check mapped to concrete evidence, with status `satisfied`, `blocked`, or `not done`. Default to one row per acceptance criterion or conformance check; do not group acceptance checkboxes into one prose row unless the row names each checkbox explicitly. Capture the audit in one durable sink before closeout: the conversation, a tracker comment on the issue or parent PRD, or another durable tracker artifact. If the audit is not in the conversation, each affected closeout comment must link the durable audit sink.
+- Produce a pre-close per-issue audit before closing any issue: every acceptance criterion and required principles/ADR conformance check mapped to concrete evidence, with status `satisfied`, `blocked`, or `not done`. Default to one row per acceptance criterion or conformance check; do not group acceptance checkboxes into one prose row unless the row names each checkbox explicitly. Capture the audit in one durable sink before closeout: the conversation, a tracker comment on the issue or parent PRD, or another durable tracker artifact. For large child-issue families where the explicit row table would be unwieldy in conversation, prefer one parent PRD tracker comment when practical, then link or cite that durable audit sink from each child closeout comment. If the audit is not in the conversation, each affected closeout comment must link the durable audit sink.
+- If a complete criterion-level audit was already posted before commit and no rows change after commit, review, or verification reruns, post a final addendum with the final SHA, review result, verification reruns, and a statement that all prior rows remain satisfied. Repost or expand only rows that changed, were incomplete, or were not preserved clearly enough after resume or compaction.
 - Close only issues whose criteria are all satisfied, using a comment that includes the commit SHA and verification evidence.
 - If review found or fixed issues, or if a review fallback path was used, include the review outcome in each affected issue's closeout comment or in a clearly linked parent rollup.
 - If the issue or parent PRD has a `## Principles` section, include the conformance result or deliberate steward-approved exception in the closeout evidence.
