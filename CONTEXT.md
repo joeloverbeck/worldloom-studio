@@ -30,6 +30,14 @@ _Avoid_: review queue, approval queue
 A flow step that generates a self-contained prompt the steward may run in any external LLM; always optional.
 _Avoid_: AI step, generation step
 
+**Decision point**:
+A flow step where the steward must judge, author, classify, route, skip, or dispose of material under package doctrine.
+_Avoid_: form field, wizard page
+
+**Prompt packet**:
+The self-contained content assembled for a prompt-out step: current decision, relevant world context, doctrine, source records, standing rulings, omissions, and advisory framing.
+_Avoid_: prompt text, AI context
+
 **Advisory artifact**:
 A pasted LLM response stored verbatim and immutably, attached to the prompt-out step that produced its prompt; type-separate from canon records, never parsed into them.
 _Avoid_: AI output, suggestion, draft

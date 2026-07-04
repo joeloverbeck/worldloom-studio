@@ -24,6 +24,12 @@ This spec defines Worldloom Studio's read-only Canon Workbench surface: Current 
 16. **Empty states.** The browser distinguishes "No world is open" from "No current canon matches these filters."
 17. **Deferred surfaces.** Graph-first visualization, atlas views, branch management, collaboration workflow, prompt-out behavior, canon mutation controls, flow automation, import, sync, publishing, and browser-storage features are out of scope.
 
+## Read-Side Boundary
+
+The workbench answers the package read questions from `data-principles.md`: what is canon today, and how did canon get here? It must not become the primary creation, Admission, propagation, repair, or QA workflow. Mutation affordances stay in the governed flows.
+
+Record detail and Audit Trail views should link, when stored data exists, to the governing flow artifacts behind a read-side item: Admission decisions, propagation reports, contradiction reports, QA passes, stage-12 pass reports, advisory artifacts, skip records, canon debt, supersession history, branch notes, and explicit advisory-use links. These links are progressively disclosed so Current Canon remains scannable while provenance is available on demand.
+
 ## Testing Seams
 
 Primary seam: the existing localhost HTTP app seam against temp-file world databases. Tests populate worlds through existing record, section, facet, link, flow, advisory, canon-debt, skip, and export routes, then assert Current Canon defaults and filters, Audit Trail chronology and attachment categories, record-detail payload shape, export affordance, and no mutation of record counts, lifecycle fields, history rows, section-history rows, link rows, debt state, or advisory dispositions.
@@ -39,8 +45,9 @@ Touches `docs/principles/README.md` and affirms non-contradiction with:
 - `charter.md` P-3, P-4, T-8: the workbench is mechanized continuity-clerk work. It remembers, indexes, cross-references, surfaces status, and answers governed read questions without judging canon.
 - `data-principles.md` P-6, W-5, W-6, T-3, T-4, T-5: the world file remains canonical; Current Canon renders living card records; Audit Trail renders report-regime chronology; prose, short IDs, typed links, and provenance stay intact.
 - `workflow-principles.md` P-5, W-3, W-4, W-7: the workbench sits in the ungated margin, reads across flows, does not admit or repair facts, and surfaces skips and owed work as governed records.
+- `guided-workflow-usability.md` W-8: the workbench is read-side orientation and provenance, not a substitute for guided decision-point workflows.
 - `canon-sovereignty.md` P-2, W-1, T-5: advisory artifacts and standing rulings are displayed as advisory provenance, never interpreted as canon, and no prompt-out or LLM behavior is added.
 - `domain-fidelity.md` P-1, T-2: UI and filters use methodology and seeded-vocabulary terms verbatim. The screen title does not replace package vocabulary.
-- ADR 0001: the SQLite world file remains canonical. ADR 0002: the local native process serves the read surface and browser storage is not canonical. ADR 0003: scoped and branch-only records are readable without building branch management. ADR 0004: no stack change. ADR 0005: no new CI or lint policy is introduced. ADR 0006: Admission remains the only flow that changes canon standing. ADR 0007: Prompt-out artifacts are consumed as existing advisory records. ADR 0008: flow-owned persistence remains owned by flows; the workbench composes read outputs.
+- ADR 0001: the SQLite world file remains canonical. ADR 0002: the local native process serves the read surface and browser storage is not canonical. ADR 0003: scoped and branch-only records are readable without building branch management. ADR 0004: no stack change. ADR 0005: no new CI or lint policy is introduced. ADR 0006: Admission remains the only flow that changes canon standing. ADR 0007: Prompt-out artifacts are consumed as existing advisory records. ADR 0008: flow-owned persistence remains owned by flows; the workbench composes read outputs. ADR 0009: read-side views link to guided flow artifacts without becoming mutation workflows.
 
 No deliberate exceptions.

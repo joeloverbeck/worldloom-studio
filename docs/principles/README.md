@@ -9,7 +9,7 @@ These documents are the ratified foundational principles of Worldloom Studio, fi
 1. **The methodology package** — `docs/worldbuilding-system/` is upstream of everything in this folder. Nothing here restates package content; these documents cite it by file. Conflicts are resolved in the package's favor or routed as package amendments (see `domain-fidelity.md`, P-1).
 2. **`charter.md`** — constitution altitude. Identity, differentiator, scope. Changes require an explicit steward decision.
 3. **`canon-sovereignty.md`** and **`domain-fidelity.md`** — constitution altitude.
-4. **`workflow-principles.md`** and **`data-principles.md`** — architectural principles. Durable, but may evolve with field evidence from app use.
+4. **`workflow-principles.md`**, **`guided-workflow-usability.md`**, and **`data-principles.md`** — architectural principles. Durable, but may evolve with field evidence from app use.
 5. **ADRs** in `docs/adr/` — concrete decisions, revisable with stated cost.
 
 ## Conformance rule
@@ -20,7 +20,7 @@ When output contradicts a principle or an ADR, surface it explicitly (the same c
 
 ## Methodology coverage
 
-The living coverage ledger is [`../methodology-coverage.md`](../methodology-coverage.md). It records which `docs/worldbuilding-system/` chapters have guided flows, sweep-only coverage, schema-only T-8 coverage, or explicit UI non-goals, and it is updated when a flow ships or a deferral changes.
+The living coverage ledger is [`../methodology-coverage.md`](../methodology-coverage.md). It records which `docs/worldbuilding-system/` chapters have guided flows, sweep-only coverage, schema-only T-8 coverage, or explicit UI non-goals, plus guidance maturity for browser-visible workflow evidence. It is updated when a flow ships, a browser guidance claim changes, or a deferral changes.
 
 ## Principle identifiers
 
@@ -41,6 +41,7 @@ The report's identifiers are formal as of this ratification. Principles are cite
 | W-5 | Record once, view anywhere | `data-principles.md` |
 | W-6 | The record lifecycle is the data model | `data-principles.md` |
 | W-7 | Gates demand substance, not clicks | `workflow-principles.md` |
+| W-8 | Guided flows are decision-point surfaces | `guided-workflow-usability.md` |
 | T-1 | SQLite, one file per world, is the canonical store | `docs/adr/0001` (decision), `data-principles.md` (invariants) |
 | T-2 | The label separations are schema facets, never flattened | `domain-fidelity.md` |
 | T-3 | Identifiers are the app's job; content is never a key | `data-principles.md` |

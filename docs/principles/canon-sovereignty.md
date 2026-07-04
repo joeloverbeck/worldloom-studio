@@ -16,13 +16,16 @@ Every step whose output later steps depend on offers a generated prompt the stew
 
 Every prompt-out step preserves `20`'s invariant sequence: **human writes → AI challenges → human deletes/selects → human decides → AI summarizes → human records.** No flow step opens with generation — the steward's own material always comes first, and the AI is asked for pressure on it, never for the first draft.
 
-- Every prompt embeds: the relevant record context (assembled by the app — this is the drudgery the method currently leaves to the steward), the role's ask-for-pressure framing, `20`'s vocabulary guardrail, the instruction to label assumptions, and the steward's standing rulings from prior dispositions.
+- Every prompt embeds or explicitly omits with reason: the current flow, step, and decision point; the selected record or draft context; relevant dependencies and source links; current-canon or world-kernel summary where applicable; governing package doctrine; `20`'s vocabulary guardrail; label-assumptions instruction; standing rulings and relevant prior advisory dispositions; open canon debt, skips, or unresolved contradictions that bear on the step; the requested analyst role; the instruction to provide pressure, risks, alternatives, and questions rather than final canon; and the advisory/canon warning.
 - Prompts must be **fully self-contained** — the receiving model is assumed to have never seen the world.
+- Prompt packets are reviewable before copy-out. The steward can see why each context item was included, and large prompts prefer a source manifest plus targeted excerpts over whole-world dumping.
 - Pasted responses are stored **verbatim as immutable advisory artifacts** attached to the step that generated the prompt. The app never parses a pasted response into a canon field.
 - The steward disposes of advisory material using `20`'s output labels; dispositions persist and steer future prompts.
 - Every prompt-out step is skippable — `20`'s anti-automation rule governs.
 
 The prompt-out/paste-in transport is a reasoned design, not an externally evidenced pattern: the archived report's §10 records a negative finding — no published study of deliberately API-less, clipboard-mediated LLM integration was found. App field use is its first real evaluation; specs building on W-1 inherit that honesty (charter T-8), not a claim of validated practice. Sovereignty itself (P-2) does not rest on this evidence — its roots are the prior app's failure and `20`'s doctrine, independently sufficient.
+
+A prompt passes the W-1 quality bar when it is useful in a cold external LLM session without hidden project context and still makes the steward's authority unmistakable.
 
 ## Default prompt texts
 

@@ -4,6 +4,12 @@ This spec defines the first Worldloom Studio world-file schema and the generic w
 
 Guided flows are out of scope. The schema makes every package record type usable at the record level before flow-specific screens exist.
 
+## Schema Is Not Product Shape
+
+Schema completeness is not workflow completeness. Generic record creation and editing are walking-skeleton, substrate, repair, and admin surfaces; they are not the primary product shape for field-tested package protocols once a guided flow exists. A package surface can be preserved at the record level while still owing a browser-guided decision-point flow before it is product-complete.
+
+This spec deliberately keeps guided flow behavior out of scope. Downstream flow specs must satisfy `docs/principles/guided-workflow-usability.md` W-8 and ADR 0009 before claiming a field-tested protocol is complete in the browser.
+
 ## Required World-File Shape
 
 - One SQLite file is one world.
@@ -202,4 +208,4 @@ The first implementation slice must provide:
 
 ## Principles
 
-Touches `charter.md` (P-3, P-4, T-8), `canon-sovereignty.md` (P-2, T-5), `domain-fidelity.md` (P-1, T-2), `workflow-principles.md` (P-5, W-2, W-3, W-4, W-7), `data-principles.md` (P-6, W-5, W-6, T-1, T-3, T-4, T-6), and ADRs 0001-0004. This spec affirms non-contradiction with all of them.
+Touches `charter.md` (P-3, P-4, T-8), `canon-sovereignty.md` (P-2, T-5), `domain-fidelity.md` (P-1, T-2), `workflow-principles.md` (P-5, W-2, W-3, W-4, W-7), `guided-workflow-usability.md` (W-8, by boundary), `data-principles.md` (P-6, W-5, W-6, T-1, T-3, T-4, T-6), and ADRs 0001-0004 and 0009. This spec affirms non-contradiction with all of them.

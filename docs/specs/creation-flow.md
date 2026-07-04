@@ -25,6 +25,14 @@ The terminal state is a living world kernel plus seed records parked at `propose
 
 Both prompts preserve `20`'s invariant sequence: the steward's material is present first, and the model is asked for pressure, not first-draft canon.
 
+## Decision-Point UI Contract
+
+This flow must satisfy `guided-workflow-usability.md` W-8 and `guided-flow-spec-template.md`.
+
+- **Kernel authoring:** the browser shows the steward that the decision is to define the world's first governing kernel, cites `05` Phase 1 and `templates/world_kernel.md`, marks required sections versus allowed empty sections, requires explicit consequence-mode selection, previews the kernel prompt packet, records prompt skips, and shows that the resulting write is a living `world_kernel` record rather than admitted canon facts.
+- **Seed decomposition:** the browser shows that the decision is to split steward material into parked seeds, cites `05` Phase 2, shows consumed drafts/kernel material, identifies truth-layer and `proposed` status obligations, previews the decomposition prompt packet, records prompt skips, writes one append-only `seed_decomposition` report, parks seed records at `proposed`, and points the steward to Admission as the next governed step.
+- **Resume/exit:** the flow map shows current step, kernel/decomposition state, prompt-out status, skipped instruments, and safe resume from `flow_instances`.
+
 ## Flow Behavior
 
 - Starting the flow creates or resumes an in-progress `creation` flow instance.
@@ -44,6 +52,6 @@ Secondary seam: direct SQL against real world files for migration v2, pre-migrat
 
 ## Principles
 
-Touches `charter.md` (P-3, P-4, T-8), `canon-sovereignty.md` (P-2, W-1, T-5), `domain-fidelity.md` (P-1, T-2), `workflow-principles.md` (P-5, W-3, W-4), `data-principles.md` (P-6, W-5, W-6, T-3, T-4), and ADRs 0001-0004. It affirms non-contradiction.
+Touches `charter.md` (P-3, P-4, T-8), `canon-sovereignty.md` (P-2, W-1, T-5), `domain-fidelity.md` (P-1, T-2), `workflow-principles.md` (P-5, W-3, W-4), `guided-workflow-usability.md` (W-8), `data-principles.md` (P-6, W-5, W-6, T-3, T-4), and ADRs 0001-0004 and 0009. It affirms non-contradiction.
 
 T-8 honesty: prompt-out/paste-in remains an unvalidated field-use surface; this flow records evidence from use but does not claim external validation.

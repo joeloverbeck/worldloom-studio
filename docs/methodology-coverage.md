@@ -26,6 +26,36 @@ Rows for doctrine, reference, examples, and support files use
 `non-goal (method doctrine/reference)` so the numbered package spine is
 complete without pretending every chapter should become a guided workflow.
 
+## Guidance Maturity
+
+Coverage class says how the package surface is represented. Guidance maturity
+says how usable the browser workflow is when the surface is in scope. Use the
+lowest honest value that applies:
+
+- **record-only**: schema/generic record support exists.
+- **server-policy**: flow policy exists below the UI.
+- **browser-exposed**: the browser can invoke or display the surface.
+- **decision-guided**: the browser satisfies `guided-workflow-usability.md` W-8's Decision-Point Contract.
+- **prompt-context-complete**: prompt-out packets pass the cold external LLM test from `prompt-out-context-assembly.md`.
+- **walkthrough-passed**: a naive-steward cognitive walkthrough passed.
+- **field-validated**: field trial or real app use validated the browser surface.
+
+Do not silently promote untested package surfaces. `10`, `11`, `14`, `15`,
+`16`, `17`, and naive-steward `19`/`20` remain honestly untested until field
+evidence says otherwise.
+
+## Guidance Maturity Snapshot
+
+| Surface | Current maturity | Notes |
+|---|---|---|
+| Creation (`05`) | browser-exposed | Phases 1-2 have guided flow coverage; future implementation evidence must prove decision-guided kernel/decomposition steps and prompt packet completeness. |
+| Admission (`06`) | browser-exposed | Admission owns canon transition; next acceptance step is decision-guided severity/gate evidence. |
+| Propagation (`07`) and domain atlas (`04`) | browser-exposed | Flow exists; future work must prove shock-cone/domain/disposition decision points and prompt context completeness. |
+| Stage 12 (`12`) | browser-exposed | Strongest current browser contract; still needs W-8 evidence before claiming decision-guided. |
+| Contradiction/Retcon/Mystery (`13`) | browser-exposed | UI reachability gap is closed; decision-guided maturity still needs browser acceptance evidence. |
+| QA (`18`) | browser-exposed | Scorecard flow exists; decision-guided maturity needs visible score/profile/floor/repair walkthrough evidence. |
+| Prompt-out (`20`) | browser-exposed | Prompt mechanics exist; prompt-context-complete requires source-manifest and cold external LLM proof. |
+
 ## Package Chapter Matrix
 
 | Package surface | Coverage class | App coverage | Recorded decision and citation | Field-use status |
@@ -97,5 +127,7 @@ changes what v1 treats as schema-only or non-goal:
 3. Cite the governing PRD, issue, spec, principle, or ADR in the row.
 4. Mark the field-use status honestly: field-tested, flowless, honestly
    untested, schema-only, or non-goal.
-5. Include "update `docs/methodology-coverage.md` or confirm no coverage
+5. Mark guidance maturity honestly when the browser workflow or prompt-out
+   surface changes.
+6. Include "update `docs/methodology-coverage.md` or confirm no coverage
    change" in the flow's closeout audit.

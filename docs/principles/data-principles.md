@@ -10,6 +10,8 @@ One world = one visible database file at a steward-chosen path, copyable, backed
 
 One canonical record; every other surface renders a live digest or link. The propagation report is the master record of the shock cone (`07`) — or the `21` pass report, when the cone was worked inside a specialized pass, exactly as the second trial's institutional pass carries one card's cone; the fact card's shock-cone summary is a digest of or pointer to it; capability and fact cards divide labor and cross-reference rather than duplicate. The file-versus-record mismatch dissolves: **the record is the unit; files exist only at export.**
 
+Stored records are the durable prose and audit structures, not automatically the browser task shape. Guided workflow surfaces may and often must differ from the stored record shape so the steward sees the current decision, source doctrine, obligations, blockers, prompt packet, and next/resume state. Generic record editing remains substrate, repair, and admin surface; field-tested protocols are product-complete only when they have guided decision-point surfaces.
+
 ## W-6. The record lifecycle is the data model
 
 `03`'s two mutation regimes are enforced at the storage layer:
@@ -17,7 +19,7 @@ One canonical record; every other surface renders a live digest or link. The pro
 - **Living records** state the present tense and are updated in place; every supersession automatically writes a history entry carrying the outgoing wording verbatim, its retirement status, a sequence marker, and a link to the retiring report. Cards are the paradigm, but the regime is wider: admission-ledger rows are living records ("rows follow the record lifecycle like any card" — `22`; the ledger template says so itself), as are mystery-ledger entries and canon-debt/skip records with open/closed state.
 - **Reports** are the audit trail and are append-only — never edited; a correction is a new record. The regime covers every governance report the package names — propagation and contradiction reports, change proposals, decision records — plus gate results (`06`: "proposals, gate results, and reports are the unedited audit trail") and the `21` pass-report container, the one report type with no template file.
 
-History is owed to outgoing wording only; additive amendments carry none (`03`, `19`). The two query modes the package names are the app's two primary read surfaces: *what is canon today?* (the live cards) and *how did canon get here?* (the reports in order). The W-3 status machine — 11 canon statuses, sweeps propose / admission admits, jurisdiction-bounded operations — is enforced here, not in UI convention.
+History is owed to outgoing wording only; additive amendments carry none (`03`, `19`). The two query modes the package names are the app's two primary read surfaces: *what is canon today?* (the live cards) and *how did canon get here?* (the reports in order). Those read surfaces explain and navigate canon; they do not replace guided creation, admission, propagation, repair, or QA. The W-3 status machine — 11 canon statuses, sweeps propose / admission admits, jurisdiction-bounded operations — is enforced here, not in UI convention.
 
 ## T-3. Identifiers are the app's job; content is never a key
 
