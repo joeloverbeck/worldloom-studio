@@ -70,6 +70,8 @@ Ask the user:
 - Should any slices be merged or split further?
 - When intake surfaced a doctrine conflict or correction (Step 3), does the user accept the correction and how it was resolved?
 
+When the proposed breakdown is a single no-blocker issue, a compact approval question is enough, but make it explicit that approval covers the one-slice granularity, no dependencies, and publication. For example: "Does this one-slice/no-blocker breakdown feel right, and should I publish it as the child issue?"
+
 Iterate until the user approves the breakdown. If the environment provides a timed approval mechanism and the approval question times out with no response, weigh re-asking once before proceeding — especially right after a long context dump (the user may have been reading rather than away) or when publishing is consequential (creating several real issues at once). Only on a second timeout (the user is away) proceed with the proposed breakdown, state in the conversation that it was applied unapproved, and offer post-hoc adjustment (merge/split/re-wire, closing issues if needed) when the user returns. If no timed approval mechanism is available, ask a plain-text approval question and stop before publishing unless the user has explicitly pre-authorized publication; do not treat tool unavailability as a timeout.
 
 ### 5. Publish the issues to the issue tracker
@@ -84,7 +86,7 @@ After publishing, verify every created issue with `gh issue view`: confirm title
 
 Remove any temporary issue-body files you created, run `git status --short`, and include only remaining pre-existing or intentional dirty files in the final report.
 
-For compact child-issue verification, prefer a query shaped like this, adjusting `hasBlocker` for the expected blocker reference or replacing it with a no-blocker check:
+For compact child-issue verification, prefer a query shaped like this, adjusting `hasParent` to the fetched house-style parent token (for example `#<parent>` or `PRD #<parent>`) and adjusting `hasBlocker` for the expected blocker reference or replacing it with a no-blocker check:
 
 ```sh
 gh issue view <number> --json number,title,body,labels,state,url --jq '{number,title,state,url,labels:[.labels[].name],isOpen:(.state == "OPEN"),hasReady:(any(.labels[].name; . == "ready-for-agent")),hasParent:(.body | contains("PRD #<parent>")),hasWhat:(.body | contains("## What to build")),hasAcceptance:(.body | contains("## Acceptance criteria")),hasPrinciples:(.body | contains("## Principles")),hasBlocker:(.body | contains("#<blocker>")),hasNoTmp:((.body | contains("/tmp")) | not),hasNoHome:((.body | contains("/home/")) | not)}'

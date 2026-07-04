@@ -6,6 +6,8 @@ How to deepen a cluster of shallow modules safely, given its dependencies. Assum
 
 When assessing a candidate for deepening, classify its dependencies. The category determines how the deepened module is tested across its seam.
 
+If a candidate spans more than one dependency type, tag the dominant external seam and name the secondary dependencies in the evidence or prose. For example, a browser module that combines in-process React state with an owned HTTP call should usually carry the ports & adapters tag while noting the in-process state behind the same deepening.
+
 ### 1. In-process
 
 Pure computation, in-memory state, no I/O. Always deepenable — merge the modules and test through the new interface directly. No adapter needed. An embedded database (SQLite / `better-sqlite3`) is *not* in-process despite running in the same process — it does file I/O and is exercised against a stand-in in tests, so it belongs under Local-substitutable.
