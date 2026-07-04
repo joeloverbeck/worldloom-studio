@@ -16,6 +16,8 @@ The issue tracker and triage label vocabulary should have been provided to you �
 
 Work from whatever is already in the conversation context. An in-context body satisfies the body read when the issue was authored or fetched this session. But when the argument names a tracker issue, always fetch its comments fresh before drafting — they may carry corrections or vetoes newer than the context. If the referenced issue is not in context at all, fetch its full body and comments.
 
+Scan the source body and fresh comments for decisions marked provisional, unratified, timed out, open to veto, or otherwise awaiting steward confirmation. Treat those as unresolved decisions, even if the source issue already carries `ready-for-agent`. Carry the unresolved-decision list into the Step 4 approval checkpoint; do not publish `ready-for-agent` child issues from those assumptions until the checkpoint explicitly ratifies or revises them. If they remain unresolved after the checkpoint, either stop before publication or publish only `needs-triage` child issues and state that they are not AFK-ready.
+
 If the maintainer asks whether an existing issue or PRD should be split, treat that as an assessment request first. Fetch the source issue and comments, run the granularity check, and decide whether child issues would reduce implementation risk. If the right answer is **do not split** — because the work is already a single coherent document/process issue, narrow bug fix, or one complete vertical slice — report that rationale and stop before house-style lookup, quiz, or publication. Do not create a no-op child issue just to exercise this skill.
 
 ### 2. Explore the codebase (optional)
@@ -79,6 +81,7 @@ Ask the user:
 - Are the dependency relationships correct?
 - Should any slices be merged or split further?
 - When intake surfaced a doctrine conflict or correction (Step 3), does the user accept the correction and how it was resolved?
+- When intake surfaced provisional, timed-out, unratified, or open-to-veto decisions, does the user ratify the listed decisions as encoded in the slices, revise them, or leave them unresolved?
 
 When the proposed breakdown is a single no-blocker issue, a compact approval question is enough, but make it explicit that approval covers the one-slice granularity, no dependencies, and publication. For example: "Does this one-slice/no-blocker breakdown feel right, and should I publish it as the child issue?"
 
@@ -86,7 +89,11 @@ Iterate until the user approves the breakdown. If the environment provides a tim
 
 ### 5. Publish the issues to the issue tracker
 
-For each approved slice, publish a new issue to the issue tracker. Use the issue body template below. These issues are considered ready for AFK agents, so publish them with the correct triage label unless instructed otherwise. Verify the label exists before creating the first issue (create it per the project's triage-label doc if absent; a verification earlier in the same session suffices). If label-listing is temporarily unavailable, exact label presence on an issue from the same repo is acceptable verification.
+For each approved slice, publish a new issue to the issue tracker. Use the issue body template below. Choose the triage label per slice before creation. A slice gets `ready-for-agent` only when it is fully specified for an AFK agent: its dependencies are explicit, no provisional/timed-out/unratified/open-to-veto decision remains, and any repo-specific implementability checklist passes. If any unresolved decision remains, or the slice cannot yet satisfy the repo's implementable-issue checklist, publish it with `needs-triage` instead and state in the final ledger why it is not AFK-ready.
+
+Before applying `ready-for-agent` or `ready-for-human` to any guided-flow, Prompt-out, Canon Workbench provenance, or browser workflow navigation issue, read the project's issue-tracker doc and apply its browser-visible guidance acceptance checklist. The child issue must include acceptance criteria for the applicable checklist items — package source, decision-point contract, required/optional/skippable/severity-dependent fields, doctrine at point of use, prompt packet preview/source manifest/cold external LLM test when Prompt-out is in scope, advisory/canon separation when advisory material is in scope, skip path and reason storage, blockers/substance validation, current/next/resume state, read-side audit/provenance links for writes, and cognitive walkthrough when browser task grammar changes. If the checklist does not apply, note that during drafting; if it applies and is not satisfied, revise the issue before `ready-for-agent` publication or use `needs-triage`.
+
+Verify the chosen label exists before creating the first issue with that label (create it per the project's triage-label doc if absent; a verification earlier in the same session suffices). If label-listing is temporarily unavailable, exact label presence on an issue from the same repo is acceptable verification.
 
 Temporary issue-body files are acceptable as local transport for `gh issue create --body-file`; use the least-permission mechanism available to create and remove them. In sandboxed Codex-style environments, adding and later deleting temp files under `/tmp` with `apply_patch` is acceptable when shell writes or `rm` are constrained. The published issue body must not cite the staging path or any machine-local artifact. Before running the first `gh issue create`, sweep every staged body assembled from local notes or temp files for machine-local paths; when sweeping temp files, use a content-only check such as `rg --no-filename` so the temp file path itself is not reported as a false positive. Rerun the sweep after placeholder substitution or body edits. Treat leak and placeholder sweeps as hard serial gates: do not run `gh issue create` in the same parallel batch as those checks; create only after the relevant sweeps complete cleanly.
 
@@ -99,7 +106,7 @@ Remove any temporary issue-body files you created, run `git status --short`, and
 For compact child-issue verification, prefer a query shaped like this, adjusting `hasParent` to the fetched house-style parent token (for example `#<parent>` or `PRD #<parent>`), adjusting `hasBlocker` for the expected blocker reference or replacing it with a no-blocker check, and adjusting `hasNoPlaceholders` to the placeholder tokens used during staging:
 
 ```sh
-gh issue view <number> --json number,title,body,labels,state,url --jq '{number,title,state,url,labels:[.labels[].name],isOpen:(.state == "OPEN"),hasReady:(any(.labels[].name; . == "ready-for-agent")),hasParent:(.body | contains("PRD #<parent>")),hasWhat:(.body | contains("## What to build")),hasAcceptance:(.body | contains("## Acceptance criteria")),hasPrinciples:(.body | contains("## Principles")),hasBlocker:(.body | contains("#<blocker>")),hasNoPlaceholders:((.body | test("#SLICE|PLACEHOLDER")) | not),hasNoTmp:((.body | contains("/tmp")) | not),hasNoHome:((.body | contains("/home/")) | not)}'
+gh issue view <number> --json number,title,body,labels,state,url --jq '{number,title,state,url,labels:[.labels[].name],isOpen:(.state == "OPEN"),hasReady:(any(.labels[].name; . == "ready-for-agent")),hasNeedsTriage:(any(.labels[].name; . == "needs-triage")),hasParent:(.body | contains("PRD #<parent>")),hasWhat:(.body | contains("## What to build")),hasAcceptance:(.body | contains("## Acceptance criteria")),hasPrinciples:(.body | contains("## Principles")),hasBlocker:(.body | contains("#<blocker>")),hasNoPlaceholders:((.body | test("#SLICE|PLACEHOLDER")) | not),hasNoTmp:((.body | contains("/tmp")) | not),hasNoHome:((.body | contains("/home/")) | not)}'
 ```
 
 <issue-template>

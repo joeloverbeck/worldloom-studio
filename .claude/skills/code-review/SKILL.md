@@ -82,6 +82,8 @@ Use the available sub-agent mechanism, if permitted, with two independent read-o
 Mandatory local fallback output — paste this shape even when both axes have zero findings:
 
 ```markdown
+Review frame: fixed point <ref>; diff command `git diff <fixed-point>...HEAD`; commits <git log <fixed-point>..HEAD --oneline>; worktree scope <committed diff only / WIP inputs included>, excluded dirty files <none / paths>; spec source <issues/spec paths>.
+
 ## Standards
 
 Fallback used: <unavailable tooling / policy-blocked delegation / other reason>.
@@ -106,6 +108,8 @@ When invoked by the repo `implement` skill, also emit one closeout-ready review 
 
 - `Review: code-review against <fixed point>; outcome <no findings / findings fixed in SHA ...>; verification rerun <commands>.`
 - `Review fallback: <why code-review could not run>; standards/spec result <...>; fixes <none / SHA ...>; verification rerun <commands>.`
+
+If fallback was used, the closeout-ready line must start `Review fallback:` exactly. Do not use `Review:` for fallback reviews.
 
 If review reports no findings and no files change after review, `verification rerun` may state that no rerun was needed after review because the unchanged final tree already passed named gates. In that case, cite those gates explicitly and keep the implementation commit SHA as the reviewed SHA.
 
