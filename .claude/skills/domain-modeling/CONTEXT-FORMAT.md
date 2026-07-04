@@ -26,7 +26,7 @@ _Avoid_: Client, buyer, account
 
 - **Be opinionated.** When multiple words exist for the same concept, pick the best one and list the others under `_Avoid_`.
 - **Keep definitions tight.** One or two sentences max. Define what it IS, not what it does.
-- **Only include terms specific to this project's context.** General programming concepts (timeouts, error types, utility patterns) don't belong even if the project uses them extensively. Before adding a term, ask: is this a concept unique to this context, or a general programming concept? Only the former belongs.
+- **Only include terms specific to this project's context.** Two kinds of term are excluded even though the project uses them. *General programming concepts* (timeouts, error types, utility patterns) don't belong even when used extensively. Neither do *project-unique process, tooling, or code-structure names* — a docs or build artifact, a flow/module-structure name — because "unique to this project" is not the same as "domain term." Before adding a term, ask: does this name a **domain or app-layer concept**? Only then does it belong. (A repo's own ADR may explicitly rule a structural name out of the glossary — e.g. code-structure names like `store`/`core` staying out even though they are project-specific.)
 - **Group terms under subheadings** when natural clusters emerge. If all terms belong to a single cohesive area, a flat list is fine.
 - **Defer to an authoritative domain glossary when one exists.** When the domain ships its own glossary document (a methodology package, a standards spec), open `CONTEXT.md` with a deference rule naming it, and define only the terms this project's layer introduces on top — never restate or paraphrase upstream terms, or the two definitions will drift.
 

@@ -18,14 +18,14 @@ Before editing code, identify the authoritative work items.
 - For GitHub PRD child discovery, search all issue states for explicit parent references, for example `gh issue list --state all --search "#<parent>" --json number,title,state,labels,url`, then exact-view each candidate body/comments to confirm whether it is a child, blocker, linked implementation ticket, or merely mentions the parent. Do not infer parent closeout readiness from search output alone.
 - If any fetched PRD or issue has a `## Principles` section, read `docs/principles/README.md` for the authority order and conformance rule, then read named principle and ADR docs as needed before coding.
 - Build a progress ledger with one row per issue: issue number, title, dependencies/blockers, acceptance criteria, principles/ADR obligations or exceptions, planned evidence, test seams, and closeout state.
-- When the user names a child issue range and asks to close a parent PRD, list all related children, including children outside the requested range; mark out-of-range children as already closed, blocking, or intentionally excluded before closing the parent.
+- When the user names a child issue or child issue range and asks to close a parent PRD, list all related children, including any children beyond the requested child issue or range; mark those children as already closed, blocking, or intentionally excluded before closing the parent.
 - Do not silently collapse multiple issues into a smaller "skeleton" or "first slice" when the user asked for the issues.
 
 Use this compact ledger shape unless the issue set needs more detail:
 
-If related tracker items exist outside the requested range, include this line immediately before the table:
+If related tracker items exist outside the requested child issue or range, include this line immediately before the table:
 
-`Related tracker items outside requested range: #N closed / #N blocking / #N intentionally excluded / #N not actually a child because ...`
+`Related tracker items outside requested child issue or range: #N closed / #N blocking / #N intentionally excluded / #N not actually a child because ...`
 
 | Issue | Blockers | Acceptance | Principles | Evidence | Test seam | Status | Closeout comment |
 |---|---|---|---|---|---|---|---|
@@ -102,9 +102,9 @@ Closeout command gate: do not run `gh issue close`, `glab issue close`, or equiv
 - The pre-close audit table has been posted or otherwise captured, and every row for the issue being closed is `satisfied`.
 - Review evidence from section 3 is present, either as `code-review` output or an explicit fallback record.
 - The final commit SHA is known and matches the tree that passed required verification.
-- For remote tracker closeout that cites a commit, the final SHA is reachable from the intended remote branch, or closeout evidence explicitly states that the SHA is local-only and why that is acceptable.
+- For remote tracker closeout that cites a commit, the final SHA is reachable from the intended remote branch, or closeout evidence explicitly states that the SHA is local-only and why that is acceptable. Local-only closeout is acceptable only when the user requested implementation/tracker closeout without push/PR and no repo policy requires remote-linked commits; in that case, the closeout comments and final response must explicitly say the SHA is not remote-reachable. If the user requested push/PR/publish or repo policy requires remote-linked commits, push before closeout.
 - If the issue body, PRD text, acceptance criteria, or implementation includes UI/browser-visible behavior, closeout evidence includes a real browser smoke with route, action path, and observed outcome, or an explicit blocked note explaining why that smoke could not run. For browser-consumed API-only changes, browser-executed `fetch` evidence with observed status/JSON is acceptable.
-- For parent PRD closure, exact related child issue states have been verified by issue number, including any out-of-range children noted in the ledger.
+- For parent PRD closure, exact related child issue states have been verified by issue number, including any children beyond the requested child issue or range noted in the ledger.
 
 Use this compact pre-close audit shape unless the issue set needs more detail:
 

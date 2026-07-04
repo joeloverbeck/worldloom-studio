@@ -73,7 +73,7 @@ When a term is resolved, update the relevant context's `CONTEXT.md` right there.
 
 When the domain ships its own authoritative glossary, the relevant `CONTEXT.md` defers to it and holds only the terms this project's layer introduces — see the deference rule in [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md).
 
-A `CONTEXT.md` file should be totally devoid of implementation details. Do not treat `CONTEXT.md` as a spec, a scratch pad, or a repository for implementation decisions. It is a glossary and nothing else.
+A `CONTEXT.md` file should be totally devoid of implementation details. Do not treat `CONTEXT.md` as a spec, a scratch pad, or a repository for implementation decisions. It is a glossary and nothing else. A term being unique to the project does not make it a glossary term: names for process artifacts, tooling, or code structure stay out even when project-specific (see the three-way test in [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md)).
 
 Before writing, split terms from decisions. If the resolved wording names a domain or app-layer concept, put only the tight definition in `CONTEXT.md`. If the resolved wording records ownership, rejected alternatives, trade-offs, consequences, or implementation shape, put that material in an ADR, spec, issue, or design note instead.
 
