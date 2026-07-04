@@ -3,8 +3,12 @@ import { readJson, tryRoute, withWorld, type RouteApp, type RouteDependencies } 
 
 export const registerAdmissionRoutes = (app: RouteApp, dependencies: RouteDependencies): void => {
   app.get("/api/admission/queue", (c) => withWorld(c, dependencies, (world) =>
-    c.json({ queue: AdmissionFlow.admissionQueue(world) })
+    c.json({ queue: AdmissionFlow.admissionQueueWithDecisionPointLinks(world) })
   ));
+
+  app.get("/api/admission/records/:id/decision-point", (c) => withWorld(c, dependencies, (world) => tryRoute(c, () =>
+    c.json({ decisionPoint: AdmissionFlow.admissionDecisionPoint(world, Number(c.req.param("id"))) })
+  )));
 
   app.post("/api/admission/propose-draft/:id", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () =>
     c.json(AdmissionFlow.proposeDraftToAdmission(world, Number(c.req.param("id")), await readJson<{ title?: string; truthLayer: string }>(c)), 201)
@@ -19,7 +23,10 @@ export const registerAdmissionRoutes = (app: RouteApp, dependencies: RouteDepend
   )));
 
   app.get("/api/admission/records/:id/gate", (c) => withWorld(c, dependencies, (world) => tryRoute(c, () =>
-    c.json({ gate: AdmissionFlow.gateComposition(world, Number(c.req.param("id"))) })
+    c.json({
+      gate: AdmissionFlow.gateComposition(world, Number(c.req.param("id"))),
+      decisionPoint: AdmissionFlow.admissionDecisionPoint(world, Number(c.req.param("id")))
+    })
   )));
 
   app.post("/api/admission/minor-batch", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () =>
@@ -27,11 +34,14 @@ export const registerAdmissionRoutes = (app: RouteApp, dependencies: RouteDepend
   )));
 
   app.post("/api/admission/records/:id/start", (c) => withWorld(c, dependencies, (world) => tryRoute(c, () =>
-    c.json({ flow: AdmissionFlow.startAdmissionGate(world, Number(c.req.param("id"))) }, 201)
+    c.json({
+      flow: AdmissionFlow.startAdmissionGate(world, Number(c.req.param("id"))),
+      decisionPoint: AdmissionFlow.admissionDecisionPoint(world, Number(c.req.param("id")))
+    }, 201)
   )));
 
-  app.post("/api/admission/gate/complete", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () =>
-    c.json(AdmissionFlow.completeAdmissionGate(world, await readJson<{
+  app.post("/api/admission/gate/complete", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () => {
+    const input = await readJson<{
       recordId: number;
       title?: string;
       body?: string;
@@ -44,14 +54,26 @@ export const registerAdmissionRoutes = (app: RouteApp, dependencies: RouteDepend
       quietDomainDeclarations?: string[];
       followUpDebt?: string;
       advisoryRecordId?: number;
-    }>(c)), 201)
-  )));
+    }>(c);
+    return c.json({
+      ...AdmissionFlow.completeAdmissionGate(world, input),
+      decisionPoint: AdmissionFlow.admissionDecisionPoint(world, input.recordId)
+    }, 201);
+  })));
 
-  app.post("/api/admission/seed-audit", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () =>
-    c.json(AdmissionFlow.runSeedAudit(world, await readJson<{ seedRecordIds: number[]; findings: string; decision: string }>(c)), 201)
-  )));
+  app.post("/api/admission/seed-audit", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () => {
+    const input = await readJson<{ seedRecordIds: number[]; findings: string; decision: string }>(c);
+    return c.json({
+      ...AdmissionFlow.runSeedAudit(world, input),
+      decisionPoints: input.seedRecordIds.map((id) => AdmissionFlow.admissionDecisionPoint(world, id))
+    }, 201);
+  })));
 
-  app.post("/api/admission/skip", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () =>
-    c.json({ record: AdmissionFlow.declineAdmissionInstrument(world, await readJson<{ recordId?: number; stepKey: string; admissionLevel?: string; workScale?: string; reason?: string }>(c)) }, 201)
-  )));
+  app.post("/api/admission/skip", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () => {
+    const input = await readJson<{ recordId?: number; stepKey: string; admissionLevel?: string; workScale?: string; reason?: string }>(c);
+    return c.json({
+      record: AdmissionFlow.declineAdmissionInstrument(world, input),
+      decisionPoint: input.recordId == null ? null : AdmissionFlow.admissionDecisionPoint(world, input.recordId)
+    }, 201);
+  })));
 };

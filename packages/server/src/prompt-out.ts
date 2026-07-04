@@ -162,18 +162,29 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
   const stepKey = input.stepKey ?? input.templateKey;
   const recordContext = input.recordId == null ? "No record context selected." : promptRecordContext(world, input.recordId);
   const rulings = standingRulingRows(world);
+  const sourceManifest = [
+    `Prompt template: ${template.key} (${template.package_source})`,
+    input.recordId == null ? "Selected record: none" : `Selected record id: ${input.recordId}`,
+    `Standing rulings: ${rulings.length}`,
+    "Omissions: no hidden repository context; unavailable world context must be named before copy-out."
+  ].join("\n");
 
   return {
     prompt: [
       `Role framing (${template.role_name}): ask for pressure, not answers. The steward's material comes first; do not write final canon.`,
       `Default prompt derivation (${template.package_source}): ${template.current_text}`,
+      `Current decision context: flow ${input.flowKey ?? "unspecified"}, step ${stepKey}.`,
       "Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories.",
       "Label assumptions instruction: separate direct consequences from speculative assumptions and mark unadmitted assumptions plainly.",
       `Standing rulings: ${rulings.length ? rulings.map((row) => `${row.disposition}: ${row.note}`).join("; ") : "none"}.`,
       ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey }),
       `Step: ${stepKey}`,
+      "Source manifest:",
+      sourceManifest,
+      "Context preview:",
       "Record context:",
-      recordContext
+      recordContext,
+      "Advisory/canon warning: this prompt asks for optional pressure only. Pasted responses stay advisory artifacts until the steward authors and admits canon through the governed flow."
     ].join("\n\n"),
     promptOut: {
       flowKey: input.flowKey ?? null,

@@ -64,6 +64,8 @@ interface AdmissionQueueRow extends RecordRow {
   admissionLevel: string | null;
   workScale: string | null;
   constraintTags: string[];
+  decisionPointHref?: string;
+  sourceLinks?: Array<LinkRow & { target: Pick<RecordRow, "id" | "shortId" | "title" | "recordTypeKey"> | null }>;
 }
 
 interface PropagationQueueRow extends RecordRow {
@@ -341,12 +343,104 @@ interface CanonWorkbenchDetail {
   exportAffordance: { method: "GET"; href: string };
 }
 
+interface AdmissionDecisionPoint {
+  flow: {
+    key: "admission";
+    runState: string;
+  };
+  currentStep: string;
+  nextOrResumeState: {
+    currentStep: string;
+    nextStep: string;
+    safeExit: string;
+  };
+  localDecision: string;
+  packageAuthority: {
+    primary: string;
+    why: string;
+    citations: string[];
+  };
+  selectedRecord: AdmissionQueueRow & {
+    sourceLinks: Array<LinkRow & { target: Pick<RecordRow, "id" | "shortId" | "title" | "recordTypeKey"> | null }>;
+  };
+  severity: {
+    admissionLevel: string | null;
+    workScale: string | null;
+    gatePath: "minor_ledger" | "full_gate" | null;
+    definitions: Array<{ key: string; term: string; definition: string; source: string }>;
+    obligations: string[];
+  };
+  work: {
+    required: string[];
+    optional: string[];
+    skippable: string[];
+    severityDependent: string[];
+  };
+  doctrineCitations: string[];
+  blockers: Array<{ key: string; label: string; message: string; requires: string }>;
+  skipRule: {
+    offered: boolean;
+    reasonRequired: boolean;
+    reasonThreshold: string;
+    belowThresholdNote: string;
+    recordType: "skip_record";
+  };
+  seedAudit: {
+    offered: boolean;
+    doctrine: string[];
+    runWrites: string;
+    declineWrites: string;
+    nonMutation: string;
+  };
+  promptOut: {
+    advisory: "optional";
+    templateKey: string;
+    stepKey: string;
+    role: string;
+    stepRequest: {
+      method: "POST";
+      href: string;
+      body: {
+        flowKey: "admission";
+        templateKey: string;
+        recordId: number;
+        stepKey: string;
+        label: string;
+        admissionLevel?: string;
+        workScale?: string;
+      };
+    };
+    preview: {
+      currentDecision: string;
+      promptText: string;
+      sourceManifest: string[];
+      contextPreview: string;
+      omissions: string[];
+      advisoryCanonWarning: string;
+    };
+  };
+  writeIntent: {
+    willWrite: string[];
+    willLink: string[];
+    willQueue: string[];
+    willLeaveUntouched: string[];
+    willRouteOnward: string[];
+  };
+  closePreview: {
+    beforeCompletion: string[];
+    afterCompletion: string[];
+  };
+  readSideTrail: Array<{ label: string; href: string }>;
+}
+
 interface AppProps {
   initialRecords?: RecordRow[];
   initialOpenWorld?: string | null;
   initialCanonCurrent?: CanonWorkbenchCurrentRow[];
   initialCanonAudit?: CanonWorkbenchAuditItem[];
   initialCanonDetail?: CanonWorkbenchDetail | null;
+  initialAdmissionQueue?: AdmissionQueueRow[];
+  initialAdmissionDecision?: AdmissionDecisionPoint | null;
 }
 
 type PromptFlowKey = "creation" | "admission" | "propagation" | "contradiction" | "qa" | "institutional_economic_suppression";
@@ -497,7 +591,9 @@ function App({
   initialOpenWorld = null,
   initialCanonCurrent = [],
   initialCanonAudit = [],
-  initialCanonDetail = null
+  initialCanonDetail = null,
+  initialAdmissionQueue = [],
+  initialAdmissionDecision = null
 }: AppProps = {}) {
   const [token, setToken] = useState(storedToken());
   const [worldPath, setWorldPath] = useState("");
@@ -515,7 +611,8 @@ function App({
   const [facets, setFacets] = useState<FacetRow[]>([]);
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
-  const [admissionQueue, setAdmissionQueue] = useState<AdmissionQueueRow[]>([]);
+  const [admissionQueue, setAdmissionQueue] = useState<AdmissionQueueRow[]>(initialAdmissionQueue);
+  const [admissionDecision, setAdmissionDecision] = useState<AdmissionDecisionPoint | null>(initialAdmissionDecision);
   const [canonDebt, setCanonDebt] = useState<RecordRow[]>([]);
   const [propagationQueue, setPropagationQueue] = useState<PropagationQueueRow[]>([]);
   const [propagationPlan, setPropagationPlan] = useState<PropagationPlan | null>(null);
@@ -811,6 +908,30 @@ function App({
     setCanonAuditTrail(canonAuditPayload.spine);
   };
 
+  const applyAdmissionDecision = (decision: AdmissionDecisionPoint | null) => {
+    setAdmissionDecision(decision);
+    if (!decision) return;
+    setAdmissionRecordId(String(decision.selectedRecord.id));
+    if (decision.severity.admissionLevel) setAdmissionLevel(decision.severity.admissionLevel);
+    if (decision.severity.workScale) setWorkScale(decision.severity.workScale);
+    setPromptFlowKey("admission");
+    setPromptTemplateKey(decision.promptOut.templateKey);
+    setPromptRecordId(String(decision.selectedRecord.id));
+  };
+
+  const loadAdmissionDecision = async (recordId = admissionRecordId, href?: string) => {
+    const selectedId = optionalNumber(recordId);
+    if (selectedId == null) return null;
+    const payload = await api<{ decisionPoint: AdmissionDecisionPoint }>(href ?? `/api/admission/records/${selectedId}/decision-point`);
+    applyAdmissionDecision(payload.decisionPoint);
+    return payload.decisionPoint;
+  };
+
+  const selectAdmissionQueueRow = async (row: AdmissionQueueRow) => {
+    setAdmissionRecordId(String(row.id));
+    await loadAdmissionDecision(String(row.id), row.decisionPointHref);
+  };
+
   const loadCanonWorkbench = async () => {
     const params = new URLSearchParams();
     if (canonWorkbenchRecordType) params.set("recordType", canonWorkbenchRecordType);
@@ -1034,6 +1155,22 @@ function App({
     return payload.step;
   };
 
+  const loadAdmissionPromptStep = async () => {
+    if (!admissionDecision) return null;
+    const request = admissionDecision.promptOut.stepRequest;
+    const payload = await api<{ step: PromptOutStep }>(request.href, {
+      method: request.method,
+      body: JSON.stringify(request.body)
+    });
+    setPromptStep(payload.step);
+    setPromptFlowKey("admission");
+    setPromptTemplateKey(admissionDecision.promptOut.templateKey);
+    setPromptRecordId(String(admissionDecision.promptOut.stepRequest.body.recordId));
+    setPromptText(admissionDecision.promptOut.preview.promptText);
+    setMessage(`Loaded Admission Prompt-out step ${payload.step.label}`);
+    return payload.step;
+  };
+
   const ensurePromptStep = async () => promptStep ?? loadPromptStep();
 
   const generatePrompt = async () => {
@@ -1118,6 +1255,7 @@ function App({
     await api(`/api/admission/propose-record/${record.id}`, { method: "POST" });
     setAdmissionRecordId(String(record.id));
     await loadWorldData();
+    await loadAdmissionDecision(String(record.id));
   };
 
   const proposeDraft = async (draft: DraftRow) => {
@@ -1130,22 +1268,24 @@ function App({
 
   const declareSeverity = async () => {
     if (!admissionRecordId) return;
-    await api(`/api/admission/records/${admissionRecordId}/severity`, {
+    const payload = await api<{ decisionPoint: AdmissionDecisionPoint }>(`/api/admission/records/${admissionRecordId}/severity`, {
       method: "POST",
       body: JSON.stringify({ admissionLevel, workScale })
     });
+    applyAdmissionDecision(payload.decisionPoint);
     await loadWorldData();
   };
 
   const startAdmission = async () => {
     if (!admissionRecordId) return;
-    await api(`/api/admission/records/${admissionRecordId}/start`, { method: "POST" });
+    const payload = await api<{ decisionPoint: AdmissionDecisionPoint }>(`/api/admission/records/${admissionRecordId}/start`, { method: "POST" });
+    applyAdmissionDecision(payload.decisionPoint);
     await loadWorldData();
   };
 
   const completeAdmission = async () => {
     if (!admissionRecordId) return;
-    await api("/api/admission/gate/complete", {
+    const payload = await api<{ decisionPoint: AdmissionDecisionPoint }>("/api/admission/gate/complete", {
       method: "POST",
       body: JSON.stringify({
         recordId: Number(admissionRecordId),
@@ -1157,6 +1297,7 @@ function App({
         quietDomainDeclarations: gateQuietDomain ? [gateQuietDomain] : []
       })
     });
+    applyAdmissionDecision(payload.decisionPoint);
     await loadWorldData();
   };
 
@@ -1181,10 +1322,11 @@ function App({
 
   const runSeedAudit = async () => {
     if (!admissionRecordId) return;
-    await api("/api/admission/seed-audit", {
+    const payload = await api<{ decisionPoints: AdmissionDecisionPoint[] }>("/api/admission/seed-audit", {
       method: "POST",
       body: JSON.stringify({ seedRecordIds: [Number(admissionRecordId)], findings: seedAuditFindings, decision: "proceed" })
     });
+    applyAdmissionDecision(payload.decisionPoints[0] ?? null);
     await loadWorldData();
   };
 
@@ -1203,10 +1345,11 @@ function App({
   };
 
   const skipAdmissionInstrument = async () => {
-    await api("/api/admission/skip", {
+    const payload = await api<{ decisionPoint: AdmissionDecisionPoint | null }>("/api/admission/skip", {
       method: "POST",
       body: JSON.stringify({ recordId: admissionRecordId ? Number(admissionRecordId) : undefined, stepKey: "web_admission_instrument", admissionLevel, workScale, reason: gateNotApplicable || undefined })
     });
+    applyAdmissionDecision(payload.decisionPoint);
     await loadWorldData();
   };
 
@@ -2058,6 +2201,128 @@ function App({
               <span>Queue and gate derive from docs/worldbuilding-system/06_canon_fact_admission_protocol.md, checklists/canon_fact_gate.md, checklists/frontloaded_seed_audit.md, and templates/admission_ledger.md.</span>
               <span>Severity is steward-declared; sweeps propose and only admission admits.</span>
             </div>
+            <section className="decision-point">
+              <h3>Decision point</h3>
+              <p><strong>{admissionDecision?.localDecision ?? "Choose which proposed fact enters Admission now."}</strong></p>
+              <p>Only Admission changes canon standing; proposed facts remain proposed until the steward completes this governed Admission flow.</p>
+              <p>No severity is selected by default. Existing severity values are displayed only when the server payload or steward selection supplies them.</p>
+              <div className="chips">
+                <span>Flow state: {admissionDecision?.flow.runState ?? "not started"}</span>
+                <span>Current step: {admissionDecision?.currentStep ?? "admission:queue-selection"}</span>
+                <span>Next/resume: {admissionDecision?.nextOrResumeState.nextStep ?? "select a proposed fact"}</span>
+              </div>
+              {admissionDecision?.selectedRecord && (
+                <div className="doctrine">
+                  <strong>{admissionDecision.selectedRecord.shortId} · {admissionDecision.selectedRecord.title}</strong>
+                  <span>{admissionDecision.selectedRecord.recordTypeKey} · {admissionDecision.selectedRecord.truthLayer ?? "unset truth layer"} · {admissionDecision.selectedRecord.canonStatus ?? "unset canon status"}</span>
+                  <span>Source or origin links: {admissionDecision.selectedRecord.sourceLinks.map((link) => link.target ? `${link.target.shortId} ${link.target.title}` : `record ${link.toRecordId}`).join(", ") || "none returned"}</span>
+                </div>
+              )}
+              <div className="grid compact-grid">
+                <section className="subpanel">
+                  <h3>Severity definitions</h3>
+                  {admissionDecision?.severity.definitions.length ? admissionDecision.severity.definitions.map((definition) => (
+                    <p key={`${definition.key}:${definition.term}`}><strong>{definition.key}</strong> {definition.term}: {definition.definition}</p>
+                  )) : <p className="status">Declare admission_level and work_scale explicitly to load the server-owned severity path.</p>}
+                  <p>Severity path: {admissionDecision?.severity.gatePath ?? "undeclared"}</p>
+                </section>
+                <section className="subpanel">
+                  <h3>Path obligations</h3>
+                  <p>{(admissionDecision?.severity.obligations ?? ["Declare admission_level", "Declare work_scale"]).join(" · ")}</p>
+                  <p>{admissionDecision?.nextOrResumeState.safeExit ?? "Safe exit leaves the fact in the Admission queue for later resume."}</p>
+                </section>
+              </div>
+              <div className="grid compact-grid">
+                <section className="subpanel work-list required-work">
+                  <h3>Required work</h3>
+                  {(admissionDecision?.work.required ?? ["Select a proposed fact", "Declare admission_level", "Declare work_scale"]).map((item) => <p key={item}>{item}</p>)}
+                </section>
+                <section className="subpanel work-list optional-work">
+                  <h3>Optional work</h3>
+                  {(admissionDecision?.work.optional ?? ["Prompt-out advisory pressure after steward-authored material exists"]).map((item) => <p key={item}>{item}</p>)}
+                </section>
+                <section className="subpanel work-list skippable-work">
+                  <h3>Skippable work</h3>
+                  {(admissionDecision?.work.skippable ?? ["Offered instruments write skip_record entries when declined"]).map((item) => <p key={item}>{item}</p>)}
+                </section>
+                <section className="subpanel work-list severity-work">
+                  <h3>Severity-dependent work</h3>
+                  {(admissionDecision?.work.severityDependent ?? ["Gate depth is unavailable until severity is declared"]).map((item) => <p key={item}>{item}</p>)}
+                </section>
+              </div>
+              <div className="grid compact-grid">
+                <section className="subpanel">
+                  <h3>Minor ledger path</h3>
+                  <p>Minor work stays batch-friendly: fact statement, scope, truth layer, canon status plus separated constraint tags, ordered admission operations, and one consequence check.</p>
+                  <p>Native Tab/Enter form order is preserved by the existing form controls below.</p>
+                </section>
+                <section className="subpanel">
+                  <h3>Full gate path</h3>
+                  {admissionDecision?.blockers.length ? admissionDecision.blockers.map((blocker) => (
+                    <p key={blocker.key}><strong>{blocker.label}</strong>: {blocker.message} Requires {blocker.requires}.</p>
+                  )) : <p>Full-gate blockers are returned by the server after severity declaration.</p>}
+                </section>
+              </div>
+              <section className="subpanel">
+                <h3>Frontloaded seed audit</h3>
+                <p>{admissionDecision?.seedAudit.offered ? "Offered before first seed admission when relevant." : "Not currently offered for the selected record."}</p>
+                <p>{admissionDecision?.seedAudit.runWrites ?? "Running seed audit writes a gate_result when offered."}</p>
+                <p>{admissionDecision?.seedAudit.declineWrites ?? "Declining an offered instrument writes a governed skip_record."}</p>
+                <p>{admissionDecision?.seedAudit.nonMutation ?? "Seed audit does not mutate seed truth layer, canon status, tags, severity, or operations."}</p>
+                {(admissionDecision?.seedAudit.doctrine ?? [
+                  "docs/worldbuilding-system/05_creation_protocol.md",
+                  "docs/worldbuilding-system/06_canon_fact_admission_protocol.md",
+                  "docs/worldbuilding-system/checklists/frontloaded_seed_audit.md"
+                ]).map((citation) => <p key={citation}>Doctrine: {citation}</p>)}
+                <p>{`Reason required: ${admissionDecision?.skipRule.reasonRequired ? "yes" : "no"} · ${admissionDecision?.skipRule.reasonThreshold ?? "major-or-higher Admission work"} · ${admissionDecision?.skipRule.belowThresholdNote ?? "Reason not collected below major-fact threshold."}`}</p>
+                <p>Open canon debt warnings are non-blocking and remain steward judgment context.</p>
+              </section>
+              <section className="subpanel">
+                <h3>Prompt packet preview</h3>
+                <p>{admissionDecision?.promptOut.role ?? "Admission Prompt-out role loads after selecting a record."} · {admissionDecision?.promptOut.advisory ?? "optional"} advisory pressure</p>
+                <p>{admissionDecision?.promptOut.preview.currentDecision ?? "Prompt-out appears only after steward-authored material exists."}</p>
+                <strong>Source manifest</strong>
+                {(admissionDecision?.promptOut.preview.sourceManifest ?? ["No source manifest loaded yet."]).map((item) => <p key={item}>{item}</p>)}
+                <strong>Context preview</strong>
+                <p>{admissionDecision?.promptOut.preview.contextPreview ?? "No context preview loaded yet."}</p>
+                <strong>Omissions</strong>
+                {(admissionDecision?.promptOut.preview.omissions ?? ["No omissions loaded yet."]).map((item) => <p key={item}>{item}</p>)}
+                <strong>Advisory/canon warning</strong>
+                <p>{admissionDecision?.promptOut.preview.advisoryCanonWarning ?? "Pasted responses remain advisory artifacts and are not admitted canon."}</p>
+                <p>Pasted advisory responses are stored as advisory_artifact records and remain visibly separate from canon fields.</p>
+                <button onClick={loadAdmissionPromptStep} disabled={!openWorld || !admissionDecision}>Load Admission Prompt-out Step</button>
+              </section>
+              <section className="subpanel">
+                <h3>Close preview</h3>
+                <div className="grid compact-grid">
+                  <div>
+                    <strong>What will be written</strong>
+                    {(admissionDecision?.writeIntent.willWrite ?? ["No canon mutation until Admission completion."]).map((item) => <p key={item}>{item}</p>)}
+                  </div>
+                  <div>
+                    <strong>What will be linked</strong>
+                    {(admissionDecision?.writeIntent.willLink ?? ["Read-side trail links load with a selected decision point."]).map((item) => <p key={item}>{item}</p>)}
+                  </div>
+                  <div>
+                    <strong>What will be queued or left untouched</strong>
+                    {[...(admissionDecision?.writeIntent.willQueue ?? []), ...(admissionDecision?.writeIntent.willLeaveUntouched ?? [])].map((item) => <p key={item}>{item}</p>)}
+                  </div>
+                  <div>
+                    <strong>What routes onward</strong>
+                    {(admissionDecision?.writeIntent.willRouteOnward ?? ["Read-side views remain read-only."]).map((item) => <p key={item}>{item}</p>)}
+                  </div>
+                </div>
+                <p>Before completion: {(admissionDecision?.closePreview.beforeCompletion ?? ["canon status change", "gate result", "resume state"]).join(" · ")}</p>
+                <p>After completion: {(admissionDecision?.closePreview.afterCompletion ?? ["Current Canon", "Audit Trail", "record detail"]).join(" · ")}</p>
+              </section>
+              <section className="subpanel">
+                <h3>Read-side trail</h3>
+                <p>Read-side views stay read-only; Admission mutation controls remain inside this flow.</p>
+                <div className="chips">
+                  {(admissionDecision?.readSideTrail ?? [{ label: "Current Canon", href: "/api/canon-workbench/current" }, { label: "Audit Trail", href: "/api/canon-workbench/audit" }]).map((item) => <span key={`${item.label}:${item.href}`}>{item.label} · {item.href}</span>)}
+                </div>
+              </section>
+            </section>
             <div className="grid">
               <label>Record id<input value={admissionRecordId} onChange={(event) => setAdmissionRecordId(event.target.value)} /></label>
               <label>Admission level<select value={admissionLevel} onChange={(event) => setAdmissionLevel(event.target.value)}><option></option>{admissionLevels.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
@@ -2089,13 +2354,21 @@ function App({
               {canonDebt.map((debt) => <button key={debt.id} onClick={() => closeDebt(debt)}>{debt.shortId} · {debt.title}</button>)}
             </div>
             <div className="records compact">
-              {admissionQueue.map((row) => (
-                <article key={row.id}>
-                  <button onClick={() => setAdmissionRecordId(String(row.id))}>Select</button>
-                  <h3>{row.shortId} · {row.title}</h3>
-                  <p className="meta">{row.canonStatus} · level {row.admissionLevel ?? "unset"} · {row.workScale ?? "unset"} · tags {row.constraintTags.join(", ") || "none"}</p>
-                </article>
-              ))}
+              {admissionQueue.map((row) => {
+                const queueSources = row.sourceLinks?.map((link) =>
+                  link.target ? `${link.target.shortId} ${link.target.title}` : `record ${link.toRecordId}`
+                ).join(", ") || "none returned";
+                return (
+                  <article key={row.id}>
+                    <button onClick={() => { void selectAdmissionQueueRow(row); }}>Select</button>
+                    <h3>{row.shortId} · {row.title}</h3>
+                    <p className="meta">{`${row.recordTypeKey} · ${row.truthLayer ?? "unset truth layer"} · ${row.canonStatus ?? "unset canon status"}`}</p>
+                    <p className="meta">level {row.admissionLevel ?? "unset"} · {row.workScale ?? "unset"} · tags {row.constraintTags.join(", ") || "none"}</p>
+                    <p className="meta">Queue source or origin: {queueSources}</p>
+                    <p className="meta">Open canon debt warning context: {canonDebt.length ? `${canonDebt.length} open item(s)` : "none currently loaded"}</p>
+                  </article>
+                );
+              })}
             </div>
           </div>
 

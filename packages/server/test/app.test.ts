@@ -426,13 +426,64 @@ describe("HTTP API", () => {
     expect(await json(await app.request(`/api/links?recordId=${proposedJson.record.id}`))).toMatchObject({
       links: [expect.objectContaining({ fromRecordId: proposedJson.record.id, linkTypeKey: "derived_from", note: "Propose action provenance" })]
     });
+    expect(await json(await app.request("/api/admission/queue"))).toMatchObject({
+      queue: expect.arrayContaining([
+        expect.objectContaining({
+          id: proposedJson.record.id,
+          sourceLinks: expect.arrayContaining([
+            expect.objectContaining({ linkTypeKey: "derived_from", note: "Propose action provenance" })
+          ])
+        })
+      ])
+    });
 
     const seed = await json<{ record: { id: number } }>(await app.request("/api/records", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ recordTypeKey: "canon_fact", title: "Seed fact", body: "Seed body", ...explicitJudgment })
     }));
-    expect(await json(await app.request("/api/admission/queue"))).toMatchObject({ queue: expect.arrayContaining([expect.objectContaining({ id: seed.record.id })]) });
+    expect(await json(await app.request("/api/admission/queue"))).toMatchObject({
+      queue: expect.arrayContaining([
+        expect.objectContaining({
+          id: seed.record.id,
+          decisionPointHref: `/api/admission/records/${seed.record.id}/decision-point`
+        })
+      ])
+    });
+
+    const queuedDecision = await json<{
+      decisionPoint: {
+        localDecision: string;
+        selectedRecord: { id: number };
+        severity: { admissionLevel: string | null; workScale: string | null; gatePath: string | null };
+        work: { required: string[]; optional: string[]; skippable: string[]; severityDependent: string[] };
+        skipRule: { reasonRequired: boolean; belowThresholdNote: string };
+        writeIntent: { willWrite: string[]; willLink: string[]; willLeaveUntouched: string[] };
+        readSideTrail: Array<{ label: string; href: string }>;
+      };
+    }>(await app.request(`/api/admission/records/${seed.record.id}/decision-point`));
+    expect(queuedDecision.decisionPoint).toMatchObject({
+      localDecision: "Choose and classify the proposed fact before Admission changes canon standing.",
+      selectedRecord: { id: seed.record.id },
+      severity: { admissionLevel: null, workScale: null, gatePath: null },
+      work: {
+        required: expect.arrayContaining(["Declare admission_level", "Declare work_scale"]),
+        optional: expect.arrayContaining(["Prompt-out advisory pressure after steward-authored material exists"]),
+        skippable: expect.arrayContaining(["Frontloaded seed audit can be declined with a governed skip record"]),
+        severityDependent: expect.arrayContaining(["Gate depth is unavailable until severity is declared"])
+      },
+      skipRule: { reasonRequired: false, belowThresholdNote: expect.stringContaining("Reason not collected") },
+      writeIntent: {
+        willWrite: expect.arrayContaining(["No canon mutation until the steward completes Admission"]),
+        willLink: expect.arrayContaining(["Read-side trail links expose Current Canon, Audit Trail, record detail, advisory artifacts, skip records, canon debt, and export"]),
+        willLeaveUntouched: expect.arrayContaining(["Seed audit does not mutate seed truth layer, canon status, tags, severity, or operations"])
+      },
+      readSideTrail: expect.arrayContaining([
+        expect.objectContaining({ label: "Current Canon" }),
+        expect.objectContaining({ label: "Audit Trail" }),
+        expect.objectContaining({ label: "Record detail" })
+      ])
+    });
 
     const severity = await app.request(`/api/admission/records/${proposedJson.record.id}/severity`, {
       method: "POST",
@@ -440,7 +491,69 @@ describe("HTTP API", () => {
       body: JSON.stringify({ admissionLevel: "4", workScale: "severe" })
     });
     expect(severity.status).toBe(200);
-    expect(await json(severity)).toMatchObject({ gate: { path: "full_gate", steps: expect.arrayContaining(["shock-cone summary"]) } });
+    expect(await json(severity)).toMatchObject({
+      gate: { path: "full_gate", steps: expect.arrayContaining(["shock-cone summary"]) },
+      decisionPoint: {
+        localDecision: "Complete the full canon fact gate with written substance.",
+        severity: {
+          admissionLevel: "4",
+          workScale: "severe",
+          gatePath: "full_gate",
+          definitions: expect.arrayContaining([
+            expect.objectContaining({ key: "admission_level", term: "4" }),
+            expect.objectContaining({ key: "work_scale", term: "severe" })
+          ])
+        },
+        work: {
+          required: expect.arrayContaining(["Written consequence text", "Admission operation order"]),
+          optional: expect.arrayContaining(["Prompt-out advisory pressure after steward-authored material exists"]),
+          skippable: expect.arrayContaining(["Prompt-out can be declined through a skip_record"]),
+          severityDependent: expect.arrayContaining(["temporal/spatial passes"])
+        },
+        blockers: expect.arrayContaining([
+          expect.objectContaining({ key: "written_consequence", requires: "written consequence text" })
+        ]),
+        promptOut: {
+          advisory: "optional",
+          preview: expect.objectContaining({
+            currentDecision: "Complete the full canon fact gate with written substance.",
+            sourceManifest: expect.arrayContaining([expect.stringContaining("Record")]),
+            advisoryCanonWarning: expect.stringContaining("advisory")
+          })
+        }
+      }
+    });
+
+    expect(await json(await app.request(`/api/admission/records/${proposedJson.record.id}/gate`))).toMatchObject({
+      decisionPoint: {
+        currentStep: `record:${proposedJson.record.id}:severity-declared`,
+        writeIntent: {
+          willWrite: expect.arrayContaining(["gate_result report"])
+        }
+      }
+    });
+
+    const minorSeverity = await app.request(`/api/admission/records/${seed.record.id}/severity`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ admissionLevel: "1", workScale: "minor" })
+    });
+    expect(minorSeverity.status).toBe(200);
+    expect(await json(minorSeverity)).toMatchObject({
+      decisionPoint: {
+        localDecision: "Complete the minor admission ledger while preserving batch speed.",
+        severity: { admissionLevel: "1", workScale: "minor", gatePath: "minor_ledger" },
+        work: {
+          required: expect.arrayContaining(["One consequence check"]),
+          severityDependent: expect.arrayContaining(["Minor path writes admission_ledger_row records and ordered admission operations"])
+        },
+        seedAudit: {
+          offered: true,
+          runWrites: expect.stringContaining("gate_result"),
+          declineWrites: expect.stringContaining("skip_record")
+        }
+      }
+    });
 
     const prompt = await json<{ prompt: string }>(await app.request("/api/prompts/generate", {
       method: "POST",
@@ -449,6 +562,9 @@ describe("HTTP API", () => {
     }));
     expect(prompt.prompt).toContain("Prerequisite auditor");
     expect(prompt.prompt).toContain("Vocabulary guardrail");
+    expect(prompt.prompt).toContain("Source manifest:");
+    expect(prompt.prompt).toContain("Context preview:");
+    expect(prompt.prompt).toContain("Advisory/canon warning:");
 
     const badGate = await app.request("/api/admission/gate/complete", {
       method: "POST",
@@ -496,7 +612,18 @@ describe("HTTP API", () => {
     expect(await json(completedGate)).toMatchObject({
       record: { canonStatus: "accepted with constraints" },
       gateResult: { recordTypeKey: "gate_result" },
-      warnings: expect.arrayContaining([expect.objectContaining({ id: debt.debt.id })])
+      warnings: expect.arrayContaining([expect.objectContaining({ id: debt.debt.id })]),
+      decisionPoint: {
+        flow: { runState: "complete" },
+        currentStep: `record:${proposedJson.record.id}:complete`,
+        closePreview: {
+          afterCompletion: expect.arrayContaining(["Current Canon", "Audit Trail", "record detail"])
+        },
+        readSideTrail: expect.arrayContaining([
+          expect.objectContaining({ label: "Current Canon" }),
+          expect.objectContaining({ label: "Export" })
+        ])
+      }
     });
 
     const minorBatch = await app.request("/api/admission/minor-batch", {
@@ -524,7 +651,19 @@ describe("HTTP API", () => {
       body: JSON.stringify({ seedRecordIds: [seed.record.id], findings: "Seed has a scope and intended status.", decision: "proceed" })
     });
     expect(audit.status).toBe(201);
-    expect(await json(audit)).toMatchObject({ report: { recordTypeKey: "gate_result" }, seeds: [{ canonStatus: "proposed" }] });
+    const auditJson = await json<{
+      report: { recordTypeKey: string };
+      seeds: Array<{ canonStatus: string }>;
+      decisionPoints: Array<{ seedAudit: { offered: boolean; nonMutation: string } }>;
+    }>(audit);
+    expect(auditJson.report).toMatchObject({ recordTypeKey: "gate_result" });
+    expect(auditJson.seeds).toEqual(expect.arrayContaining([expect.objectContaining({ canonStatus: "proposed" })]));
+    expect(auditJson.decisionPoints).toEqual(expect.arrayContaining([expect.objectContaining({
+        seedAudit: expect.objectContaining({
+          offered: true,
+          nonMutation: expect.stringContaining("does not mutate seed truth layer")
+        })
+      })]));
 
     const minorSkip = await app.request("/api/admission/skip", {
       method: "POST",
@@ -532,6 +671,10 @@ describe("HTTP API", () => {
       body: JSON.stringify({ recordId: seed.record.id, stepKey: "seed_audit", admissionLevel: "1", workScale: "minor" })
     });
     expect(minorSkip.status).toBe(201);
+    expect(await json(minorSkip)).toMatchObject({
+      record: { recordTypeKey: "skip_record", body: expect.stringContaining("Reason not collected") },
+      decisionPoint: { skipRule: { reasonRequired: false } }
+    });
     const majorSkip = await app.request("/api/admission/skip", {
       method: "POST",
       headers: { "content-type": "application/json" },

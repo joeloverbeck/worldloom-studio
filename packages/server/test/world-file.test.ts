@@ -562,6 +562,28 @@ describe("WorldFile", () => {
     AdmissionFlow.declareAdmissionSeverity(store, fact.id, { admissionLevel: "3", workScale: "major" });
     const flow = AdmissionFlow.startAdmissionGate(store, fact.id) as { current_step: string };
     expect(flow.current_step).toContain(`record:${fact.id}:gate`);
+    const decisionPoint = AdmissionFlow.admissionDecisionPoint(store, fact.id);
+    expect(decisionPoint).toMatchObject({
+      currentStep: `record:${fact.id}:gate`,
+      localDecision: "Complete the full canon fact gate with written substance.",
+      severity: { admissionLevel: "3", workScale: "major", gatePath: "full_gate" },
+      blockers: expect.arrayContaining([
+        expect.objectContaining({ key: "written_consequence", requires: "written consequence text" })
+      ]),
+      promptOut: {
+        advisory: "optional",
+        preview: {
+          currentDecision: "Complete the full canon fact gate with written substance.",
+          sourceManifest: expect.arrayContaining([expect.stringContaining("Record")]),
+          advisoryCanonWarning: expect.stringContaining("advisory")
+        }
+      },
+      writeIntent: {
+        willWrite: expect.arrayContaining(["gate_result report"]),
+        willRouteOnward: expect.arrayContaining(["Read-side views remain read-only and do not gain Admission mutation controls"])
+      },
+      readSideTrail: expect.arrayContaining([expect.objectContaining({ label: "Audit Trail" })])
+    });
     expect(() => AdmissionFlow.completeAdmissionGate(store, {
       recordId: fact.id,
       truthLayer: "Objective canon",
