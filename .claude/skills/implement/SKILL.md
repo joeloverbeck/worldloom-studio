@@ -36,7 +36,7 @@ Post the ledger to the conversation before the first edit. Update it when depend
 
 ## 2. Work issue-by-issue
 
-Invoke the repo `tdd` skill where possible, at pre-agreed seams. If no seam has been pre-agreed, derive the conservative proposed seam from the acceptance criteria and existing architecture, announce it in the ledger or TDD evidence, follow the `tdd` skill's confirmation rule before writing tests at that seam, and keep it at the highest practical layer. For docs-only or no-runnable criteria, record that no runnable seam exists and use review/conformance evidence rather than inventing a test.
+Invoke the repo `tdd` skill where possible, at pre-agreed seams. If the issue or PRD explicitly names proof seams, treat them as pre-agreed after restating them in the ledger or TDD evidence, unless they conflict with live architecture. If no seam has been pre-agreed, derive the conservative proposed seam from the acceptance criteria and existing architecture, announce it in the ledger or TDD evidence, follow the `tdd` skill's confirmation rule before writing tests at that seam, and keep it at the highest practical layer. For docs-only or no-runnable criteria, record that no runnable seam exists and use review/conformance evidence rather than inventing a test.
 
 Default to one issue at a time. If child issues are technically inseparable and an integrated implementation pass is the safer route, say so in the ledger, keep the ledger/audit per issue, and make the closeout evidence map each issue's criteria to the shared implementation and tests.
 
@@ -49,7 +49,7 @@ For each issue:
 - If implementation would contradict a named principle or ADR, stop and surface the exception before continuing.
 - When the issue body, PRD text, acceptance criteria, or implementation includes UI/browser-visible behavior, run a real browser smoke or record why it is blocked; include the route, action path, and observed outcome in the closeout evidence.
 - If the work is docs-only or process-only and mentions UI/browser behavior only as inventory, coverage, or citation without changing UI, routes, browser-consumed API shapes, fixtures, or action paths, record `browser smoke N/A` with that reason instead of running a smoke.
-- For browser-consumed API-only changes with no rendered UI change, a real browser page executing the route sequence via `fetch` qualifies as the browser smoke when the evidence records the route, action path, observed HTTP status or JSON, and server/browser cleanup.
+- For browser-consumed API-only changes with no rendered UI change, a real browser page executing the route sequence via `fetch` qualifies as the browser smoke when the evidence records the route, action path, observed HTTP status or JSON, and server/browser cleanup. When fetching localhost APIs from a browser page, navigate to a same-origin localhost route first, such as `/api/health` or the app shell; avoid `data:` or `about:blank` origins because browser private-network/CORS policy may block loopback fetches.
 - If any later edit touches the UI, route handlers, browser-consumed API shapes, fixture/data setup, or action path covered by a browser/manual smoke, treat the earlier smoke as preliminary and rerun it on the final tree before closeout, or record why rerun is blocked.
 
 Run typechecking regularly and single test files regularly. After a focused test command, check the output confirms the intended file or seam actually ran. If a package script does not forward file arguments cleanly, invoke the underlying runner directly, for example `pnpm --filter <pkg> exec vitest run test/file.test.ts`.
@@ -58,31 +58,30 @@ Before closeout, read the root verification guidance and run the canonical gates
 
 Before committing, draft the pre-close audit row-by-row against each in-scope issue's acceptance criteria and Principles/ADR checks. Patch any row that would be `blocked` or `not done` before entering review, unless the right outcome is to leave that issue open.
 
-## 3. Review before commit
+## 3. Review before closeout
 
-Once done, invoke the repo `code-review` skill to review the work.
+Once the implementation is ready, invoke the repo `code-review` skill to review the work before pushing or closing issues.
 
 The repo's code-review skill expects a fixed point. Use one of these routes:
 
 - Commit the completed implementation locally, then run the `code-review` skill against `HEAD~1` or another fixed point before pushing or closing issues.
 - If committing first would be inappropriate, run an explicit pre-commit review against `git diff HEAD` and say that you are adapting the review because no committed fixed point exists yet.
-- If the `code-review` skill cannot run because a required mechanism is unavailable, including when sub-agents or other review tools are unavailable or policy-blocked, run a local two-axis review against the fixed point: standards/conventions and spec/acceptance. Document the deviation and its reason, fix any findings, rerun the relevant gates, and include the review outcome in closeout evidence.
-- If review fixes happen after the implementation commit, stage only implementation-owned files and intentionally either amend the implementation commit or create a follow-up commit. Refresh the final SHA after the last commit, rerun required gates on the final tree, and use that final SHA in closeout comments.
+- If the `code-review` skill cannot run because a required mechanism is unavailable, including when sub-agents or other review tools are unavailable or policy-blocked, run a local two-axis review against the fixed point: standards/conventions and spec/acceptance. Defer to the `code-review` skill's fixed-point and tool-policy discovery rules before choosing fallback, and record whether fallback is due to unavailable tooling or policy-blocked delegation. Document the deviation and its reason, fix any findings, rerun the relevant gates, and include the review outcome in closeout evidence.
+- If review finds no issues after the implementation commit, keep that commit as the final SHA; no second commit is needed. If review fixes happen after the implementation commit, stage only implementation-owned files and intentionally either amend the implementation commit or create a follow-up commit. Refresh the final SHA after the last commit, rerun required gates on the final tree, and use that final SHA in closeout comments.
 
 Review evidence is a closeout hard stop. Before running any issue-close command, record one of these lines in the conversation or closeout audit:
 
 - `Review: code-review against <fixed point>; outcome <no findings / findings fixed in SHA ...>; verification rerun <commands>.`
 - `Review fallback: <why code-review could not run>; standards/spec result <...>; fixes <none / SHA ...>; verification rerun <commands>.`
 
-Before staging or committing, rerun `git status --short`, identify unrelated existing changes, and stage only files owned by the implementation. Leave unrelated dirty files untouched and report them in the final response.
-
-Commit your work to the current branch.
+Before the implementation commit or any review-fix commit, rerun `git status --short`, identify unrelated existing changes, and stage only files owned by the implementation. Leave unrelated dirty files untouched and report them in the final response.
 
 ## 4. Completion audit and issue closeout
 
 Before declaring completion, closing issues, or closing a parent PRD:
 
-- Produce a pre-close per-issue audit before closing any issue: every acceptance criterion and required principles/ADR conformance check mapped to concrete evidence, with status `satisfied`, `blocked`, or `not done`. Default to one row per acceptance criterion or conformance check; do not group acceptance checkboxes into one prose row unless the row names each checkbox explicitly. Capture the audit in one durable sink before closeout: the conversation, a tracker comment on the issue or parent PRD, or another durable tracker artifact. If the audit is not in the conversation, each affected closeout comment must link the durable audit sink.
+- Produce a pre-close per-issue audit before closing any issue: every acceptance criterion and required principles/ADR conformance check mapped to concrete evidence, with status `satisfied`, `blocked`, or `not done`. Default to one row per acceptance criterion or conformance check; do not group acceptance checkboxes into one prose row unless the row names each checkbox explicitly. Capture the audit in one durable sink before closeout: the conversation, a tracker comment on the issue or parent PRD, or another durable tracker artifact. For large child-issue families where the explicit row table would be unwieldy in conversation, prefer one parent PRD tracker comment when practical, then link or cite that durable audit sink from each child closeout comment. If the audit is not in the conversation, each affected closeout comment must link the durable audit sink.
+- If a complete criterion-level audit was already posted before commit and no rows change after commit, review, or verification reruns, post a final addendum with the final SHA, review result, verification reruns, and a statement that all prior rows remain satisfied. Repost or expand only rows that changed, were incomplete, or were not preserved clearly enough after resume or compaction.
 - Close only issues whose criteria are all satisfied, using a comment that includes the commit SHA and verification evidence.
 - If review found or fixed issues, or if a review fallback path was used, include the review outcome in each affected issue's closeout comment or in a clearly linked parent rollup.
 - If the issue or parent PRD has a `## Principles` section, include the conformance result or deliberate steward-approved exception in the closeout evidence.
@@ -105,7 +104,7 @@ Closeout command gate: do not run `gh issue close`, `glab issue close`, or equiv
 - Review evidence from section 3 is present, either as `code-review` output or an explicit fallback record.
 - The final commit SHA is known and matches the tree that passed required verification.
 - For remote tracker closeout that cites a commit, the final SHA is reachable from the intended remote branch, or closeout evidence explicitly states that the SHA is local-only and why that is acceptable. Local-only closeout is acceptable only when the user requested implementation/tracker closeout without push/PR and no repo policy requires remote-linked commits; in that case, the closeout comments and final response must explicitly say the SHA is not remote-reachable. If the user requested push/PR/publish or repo policy requires remote-linked commits, push before closeout.
-- If the issue body, PRD text, acceptance criteria, or implementation includes UI/browser-visible behavior, closeout evidence includes a real browser smoke with route, action path, and observed outcome, an explicit blocked note explaining why that smoke could not run, or `browser smoke N/A` for docs/process-only work that only inventories or cites UI/browser behavior without changing browser-consumed surfaces. For browser-consumed API-only changes, browser-executed `fetch` evidence with observed status/JSON is acceptable.
+- If the issue body, PRD text, acceptance criteria, or implementation includes UI/browser-visible behavior, closeout evidence includes a real browser smoke with route, action path, and observed outcome, an explicit blocked note explaining why that smoke could not run, or `browser smoke N/A` for docs/process-only work that only inventories or cites UI/browser behavior without changing browser-consumed surfaces. For browser-consumed API-only changes, browser-executed `fetch` evidence with observed status/JSON is acceptable; for localhost APIs, use a same-origin localhost page rather than `data:` or `about:blank`.
 - For parent PRD closure, exact related child issue states have been verified by issue number, including any children beyond the requested scope noted in the ledger.
 
 Use this compact pre-close audit shape unless the issue set needs more detail:

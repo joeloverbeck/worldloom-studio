@@ -1,4 +1,5 @@
 import { intakeProposedFact } from "./admission-flow.js";
+import * as ContradictionStore from "./contradiction-store.js";
 import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, RecordRow, SectionInput, WorldFile } from "./world-file.js";
 
@@ -111,27 +112,27 @@ const readContradictionFlow = (store: WorldFile, flowId: number): ContradictionF
 };
 
 const workScale = (store: WorldFile, flowId: number): string | null => {
-  return store.contradictionWorkScale(flowId);
+  return ContradictionStore.contradictionWorkScale(store, flowId);
 };
 
 const disposition = (store: WorldFile, flowId: number): { disposition: string; note: string } | null => {
-  return store.contradictionDisposition(flowId);
+  return ContradictionStore.contradictionDisposition(store, flowId);
 };
 
 const triageEntries = (store: WorldFile, flowId: number): Array<{ step_key: string; body: string }> =>
-  store.contradictionTriageEntries(flowId);
+  ContradictionStore.contradictionTriageEntries(store, flowId);
 
 const repairOperations = (store: WorldFile, flowId: number): Array<{ operation: string; repair_text: string; position: number }> =>
-  store.contradictionRepairOperations(flowId);
+  ContradictionStore.contradictionRepairOperations(store, flowId);
 
 const repairTargets = (store: WorldFile, flowId: number): Array<{ record_id: number; next_canon_status: string; new_title: string | null; new_body: string | null; note: string; advisory_record_id: number | null }> =>
-  store.contradictionRepairTargets(flowId);
+  ContradictionStore.contradictionRepairTargets(store, flowId);
 
 const retconCosts = (store: WorldFile, flowId: number): Array<{ retcon_type: string; cost_key: string; cost_text: string }> =>
-  store.contradictionRetconCosts(flowId);
+  ContradictionStore.contradictionRetconCosts(store, flowId);
 
 const repairPropagation = (store: WorldFile, flowId: number): ContradictionRepairPropagationRow | null => {
-  const row = store.contradictionRepairPropagation(flowId);
+  const row = ContradictionStore.contradictionRepairPropagation(store, flowId);
   if (!row) return null;
   return {
     flowId,
@@ -143,7 +144,7 @@ const repairPropagation = (store: WorldFile, flowId: number): ContradictionRepai
 };
 
 const completedChecklistForFlow = (store: WorldFile, flowId: number): boolean => {
-  return store.completedMysteryChecklistForFlow(flowId);
+  return ContradictionStore.completedMysteryChecklistForFlow(store, flowId);
 };
 
 const replaceSingleFacet = (store: WorldFile, recordId: number, vocabulary: string, term: string): void => {
@@ -189,24 +190,24 @@ export const startContradictionRun = (
   for (const recordId of implicatedRecordIds) store.getRecord(recordId);
 
   if (input.sourceRecordId != null) {
-    const existing = store.findInProgressContradictionFlowBySource(input.sourceRecordId);
+    const existing = ContradictionStore.findInProgressContradictionFlowBySource(store, input.sourceRecordId);
     if (existing) return existing;
   }
 
   const flow = store.createFlowInstance({ flowKey: "contradiction", currentStep: "contradiction:entry", contradictionSourceRecordId: input.sourceRecordId ?? null });
   const flowId = Number(flow.id);
   for (const recordId of implicatedRecordIds) {
-    store.insertContradictionImplicatedRecord(flowId, recordId);
+    ContradictionStore.insertContradictionImplicatedRecord(store, flowId, recordId);
   }
   if (input.title?.trim()) {
-    store.insertContradictionTitle(flowId, input.title);
+    ContradictionStore.insertContradictionTitle(store, flowId, input.title);
   }
   return store.getFlowInstance(flowId);
 };
 
 export const getContradictionRun = (store: WorldFile, flowId: number): unknown => {
   const flow = readContradictionFlow(store, flowId);
-  const implicatedRecords = store.contradictionImplicatedRecordIds(flowId).map((recordId) => store.getRecord(recordId));
+  const implicatedRecords = ContradictionStore.contradictionImplicatedRecordIds(store, flowId).map((recordId) => store.getRecord(recordId));
   return {
     flow,
     implicatedRecords,
@@ -217,8 +218,8 @@ export const getContradictionRun = (store: WorldFile, flowId: number): unknown =
     repairTargets: repairTargets(store, flowId),
     retconCosts: retconCosts(store, flowId),
     repairPropagation: repairPropagation(store, flowId),
-    proposals: store.contradictionRepairCreatedProposals(flowId),
-    checklists: store.mysteryPreservationChecklistsForFlow(flowId)
+    proposals: ContradictionStore.contradictionRepairCreatedProposals(store, flowId),
+    checklists: ContradictionStore.mysteryPreservationChecklistsForFlow(store, flowId)
   };
 };
 
@@ -229,7 +230,7 @@ export const recordContradictionTriage = (
   readContradictionFlow(store, input.flowId);
   if (!(input.stepKey in TRIAGE_SECTION_BY_STEP)) throw new Error(`Unknown contradiction triage step: ${input.stepKey}`);
   if (!input.body.trim()) throw new Error("contradiction triage entries require steward-written prose");
-  const entry = store.upsertContradictionTriageEntry(input.flowId, input.stepKey, input.body);
+  const entry = ContradictionStore.upsertContradictionTriageEntry(store, input.flowId, input.stepKey, input.body);
   store.updateFlowInstance(input.flowId, { currentStep: `contradiction:${input.stepKey}` });
   return entry;
 };
@@ -240,7 +241,7 @@ export const declareContradictionWorkScale = (
 ): unknown => {
   readContradictionFlow(store, input.flowId);
   assertVocabularyTerm(store, "work_scale", input.workScale);
-  const row = store.upsertContradictionWorkScale(input.flowId, input.workScale);
+  const row = ContradictionStore.upsertContradictionWorkScale(store, input.flowId, input.workScale);
   store.updateFlowInstance(input.flowId, { currentStep: "contradiction:work-scale" });
   return row;
 };
@@ -251,7 +252,7 @@ export const setContradictionDisposition = (
 ): unknown => {
   readContradictionFlow(store, input.flowId);
   assertVocabularyTerm(store, "contradiction_disposition", input.disposition);
-  const row = store.upsertContradictionDisposition(input.flowId, input.disposition, input.note);
+  const row = ContradictionStore.upsertContradictionDisposition(store, input.flowId, input.disposition, input.note);
   store.updateFlowInstance(input.flowId, { currentStep: "contradiction:disposition" });
   return row;
 };
@@ -265,7 +266,7 @@ export const recordContradictionRepair = (
   if (!input.repairText.trim()) throw new Error("repair operations require written repair text");
   input.operations.forEach((operation) => assertVocabularyTerm(store, "repair_operation", operation));
   return store.atomicWrite(() => {
-    const operations = store.replaceContradictionRepairOperations(input.flowId, input);
+    const operations = ContradictionStore.replaceContradictionRepairOperations(store, input.flowId, input);
     store.updateFlowInstance(input.flowId, { currentStep: "contradiction:repair" });
     return operations;
   });
@@ -279,7 +280,7 @@ export const addContradictionRepairTarget = (
   store.getRecord(input.recordId);
   assertVocabularyTerm(store, "canon_status", input.nextCanonStatus);
   if (input.advisoryRecordId != null) store.getRecord(input.advisoryRecordId);
-  const target = store.insertContradictionRepairTarget(input);
+  const target = ContradictionStore.insertContradictionRepairTarget(store, input);
   store.updateFlowInstance(input.flowId, { currentStep: "contradiction:repair-target" });
   return target;
 };
@@ -304,7 +305,7 @@ export const proposeFactFromContradiction = (
       recordSweepJurisdiction: true,
       provenanceFlowStep: "contradiction:surface-proposal"
     });
-    store.insertContradictionRepairCreatedProposal({
+    ContradictionStore.insertContradictionRepairCreatedProposal(store, {
       flowId: input.flowId,
       proposalRecordId: intake.record.id,
       reportRecordId: flow.contradiction_report_record_id
@@ -326,7 +327,7 @@ export const recordContradictionRetconCosts = (
     if (!cost.text.trim()) throw new Error("retcon costs require written substance");
   }
   return store.atomicWrite(() => {
-    const costs = store.replaceContradictionRetconCosts(input.flowId, input);
+    const costs = ContradictionStore.replaceContradictionRetconCosts(store, input.flowId, input);
     store.updateFlowInstance(input.flowId, { currentStep: "contradiction:retcon-cost" });
     return costs;
   });
@@ -354,7 +355,7 @@ export const setContradictionRepairPropagation = (
     skipRecordId = skip.id;
     if (flow.contradiction_source_record_id != null) safeLink(store, skip.id, flow.contradiction_source_record_id, "derived_from", "Repair propagation declined");
   }
-  store.upsertContradictionRepairPropagation({
+  ContradictionStore.upsertContradictionRepairPropagation(store, {
     flowId: input.flowId,
     action: input.action,
     debtRecordId,
@@ -366,7 +367,7 @@ export const setContradictionRepairPropagation = (
 };
 
 export const owedBoundariesQueue = (store: WorldFile): OwedBoundaryRow[] =>
-  store.owedBoundaryRows().map((row) => rowToOwedBoundary(row as Record<string, unknown>));
+  ContradictionStore.owedBoundaryRows(store).map((row) => rowToOwedBoundary(row as Record<string, unknown>));
 
 export const createMysteryLedgerEntry = (
   store: WorldFile,
@@ -407,7 +408,7 @@ export const createMysteryLedgerEntry = (
     safeLink(store, ledger.id, input.protectedRecordId, "preserves_boundary_for", "Mystery ledger protects this boundary");
     if (input.propagationReportRecordId != null) safeLink(store, ledger.id, input.propagationReportRecordId, "derived_from", "Mystery ledger worked from propagation boundary");
     if (input.propagationDispositionId != null) {
-      store.insertMysteryBoundaryLink(input.propagationDispositionId, ledger.id);
+      ContradictionStore.insertMysteryBoundaryLink(store, input.propagationDispositionId, ledger.id);
     }
     return store.getRecord(ledger.id);
   });
@@ -426,7 +427,7 @@ export const completeMysteryPreservationChecklist = (
   if (!input.body.trim()) throw new Error("preservation checklist requires steward-written prose");
   const sacred = input.effectType === "sacred opacity" || input.effectType === "horror-terror-dread";
   if (sacred && !input.sacredGuardBody?.trim()) throw new Error("sacred-opacity guard requires accountability prose");
-  const row = store.insertMysteryPreservationChecklist(input);
+  const row = ContradictionStore.insertMysteryPreservationChecklist(store, input);
   if (input.flowId != null) store.updateFlowInstance(input.flowId, { currentStep: "contradiction:preservation-checklist" });
   return rowToChecklist(row as Record<string, unknown>);
 };
@@ -472,14 +473,14 @@ export const closeContradictionRun = (store: WorldFile, flowId: number): { flow:
     for (const target of targets) {
       applyRepairTarget(store, report.id, operations, target);
     }
-    const proposalRows = store.contradictionRepairCreatedProposals(flowId);
+    const proposalRows = ContradictionStore.contradictionRepairCreatedProposals(store, flowId);
     for (const row of proposalRows) {
       safeLink(store, Number(row.proposal_record_id), report.id, "derived_from", "Fact surfaced by contradiction repair report");
     }
-    store.assignContradictionReportToCreatedProposals(flowId, report.id);
+    ContradictionStore.assignContradictionReportToCreatedProposals(store, flowId, report.id);
     const propagation = repairPropagation(store, flowId);
     if (propagation?.debtRecordId != null) safeLink(store, report.id, propagation.debtRecordId, "requires_follow_up", "Contradiction repair assigned propagation debt");
-    const implicatedRecordIds = store.contradictionImplicatedRecordIds(flowId);
+    const implicatedRecordIds = ContradictionStore.contradictionImplicatedRecordIds(store, flowId);
     for (const recordId of implicatedRecordIds) safeLink(store, report.id, recordId, "derived_from", "Contradiction report implicates this record");
     const completedFlow = store.updateFlowInstance(flowId, { state: "complete", currentStep: "contradiction:complete", contradictionReportRecordId: report.id });
     return { flow: completedFlow, report };
@@ -521,7 +522,7 @@ const writeContradictionReport = (store: WorldFile, flowId: number): RecordRow =
   const selectedDisposition = disposition(store, flowId)!;
   const selectedWorkScale = workScale(store, flowId)!;
   const operations = repairOperations(store, flowId);
-  const proposalRows = store.contradictionRepairCreatedProposals(flowId) as Array<{ proposal_record_id: number }>;
+  const proposalRows = ContradictionStore.contradictionRepairCreatedProposals(store, flowId) as Array<{ proposal_record_id: number }>;
   const proposals = proposalRows.map((row) => store.getRecord(Number(row.proposal_record_id)));
   const costs = retconCosts(store, flowId);
   const targets = repairTargets(store, flowId);

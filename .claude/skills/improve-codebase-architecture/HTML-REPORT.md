@@ -46,6 +46,7 @@ Each candidate is one `<article>`:
 - **Title** — short, names the deepening (e.g. "Collapse the Order intake pipeline").
 - **Badge row** — recommendation strength (`Strong` = emerald, `Worth exploring` = amber, `Speculative` = slate), plus a tag for the dependency category (`in-process`, `local-substitutable`, `ports & adapters`, `mock`).
 - **Files** — monospaced list, `font-mono text-sm`.
+- **Evidence** — compact method/count facts, deletion-test result, call-site checks, and exact line references supporting the candidate.
 - **Before / After diagram** — the centrepiece. Two columns, side by side. See patterns below.
 - **Problem** — one sentence. What hurts.
 - **Solution** — one sentence. What changes.

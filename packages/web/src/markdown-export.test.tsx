@@ -23,13 +23,15 @@ describe("markdown export web surface", () => {
     expect(html).toContain("Markdown export");
   });
 
-  it("renders the flow-aware Prompt-out controls and uses the Prompt-out skip surface", () => {
+  it("renders server-owned Prompt-out controls and uses returned action URLs", () => {
     const html = renderToString(<App />);
     const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
 
     expect(html).toContain("Prompt context");
-    expect(source).toContain("/api/prompt-out/skip");
-    expect(source).toContain("/api/prompt-out/generate");
+    expect(html).toContain("Load Prompt Step");
+    expect(source).toContain("/api/prompt-out/steps");
+    expect(source).toContain("promptStep.actions.generate.href");
+    expect(source).toContain("promptStep.actions.skip.href");
     expect(source).not.toContain("/api/flows/creation/skip");
   });
 });

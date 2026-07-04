@@ -75,6 +75,48 @@ describe("WorldFile", () => {
     expect(worldFileImport).not.toContain("AdvisoryDispositionRow");
   });
 
+  it("keeps Contradiction/Retcon/Mystery single-caller persistence out of the WorldFile public surface", () => {
+    const worldFileSource = readFileSync(new URL("../src/world-file.ts", import.meta.url), "utf8");
+    const storeSource = readFileSync(new URL("../src/contradiction-store.ts", import.meta.url), "utf8");
+    const contradictionFlowSource = readFileSync(new URL("../src/contradiction-flow.ts", import.meta.url), "utf8");
+    const worldFileMethodNames = [
+      "findInProgressContradictionFlowBySource",
+      "insertContradictionImplicatedRecord",
+      "contradictionImplicatedRecordIds",
+      "insertContradictionTitle",
+      "contradictionWorkScale",
+      "contradictionDisposition",
+      "contradictionTriageEntries",
+      "upsertContradictionTriageEntry",
+      "upsertContradictionWorkScale",
+      "upsertContradictionDisposition",
+      "contradictionRepairOperations",
+      "replaceContradictionRepairOperations",
+      "contradictionRepairTargets",
+      "insertContradictionRepairTarget",
+      "insertContradictionRepairCreatedProposal",
+      "contradictionRepairCreatedProposals",
+      "assignContradictionReportToCreatedProposals",
+      "contradictionRetconCosts",
+      "replaceContradictionRetconCosts",
+      "contradictionRepairPropagation",
+      "upsertContradictionRepairPropagation",
+      "completedMysteryChecklistForFlow",
+      "owedBoundaryRows",
+      "insertMysteryBoundaryLink",
+      "insertMysteryPreservationChecklist",
+      "mysteryPreservationChecklistsForFlow"
+    ];
+
+    for (const methodName of worldFileMethodNames) {
+      expect(worldFileSource).not.toMatch(new RegExp(`\\b${methodName}\\b`));
+      expect(contradictionFlowSource).toMatch(new RegExp(`\\bContradictionStore\\.${methodName}\\b`));
+    }
+    expect(storeSource).toMatch(/\bworld\.db\.prepare\b/);
+    expect(storeSource).not.toMatch(/\bworld\.db\.transaction\b/);
+    expect(contradictionFlowSource).not.toMatch(/\bworld\.db\.prepare\b|\.db\.transaction\b/);
+  });
+
   it("creates a world file with application id, schema version, and seeded catalogs", () => {
     const path = tempPath("world.sqlite");
     const store = WorldFile.create(path);

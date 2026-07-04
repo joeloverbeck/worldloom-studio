@@ -32,8 +32,10 @@ describe("QA flow web surface", () => {
 
     expect(html).toContain("<option value=\"qa\">QA</option>");
     expect(source).toContain("templateKey: promptTemplateKey");
-    expect(source).toContain("/api/prompt-out/generate");
-    expect(source).toContain("/api/prompt-out/advisory-artifacts");
-    expect(source).toContain("/api/prompt-out/skip");
+    expect(source).toContain("/api/prompt-out/steps");
+    expect(source).toContain("promptStep.actions.generate.href");
+    expect(source).toContain("promptStep.actions.storeAdvisory.href");
+    expect(source).toContain("promptStep.actions.skip.href");
+    expect(source).not.toContain("/api/prompt-out/advisory-artifacts");
   });
 });

@@ -76,6 +76,7 @@ Use the available sub-agent mechanism, if permitted, with two independent read-o
 - For PRD child issue families, include the compact per-child coverage table `Issue | Acceptance source | Evidence reviewed | Findings/residuals` before reporting zero residual Spec findings.
 - Cite the concrete standards/spec sources used for each axis.
 - Apply the smell baseline as judgement-call heuristics, not hard violations, and let documented repo standards override it.
+- In the Standards output, include a dedicated `Smell baseline applied: <yes / skipped because ...>.` line before findings, so a zero-finding fallback still proves the baseline was considered.
 - End with the required axis summary: `Standards <count/worst>, Spec <count/worst>`.
 
 Mandatory local fallback output — paste this shape even when both axes have zero findings:
@@ -85,6 +86,7 @@ Mandatory local fallback output — paste this shape even when both axes have ze
 
 Fallback used: <unavailable tooling / policy-blocked delegation / other reason>.
 Sources reviewed: <standards-source files, root agent instructions, smell baseline>.
+Smell baseline applied: <yes / skipped because ...>.
 Findings: <none / bullets with file+hunk and standard or smell label>.
 
 ## Spec
@@ -99,6 +101,13 @@ Findings: <none / bullets with quoted spec line>.
 
 Axis summary: Standards <count/worst>, Spec <count/worst>
 ```
+
+When invoked by the repo `implement` skill, also emit one closeout-ready review evidence line after the two-axis report, matching the caller's format:
+
+- `Review: code-review against <fixed point>; outcome <no findings / findings fixed in SHA ...>; verification rerun <commands>.`
+- `Review fallback: <why code-review could not run>; standards/spec result <...>; fixes <none / SHA ...>; verification rerun <commands>.`
+
+If review reports no findings and no files change after review, `verification rerun` may state that no rerun was needed after review because the unchanged final tree already passed named gates. In that case, cite those gates explicitly and keep the implementation commit SHA as the reviewed SHA.
 
 **Standards sub-agent prompt** — include:
 
@@ -135,7 +144,7 @@ For immediate-fix closeout, use this compact shape after the two axis reports:
 - **Findings found**: `<count and short titles, or none>`
 - **Fixes made**: `<files/behavior changed, or none>`
 - **Verification rerun**: `<commands and browser/manual checks>`
-- **Commit handling**: `<amended commit SHA / follow-up commit SHA / no commit yet>`
+- **Commit handling**: `<unchanged implementation commit SHA / amended commit SHA / follow-up commit SHA / no commit yet>`
 - **Residual findings**: `<remaining Standards and Spec findings, or none>`
 - **Axis summary**: `Standards <count/worst>, Spec <count/worst>`
 
