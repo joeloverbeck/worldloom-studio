@@ -206,6 +206,59 @@ interface Stage12Run {
   closeReadiness: { status: string; blockers: Stage12CloseBlocker[] };
 }
 
+interface Stage13Run {
+  flow: {
+    id: number;
+    state: string;
+    current_step: string;
+    contradiction_source_record_id: number | null;
+    contradiction_report_record_id: number | null;
+  };
+  implicatedRecords: RecordRow[];
+  triage: Array<{ step_key: string; body: string }>;
+  workScale: string | null;
+  disposition: { disposition: string; note: string } | null;
+  repairOperations: Array<{ operation: string; repair_text: string; position: number }>;
+  repairTargets: Array<{
+    record_id: number;
+    next_canon_status: string;
+    new_title: string | null;
+    new_body: string | null;
+    note: string;
+    advisory_record_id: number | null;
+  }>;
+  retconCosts: Array<{ retcon_type: string; cost_key: string; cost_text: string }>;
+  repairPropagation: {
+    flowId: number;
+    action: "assign" | "decline";
+    debtRecordId: number | null;
+    skipRecordId: number | null;
+    note: string;
+  } | null;
+  proposals: Array<{ id: number; proposal_record_id: number; report_record_id: number | null }>;
+  checklists: Array<{
+    id: number;
+    flow_id: number | null;
+    ledger_record_id: number | null;
+    protected_record_id: number | null;
+    operation: string;
+    effect_type: string;
+    body: string;
+    sacred_guard_body: string;
+    completed: number;
+  }>;
+}
+
+interface OwedBoundaryRow {
+  propagationDispositionId: number;
+  consequenceId: number;
+  protectedRecordId: number;
+  propagationReportRecordId: number | null;
+  preservationBoundary: string;
+  note: string;
+  consequenceBody: string;
+}
+
 interface PromptTemplate {
   key: string;
   role_name: string;
@@ -356,6 +409,46 @@ const emptyQaFloorConditions: QaFloorConditions = {
   lacksInstitutionOrModeEquivalent: false
 };
 
+const stage13TriageSteps = [
+  { stepKey: "contradiction_statement", label: "Contradiction statement" },
+  { stepKey: "truth_layers", label: "Truth layers" },
+  { stepKey: "scope", label: "Scope" },
+  { stepKey: "who_can_notice", label: "Who can notice" },
+  { stepKey: "audience_notice", label: "Audience notice" },
+  { stepKey: "contradiction_type", label: "Contradiction type" },
+  { stepKey: "higher_authority", label: "Higher-authority material" },
+  { stepKey: "mystery_relationship", label: "Mystery / protected-effect relationship" },
+  { stepKey: "notes", label: "Notes" }
+];
+
+const stage13RetconCostKeys = ["continuity", "institutional", "character", "mystery", "aesthetic", "future"];
+
+const stage13MysterySectionHeadings = [
+  "Protected effect type",
+  "Puzzle question, if any",
+  "What is fixed",
+  "What is secret or undecided",
+  "Damaging explanations",
+  "Preserved consequences",
+  "Recurrence / motif / transformation",
+  "Reveal permissions",
+  "Reveal prohibitions",
+  "Explanation-pressure operation",
+  "What would break if solved or flattened",
+  "Sacred-opacity accountability"
+];
+
+const emptyStage13RetconCosts = Object.fromEntries(stage13RetconCostKeys.map((key) => [key, ""])) as Record<string, string>;
+const emptyStage13MysterySections = Object.fromEntries(stage13MysterySectionHeadings.map((heading) => [heading, ""])) as Record<string, string>;
+
+const parseNumberList = (value: string): number[] =>
+  value
+    .split(/[\s,]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => Number(item))
+    .filter((item) => Number.isFinite(item));
+
 function App({
   initialRecords = [],
   initialOpenWorld = null,
@@ -401,6 +494,50 @@ function App({
   const [stage12AdvisoryRecordId, setStage12AdvisoryRecordId] = useState("");
   const [stage12SkipStep, setStage12SkipStep] = useState("black_market_depth");
   const [stage12SkipUnresolved, setStage12SkipUnresolved] = useState(false);
+  const [stage13Run, setStage13Run] = useState<Stage13Run | null>(null);
+  const [stage13FlowId, setStage13FlowId] = useState<number | null>(null);
+  const [stage13SourceRecordId, setStage13SourceRecordId] = useState("");
+  const [stage13ImplicatedRecordIds, setStage13ImplicatedRecordIds] = useState("");
+  const [stage13Title, setStage13Title] = useState("");
+  const [stage13TriageStep, setStage13TriageStep] = useState("contradiction_statement");
+  const [stage13TriageBody, setStage13TriageBody] = useState("");
+  const [stage13WorkScale, setStage13WorkScale] = useState("");
+  const [stage13Disposition, setStage13Disposition] = useState("");
+  const [stage13DispositionNote, setStage13DispositionNote] = useState("");
+  const [stage13RepairOperationDraft, setStage13RepairOperationDraft] = useState("");
+  const [stage13RepairOperationOrder, setStage13RepairOperationOrder] = useState("");
+  const [stage13RepairText, setStage13RepairText] = useState("");
+  const [stage13RepairTargetRecordId, setStage13RepairTargetRecordId] = useState("");
+  const [stage13RepairTargetStatus, setStage13RepairTargetStatus] = useState("");
+  const [stage13RepairTargetTitle, setStage13RepairTargetTitle] = useState("");
+  const [stage13RepairTargetBody, setStage13RepairTargetBody] = useState("");
+  const [stage13RepairTargetNote, setStage13RepairTargetNote] = useState("");
+  const [stage13RepairAdvisoryRecordId, setStage13RepairAdvisoryRecordId] = useState("");
+  const [stage13ProposalTitle, setStage13ProposalTitle] = useState("");
+  const [stage13ProposalBody, setStage13ProposalBody] = useState("");
+  const [stage13ProposalTruthLayer, setStage13ProposalTruthLayer] = useState("Objective canon");
+  const [stage13RetconType, setStage13RetconType] = useState("");
+  const [stage13RetconCostTexts, setStage13RetconCostTexts] = useState<Record<string, string>>(emptyStage13RetconCosts);
+  const [stage13PropagationAction, setStage13PropagationAction] = useState<"assign" | "decline">("assign");
+  const [stage13PropagationDebtName, setStage13PropagationDebtName] = useState("");
+  const [stage13PropagationBody, setStage13PropagationBody] = useState("");
+  const [stage13PropagationReason, setStage13PropagationReason] = useState("");
+  const [stage13SkipStep, setStage13SkipStep] = useState("boundary_guard");
+  const [stage13SkipReason, setStage13SkipReason] = useState("");
+  const [stage13OwedBoundaries, setStage13OwedBoundaries] = useState<OwedBoundaryRow[]>([]);
+  const [stage13LedgerRecordId, setStage13LedgerRecordId] = useState("");
+  const [stage13LedgerTitle, setStage13LedgerTitle] = useState("");
+  const [stage13ProtectedRecordId, setStage13ProtectedRecordId] = useState("");
+  const [stage13PropagationReportRecordId, setStage13PropagationReportRecordId] = useState("");
+  const [stage13PropagationDispositionId, setStage13PropagationDispositionId] = useState("");
+  const [stage13ProtectedEffectType, setStage13ProtectedEffectType] = useState("");
+  const [stage13MysteryState, setStage13MysteryState] = useState("");
+  const [stage13PreservationBoundary, setStage13PreservationBoundary] = useState("");
+  const [stage13MysterySections, setStage13MysterySections] = useState<Record<string, string>>(emptyStage13MysterySections);
+  const [stage13ChecklistOperation, setStage13ChecklistOperation] = useState("");
+  const [stage13ChecklistEffectType, setStage13ChecklistEffectType] = useState("");
+  const [stage13ChecklistBody, setStage13ChecklistBody] = useState("");
+  const [stage13ChecklistSacredGuard, setStage13ChecklistSacredGuard] = useState("");
   const [qaFlowId, setQaFlowId] = useState<number | null>(null);
   const [qaPassId, setQaPassId] = useState<number | null>(null);
   const [qaSubjectType, setQaSubjectType] = useState<"record" | "world">("record");
@@ -494,6 +631,13 @@ function App({
   const workScales = useMemo(() => terms.filter((term) => term.vocabulary === "work_scale"), [terms]);
   const admissionOperations = useMemo(() => terms.filter((term) => term.vocabulary === "admission_decision_operation"), [terms]);
   const consequenceDispositions = useMemo(() => terms.filter((term) => term.vocabulary === "consequence_disposition"), [terms]);
+  const contradictionDispositions = useMemo(() => terms.filter((term) => term.vocabulary === "contradiction_disposition"), [terms]);
+  const repairOperationTerms = useMemo(() => terms.filter((term) => term.vocabulary === "repair_operation"), [terms]);
+  const retconTypes = useMemo(() => terms.filter((term) => term.vocabulary === "retcon_type"), [terms]);
+  const protectedEffectTypes = useMemo(() => terms.filter((term) => term.vocabulary === "protected_effect_type"), [terms]);
+  const mysteryStates = useMemo(() => terms.filter((term) => term.vocabulary === "mystery_state"), [terms]);
+  const preservationBoundaries = useMemo(() => terms.filter((term) => term.vocabulary === "preservation_boundary"), [terms]);
+  const preservationOperations = useMemo(() => terms.filter((term) => term.vocabulary === "preservation_operation"), [terms]);
   const recordTypeByKey = useMemo(() => new Map(recordTypes.map((recordType) => [recordType.key, recordType])), [recordTypes]);
   const selectedRecordType = editingId == null ? recordTypeByKey.get(recordTypeKey) : recordTypeByKey.get(recordTypeKey);
   const editingReportRecord = editingId != null && selectedRecordType?.mutationRegime === "report";
@@ -509,7 +653,9 @@ function App({
         ? qaFlowId
         : promptFlowKey === "institutional_economic_suppression"
           ? stage12FlowId
-          : null;
+          : promptFlowKey === "contradiction"
+            ? stage13FlowId
+            : null;
   const promptOutRecordId = promptRecordId || (promptFlowKey === "admission"
     ? admissionRecordId
     : promptFlowKey === "propagation"
@@ -518,6 +664,8 @@ function App({
         ? qaSubjectRecordId
         : promptFlowKey === "institutional_economic_suppression"
           ? stage12SourceRecordId
+          : promptFlowKey === "contradiction"
+            ? stage13SourceRecordId
           : "");
   const relatedAuditItems = useMemo(() => selectedCanonRecordId == null
     ? []
@@ -546,6 +694,38 @@ function App({
   }, [facetTerm, facetTerms]);
 
   useEffect(() => {
+    if (!stage13RepairOperationDraft && repairOperationTerms[0]) setStage13RepairOperationDraft(repairOperationTerms[0].term);
+    if (!stage13Disposition && contradictionDispositions[0]) setStage13Disposition(contradictionDispositions[0].term);
+    if (!stage13RetconType && retconTypes[0]) setStage13RetconType(retconTypes[0].term);
+    if (!stage13ProtectedEffectType && protectedEffectTypes[0]) setStage13ProtectedEffectType(protectedEffectTypes[0].term);
+    if (!stage13ChecklistEffectType && protectedEffectTypes[0]) setStage13ChecklistEffectType(protectedEffectTypes[0].term);
+    if (!stage13MysteryState && mysteryStates[0]) setStage13MysteryState(mysteryStates[0].term);
+    if (!stage13PreservationBoundary && preservationBoundaries[0]) setStage13PreservationBoundary(preservationBoundaries[0].term);
+    if (!stage13ChecklistOperation && preservationOperations[0]) setStage13ChecklistOperation(preservationOperations[0].term);
+  }, [
+    contradictionDispositions,
+    mysteryStates,
+    preservationBoundaries,
+    preservationOperations,
+    protectedEffectTypes,
+    repairOperationTerms,
+    retconTypes,
+    stage13ChecklistEffectType,
+    stage13ChecklistOperation,
+    stage13Disposition,
+    stage13MysteryState,
+    stage13PreservationBoundary,
+    stage13ProtectedEffectType,
+    stage13RepairOperationDraft,
+    stage13RetconType
+  ]);
+
+  useEffect(() => {
+    const existing = stage13Run?.triage.find((entry) => entry.step_key === stage13TriageStep);
+    setStage13TriageBody(existing?.body ?? "");
+  }, [stage13Run, stage13TriageStep]);
+
+  useEffect(() => {
     setTemplateEdit(selectedTemplate?.current_text ?? "");
   }, [selectedTemplate]);
 
@@ -560,7 +740,7 @@ function App({
   };
 
   const loadWorldData = async () => {
-    const [recordPayload, linkPayload, vocabularyPayload, headingPayload, draftPayload, templatePayload, queuePayload, debtPayload, propagationQueuePayload, canonCurrentPayload, canonAuditPayload] = await Promise.all([
+    const [recordPayload, linkPayload, vocabularyPayload, headingPayload, draftPayload, templatePayload, queuePayload, debtPayload, propagationQueuePayload, stage13OwedPayload, canonCurrentPayload, canonAuditPayload] = await Promise.all([
       api<{ records: RecordRow[] }>("/api/records"),
       api<{ links: LinkRow[] }>("/api/links"),
       api<{ terms: VocabularyTerm[] }>("/api/vocabularies"),
@@ -570,6 +750,7 @@ function App({
       api<{ queue: AdmissionQueueRow[] }>("/api/admission/queue"),
       api<{ debt: RecordRow[] }>("/api/canon-debt?open=true"),
       api<{ queue: PropagationQueueRow[] }>("/api/propagation/queue"),
+      api<{ queue: OwedBoundaryRow[] }>("/api/contradiction/owed-boundaries"),
       api<{ rows: CanonWorkbenchCurrentRow[] }>("/api/canon-workbench/current"),
       api<{ spine: CanonWorkbenchAuditItem[] }>("/api/canon-workbench/audit")
     ]);
@@ -582,6 +763,7 @@ function App({
     setAdmissionQueue(queuePayload.queue);
     setCanonDebt(debtPayload.debt);
     setPropagationQueue(propagationQueuePayload.queue);
+    setStage13OwedBoundaries(stage13OwedPayload.queue);
     setCanonCurrentRows(canonCurrentPayload.rows);
     setCanonAuditTrail(canonAuditPayload.spine);
   };
@@ -846,7 +1028,7 @@ function App({
         recordId: promptFlowKey === "admission" && admissionRecordId ? Number(admissionRecordId) : undefined,
         stepKey: promptTemplateKey,
         admissionLevel: admissionLevel || undefined,
-        workScale: workScale || undefined,
+        workScale: promptFlowKey === "contradiction" ? (stage13WorkScale || undefined) : (workScale || undefined),
         reason: gateNotApplicable || undefined
       })
     });
@@ -1185,6 +1367,271 @@ function App({
     await loadWorldData();
   };
 
+  const applyStage13Run = (payload: Stage13Run) => {
+    setStage13Run(payload);
+    setStage13FlowId(payload.flow.id);
+    if (payload.flow.contradiction_source_record_id != null) setStage13SourceRecordId(String(payload.flow.contradiction_source_record_id));
+    if (payload.workScale) setStage13WorkScale(payload.workScale);
+    if (payload.disposition) {
+      setStage13Disposition(payload.disposition.disposition);
+      setStage13DispositionNote(payload.disposition.note);
+    }
+  };
+
+  const refreshStage13Run = async (flowId = stage13FlowId) => {
+    if (flowId == null) return;
+    applyStage13Run(await api<Stage13Run>(`/api/contradiction/runs/${flowId}`));
+  };
+
+  const startStage13Run = async () => {
+    try {
+      const payload = await api<{ flow: { id: number } }>("/api/contradiction/runs/start", {
+        method: "POST",
+        body: JSON.stringify({
+          sourceRecordId: stage13SourceRecordId ? Number(stage13SourceRecordId) : undefined,
+          implicatedRecordIds: parseNumberList(stage13ImplicatedRecordIds),
+          title: stage13Title || undefined
+        })
+      });
+      setStage13FlowId(payload.flow.id);
+      setPromptFlowKey("contradiction");
+      setPromptTemplateKey("repair_challenge");
+      await refreshStage13Run(payload.flow.id);
+      await loadWorldData();
+    } catch (error) {
+      setMessage(`Stage 13 start blocked: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const saveStage13Triage = async () => {
+    if (stage13FlowId == null) return;
+    try {
+      await api("/api/contradiction/triage", {
+        method: "POST",
+        body: JSON.stringify({ flowId: stage13FlowId, stepKey: stage13TriageStep, body: stage13TriageBody })
+      });
+      await refreshStage13Run(stage13FlowId);
+    } catch (error) {
+      setMessage(`Stage 13 triage blocked: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const saveStage13Scale = async () => {
+    if (stage13FlowId == null) return;
+    try {
+      await api("/api/contradiction/scale", {
+        method: "POST",
+        body: JSON.stringify({ flowId: stage13FlowId, workScale: stage13WorkScale })
+      });
+      await refreshStage13Run(stage13FlowId);
+    } catch (error) {
+      setMessage(`Stage 13 work scale blocked: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const saveStage13Disposition = async () => {
+    if (stage13FlowId == null) return;
+    try {
+      await api("/api/contradiction/disposition", {
+        method: "POST",
+        body: JSON.stringify({ flowId: stage13FlowId, disposition: stage13Disposition, note: stage13DispositionNote || undefined })
+      });
+      await refreshStage13Run(stage13FlowId);
+    } catch (error) {
+      setMessage(`Stage 13 disposition blocked: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const closeStage13Run = async () => {
+    if (stage13FlowId == null) return;
+    try {
+      const payload = await api<{ flow: { id: number }; report: RecordRow }>(`/api/contradiction/runs/${stage13FlowId}/close`, { method: "POST" });
+      setMessage(`Closed Stage 13 run with ${payload.report.shortId}`);
+      await refreshStage13Run(payload.flow.id);
+      await loadWorldData();
+    } catch (error) {
+      setMessage(`Stage 13 close blocked: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const addStage13RepairOperation = () => {
+    if (!stage13RepairOperationDraft) return;
+    setStage13RepairOperationOrder((current) => [current, stage13RepairOperationDraft].filter(Boolean).join("\n"));
+  };
+
+  const saveStage13Repair = async () => {
+    if (stage13FlowId == null) return;
+    try {
+      await api("/api/contradiction/repairs", {
+        method: "POST",
+        body: JSON.stringify({
+          flowId: stage13FlowId,
+          operations: stage13RepairOperationOrder.split(/[\n,]+/).map((operation) => operation.trim()).filter(Boolean),
+          repairText: stage13RepairText
+        })
+      });
+      await refreshStage13Run(stage13FlowId);
+    } catch (error) {
+      setMessage(`Stage 13 repair blocked: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const addStage13RepairTarget = async () => {
+    if (stage13FlowId == null) return;
+    try {
+      await api("/api/contradiction/repair-targets", {
+        method: "POST",
+        body: JSON.stringify({
+          flowId: stage13FlowId,
+          recordId: Number(stage13RepairTargetRecordId),
+          nextCanonStatus: stage13RepairTargetStatus,
+          newTitle: stage13RepairTargetTitle || undefined,
+          newBody: stage13RepairTargetBody || undefined,
+          note: stage13RepairTargetNote || undefined,
+          advisoryRecordId: stage13RepairAdvisoryRecordId ? Number(stage13RepairAdvisoryRecordId) : undefined
+        })
+      });
+      await refreshStage13Run(stage13FlowId);
+    } catch (error) {
+      setMessage(`Stage 13 repair target blocked: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const proposeStage13Fact = async () => {
+    if (stage13FlowId == null) return;
+    try {
+      await api("/api/contradiction/propose-fact", {
+        method: "POST",
+        body: JSON.stringify({
+          flowId: stage13FlowId,
+          title: stage13ProposalTitle,
+          body: stage13ProposalBody,
+          truthLayer: stage13ProposalTruthLayer
+        })
+      });
+      await refreshStage13Run(stage13FlowId);
+      await loadWorldData();
+    } catch (error) {
+      setMessage(`Stage 13 proposal blocked: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const saveStage13RetconCosts = async () => {
+    if (stage13FlowId == null) return;
+    try {
+      await api("/api/contradiction/retcon-costs", {
+        method: "POST",
+        body: JSON.stringify({
+          flowId: stage13FlowId,
+          retconType: stage13RetconType,
+          costs: stage13RetconCostKeys
+            .map((cost) => ({ cost, text: stage13RetconCostTexts[cost] ?? "" }))
+            .filter((cost) => cost.text.trim())
+        })
+      });
+      await refreshStage13Run(stage13FlowId);
+    } catch (error) {
+      setMessage(`Stage 13 retcon costs blocked: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const saveStage13RepairPropagation = async () => {
+    if (stage13FlowId == null) return;
+    try {
+      await api("/api/contradiction/repair-propagation", {
+        method: "POST",
+        body: JSON.stringify({
+          flowId: stage13FlowId,
+          action: stage13PropagationAction,
+          debtName: stage13PropagationAction === "assign" ? stage13PropagationDebtName : undefined,
+          body: stage13PropagationBody || undefined,
+          workScale: stage13WorkScale || undefined,
+          reason: stage13PropagationReason || undefined
+        })
+      });
+      await refreshStage13Run(stage13FlowId);
+      await loadWorldData();
+    } catch (error) {
+      setMessage(`Stage 13 repair propagation blocked: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const recordStage13Skip = async () => {
+    try {
+      await api("/api/contradiction/skip", {
+        method: "POST",
+        body: JSON.stringify({
+          flowId: stage13FlowId ?? undefined,
+          stepKey: stage13SkipStep,
+          workScale: stage13WorkScale || undefined,
+          reason: stage13SkipReason || undefined
+        })
+      });
+      if (stage13FlowId != null) await refreshStage13Run(stage13FlowId);
+      await loadWorldData();
+    } catch (error) {
+      setMessage(`Stage 13 skip blocked: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const selectOwedBoundary = (row: OwedBoundaryRow) => {
+    setStage13PropagationDispositionId(String(row.propagationDispositionId));
+    setStage13ProtectedRecordId(String(row.protectedRecordId));
+    setStage13PropagationReportRecordId(row.propagationReportRecordId == null ? "" : String(row.propagationReportRecordId));
+    setStage13PreservationBoundary(row.preservationBoundary);
+    setStage13LedgerTitle(`Mystery ledger for record ${row.protectedRecordId}`);
+    setStage13MysterySections((current) => ({
+      ...current,
+      "Preserved consequences": row.consequenceBody,
+      "Reveal prohibitions": row.note
+    }));
+  };
+
+  const saveStage13MysteryLedger = async () => {
+    try {
+      const payload = await api<{ record: RecordRow; queue: OwedBoundaryRow[] }>("/api/contradiction/mystery-ledgers", {
+        method: "POST",
+        body: JSON.stringify({
+          propagationDispositionId: stage13PropagationDispositionId ? Number(stage13PropagationDispositionId) : undefined,
+          ledgerRecordId: stage13LedgerRecordId ? Number(stage13LedgerRecordId) : undefined,
+          title: stage13LedgerTitle,
+          protectedRecordId: Number(stage13ProtectedRecordId),
+          propagationReportRecordId: stage13PropagationReportRecordId ? Number(stage13PropagationReportRecordId) : undefined,
+          effectType: stage13ProtectedEffectType,
+          mysteryState: stage13MysteryState,
+          preservationBoundary: stage13PreservationBoundary,
+          sections: stage13MysterySections
+        })
+      });
+      setStage13LedgerRecordId(String(payload.record.id));
+      setStage13OwedBoundaries(payload.queue);
+      await loadWorldData();
+    } catch (error) {
+      setMessage(`Stage 13 mystery ledger blocked: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const completeStage13Checklist = async () => {
+    try {
+      await api("/api/contradiction/preservation-checklists", {
+        method: "POST",
+        body: JSON.stringify({
+          flowId: stage13FlowId ?? undefined,
+          ledgerRecordId: stage13LedgerRecordId ? Number(stage13LedgerRecordId) : undefined,
+          protectedRecordId: stage13ProtectedRecordId ? Number(stage13ProtectedRecordId) : undefined,
+          operation: stage13ChecklistOperation,
+          effectType: stage13ChecklistEffectType,
+          body: stage13ChecklistBody,
+          sacredGuardBody: stage13ChecklistSacredGuard || undefined
+        })
+      });
+      if (stage13FlowId != null) await refreshStage13Run(stage13FlowId);
+      await loadWorldData();
+    } catch (error) {
+      setMessage(`Stage 13 checklist blocked: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
   const applyQaPayload = (payload: {
     flow?: { id: number };
     pass?: { id: number };
@@ -1500,6 +1947,7 @@ function App({
                 const next = event.target.value as PromptFlowKey;
                 setPromptFlowKey(next);
                 if (next === "institutional_economic_suppression") setPromptTemplateKey("institution_economy_analyst");
+                if (next === "contradiction") setPromptTemplateKey("repair_challenge");
               }}>
                 <option value="creation">Creation</option>
                 <option value="admission">Admission</option>
@@ -1702,6 +2150,170 @@ function App({
                 </div>
               </>
             )}
+          </div>
+
+          <div className="panel">
+            <h2>Contradiction/Retcon/Mystery flow</h2>
+            <div className="doctrine">
+              <strong>Stage 13</strong>
+              <span>Source: docs/worldbuilding-system/13_contradiction_retcon_and_mystery.md and docs/specs/contradiction-retcon-mystery-flow.md.</span>
+              <span>Prompt-out templates: repair_challenge · boundary_guard</span>
+              <span>{stage13Run ? `Run ${stage13Run.flow.id} · ${stage13Run.flow.state} · ${stage13Run.flow.current_step}` : "Start or refresh a Stage 13 run to load server-returned state."}</span>
+            </div>
+            <div className="grid">
+              <label>Source record id<input value={stage13SourceRecordId} onChange={(event) => setStage13SourceRecordId(event.target.value)} /></label>
+              <label>Implicated record ids<input value={stage13ImplicatedRecordIds} onChange={(event) => setStage13ImplicatedRecordIds(event.target.value)} /></label>
+              <label>Flow id<input value={stage13FlowId ?? ""} onChange={(event) => setStage13FlowId(event.target.value ? Number(event.target.value) : null)} /></label>
+            </div>
+            <label>Free-standing contradiction title<input value={stage13Title} onChange={(event) => setStage13Title(event.target.value)} /></label>
+            <div className="row">
+              <button onClick={startStage13Run} disabled={!openWorld || (!stage13SourceRecordId && !stage13Title.trim())}>Start or Resume Stage 13</button>
+              <button onClick={() => void refreshStage13Run()} disabled={!openWorld || stage13FlowId == null}>Refresh Stage 13</button>
+              <button onClick={closeStage13Run} disabled={!openWorld || stage13FlowId == null}>Attempt Stage 13 Close</button>
+            </div>
+
+            <section className="subpanel">
+              <h3>Triage</h3>
+              <div className="grid">
+                <label>Triage section<select value={stage13TriageStep} onChange={(event) => setStage13TriageStep(event.target.value)}>
+                  {stage13TriageSteps.map((step) => <option key={step.stepKey} value={step.stepKey}>{step.label}</option>)}
+                </select></label>
+                <label>Work scale<select value={stage13WorkScale} onChange={(event) => setStage13WorkScale(event.target.value)}><option></option>{workScales.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+                <label>Contradiction disposition<select value={stage13Disposition} onChange={(event) => setStage13Disposition(event.target.value)}><option></option>{contradictionDispositions.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+              </div>
+              <label>{stage13TriageSteps.find((step) => step.stepKey === stage13TriageStep)?.label ?? "Contradiction statement"}<textarea rows={3} value={stage13TriageBody} onChange={(event) => setStage13TriageBody(event.target.value)} /></label>
+              <label>Disposition note<textarea rows={2} value={stage13DispositionNote} onChange={(event) => setStage13DispositionNote(event.target.value)} /></label>
+              <div className="row">
+                <button onClick={saveStage13Triage} disabled={stage13FlowId == null || !stage13TriageBody.trim()}>Save Triage Section</button>
+                <button onClick={saveStage13Scale} disabled={stage13FlowId == null || !stage13WorkScale}>Save Work Scale</button>
+                <button onClick={saveStage13Disposition} disabled={stage13FlowId == null || !stage13Disposition}>Save Disposition</button>
+              </div>
+              <div className="records compact">
+                {(stage13Run?.triage ?? []).map((entry) => (
+                  <article key={entry.step_key}>
+                    <h3>{stage13TriageSteps.find((step) => step.stepKey === entry.step_key)?.label ?? entry.step_key}</h3>
+                    <p>{entry.body}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="subpanel">
+              <h3>Repair operations</h3>
+              <div className="grid">
+                <label>Repair operation<select value={stage13RepairOperationDraft} onChange={(event) => setStage13RepairOperationDraft(event.target.value)}>{repairOperationTerms.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+                <label>Repair advisory id<input value={stage13RepairAdvisoryRecordId} onChange={(event) => setStage13RepairAdvisoryRecordId(event.target.value)} /></label>
+                <button onClick={addStage13RepairOperation} disabled={!stage13RepairOperationDraft}>Add Operation</button>
+              </div>
+              <label>Repair operation order<textarea rows={3} value={stage13RepairOperationOrder} onChange={(event) => setStage13RepairOperationOrder(event.target.value)} /></label>
+              <label>Repair text<textarea rows={3} value={stage13RepairText} onChange={(event) => setStage13RepairText(event.target.value)} /></label>
+              <button onClick={saveStage13Repair} disabled={stage13FlowId == null || !stage13RepairOperationOrder.trim() || !stage13RepairText.trim()}>Save Repair Operations</button>
+              <div className="grid">
+                <label>Repair target record id<input value={stage13RepairTargetRecordId} onChange={(event) => setStage13RepairTargetRecordId(event.target.value)} /></label>
+                <label>Next canon status<select value={stage13RepairTargetStatus} onChange={(event) => setStage13RepairTargetStatus(event.target.value)}><option></option>{canonStatuses.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+                <label>Target note<input value={stage13RepairTargetNote} onChange={(event) => setStage13RepairTargetNote(event.target.value)} /></label>
+              </div>
+              <div className="grid">
+                <label>Replacement title<input value={stage13RepairTargetTitle} onChange={(event) => setStage13RepairTargetTitle(event.target.value)} /></label>
+                <label>Replacement body<textarea rows={2} value={stage13RepairTargetBody} onChange={(event) => setStage13RepairTargetBody(event.target.value)} /></label>
+                <button onClick={addStage13RepairTarget} disabled={stage13FlowId == null || !stage13RepairTargetRecordId || !stage13RepairTargetStatus}>Add Repair Target</button>
+              </div>
+              <p>Saved repair operations: {stage13Run?.repairOperations.map((operation) => `${operation.position}. ${operation.operation}`).join(", ") || "none"}</p>
+              <p>Saved repair targets: {stage13Run?.repairTargets.map((target) => `${target.record_id} -> ${target.next_canon_status}`).join(", ") || "none"}</p>
+            </section>
+
+            <section className="subpanel">
+              <h3>Admission proposals</h3>
+              <div className="grid">
+                <label>Proposed title<input value={stage13ProposalTitle} onChange={(event) => setStage13ProposalTitle(event.target.value)} /></label>
+                <label>Truth layer<select value={stage13ProposalTruthLayer} onChange={(event) => setStage13ProposalTruthLayer(event.target.value)}>{truthLayers.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+              </div>
+              <label>Proposed body<textarea rows={3} value={stage13ProposalBody} onChange={(event) => setStage13ProposalBody(event.target.value)} /></label>
+              <button onClick={proposeStage13Fact} disabled={stage13FlowId == null || !stage13ProposalTitle.trim() || !stage13ProposalBody.trim() || !stage13ProposalTruthLayer}>Propose Repair-Created Fact to Admission</button>
+              <p>Admission proposals: {stage13Run?.proposals.map((proposal) => `record ${proposal.proposal_record_id}`).join(", ") || "none"}</p>
+            </section>
+
+            <section className="subpanel">
+              <h3>Retcon costs</h3>
+              <label>Retcon type<select value={stage13RetconType} onChange={(event) => setStage13RetconType(event.target.value)}><option></option>{retconTypes.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+              <div className="grid compact-grid">
+                {stage13RetconCostKeys.map((cost) => (
+                  <label key={cost}>{cost}<textarea rows={2} value={stage13RetconCostTexts[cost] ?? ""} onChange={(event) => setStage13RetconCostTexts({ ...stage13RetconCostTexts, [cost]: event.target.value })} /></label>
+                ))}
+              </div>
+              <button onClick={saveStage13RetconCosts} disabled={stage13FlowId == null || !stage13RetconType || !stage13RetconCostKeys.some((cost) => stage13RetconCostTexts[cost]?.trim())}>Save Retcon Costs</button>
+              <p>Saved retcon costs: {stage13Run?.retconCosts.map((cost) => `${cost.retcon_type} / ${cost.cost_key}`).join(", ") || "none"}</p>
+            </section>
+
+            <section className="subpanel">
+              <h3>Repair propagation</h3>
+              <div className="grid">
+                <label>Propagation action<select value={stage13PropagationAction} onChange={(event) => setStage13PropagationAction(event.target.value as "assign" | "decline")}><option value="assign">assign</option><option value="decline">decline</option></select></label>
+                <label>Debt name<input value={stage13PropagationDebtName} onChange={(event) => setStage13PropagationDebtName(event.target.value)} /></label>
+                <label>Decline reason<input value={stage13PropagationReason} onChange={(event) => setStage13PropagationReason(event.target.value)} /></label>
+              </div>
+              <label>Propagation body<textarea rows={3} value={stage13PropagationBody} onChange={(event) => setStage13PropagationBody(event.target.value)} /></label>
+              <button onClick={saveStage13RepairPropagation} disabled={stage13FlowId == null || (stage13PropagationAction === "assign" && !stage13PropagationDebtName.trim())}>Save Repair Propagation</button>
+              <p>Repair propagation state: {stage13Run?.repairPropagation ? `${stage13Run.repairPropagation.action} · debt ${stage13Run.repairPropagation.debtRecordId ?? "none"} · skip ${stage13Run.repairPropagation.skipRecordId ?? "none"}` : "none"}</p>
+              <div className="grid">
+                <label>Skip step<input value={stage13SkipStep} onChange={(event) => setStage13SkipStep(event.target.value)} /></label>
+                <label>Skip reason<input value={stage13SkipReason} onChange={(event) => setStage13SkipReason(event.target.value)} /></label>
+              </div>
+              <button onClick={recordStage13Skip} disabled={!openWorld || !stage13SkipStep.trim()}>Record Stage 13 Skip</button>
+            </section>
+
+            <section className="subpanel">
+              <h3>Owed-boundaries queue</h3>
+              <div className="records compact">
+                {stage13OwedBoundaries.map((row) => (
+                  <article key={row.propagationDispositionId}>
+                    <button onClick={() => selectOwedBoundary(row)}>Select</button>
+                    <h3>Boundary #{row.propagationDispositionId} · protected record {row.protectedRecordId}</h3>
+                    <p className="meta">{row.preservationBoundary} · propagation report {row.propagationReportRecordId ?? "none"}</p>
+                    <p>{row.consequenceBody || row.note}</p>
+                  </article>
+                ))}
+              </div>
+              <div className="grid">
+                <label>Propagation disposition id<input value={stage13PropagationDispositionId} onChange={(event) => setStage13PropagationDispositionId(event.target.value)} /></label>
+                <label>Ledger record id<input value={stage13LedgerRecordId} onChange={(event) => setStage13LedgerRecordId(event.target.value)} /></label>
+                <label>Protected record id<input value={stage13ProtectedRecordId} onChange={(event) => setStage13ProtectedRecordId(event.target.value)} /></label>
+                <label>Propagation report id<input value={stage13PropagationReportRecordId} onChange={(event) => setStage13PropagationReportRecordId(event.target.value)} /></label>
+                <label>Protected effect type<select value={stage13ProtectedEffectType} onChange={(event) => setStage13ProtectedEffectType(event.target.value)}><option></option>{protectedEffectTypes.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+                <label>Mystery state<select value={stage13MysteryState} onChange={(event) => setStage13MysteryState(event.target.value)}><option></option>{mysteryStates.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+                <label>Preservation boundary<select value={stage13PreservationBoundary} onChange={(event) => setStage13PreservationBoundary(event.target.value)}><option></option>{preservationBoundaries.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+              </div>
+              <label>Mystery ledger title<input value={stage13LedgerTitle} onChange={(event) => setStage13LedgerTitle(event.target.value)} /></label>
+              <div className="grid compact-grid">
+                {stage13MysterySectionHeadings.map((heading) => (
+                  <label key={heading}>{heading}<textarea rows={2} value={stage13MysterySections[heading] ?? ""} onChange={(event) => setStage13MysterySections({ ...stage13MysterySections, [heading]: event.target.value })} /></label>
+                ))}
+              </div>
+              <button onClick={saveStage13MysteryLedger} disabled={!openWorld || !stage13LedgerTitle.trim() || !stage13ProtectedRecordId || !stage13ProtectedEffectType || !stage13MysteryState || !stage13PreservationBoundary}>Create or Update Mystery Ledger</button>
+            </section>
+
+            <section className="subpanel">
+              <h3>Preservation checklist</h3>
+              <div className="grid">
+                <label>Operation<select value={stage13ChecklistOperation} onChange={(event) => setStage13ChecklistOperation(event.target.value)}><option></option>{preservationOperations.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+                <label>Checklist effect type<select value={stage13ChecklistEffectType} onChange={(event) => setStage13ChecklistEffectType(event.target.value)}><option></option>{protectedEffectTypes.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+              </div>
+              <label>Checklist body<textarea rows={3} value={stage13ChecklistBody} onChange={(event) => setStage13ChecklistBody(event.target.value)} /></label>
+              <label>Sacred-opacity accountability<textarea rows={3} value={stage13ChecklistSacredGuard} onChange={(event) => setStage13ChecklistSacredGuard(event.target.value)} /></label>
+              <button onClick={completeStage13Checklist} disabled={!openWorld || !stage13ChecklistOperation || !stage13ChecklistEffectType || !stage13ChecklistBody.trim()}>Complete Preservation Checklist</button>
+              <p>Checklists: {stage13Run?.checklists.map((checklist) => `${checklist.operation} · ${checklist.effect_type}`).join(", ") || "none"}</p>
+            </section>
+
+            <section className="subpanel">
+              <h3>Run payload</h3>
+              <p>Implicated records: {stage13Run?.implicatedRecords.map((record) => `${record.shortId} ${record.title}`).join(", ") || "none"}</p>
+              <p>Work scale: {stage13Run?.workScale ?? "unset"} · disposition: {stage13Run?.disposition?.disposition ?? "unset"}</p>
+              <p>Repair operations: {stage13Run?.repairOperations.map((operation) => operation.operation).join(", ") || "none"}</p>
+              <p>Retcon costs: {stage13Run?.retconCosts.map((cost) => cost.cost_key).join(", ") || "none"}</p>
+              <p>Repair propagation: {stage13Run?.repairPropagation?.action ?? "none"}</p>
+              <p>Proposals: {stage13Run?.proposals.map((proposal) => proposal.proposal_record_id).join(", ") || "none"}</p>
+              <p>Checklists: {stage13Run?.checklists.length ?? 0}</p>
+            </section>
           </div>
 
           <div className="panel">

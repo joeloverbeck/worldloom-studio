@@ -122,6 +122,8 @@ If the spec is missing, skip the Spec sub-agent and note this in the final repor
 
 Present the two reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings — the two axes are deliberately separate (see _Why two axes_). Do not omit these two-axis headings just because findings were fixed immediately; if time is short, use compact content under `## Standards` and `## Spec`.
 
+If local fallback was used during implementation closeout, emit the mandatory local fallback block from step 4 before the implementation pre-close audit. The pre-close audit may duplicate review evidence, but it does not substitute for `## Standards`, `## Spec`, and the PRD child-family coverage table required by this skill.
+
 If the review resumes, compacts, or is interrupted before final reporting, revalidate the review frame before presenting results: rerun fixed-point resolution, `git status --short`, the non-empty diff check, and the commit list, then confirm the standards-source and spec-source lists are still present in context. If any source list is missing or stale, reconstruct it before reporting.
 
 End with a one-line summary: total findings per axis, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes — that's the reranking the separation exists to prevent.

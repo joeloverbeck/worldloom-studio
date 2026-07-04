@@ -18,6 +18,10 @@ Every spec, and every issue groomed to implementable (`ready-for-agent` / `ready
 
 When output contradicts a principle or an ADR, surface it explicitly (the same convention as `docs/agents/domain.md`'s ADR-conflict rule): *"Contradicts canon-sovereignty.md P-2 — but worth reopening because…"*
 
+## Methodology coverage
+
+The living coverage ledger is [`../methodology-coverage.md`](../methodology-coverage.md). It records which `docs/worldbuilding-system/` chapters have guided flows, sweep-only coverage, schema-only T-8 coverage, or explicit UI non-goals, and it is updated when a flow ships or a deferral changes.
+
 ## Principle identifiers
 
 The report's identifiers are formal as of this ratification. Principles are cited as `<document> <ID>` (e.g., "canon-sovereignty.md P-2"). New principles take the next free number in whichever series fits (P = product, W = workflow, T = technical); retired numbers are never reused.
