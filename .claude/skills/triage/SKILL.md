@@ -52,6 +52,7 @@ The maintainer invokes `/triage` and describes what they want in natural languag
 - "Let's look at #42" (issue or PR)
 - "Move #42 to ready-for-agent"
 - "What's ready for agents to pick up?"
+- "What should we address next?"
 
 ## Show what needs attention
 
@@ -63,7 +64,20 @@ Query the issue tracker and present three buckets, oldest first:
 
 When PRs are in scope, include external PRs in these buckets and tag each line `[PR]` or `[issue]`. Discovery surfaces only *external* PRs (the tracker config defines who counts as external) — a collaborator's in-flight PR is not triage work. This filter is discovery-only; an explicitly named PR is always triaged regardless of author.
 
+If the issue tracker command cannot expose the external-PR metadata the tracker config names, do not silently drop PRs. Query open PRs with the supported fields, report that external filtering is partially verified, and either inspect the returned PRs individually or mark PR discovery as limited in the summary.
+
+Also run label hygiene over open items you are already reporting: flag missing category roles, missing state roles, or multiple category/state roles. Recommend exact label fixes and ask before applying them.
+
 Show counts and a one-line summary per item. Let the maintainer pick.
+
+## Recommend what to address next
+
+When the maintainer asks what should be addressed next, query all open issues and in-scope external PRs. Group them by state: `ready-for-agent`, `ready-for-human`, `needs-triage`, `needs-info`, then unlabeled. Within each group, account for explicit dependencies, blocker comments, and recent maintainer decisions. Recommend the next action with a short rationale, not just the oldest item:
+
+- Prefer unblocked `ready-for-agent` implementation work when no human decision is blocking it.
+- Prefer `ready-for-human` decisions when they unblock multiple implementation issues or settle doctrine.
+- Keep `needs-triage` as grooming work unless the issue is already specific enough to move after a quick recommendation.
+- Surface label hygiene and dependency cleanup separately from the recommended work item.
 
 ## Triage a specific issue or PR
 
@@ -79,6 +93,7 @@ Show counts and a one-line summary per item. Let the maintainer pick.
    - `ready-for-agent` — post an agent brief comment ([AGENT-BRIEF.md](AGENT-BRIEF.md)).
    - `ready-for-human` — same structure as an agent brief, but note why it can't be delegated (judgment calls, external access, design decisions, manual testing).
    - `needs-info` — post triage notes (template below).
+   - **Decision issue resolved** — if the issue exists only to capture a maintainer/steward decision and that decision has now been ratified, post a decision-record comment with the required AI disclaimer, summarize the chosen option and follow-up work, then close the issue as resolved. Do not treat this as `wontfix` unless the decision rejects the request; do not write `.out-of-scope/` for an accepted decision.
    - `wontfix` — close, with the comment depending on *why*:
      - **Already implemented** — the change already exists in the codebase. Point to where it lives; do **not** write to `.out-of-scope/` (that KB is for *rejected* requests, not built ones).
      - **Rejected (bug)** — polite explanation, then close.

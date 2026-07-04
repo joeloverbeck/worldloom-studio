@@ -18,14 +18,15 @@ Before editing code, identify the authoritative work items.
 - For GitHub PRD child discovery, search all issue states for explicit parent references, for example `gh issue list --state all --search "#<parent>" --json number,title,state,labels,url`, then exact-view each candidate body/comments to confirm whether it is a child, blocker, linked implementation ticket, or merely mentions the parent. Do not infer parent closeout readiness from search output alone.
 - If any fetched PRD or issue has a `## Principles` section, read `docs/principles/README.md` for the authority order and conformance rule, then read named principle and ADR docs as needed before coding.
 - Build a progress ledger with one row per issue: issue number, title, dependencies/blockers, acceptance criteria, principles/ADR obligations or exceptions, planned evidence, test seams, and closeout state.
-- When the user names a child issue or child issue range and asks to close a parent PRD, list all related children, including any children beyond the requested child issue or range; mark those children as already closed, blocking, or intentionally excluded before closing the parent.
+- When the requested scope is a child issue, child issue range, or single implementation issue and related tracker items are discovered, classify every related item outside the requested scope before editing. For parent PRD closeout, list all related children, including any children beyond the requested scope; mark those children as already closed, enabling prerequisites, blocking, contextual/non-blocking backlog, intentionally excluded, or not actually related.
+- If a related item outside the requested scope blocks an in-scope issue, promote it to an explicit enabling-prerequisite row in the ledger before editing. Implement and close that prerequisite only when its own acceptance criteria and conformance checks are satisfied and the user did not explicitly exclude it; otherwise leave the dependent issue or parent open and explain the blocker.
 - Do not silently collapse multiple issues into a smaller "skeleton" or "first slice" when the user asked for the issues.
 
 Use this compact ledger shape unless the issue set needs more detail:
 
-If related tracker items exist outside the requested child issue or range, include this line immediately before the table:
+If related tracker items exist outside the requested scope, include this line immediately before the table:
 
-`Related tracker items outside requested child issue or range: #N closed / #N blocking / #N intentionally excluded / #N not actually a child because ...`
+`Related tracker items outside requested scope: #N closed / #N enabling prerequisite / #N blocking / #N contextual non-blocking backlog / #N intentionally excluded / #N not actually related because ...`
 
 | Issue | Blockers | Acceptance | Principles | Evidence | Test seam | Status | Closeout comment |
 |---|---|---|---|---|---|---|---|
@@ -47,6 +48,7 @@ For each issue:
 - Mark blockers explicitly in the ledger instead of skipping the issue.
 - If implementation would contradict a named principle or ADR, stop and surface the exception before continuing.
 - When the issue body, PRD text, acceptance criteria, or implementation includes UI/browser-visible behavior, run a real browser smoke or record why it is blocked; include the route, action path, and observed outcome in the closeout evidence.
+- If the work is docs-only or process-only and mentions UI/browser behavior only as inventory, coverage, or citation without changing UI, routes, browser-consumed API shapes, fixtures, or action paths, record `browser smoke N/A` with that reason instead of running a smoke.
 - For browser-consumed API-only changes with no rendered UI change, a real browser page executing the route sequence via `fetch` qualifies as the browser smoke when the evidence records the route, action path, observed HTTP status or JSON, and server/browser cleanup.
 - If any later edit touches the UI, route handlers, browser-consumed API shapes, fixture/data setup, or action path covered by a browser/manual smoke, treat the earlier smoke as preliminary and rerun it on the final tree before closeout, or record why rerun is blocked.
 
@@ -103,8 +105,8 @@ Closeout command gate: do not run `gh issue close`, `glab issue close`, or equiv
 - Review evidence from section 3 is present, either as `code-review` output or an explicit fallback record.
 - The final commit SHA is known and matches the tree that passed required verification.
 - For remote tracker closeout that cites a commit, the final SHA is reachable from the intended remote branch, or closeout evidence explicitly states that the SHA is local-only and why that is acceptable. Local-only closeout is acceptable only when the user requested implementation/tracker closeout without push/PR and no repo policy requires remote-linked commits; in that case, the closeout comments and final response must explicitly say the SHA is not remote-reachable. If the user requested push/PR/publish or repo policy requires remote-linked commits, push before closeout.
-- If the issue body, PRD text, acceptance criteria, or implementation includes UI/browser-visible behavior, closeout evidence includes a real browser smoke with route, action path, and observed outcome, or an explicit blocked note explaining why that smoke could not run. For browser-consumed API-only changes, browser-executed `fetch` evidence with observed status/JSON is acceptable.
-- For parent PRD closure, exact related child issue states have been verified by issue number, including any children beyond the requested child issue or range noted in the ledger.
+- If the issue body, PRD text, acceptance criteria, or implementation includes UI/browser-visible behavior, closeout evidence includes a real browser smoke with route, action path, and observed outcome, an explicit blocked note explaining why that smoke could not run, or `browser smoke N/A` for docs/process-only work that only inventories or cites UI/browser behavior without changing browser-consumed surfaces. For browser-consumed API-only changes, browser-executed `fetch` evidence with observed status/JSON is acceptable.
+- For parent PRD closure, exact related child issue states have been verified by issue number, including any children beyond the requested scope noted in the ledger.
 
 Use this compact pre-close audit shape unless the issue set needs more detail:
 
