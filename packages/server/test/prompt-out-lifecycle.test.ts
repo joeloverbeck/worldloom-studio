@@ -162,10 +162,10 @@ describe("Prompt-out step lifecycle", () => {
   });
 
   it("keeps compatibility routes as thin adapters instead of route-level flow switches", () => {
-    const source = readFileSync(new URL("../src/app.ts", import.meta.url), "utf8");
+    const source = readFileSync(new URL("../src/http/prompt-out-routes.ts", import.meta.url), "utf8");
     const routeStart = source.indexOf('app.post("/api/prompt-out/skip"');
-    const routeEnd = source.indexOf('app.post("/api/flows/creation/start"', routeStart);
-    const skipRoute = source.slice(routeStart, routeEnd);
+    expect(routeStart).toBeGreaterThanOrEqual(0);
+    const skipRoute = source.slice(routeStart);
 
     expect(skipRoute).toContain("runPromptOutSkipAction");
     expect(skipRoute).not.toContain('input.flowKey === "creation"');
