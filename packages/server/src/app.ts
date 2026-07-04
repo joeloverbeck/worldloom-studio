@@ -10,6 +10,14 @@ import * as ContradictionFlow from "./contradiction-flow.js";
 import * as CreationFlow from "./creation-flow.js";
 import * as InstitutionalFlow from "./institutional-flow.js";
 import * as PromptOut from "./prompt-out.js";
+import {
+  buildPromptOutStep,
+  promptOutActionContextFromQuery,
+  runPromptOutDispositionAction,
+  runPromptOutGenerateAction,
+  runPromptOutSkipAction,
+  runPromptOutStoreAdvisoryAction
+} from "./prompt-out-step-actions.js";
 import * as PropagationFlow from "./propagation-flow.js";
 import * as QaFlow from "./qa-flow.js";
 
@@ -276,6 +284,73 @@ export const createApp = (options: AppOptions = {}) => {
     }
   });
 
+  app.post("/api/prompt-out/steps", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json({ step: buildPromptOutStep(activeWorldSession.current, await body<{
+        flowKey?: string;
+        flowId?: number;
+        templateKey: string;
+        recordId?: number;
+        stepKey: string;
+        label?: string;
+        admissionLevel?: string;
+        workScale?: string;
+      }>(c)) });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/prompt-out/steps/actions/generate", (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(runPromptOutGenerateAction(activeWorldSession.current, promptOutActionContextFromQuery((key) => c.req.query(key))));
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/prompt-out/steps/actions/store-advisory", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(runPromptOutStoreAdvisoryAction(
+        activeWorldSession.current,
+        promptOutActionContextFromQuery((key) => c.req.query(key)),
+        await body<{ promptText: string; responseText: string }>(c)
+      ), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/prompt-out/steps/actions/disposition", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(runPromptOutDispositionAction(activeWorldSession.current, await body<{
+        advisoryRecordId: number;
+        disposition: string;
+        note?: string;
+        standingRuling?: boolean;
+      }>(c)), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  app.post("/api/prompt-out/steps/actions/skip", async (c) => {
+    if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
+    try {
+      return c.json(runPromptOutSkipAction(
+        activeWorldSession.current,
+        promptOutActionContextFromQuery((key) => c.req.query(key)),
+        await body<{ reason?: string; unresolved?: boolean; debtName?: string; existingDebtRecordId?: number }>(c)
+      ), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
   app.post("/api/prompt-out/generate", async (c) => {
     if (!activeWorldSession.current) return c.json({ error: "No world is open" }, 409);
     try {
@@ -326,26 +401,11 @@ export const createApp = (options: AppOptions = {}) => {
         admissionLevel?: string;
         workScale?: string;
         reason?: string;
+        unresolved?: boolean;
+        debtName?: string;
+        existingDebtRecordId?: number;
       }>(c);
-      if (input.flowKey === "creation") {
-        return c.json({ record: CreationFlow.recordCreationSkip(activeWorldSession.current, input) }, 201);
-      }
-      if (input.flowKey === "admission") {
-        return c.json({ record: AdmissionFlow.declineAdmissionInstrument(activeWorldSession.current, input) }, 201);
-      }
-      if (input.flowKey === "propagation") {
-        return c.json({ record: PropagationFlow.skipPropagationStep(activeWorldSession.current, input) }, 201);
-      }
-      if (input.flowKey === "contradiction") {
-        return c.json({ record: ContradictionFlow.skipContradictionStep(activeWorldSession.current, input) }, 201);
-      }
-      if (input.flowKey === "qa") {
-        return c.json({ record: QaFlow.skipQaStep(activeWorldSession.current, input) }, 201);
-      }
-      if (input.flowKey === InstitutionalFlow.FLOW_KEY) {
-        return c.json(InstitutionalFlow.skipStage12Step(activeWorldSession.current, { ...input, flowId: input.flowId ?? 0 }), 201);
-      }
-      return c.json({ record: PromptOut.recordPromptOutSkip(activeWorldSession.current, input) }, 201);
+      return c.json(runPromptOutSkipAction(activeWorldSession.current, input, input), 201);
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }

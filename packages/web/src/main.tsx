@@ -351,6 +351,43 @@ interface AppProps {
 
 type PromptFlowKey = "creation" | "admission" | "propagation" | "contradiction" | "qa" | "institutional_economic_suppression";
 
+interface PromptOutActionLink {
+  method: "POST";
+  href: string;
+}
+
+interface PromptOutStep {
+  id: string;
+  label: string;
+  templateKey: string;
+  context: {
+    flowKey: string | null;
+    flowId: number | null;
+    stepKey: string;
+  };
+  selectedRecord: {
+    id: number;
+    shortId: string;
+    title: string;
+    recordTypeKey: string;
+  } | null;
+  severity: {
+    admissionLevel: string | null;
+    workScale: string | null;
+  };
+  currentState: {
+    promptText: string | null;
+    advisoryRecordId: number | null;
+    disposition: string | null;
+  };
+  actions: {
+    generate: PromptOutActionLink;
+    storeAdvisory: PromptOutActionLink;
+    disposition: PromptOutActionLink;
+    skip: PromptOutActionLink;
+  };
+}
+
 const storedToken = () => typeof window === "undefined" ? "" : window.localStorage.getItem("worldloom-token") ?? "";
 
 const api = async <T,>(path: string, init?: RequestInit): Promise<T> => {
@@ -448,6 +485,12 @@ const parseNumberList = (value: string): number[] =>
     .filter(Boolean)
     .map((item) => Number(item))
     .filter((item) => Number.isFinite(item));
+
+const optionalNumber = (value: string): number | undefined => {
+  if (!value) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
 
 function App({
   initialRecords = [],
@@ -576,6 +619,7 @@ function App({
   const [promptRecordId, setPromptRecordId] = useState("");
   const [promptTemplateKey, setPromptTemplateKey] = useState("kernel_pressure");
   const [promptFlowKey, setPromptFlowKey] = useState<PromptFlowKey>("creation");
+  const [promptStep, setPromptStep] = useState<PromptOutStep | null>(null);
   const [promptText, setPromptText] = useState("");
   const [templateEdit, setTemplateEdit] = useState("");
   const [responseText, setResponseText] = useState("");
@@ -645,28 +689,6 @@ function App({
   const selectedHeadings = headings.filter((heading) => heading.record_type_key === recordTypeKey);
   const selectedTemplate = templates.find((template) => template.key === promptTemplateKey);
   const selectedAdmissionRecord = records.find((record) => record.id === Number(admissionRecordId));
-  const promptOutFlowId = promptFlowKey === "creation"
-    ? flowId
-    : promptFlowKey === "propagation"
-      ? propagationFlowId
-      : promptFlowKey === "qa"
-        ? qaFlowId
-        : promptFlowKey === "institutional_economic_suppression"
-          ? stage12FlowId
-          : promptFlowKey === "contradiction"
-            ? stage13FlowId
-            : null;
-  const promptOutRecordId = promptRecordId || (promptFlowKey === "admission"
-    ? admissionRecordId
-    : promptFlowKey === "propagation"
-      ? propagationFactId
-      : promptFlowKey === "qa"
-        ? qaSubjectRecordId
-        : promptFlowKey === "institutional_economic_suppression"
-          ? stage12SourceRecordId
-          : promptFlowKey === "contradiction"
-            ? stage13SourceRecordId
-          : "");
   const relatedAuditItems = useMemo(() => selectedCanonRecordId == null
     ? []
     : canonAuditTrail.filter((item) => item.affectedCurrentRecords.some((record) => record.id === selectedCanonRecordId)),
@@ -728,6 +750,27 @@ function App({
   useEffect(() => {
     setTemplateEdit(selectedTemplate?.current_text ?? "");
   }, [selectedTemplate]);
+
+  useEffect(() => {
+    setPromptStep(null);
+  }, [
+    admissionLevel,
+    admissionRecordId,
+    flowId,
+    promptFlowKey,
+    promptRecordId,
+    promptTemplateKey,
+    propagationFactId,
+    propagationFlowId,
+    qaFlowId,
+    qaSubjectRecordId,
+    stage12FlowId,
+    stage12SourceRecordId,
+    stage13FlowId,
+    stage13SourceRecordId,
+    stage13WorkScale,
+    workScale
+  ]);
 
   const rememberToken = (next: string) => {
     setToken(next);
@@ -949,17 +992,53 @@ function App({
     setCanonDetail(await api<CanonWorkbenchDetail>(`/api/canon-workbench/records/${selectedRecord.id}`));
   };
 
-  const generatePrompt = async () => {
-    const payload = await api<{ prompt: string }>("/api/prompt-out/generate", {
+  const promptStepFlowId = () => {
+    if (promptFlowKey === "creation") return flowId ?? undefined;
+    if (promptFlowKey === "propagation") return propagationFlowId ?? undefined;
+    if (promptFlowKey === "qa") return qaFlowId ?? undefined;
+    if (promptFlowKey === "institutional_economic_suppression") return stage12FlowId ?? undefined;
+    if (promptFlowKey === "contradiction") return stage13FlowId ?? undefined;
+    return undefined;
+  };
+
+  const promptStepRecordId = () =>
+    optionalNumber(promptRecordId)
+    ?? (promptFlowKey === "admission"
+      ? optionalNumber(admissionRecordId)
+      : promptFlowKey === "propagation"
+        ? optionalNumber(propagationFactId)
+        : promptFlowKey === "qa"
+          ? optionalNumber(qaSubjectRecordId)
+          : promptFlowKey === "institutional_economic_suppression"
+            ? optionalNumber(stage12SourceRecordId)
+            : promptFlowKey === "contradiction"
+              ? optionalNumber(stage13SourceRecordId)
+              : undefined);
+
+  const loadPromptStep = async () => {
+    const payload = await api<{ step: PromptOutStep }>("/api/prompt-out/steps", {
       method: "POST",
       body: JSON.stringify({
         flowKey: promptFlowKey,
-        flowId: promptOutFlowId ?? undefined,
+        flowId: promptStepFlowId(),
         templateKey: promptTemplateKey,
-        recordId: promptOutRecordId ? Number(promptOutRecordId) : undefined,
-        stepKey: promptTemplateKey
+        recordId: promptStepRecordId(),
+        stepKey: promptTemplateKey,
+        label: selectedTemplate?.role_name ?? promptTemplateKey,
+        admissionLevel: admissionLevel || undefined,
+        workScale: promptFlowKey === "contradiction" ? (stage13WorkScale || undefined) : (workScale || undefined)
       })
     });
+    setPromptStep(payload.step);
+    setMessage(`Loaded Prompt-out step ${payload.step.label}`);
+    return payload.step;
+  };
+
+  const ensurePromptStep = async () => promptStep ?? loadPromptStep();
+
+  const generatePrompt = async () => {
+    const promptStep = await ensurePromptStep();
+    const payload = await api<{ prompt: string }>(promptStep.actions.generate.href, { method: promptStep.actions.generate.method });
     setPromptText(payload.prompt);
   };
 
@@ -977,27 +1056,14 @@ function App({
   };
 
   const storeAdvisory = async () => {
-    const stage12 = promptFlowKey === "institutional_economic_suppression" && promptOutFlowId != null;
-    const artifact = await api<{ record: RecordRow }>(stage12 ? "/api/institutional/advisory-artifacts" : "/api/prompt-out/advisory-artifacts", {
-      method: "POST",
-      body: JSON.stringify(stage12
-        ? {
-            flowId: promptOutFlowId,
-            stepKey: promptTemplateKey,
-            promptText,
-            responseText
-          }
-        : {
-            flowKey: promptFlowKey,
-            flowId: promptOutFlowId ?? undefined,
-            stepKey: promptTemplateKey,
-            promptText,
-            responseText
-          })
+    const promptStep = await ensurePromptStep();
+    const artifact = await api<{ record: RecordRow }>(promptStep.actions.storeAdvisory.href, {
+      method: promptStep.actions.storeAdvisory.method,
+      body: JSON.stringify({ promptText, responseText })
     });
-    await api(`/api/prompt-out/advisory-artifacts/${artifact.record.id}/dispositions`, {
-      method: "POST",
-      body: JSON.stringify({ disposition, note: responseText, standingRuling: disposition === "standing ruling" })
+    await api(promptStep.actions.disposition.href, {
+      method: promptStep.actions.disposition.method,
+      body: JSON.stringify({ advisoryRecordId: artifact.record.id, disposition, note: responseText, standingRuling: disposition === "standing ruling" })
     });
     await loadWorldData();
     setMessage(`Stored ${artifact.record.shortId}`);
@@ -1020,16 +1086,14 @@ function App({
   };
 
   const skipPrompt = async () => {
-    await api("/api/prompt-out/skip", {
-      method: "POST",
+    const promptStep = await ensurePromptStep();
+    const stage12 = promptStep.context.flowKey === "institutional_economic_suppression";
+    await api(promptStep.actions.skip.href, {
+      method: promptStep.actions.skip.method,
       body: JSON.stringify({
-        flowKey: promptFlowKey,
-        flowId: promptOutFlowId ?? undefined,
-        recordId: promptFlowKey === "admission" && admissionRecordId ? Number(admissionRecordId) : undefined,
-        stepKey: promptTemplateKey,
-        admissionLevel: admissionLevel || undefined,
-        workScale: promptFlowKey === "contradiction" ? (stage13WorkScale || undefined) : (workScale || undefined),
-        reason: gateNotApplicable || undefined
+        reason: gateNotApplicable || undefined,
+        unresolved: stage12 ? stage12SkipUnresolved : undefined,
+        debtName: stage12 && stage12SkipUnresolved ? (canonDebtName || "Stage-12 skipped-work debt") : undefined
       })
     });
     await loadWorldData();
@@ -1970,6 +2034,12 @@ function App({
                 <button onClick={revertPromptTemplate} disabled={!openWorld}>Revert Template</button>
               </div>
               <label>Record id<input value={promptRecordId} onChange={(event) => setPromptRecordId(event.target.value)} /></label>
+              <button onClick={loadPromptStep} disabled={!openWorld}>Load Prompt Step</button>
+              <div className="doctrine">
+                <strong>Server-owned step</strong>
+                <span>{promptStep ? `${promptStep.label} · ${promptStep.context.stepKey}` : "Load a server-returned Prompt-out step before actions."}</span>
+                <span>{promptStep?.selectedRecord ? `${promptStep.selectedRecord.shortId} · ${promptStep.selectedRecord.title}` : "No selected record context loaded."}</span>
+              </div>
               <button onClick={generatePrompt} disabled={!openWorld}>Generate Prompt</button>
               <textarea rows={7} value={promptText} onChange={(event) => setPromptText(event.target.value)} />
               <label>Pasted response<textarea rows={5} value={responseText} onChange={(event) => setResponseText(event.target.value)} /></label>

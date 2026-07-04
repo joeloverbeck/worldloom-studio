@@ -36,8 +36,8 @@ describe("Institutional, Economic, and Suppression web surface", () => {
 
     expect(html).toContain("<option value=\"institutional_economic_suppression\">Institutional / economic / suppression</option>");
     expect(source).toContain("institution_economy_analyst");
-    expect(source).toContain("/api/prompt-out/generate");
-    expect(source).toContain("/api/institutional/advisory-artifacts");
-    expect(source).toContain("flowKey: promptFlowKey");
+    expect(source).toContain("/api/prompt-out/steps");
+    expect(source).toContain("promptStep.actions.storeAdvisory.href");
+    expect(source).not.toContain("/api/institutional/advisory-artifacts");
   });
 });
