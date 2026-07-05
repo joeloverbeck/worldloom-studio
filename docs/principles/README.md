@@ -34,7 +34,7 @@ The report's identifiers are formal as of this ratification. Principles are cite
 | P-4 | Continuity-and-causality is the differentiator; the wiki is the anti-model | `charter.md` |
 | P-5 | Regimented flows, with an ungated margin | `workflow-principles.md` |
 | P-6 | Local-first; the data outlives the app | `data-principles.md` |
-| W-1 | Prompt-out at every dependency-bearing step; paste-in is advisory | `canon-sovereignty.md` (boundary), `workflow-principles.md` (step mapping) |
+| W-1 | Prompt-out at every decision point, in proposal and pressure modes; paste-in is advisory | `canon-sovereignty.md` (boundary), `workflow-principles.md` (step mapping) |
 | W-2 | Severity scaling is the app's core conditional dimension | `workflow-principles.md` |
 | W-3 | Sweeps propose; only admission admits | `workflow-principles.md` (invariant), `data-principles.md` (status machine) |
 | W-4 | Skips are first-class records | `workflow-principles.md` |
@@ -42,6 +42,8 @@ The report's identifiers are formal as of this ratification. Principles are cite
 | W-6 | The record lifecycle is the data model | `data-principles.md` |
 | W-7 | Gates demand substance, not clicks | `workflow-principles.md` |
 | W-8 | Guided flows are decision-point surfaces | `guided-workflow-usability.md` |
+| W-9 | Replacement-grade guidance: the app is the method surface | `charter.md` (commitment), `guided-workflow-usability.md` (standard) |
+| W-10 | The workflow map is the home surface | `guided-workflow-usability.md` |
 | T-1 | SQLite, one file per world, is the canonical store | `docs/adr/0001` (decision), `data-principles.md` (invariants) |
 | T-2 | The label separations are schema facets, never flattened | `domain-fidelity.md` |
 | T-3 | Identifiers are the app's job; content is never a key | `data-principles.md` |

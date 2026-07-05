@@ -20,7 +20,7 @@ Use the smallest section that preserves the contract. A narrow bug fix may cite 
 
 ## Step Map
 
-| Step | Package source | Decision point | Dependency-bearing | Severity path | Prompt-out role |
+| Step | Package source | Decision point | Dependency-bearing | Severity path | Prompt-out modes and pressure role |
 |---|---|---|---|---|---|
 |  |  |  |  |  |  |
 
@@ -42,11 +42,14 @@ For each meaningful step, specify:
 
 ## Prompt-Out Requirements
 
-- Prompt roles and package source:
-- Context packet sections:
+- Per-decision-point mode coverage: proposal offered/refused/skipped, pressure offered/blocked/skipped, and the pressure role where pressure applies:
+- Essence exception: if the decision is the Creation kernel World premise section, state the server-owned proposal blocker and package source:
+- Proposal-mode framing: candidate material requested, alternatives/assumptions labeling, forbidden separated-label assignments, output labels, advisory/canon warning:
+- Pressure-mode framing: steward-authored material required, analyst role or flow-specific pressure derivation, risks/alternatives/questions request:
+- Context packet sections shared with the decision-point payload:
 - Source manifest:
 - Omission warnings:
-- Cold external LLM test:
+- Cold external LLM test for proposal and pressure:
 - Pasted-response storage:
 - Advisory disposition and explicit-use links:
 

@@ -4,7 +4,7 @@
 
 ## P-1. The methodology is upstream and fixed
 
-The app implements the Causal Canon Worldbuilding System 1.0 (`docs/worldbuilding-system/`) and does not amend it. The package's authority order — the five tiers of its `README.md` "Authority order" section — governs the app's domain model: doctrine (`01`, `03`) over everything, protocols (`05`–`17`) over instruments, and on any protocol/instrument conflict the protocol wins and the instrument is repaired.
+The app implements the Causal Canon Worldbuilding System (`docs/worldbuilding-system/`, version 1.1) and does not amend it. The package's authority order — the five tiers of its `README.md` "Authority order" section — governs the app's domain model: doctrine (`01`, `03`) over everything, protocols (`05`–`17`) over instruments, and on any protocol/instrument conflict the protocol wins and the instrument is repaired.
 
 - When app design uncovers a place where no faithful implementation is possible, the finding is routed as a **proposed package amendment** through the package's own change process (`00_overhaul_notes.md` is its changelog; its evidence discipline is trial-driven) — never designed around silently.
 - Every spec and ticket cites the package file it implements.

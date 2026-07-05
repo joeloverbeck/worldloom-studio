@@ -1,12 +1,12 @@
 # Causal Canon Worldbuilding System
 
-Version `1.0` is a storage- and software-agnostic methodology for creating and maintaining fictional worlds whose canon facts propagate through the world instead of sitting as isolated lore. It does not assume Markdown, a database, a graph engine, a web app, an API, an LLM workflow, or any particular publishing medium. A solo author, writing room, tabletop group, game team, or setting steward can use it with paper, notebooks, cards, documents, wikis, spreadsheets, index cards, wall charts, conversation, or any other medium.
+Version `1.1` is a storage- and software-agnostic methodology for creating and maintaining fictional worlds whose canon facts propagate through the world instead of sitting as isolated lore. It does not assume Markdown, a database, a graph engine, a web app, an API, an LLM workflow, or any particular publishing medium. A solo author, writing room, tabletop group, game team, or setting steward can use it with paper, notebooks, cards, documents, wikis, spreadsheets, index cards, wall charts, conversation, or any other medium.
 
 The records in `templates/` and the sweeps in `checklists/` are human thinking instruments, not implementation instructions. They name the questions that must be answered; they do not prescribe a storage model.
 
-Version `1.0` keeps the numbered-spine architecture at 58 files. All substance delivered by earlier versions — equal-weight non-naturalistic consequence tests, worked cases for myth, absurd comedy, dream logic, and sacred/horror, the adversarial earned-sacred-opacity guard, point-of-use micro-examples, calibrated QA anchors, the record-lifecycle doctrine, the institutional hard edge, the one-page operating card, and the batch admission ledger — is retained.
+Version `1.1` keeps the numbered-spine architecture at 58 files. All substance delivered by earlier versions — equal-weight non-naturalistic consequence tests, worked cases for myth, absurd comedy, dream logic, and sacred/horror, the adversarial earned-sacred-opacity guard, point-of-use micro-examples, calibrated QA anchors, the record-lifecycle doctrine, the institutional hard edge, the one-page operating card, and the batch admission ledger — is retained. Version `1.1`'s single change is the two assistance modes in `20_ai_assisted_workflow.md`: proposal mode joins pressure mode as a first-class, steward-curated use of AI (see `00_overhaul_notes.md`).
 
-## What version 1.0 claims
+## What version 1.1 claims
 
 The version number is a claim about tested surfaces, not about total coverage. Two independent end-to-end field builds of small worlds — each run cold, following this README's new-world path literally — have exercised and validated:
 
@@ -16,7 +16,7 @@ The version number is a claim about tested surfaces, not about total coverage. T
 - batch admission through the ledger, including a row promotion to a full card;
 - the QA machinery — per-test scoring, the n/a convention, the red-team prompts — with a live firing of the mystery-preservation checklist.
 
-Honestly untested remain: the spatial (`10`), agent/psychology (`11`), uncertainty/evidence (`14`), extraction (`16`), and aesthetic (`17`) passes in anger; branching/versioning/collaboration (`15`) and every multi-steward mechanism; the worked examples (`19`) and AI workflow (`20`) under a genuinely naive steward; and the aesthetic-promise disposal in a world whose primary consequence mode is lyrical or sacred. Use those surfaces with the scrutiny owed to an untested instrument, and expect them to generate the next revision's evidence.
+Honestly untested remain: the spatial (`10`), agent/psychology (`11`), uncertainty/evidence (`14`), extraction (`16`), and aesthetic (`17`) passes in anger; branching/versioning/collaboration (`15`) and every multi-steward mechanism; the worked examples (`19`) and AI workflow (`20`) under a genuinely naive steward; the proposal mode of `20`, adopted by steward decision in version `1.1` and not yet run in a field trial; and the aesthetic-promise disposal in a world whose primary consequence mode is lyrical or sacred. Use those surfaces with the scrutiny owed to an untested instrument, and expect them to generate the next revision's evidence.
 
 ## Core idea
 

@@ -36,7 +36,7 @@ A gate item is satisfied by content, not a checkbox: the consequence check requi
 
 ## W-1's step-to-role mapping
 
-Every dependency-bearing step offers its `20` analyst role (the boundary rules live in `canon-sovereignty.md`):
+Every decision point offers prompt-out in `20`'s two modes (the boundary rules live in `canon-sovereignty.md`): a **proposal prompt** everywhere except the world-essence decision, and a **pressure prompt** wherever steward material exists to press on. The analyst roles below are the pressure-mode mapping for dependency-bearing steps; proposal prompts derive their framing from the decision point itself — the block of material being authored — rather than from a fixed role:
 
 | Flow step | Analyst role |
 |---|---|
@@ -51,4 +51,4 @@ Every dependency-bearing step offers its `20` analyst role (the boundary rules l
 | Residue steps / aesthetic pass | Aesthetic-residue analyst |
 | Change-package / report assembly | Collaboration secretary |
 
-`20`'s risk-band table maps to UI emphasis: low-risk uses are one click; high-risk uses (contradiction resolution, new canon) get the full labeled-disposal treatment. For dependency-bearing steps, W-1 prompt-out is part of the decision point: the browser shows the role, prompt packet preview, advisory/canon warning, and context omissions before copy-out.
+`20`'s risk-band table maps to UI emphasis: low-risk uses are one click; high-risk uses (contradiction resolution, new canon) get the full labeled-disposal treatment. W-1 prompt-out is part of the decision point, never a detached panel: the browser shows the available modes, the role or decision framing, the prompt packet preview, the advisory/canon warning, and context omissions before copy-out — and the packet is assembled from the same context the decision point itself displays.

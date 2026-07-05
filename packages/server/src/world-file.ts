@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { basename, dirname, join, resolve } from "node:path";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { APPLICATION_ID, CURRENT_SCHEMA_VERSION, migration001, migration002, migration003, migration004, migration005, migration006, migration007 } from "./schema.js";
+import { APPLICATION_ID, CURRENT_SCHEMA_VERSION, migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008 } from "./schema.js";
 import { LINK_TYPES, RECORD_TYPES, RECORD_TYPE_BY_KEY } from "@worldloom/shared";
 
 export interface RecordInput {
@@ -1095,6 +1095,16 @@ export class WorldFile {
       this.db.exec("BEGIN");
       try {
         this.db.exec(migration007);
+        this.db.exec("COMMIT");
+      } catch (error) {
+        this.db.exec("ROLLBACK");
+        throw error;
+      }
+    }
+    if (version < 8) {
+      this.db.exec("BEGIN");
+      try {
+        this.db.exec(migration008);
         this.db.exec("COMMIT");
       } catch (error) {
         this.db.exec("ROLLBACK");

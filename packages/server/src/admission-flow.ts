@@ -5,6 +5,7 @@ import {
   requiresSkipReason,
   type DeclaredSeverity
 } from "./severity-policy.js";
+import { ADVISORY_OUTPUT_LABELS, promptMode, splitDisplayedContext, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
 import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, FacetRow, LinkRow, RecordRow, WorldFile } from "./world-file.js";
 
@@ -91,6 +92,7 @@ export interface AdmissionDecisionPayload {
     templateKey: string;
     stepKey: string;
     role: string;
+    modes: DecisionPointPromptMode[];
     stepRequest: {
       method: "POST";
       href: "/api/prompt-out/steps";
@@ -99,6 +101,7 @@ export interface AdmissionDecisionPayload {
         templateKey: string;
         recordId: number;
         stepKey: string;
+        mode?: "proposal" | "pressure";
         label: string;
         admissionLevel?: string;
         workScale?: string;
@@ -125,6 +128,7 @@ export interface AdmissionDecisionPayload {
     afterCompletion: string[];
   };
   readSideTrail: AdmissionDecisionReference[];
+  sharedContract: DecisionPointSharedContract;
 }
 
 type AdmissionIntakeCompletion = {
@@ -594,31 +598,75 @@ const promptOutFor = (
     flowKey: "admission",
     templateKey,
     recordId: record.id,
-    stepKey
+    stepKey,
+    mode: "pressure"
   });
   const sourceManifest = [
     `Record ${record.shortId}: ${record.title}`,
     ...sourceLinks.map((link) => `Source link ${link.linkTypeKey}: ${link.target ? `${link.target.shortId} ${link.target.title}` : `record ${link.toRecordId}`} (${link.note || "no note"})`),
     ...doctrineCitations.map((citation) => `Doctrine: ${citation}`)
   ];
+  const pressureStepRequest = {
+    method: "POST" as const,
+    href: "/api/prompt-out/steps" as const,
+    body: {
+      flowKey: "admission" as const,
+      templateKey,
+      recordId: record.id,
+      stepKey,
+      mode: "pressure" as const,
+      label: role,
+      ...(record.admissionLevel ? { admissionLevel: record.admissionLevel } : {}),
+      ...(record.workScale ? { workScale: record.workScale } : {})
+    }
+  };
+  const proposalStepRequest = {
+    method: "POST" as const,
+    href: "/api/prompt-out/steps" as const,
+    body: {
+      flowKey: "admission" as const,
+      templateKey,
+      recordId: record.id,
+      stepKey,
+      mode: "proposal" as const,
+      label: "Proposal mode",
+      ...(record.admissionLevel ? { admissionLevel: record.admissionLevel } : {}),
+      ...(record.workScale ? { workScale: record.workScale } : {})
+    }
+  };
+  const modes: DecisionPointPromptMode[] = withPromptModeSummaries([
+    promptMode({
+      mode: "proposal",
+      label: "Proposal mode",
+      available: true,
+      blocker: null,
+      framing: "Request labeled candidate Admission material with alternatives and assumptions; Admission still governs canon standing.",
+      role: "Admission proposal",
+      templateKey,
+      stepKey,
+      outputLabels: ADVISORY_OUTPUT_LABELS,
+      stepRequest: proposalStepRequest
+    }),
+    promptMode({
+      mode: "pressure",
+      label: "Pressure mode",
+      available: Boolean(record.body.trim()),
+      blocker: record.body.trim() ? null : "Pressure prompts require steward-authored material on the proposed fact.",
+      framing: "Ask for challenge, risks, alternatives, and questions on the proposed fact.",
+      role,
+      templateKey,
+      stepKey,
+      outputLabels: ADVISORY_OUTPUT_LABELS,
+      stepRequest: record.body.trim() ? pressureStepRequest : null
+    })
+  ]);
   return {
     advisory: "optional",
     templateKey,
     stepKey,
     role,
-    stepRequest: {
-      method: "POST",
-      href: "/api/prompt-out/steps",
-      body: {
-        flowKey: "admission",
-        templateKey,
-        recordId: record.id,
-        stepKey,
-        label: role,
-        ...(record.admissionLevel ? { admissionLevel: record.admissionLevel } : {}),
-        ...(record.workScale ? { workScale: record.workScale } : {})
-      }
-    },
+    modes,
+    stepRequest: pressureStepRequest,
     preview: {
       currentDecision: localDecision,
       promptText: generated.prompt,
@@ -641,15 +689,86 @@ export const admissionDecisionPoint = (worldFile: WorldFile, recordId: number): 
   const localDecision = localDecisionFor(severityDeclared, gate?.path ?? null);
   const doctrineCitations = doctrineFor(gate, seedAuditOffered);
   const reasonRequired = requiresSkipReason(severity);
+  const work = workFor(severityDeclared, gate, seedAuditOffered);
+  const promptOut = promptOutFor(worldFile, record, localDecision, gate, sourceLinks, doctrineCitations);
+  const writeIntent = {
+    willWrite: severityDeclared
+      ? [
+          gate?.path === "full_gate" ? "gate_result report" : "admission_ledger_row records",
+          "ordered admission operation events",
+          "steward-selected canon status change on completion"
+        ]
+      : ["No canon mutation until the steward completes Admission"],
+    willLink: [
+      "Admission gate result links",
+      "advisory-use links only when the steward explicitly names an advisory artifact",
+      "Read-side trail links expose Current Canon, Audit Trail, record detail, advisory artifacts, skip records, canon debt, and export"
+    ],
+    willQueue: ["Follow-up propagation canon debt when the steward supplies follow-up debt"],
+    willLeaveUntouched: [
+      "Admission does not infer truth layer, canon status, tags, or operations",
+      "Seed audit does not mutate seed truth layer, canon status, tags, severity, or operations"
+    ],
+    willRouteOnward: [
+      "minor ledger or full gate after severity declaration",
+      "Read-side views remain read-only and do not gain Admission mutation controls"
+    ]
+  };
+  const nextOrResumeState = {
+    currentStep,
+    nextStep: severityDeclared ? (gate?.path === "full_gate" ? "Full gate completion" : "Minor ledger entry") : "Severity declaration",
+    safeExit: "Leave the record at proposed or under review; resume from the same Admission record."
+  };
+  const readSideTrail = readSideTrailFor(recordId);
+  const sharedContract: DecisionPointSharedContract = {
+    contractVersion: "decision-point/v1",
+    flow: { key: "admission", runState },
+    step: {
+      key: currentStep,
+      localDecision,
+      packageSource: "docs/worldbuilding-system/06_canon_fact_admission_protocol.md",
+      why: "Admission is the only flow that changes canon standing; flow policy remains server-owned."
+    },
+    obligations: {
+      required: work.required,
+      optional: work.optional,
+      skippable: work.skippable,
+      severityDependent: work.severityDependent
+    },
+    skipRule: {
+      offered: true,
+      reasonRequired,
+      reasonThreshold: "major-or-higher Admission work",
+      recordType: "skip_record"
+    },
+    doctrine: {
+      slots: doctrineCitations,
+      packageSources: doctrineCitations
+    },
+    bearingContext: {
+      displayed: splitDisplayedContext(promptOut.preview.contextPreview),
+      sourceManifest: promptOut.preview.sourceManifest,
+      omissions: promptOut.preview.omissions
+    },
+    promptOut: {
+      serverOwned: true,
+      modes: promptOut.modes
+    },
+    blockers: blockersFor(severityDeclared, gate),
+    substanceValidations: [
+      "Minor ledger rows still owe one consequence check.",
+      "Full gates refuse checkbox-only completion.",
+      "Any not-applicable gate item must carry a reason."
+    ],
+    writeIntent,
+    nextOrResumeState,
+    readSideTrail
+  };
 
   return {
     flow: { key: "admission", runState },
     currentStep,
-    nextOrResumeState: {
-      currentStep,
-      nextStep: severityDeclared ? (gate?.path === "full_gate" ? "Full gate completion" : "Minor ledger entry") : "Severity declaration",
-      safeExit: "Leave the record at proposed or under review; resume from the same Admission record."
-    },
+    nextOrResumeState,
     localDecision,
     packageAuthority: {
       primary: "docs/worldbuilding-system/06_canon_fact_admission_protocol.md",
@@ -667,7 +786,7 @@ export const admissionDecisionPoint = (worldFile: WorldFile, recordId: number): 
       definitions: severityDefinitions(severity),
       obligations: gate?.steps ?? ["Declare admission_level", "Declare work_scale"]
     },
-    work: workFor(severityDeclared, gate, seedAuditOffered),
+    work,
     doctrineCitations,
     blockers: blockersFor(severityDeclared, gate),
     skipRule: {
@@ -688,24 +807,8 @@ export const admissionDecisionPoint = (worldFile: WorldFile, recordId: number): 
       declineWrites: "Declining seed audit writes a governed skip_record and leaves the proposed fact admissible.",
       nonMutation: "Seed audit does not mutate seed truth layer, canon status, tags, severity, or operations."
     },
-    promptOut: promptOutFor(worldFile, record, localDecision, gate, sourceLinks, doctrineCitations),
-    writeIntent: {
-      willWrite: severityDeclared
-        ? [
-            gate?.path === "full_gate" ? "gate_result report" : "admission_ledger_row records",
-            "ordered admission operation events",
-            "steward-selected canon status change on completion"
-          ]
-        : ["No canon mutation until the steward completes Admission"],
-      willLink: [
-        "Admission gate result links",
-        "advisory-use links only when the steward explicitly names an advisory artifact",
-        "Read-side trail links expose Current Canon, Audit Trail, record detail, advisory artifacts, skip records, canon debt, and export"
-      ],
-      willQueue: ["Follow-up propagation canon debt when the steward supplies follow-up debt"],
-      willLeaveUntouched: ["Seed audit does not mutate seed truth layer, canon status, tags, severity, or operations"],
-      willRouteOnward: ["Read-side views remain read-only and do not gain Admission mutation controls"]
-    },
+    promptOut,
+    writeIntent,
     closePreview: {
       beforeCompletion: [
         "canon status change",
@@ -728,7 +831,8 @@ export const admissionDecisionPoint = (worldFile: WorldFile, recordId: number): 
         "export"
       ]
     },
-    readSideTrail: readSideTrailFor(recordId)
+    readSideTrail,
+    sharedContract
   };
 };
 

@@ -116,7 +116,7 @@ export const VOCABULARY_TERMS: VocabularyTerm[] = [
   ...terms("merge_expectation", "docs/worldbuilding-system/templates/canon_branch_diff.md", ["never", "possible", "planned", "required"]),
   ...terms("workflow_role", "docs/worldbuilding-system/templates/collaboration_decision_record.md", ["steward", "contributor", "reviewer", "approver", "implementer", "observer", "advisor", "maintainer"]),
   ...terms("provenance_actor_role", "docs/principles/data-principles.md", ["steward"]),
-  ...terms("advisory_disposition", "docs/worldbuilding-system/20_ai_assisted_workflow.md", ["selected", "deleted", "challenged", "ignored", "standing ruling"]),
+  ...terms("advisory_disposition", "docs/worldbuilding-system/20_ai_assisted_workflow.md", ["selected", "deleted", "challenged", "ignored", "standing ruling", "adopted with steward revision"]),
   ...terms("consequence_disposition", "docs/worldbuilding-system/07_propagation_engine.md", ["answered", "intentionally scoped out", "assigned as canon debt", "protected as a mystery boundary"]),
   ...terms("admission_ledger_minor_item", "docs/worldbuilding-system/templates/admission_ledger.md", ["fact", "truth layer", "status", "dependencies", "canon debt"])
 ];

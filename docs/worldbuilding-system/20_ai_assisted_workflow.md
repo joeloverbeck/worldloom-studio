@@ -10,6 +10,17 @@ AI may suggest consequences. It may not silently canonize them.
 
 Every AI-generated idea remains proposed until admitted by human review.
 
+## The two assistance modes
+
+AI assistance in this system runs in one of two modes, and every use names its mode.
+
+- **Proposal mode** — the steward asks the AI to draft candidate material for the judgment at hand: kernel sections, seed decompositions, consequence lists, institutional responses, repair options, wordings. The request carries the world context and doctrine the judgment depends on, and the response returns labeled candidates, never decisions.
+- **Pressure mode** — the steward has authored material and asks the AI to challenge it: missing prerequisites, breaking cases, contradictions, mystery damage, off-tone drift. The analyst roles below name the pressures worth requesting; most roles can also be asked for candidates in proposal mode.
+
+Both modes end the same way: the steward selects, edits, or discards, and writes the surviving material into the record in their own final wording. Adoption is authorship — material enters the world because the steward chose and worded it, never because the AI produced it. Admission (`06`) then governs canon standing as for any proposal.
+
+Proposal mode is available at any judgment a protocol or instrument asks the steward to make, with one exception: the world's essence — the kernel's premise, the generating tension the world exists to explore (`05` Phase 1) — originates with the steward. A world whose essence was delegated has no author to be faithful to.
+
 ## AI analyst roles
 
 ### 1. Consequence scout
@@ -94,6 +105,8 @@ Prompt:
 
 ## AI workflow for a new fact
 
+In pressure mode:
+
 1. Human writes the proposed fact.
 2. AI consequence scout generates possibilities.
 3. Human deletes weak or off-tone suggestions.
@@ -105,6 +118,17 @@ Prompt:
 9. Human admits, constrains, branches, quarantines, or rejects.
 10. AI secretary summarizes the human decision.
 11. Human writes final package record.
+
+In proposal mode:
+
+1. Human fixes the judgment at hand and assembles the context it depends on: the governing doctrine, the relevant existing facts and constraints, and what the material must and must not do.
+2. AI proposes candidate material with assumptions labeled.
+3. Human selects and edits — keeping, rewording, combining, discarding; nothing survives unread.
+4. Human writes the surviving material into the record in their own wording.
+5. Pressure roles then challenge the adopted material where the fact's severity warrants it.
+6. Human admits, constrains, branches, quarantines, or rejects.
+
+The modes interleave freely: a fact may be born in proposal mode and hardened in pressure mode.
 
 ## Failure-mode checklist
 
@@ -140,6 +164,7 @@ Label AI suggestions as one of:
 - too broad;
 - too generic;
 - needs human decision;
+- adopted with steward revision;
 - rejected.
 
 ## Anti-automation rule
@@ -147,6 +172,8 @@ Label AI suggestions as one of:
 Do not ask AI to fill every template for every fact. That creates bureaucracy and false confidence.
 
 Use AI where it finds pressure the human might miss. Stop when the world has enough consequence to live.
+
+Proposal mode at the single judgment the steward is actively working is not automation; asking for every template to be pre-filled is. The difference is a steward present at the point of adoption.
 
 ## AI outputs as untrusted proposals
 
@@ -165,7 +192,7 @@ AI may accelerate brainstorming, contradiction hunting, and variant generation, 
 
 ### Prompt discipline
 
-When using AI, ask for pressure, not answers:
+In pressure mode, ask for pressure, not answers:
 
 - "What consequences am I missing?"
 - "What institutions would adapt?"
@@ -175,6 +202,15 @@ When using AI, ask for pressure, not answers:
 - "What ordinary-life residue should exist?"
 
 Then reject most of it. The value is in the challenge, not in obedience.
+
+In proposal mode, ask for candidates, not commitments:
+
+- state the judgment being made and carry the context it depends on — a proposal request that omits the world's constraints invites generic answers;
+- require alternatives rather than a single confident answer;
+- require assumptions, invented names, and borrowed tropes to be labeled;
+- forbid the response from assigning canon standing, truth layer, status, or any of the separated labels — it may recommend, with reasons, never assign.
+
+Then keep only what you would defend as your own. A proposal adopted unedited deserves a second look, not a faster admission.
 
 [^i4-nist]: National Institute of Standards and Technology, "AI Risk Management Framework", https://www.nist.gov/itl/ai-risk-management-framework
 [^i4-oecd]: OECD, "OECD AI Principles overview", https://oecd.ai/en/ai-principles

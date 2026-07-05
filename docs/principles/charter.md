@@ -4,7 +4,9 @@
 
 ## Mission
 
-Worldloom Studio is a web app to create and maintain fictional worlds from a continuity and causality perspective. It implements the Causal Canon Worldbuilding System 1.0 (`docs/worldbuilding-system/`) for a single steward on their own machine.
+Worldloom Studio is a web app to create and maintain fictional worlds from a continuity and causality perspective. It implements the Causal Canon Worldbuilding System (`docs/worldbuilding-system/`, version 1.1) for a single steward on their own machine.
+
+**The app replaces the package files in normal use.** A steward works the entire method in the browser with `docs/worldbuilding-system/` closed: every decision point carries the method instruction it needs, self-contained and app-owned. Package file paths may appear as provenance and audit detail; they are never the steward's operating instructions (`guided-workflow-usability.md` W-9).
 
 ## Identity (P-3): the mechanized continuity clerk
 

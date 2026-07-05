@@ -2,7 +2,7 @@
 
 *Altitude: architectural principles. Durable, but may evolve with field evidence from app use.*
 
-This document owns the browser-visible standard for guided flows. The package defines the method; this principle defines what the app must show so the steward can work the method without reconstructing the protocol from memory.
+This document owns the browser-visible standard for guided flows and for the navigation between them. The package defines the method; these principles define what the app must show so the steward can work the method without reconstructing the protocol from memory — and, per the charter, without opening the package files at all.
 
 ## W-8. Guided flows are decision-point surfaces
 
@@ -34,7 +34,23 @@ The app may hide advanced detail until it matters, but it must not hide why the 
 
 ## Prompt context is part of usability
 
-Prompt-out is only useful when the copied prompt carries the decision point. A generated prompt for a dependency-bearing step must be understandable in a cold external LLM session: it names the current task, source records, relevant doctrine, constraints, standing rulings, omissions, and the pressure role being requested. Prompt text that asks for help while forcing the steward to hand-assemble context does not satisfy W-1 or W-8.
+Prompt-out is only useful when the copied prompt carries the decision point. A generated prompt — proposal or pressure — must be understandable in a cold external LLM session: it names the current task, source records, relevant doctrine, constraints, standing rulings, omissions, and the mode and role being requested. Prompt text that asks for help while forcing the steward to hand-assemble context does not satisfy W-1 or W-8. The prompt packet and the decision-point surface are two renderings of one context assembly: whatever the screen shows the steward, the packet can carry to the external LLM, and a packet that omits material the decision point displays is a defect, not a variant.
+
+## W-9. Replacement-grade guidance: the app is the method surface
+
+The charter commits the app to replacing the package files in normal use. This principle makes that testable: **every decision point carries self-contained, app-owned method instruction** — what is being decided, the operative rule in app wording, what good material looks like, and why the method asks — as versioned derivations of package doctrine, under the same discipline as the operating card and default prompt texts (derived, versioned, re-checked when upstream changes; P-1).
+
+- Package file paths are provenance: maintainer-facing, visible in audit or detail affordances, greppable for fidelity review. They are never the operating instruction. A surface that satisfies W-8's "relevant doctrine" item with a bare file citation violates this principle.
+- The unit of guidance is the decision point — one coherent block of steward-authored material — matching W-1's prompt grain. Guidance is therefore a content layer addressed by decision point, not prose hand-written per flow surface.
+- Guidance teaches as it guides: a steward who has never read the package should finish a flow knowing not just what they filled but what the method just did for them.
+
+## W-10. The workflow map is the home surface
+
+W-8 governs the interior of a decision point; this principle governs the space between decision points. Once a world is open, the app's home is the **workflow map**: the method journey rendered against live world state — stages done, active, owed, blocked, or not yet earned; the queues that hold work (admission, owed propagation, owed boundaries, canon debt, skips); and the most likely next decision, with why it is next.
+
+- Guided flows are destinations entered from the map, presented one at a time; a surface that presents all flows simultaneously as equal first actions violates this principle.
+- Read-side views (Canon Workbench) and the generic record substrate stay reachable from the map but never compete with the active guided path as peers.
+- The map is not a dashboard or project-management layer: it answers *where am I in the method, why am I here, what blocks me, what happens next* — nothing else. `docs/specs/workflow-map-and-navigation.md` is its spec and owns the concrete grammar.
 
 ## Read-side views do not replace guided work
 

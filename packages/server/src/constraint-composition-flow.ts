@@ -1,4 +1,5 @@
 import { intakeProposedFact } from "./admission-flow.js";
+import { ADVISORY_OUTPUT_LABELS, promptMode, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
 import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, RecordRow, WorldFile } from "./world-file.js";
 
@@ -353,6 +354,132 @@ const readSideTrail = (world: WorldFile, flowId: number) => {
   ];
 };
 
+const currentStepMap = (flowStep: string) => {
+  if (flowStep.includes("inventory")) return STEP_MAP[2];
+  if (flowStep.includes("composition")) return STEP_MAP[3];
+  if (flowStep.includes("leakage") || flowStep.includes("residue")) return STEP_MAP[4];
+  if (flowStep.includes("proposal") || flowStep.includes("debt") || flowStep.includes("card")) return STEP_MAP[5];
+  if (flowStep.includes("advisory") || flowStep.includes("skip")) return STEP_MAP[6];
+  if (flowStep.includes("close") || flowStep.includes("complete")) return STEP_MAP[7];
+  return STEP_MAP[0];
+};
+
+const constraintPromptModes = (world: WorldFile, flowId: number): DecisionPointPromptMode[] => {
+  const promptOut = promptOutState(world, flowId);
+  const source = readSource(world, flowId);
+  const commonBody = {
+    flowKey: FLOW_KEY,
+    flowId,
+    recordId: promptOut.sourceRecordId ?? undefined,
+    templateKey: PROMPT_TEMPLATE_KEY,
+    stepKey: promptOut.stepKey
+  };
+  return withPromptModeSummaries([
+    promptMode({
+      mode: "proposal",
+      label: "Proposal mode",
+      available: true,
+      blocker: null,
+      framing: `Request labeled candidates for the Constraint Composition decision over ${source.sourceSummary}; adoption remains steward authorship.`,
+      role: "Constraint Composition proposal",
+      templateKey: PROMPT_TEMPLATE_KEY,
+      stepKey: promptOut.stepKey,
+      outputLabels: ADVISORY_OUTPUT_LABELS,
+      stepRequest: {
+        method: "POST",
+        href: "/api/prompt-out/steps",
+        body: { ...commonBody, mode: "proposal", label: "Proposal mode" }
+      }
+    }),
+    promptMode({
+      mode: "pressure",
+      label: "Pressure mode",
+      available: promptOut.available,
+      blocker: promptOut.available ? null : "Pressure prompts require steward-authored material for the current decision point.",
+      framing: "Ask for challenge, loopholes, enforcement pressure, residue risks, alternatives, and questions.",
+      role: promptOut.role,
+      templateKey: PROMPT_TEMPLATE_KEY,
+      stepKey: promptOut.stepKey,
+      outputLabels: ADVISORY_OUTPUT_LABELS,
+      stepRequest: promptOut.available
+        ? {
+            method: "POST",
+            href: "/api/prompt-out/steps",
+            body: { ...commonBody, mode: "pressure", label: promptOut.role }
+          }
+        : null
+    })
+  ]);
+};
+
+const constraintDecisionPoint = (world: WorldFile, flowId: number): { sharedContract: DecisionPointSharedContract } => {
+  const flow = readFlow(world, flowId);
+  const source = readSource(world, flowId);
+  const step = currentStepMap(String(flow.current_step ?? "constraint:entry"));
+  const readiness = closeReadiness(world, flowId);
+  const promptOut = promptOutState(world, flowId);
+  const trail = readSideTrail(world, flowId);
+  const displayed = [
+    `Source: ${source.sourceSummary}`,
+    `Constrained subject: ${source.constrainedSubject}`,
+    source.materialBody ? `Selected material: ${source.materialBody}` : "",
+    `Current step: ${String(flow.current_step ?? "constraint:entry")}`,
+    `Prompt-out: ${promptOut.reason}`
+  ].filter(Boolean);
+  const modes = constraintPromptModes(world, flowId);
+  return {
+    sharedContract: {
+      contractVersion: "decision-point/v1",
+      flow: { key: FLOW_KEY, runState: String(flow.state ?? "in_progress") },
+      step: {
+        key: String(flow.current_step ?? "constraint:entry"),
+        localDecision: step.decision,
+        packageSource: DOCTRINE.protocol,
+        why: "Constraint Composition keeps constraint budget, loopholes, enforcement, residue, and routed outcomes server-owned."
+      },
+      obligations: {
+        required: [...DOCTRINE.work.required],
+        optional: [...DOCTRINE.work.optional],
+        skippable: [...DOCTRINE.work.skippable],
+        severityDependent: [...DOCTRINE.work.severityDependent]
+      },
+      doctrine: {
+        slots: [DOCTRINE.completionRule, DOCTRINE.browserPolicy],
+        packageSources: [DOCTRINE.protocol, DOCTRINE.checklist, DOCTRINE.template, DOCTRINE.aiWorkflow]
+      },
+      bearingContext: {
+        displayed,
+        sourceManifest: [
+          `Pass report: ${source.passReportRecordId}`,
+          ...(source.sourceRecordId == null ? [] : [`Source record id: ${source.sourceRecordId}`]),
+          `Doctrine: ${DOCTRINE.protocol}`,
+          `Checklist: ${DOCTRINE.checklist}`
+        ],
+        omissions: ["Temporal/Timeline is out of scope for this Constraint Composition pass unless routed as follow-up debt."]
+      },
+      promptOut: { serverOwned: true, modes },
+      blockers: readiness.blockers,
+      substanceValidations: [
+        "Constraint budget requires constrained fact, statement, prevented outcome, allowed remainder, and boundary.",
+        "Loopholes and residue require steward-authored substance; checkbox-only answers are not evidence."
+      ],
+      writeIntent: {
+        willWrite: ["pass_report close sections", "constraint inventory/composition/leakage/residue rows"],
+        willLink: ["derived_from source link", "covers links for governed skips", "advisory links only after explicit steward use"],
+        willQueue: ["Admission proposals and canon debt only when explicitly routed"],
+        willRouteOnward: ["Admission proposals", "canon debt", "read-side trail"],
+        willLeaveUntouched: ["canon standing is not admitted inside Constraint Composition", "flow policy stays outside the shared contract module"]
+      },
+      nextOrResumeState: {
+        currentStep: String(flow.current_step ?? "constraint:entry"),
+        nextStep: readiness.status === "ready" ? "close preview" : "complete missing constraint coverage",
+        safeExit: "Safe exit leaves the Constraint Composition pass in progress and resumable from its pass report."
+      },
+      readSideTrail: trail
+    }
+  };
+};
+
 const sourceSummaryFor = (world: WorldFile, input: StartConstraintRunInput & { sourceType: ConstraintSourceType }) => {
   if (input.sourceType === "material") {
     if (!input.materialTitle?.trim() || !input.materialBody?.trim()) throw new Error("material starts require a title and body");
@@ -491,7 +618,8 @@ export const getConstraintRun = (world: WorldFile, flowId: number) => {
     closeReadiness: closeReadiness(world, flowId),
     closePreview: closePreview(world, flowId),
     promptOut: promptOutState(world, flowId),
-    readSideTrail: readSideTrail(world, flowId)
+    readSideTrail: readSideTrail(world, flowId),
+    decisionPoint: constraintDecisionPoint(world, flowId)
   };
 };
 

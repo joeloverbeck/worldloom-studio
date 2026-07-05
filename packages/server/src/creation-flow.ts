@@ -1,5 +1,6 @@
 import { parkCreationSeedForAdmission } from "./admission-flow.js";
 import { creationHandoffContext, type CreationHandoffContext } from "./creation-handoff.js";
+import { ADVISORY_OUTPUT_LABELS, promptMode, splitDisplayedContext, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
 import * as PromptOut from "./prompt-out.js";
 import type { FlowInstanceRow, RecordRow, SectionRow, WorldFile } from "./world-file.js";
 
@@ -61,6 +62,7 @@ interface CreationDecisionPayload {
     templateKey: "kernel_pressure" | "decomposition_pressure";
     stepKey: "creation:kernel_prompt" | "creation:decomposition_prompt";
     role: string;
+    modes: DecisionPointPromptMode[];
     stepRequest: {
       method: "POST";
       href: "/api/prompt-out/steps";
@@ -70,6 +72,7 @@ interface CreationDecisionPayload {
         recordId: number;
         templateKey: "kernel_pressure" | "decomposition_pressure";
         stepKey: "creation:kernel_prompt" | "creation:decomposition_prompt";
+        mode?: "proposal" | "pressure";
         label: string;
       };
     } | null;
@@ -97,6 +100,7 @@ interface CreationDecisionPayload {
   readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
   handoffs: string[];
   handoff: CreationHandoffContext;
+  sharedContract: DecisionPointSharedContract;
 }
 
 export class CreationFlowBlockedError extends Error {
@@ -160,6 +164,8 @@ const kernelText = (sections: SectionRow[]): string =>
 
 const kernelMaterialPresent = (kernel: RecordRow | null, sections: SectionRow[]): boolean =>
   hasText(kernel?.body) || sections.some((section) => hasText(section.body));
+
+const isWorldPremiseStep = (currentStep: string): boolean => currentStep === "kernel:World premise";
 
 const sectionPrompts = (worldFile: WorldFile): CreationDecisionPayload["sectionPrompts"] =>
   worldFile.sectionHeadings("world_kernel").map((row) => {
@@ -269,6 +275,162 @@ export const creationDecisionPoint = (
         ...(!materialPresent ? ["Current kernel material is absent until the steward writes it."] : []),
         "Frontloaded seed audit and first canon standing are omitted because Admission owns them."
       ];
+  const pressureRequestBody = {
+    flowKey: "creation",
+    flowId: flow.id,
+    recordId: promptRecordId ?? kernel?.id,
+    templateKey,
+    stepKey,
+    mode: "pressure",
+    label: role
+  };
+  const pressureStepRequest = promptAvailable && pressureRequestBody.recordId != null
+    ? {
+        method: "POST" as const,
+        href: "/api/prompt-out/steps" as const,
+        body: pressureRequestBody as {
+          flowKey: "creation";
+          flowId: number;
+          recordId: number;
+          templateKey: "kernel_pressure" | "decomposition_pressure";
+          stepKey: "creation:kernel_prompt" | "creation:decomposition_prompt";
+          mode: "pressure";
+          label: string;
+        }
+      }
+    : null;
+  const proposalBlockedByEssence = !decompositionStep && isWorldPremiseStep(currentStep);
+  const proposalAvailable = !proposalBlockedByEssence && promptRecordId != null;
+  const proposalStepRequest = proposalAvailable
+    ? {
+        method: "POST" as const,
+        href: "/api/prompt-out/steps" as const,
+        body: {
+          flowKey: "creation",
+          flowId: flow.id,
+          recordId: promptRecordId,
+          templateKey,
+          stepKey,
+          mode: "proposal",
+          label: "Proposal mode"
+        }
+      }
+    : null;
+  const modes: DecisionPointPromptMode[] = withPromptModeSummaries([
+    promptMode({
+      mode: "proposal",
+      label: "Proposal mode",
+      available: proposalAvailable,
+      blocker: proposalAvailable
+        ? null
+        : proposalBlockedByEssence
+          ? "Proposal prompts are refused for the world's essence; docs/worldbuilding-system/20_ai_assisted_workflow.md reserves the World premise to the steward."
+          : "Proposal prompts need the server-owned decision context and current record before copy-out.",
+      framing: "Request labeled candidates with alternatives and assumptions; adoption remains steward authorship.",
+      role: "Decision proposal",
+      templateKey,
+      stepKey,
+      outputLabels: ADVISORY_OUTPUT_LABELS,
+      stepRequest: proposalStepRequest
+    }),
+    promptMode({
+      mode: "pressure",
+      label: "Pressure mode",
+      available: promptAvailable,
+      blocker: promptAvailable
+        ? null
+        : decompositionStep
+          ? "Pressure prompts require a seed-decomposition report and parked seed records."
+          : "Pressure prompts require steward-authored kernel material.",
+      framing: "Ask for challenge, risks, alternatives, and questions on steward-authored material.",
+      role,
+      templateKey,
+      stepKey,
+      outputLabels: ADVISORY_OUTPUT_LABELS,
+      stepRequest: pressureStepRequest
+    })
+  ]);
+  const packageCitations = [
+    "docs/worldbuilding-system/05_creation_protocol.md#phase-1-world-kernel",
+    "docs/worldbuilding-system/05_creation_protocol.md#phase-2-seed-decomposition",
+    "docs/worldbuilding-system/templates/world_kernel.md",
+    "docs/worldbuilding-system/20_ai_assisted_workflow.md",
+    "docs/specs/creation-flow.md",
+    "docs/specs/prompt-out-context-assembly.md"
+  ];
+  const displayedContext = splitDisplayedContext(contextPreview);
+  const sharedContract: DecisionPointSharedContract = {
+    contractVersion: "decision-point/v1",
+    flow: { key: "creation", runState: flow.state },
+    step: {
+      key: currentStep,
+      localDecision,
+      packageSource: "docs/worldbuilding-system/05_creation_protocol.md",
+      why: decompositionStep
+        ? "Phase 2 owns seed decomposition, granularity, and the boundary before Admission."
+        : "Phase 1 owns the world kernel as a pressure seed, not an encyclopedia."
+    },
+    obligations: {
+      required: [
+        "Write steward-authored kernel material",
+        "For decomposition, provide seed title, body, truth layer, and granularity confirmation"
+      ],
+      optional: [
+        "Allowed-empty kernel sections may remain thin",
+        "Creation Prompt-out advisory pressure after steward-authored material exists",
+        "Admission intent note for future review"
+      ],
+      skippable: ["Prompt-out advisory pressure can be declined with a skip_record"],
+      severityDependent: ["Explicitly select consequence mode before seed decomposition"]
+    },
+    doctrine: {
+      slots: decompositionStep ? handoff.doctrineAtPointOfUse : ["05 Creation Protocol", "world-kernel template", "20 AI-assisted workflow"],
+      packageSources: packageCitations
+    },
+    bearingContext: {
+      displayed: displayedContext,
+      sourceManifest,
+      omissions
+    },
+    promptOut: {
+      serverOwned: true,
+      modes
+    },
+    blockers,
+    substanceValidations: [
+      "Seed decomposition requires at least one seed.",
+      "Seed decomposition requires granularity rationale or confirmation.",
+      "Seed title, body, and truth layer are steward-authored."
+    ],
+    writeIntent: {
+      willWrite: [
+        kernel ? "section update on one living world_kernel record" : "one living world_kernel record",
+        "seed_decomposition report",
+        "canon_fact records fixed at proposed"
+      ],
+      willLink: [
+        kernel ? `kernel read-side trail for ${kernel.shortId}` : "read-side trail placeholders until records exist",
+        "derived_from links from parked seeds to the kernel and decomposition report"
+      ],
+      willQueue: ["parked seeds appear in the Admission queue"],
+      willRouteOnward: [
+        "Seed decomposition after explicit consequence mode",
+        "Seed decomposition once seed material, truth layer, consequence mode, and granularity confirmation are present",
+        "Admission flow"
+      ],
+      willLeaveUntouched: [
+        "canon standing is not admitted inside Creation",
+        "truth layer remains steward-supplied judgment",
+        "pasted advisory text does not alter kernel, seed, report, or proposal fields without explicit steward use"
+      ]
+    },
+    nextOrResumeState: {
+      currentStep,
+      nextStep: mode && materialPresent ? "seed decomposition" : "continue kernel authoring",
+      safeExit: "Safe exit leaves the Creation flow in progress and resumable from the same world file."
+    },
+    readSideTrail: trail(kernel, output.report ?? (handoff.seedDecompositionReport ? worldFile.getRecord(handoff.seedDecompositionReport.id) : undefined), output.records ?? handoff.parkedSeeds.map((seed) => worldFile.getRecord(seed.id)))
+  };
 
   return {
     flow: {
@@ -283,12 +445,7 @@ export const creationDecisionPoint = (
         ? "Phase 2 owns seed decomposition, granularity, and the boundary before Admission."
         : "Phase 1 owns the world kernel as a pressure seed, not an encyclopedia.",
       citations: [
-        "docs/worldbuilding-system/05_creation_protocol.md#phase-1-world-kernel",
-        "docs/worldbuilding-system/05_creation_protocol.md#phase-2-seed-decomposition",
-        "docs/worldbuilding-system/templates/world_kernel.md",
-        "docs/worldbuilding-system/20_ai_assisted_workflow.md",
-        "docs/specs/creation-flow.md",
-        "docs/specs/prompt-out-context-assembly.md"
+        ...packageCitations
       ]
     },
     currentKernel: kernel ? { id: kernel.id, shortId: kernel.shortId, title: kernel.title } : null,
@@ -318,20 +475,8 @@ export const creationDecisionPoint = (
       templateKey,
       stepKey,
       role,
-      stepRequest: promptAvailable && kernel
-        ? {
-            method: "POST",
-            href: "/api/prompt-out/steps",
-            body: {
-              flowKey: "creation",
-              flowId: flow.id,
-              recordId: promptRecordId ?? kernel.id,
-              templateKey,
-              stepKey,
-              label: role
-            }
-          }
-        : null,
+      modes,
+      stepRequest: pressureStepRequest,
       preview: {
         currentDecision: localDecision,
         promptText: [
@@ -374,7 +519,7 @@ export const creationDecisionPoint = (
       nextStep: mode && materialPresent ? "seed decomposition" : "continue kernel authoring",
       safeExit: "Safe exit leaves the Creation flow in progress and resumable from the same world file."
     },
-    readSideTrail: trail(kernel, output.report ?? (handoff.seedDecompositionReport ? worldFile.getRecord(handoff.seedDecompositionReport.id) : undefined), output.records ?? handoff.parkedSeeds.map((seed) => worldFile.getRecord(seed.id))),
+    readSideTrail: sharedContract.readSideTrail,
     handoffs: [
       "new-world navigation",
       "kernel decision surface",
@@ -382,7 +527,8 @@ export const creationDecisionPoint = (
       "seed decomposition surface",
       "browser evidence/coverage closeout"
     ],
-    handoff
+    handoff,
+    sharedContract
   };
 };
 

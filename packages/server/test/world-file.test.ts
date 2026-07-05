@@ -3,7 +3,17 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
-import { APPLICATION_ID, CURRENT_SCHEMA_VERSION, migration001, migration002, migration003, migration004 } from "../src/schema.js";
+import {
+  APPLICATION_ID,
+  CURRENT_SCHEMA_VERSION,
+  migration001,
+  migration002,
+  migration003,
+  migration004,
+  migration005,
+  migration006,
+  migration007
+} from "../src/schema.js";
 import { WorldFile } from "../src/world-file.js";
 import * as AdmissionFlow from "../src/admission-flow.js";
 import * as ContradictionFlow from "../src/contradiction-flow.js";
@@ -129,6 +139,7 @@ describe("WorldFile", () => {
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'canon_status'").get()).toMatchObject({ count: 11 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'consequence_disposition'").get()).toMatchObject({ count: 4 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'contradiction_disposition'").get()).toMatchObject({ count: 7 });
+    expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'advisory_disposition' AND term = 'adopted with steward revision'").get()).toMatchObject({ count: 1 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM qa_test_catalog").get()).toMatchObject({ count: 28 });
     expect(store.db.prepare("SELECT mutation_regime FROM record_types WHERE key = 'qa_pass'").get()).toMatchObject({ mutation_regime: "report" });
     expect(store.db.prepare("SELECT label FROM link_types WHERE key = 'assesses'").get()).toMatchObject({ label: "assesses" });
@@ -406,6 +417,30 @@ describe("WorldFile", () => {
     `).run(flow.id, pass.id);
     expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM qa_test_scores WHERE qa_pass_record_id = ?").get(pass.id)).toMatchObject({ count: 2 });
 
+    migrated.close();
+  });
+
+  it("migrates v7 files to the proposal-mode advisory vocabulary with backup", () => {
+    const path = tempPath("v7.sqlite");
+    const db = new Database(path);
+    db.exec("BEGIN");
+    db.exec(migration001);
+    db.exec(migration002);
+    db.exec(migration003);
+    db.exec(migration004);
+    db.exec(migration005);
+    db.exec(migration006);
+    db.exec(migration007);
+    db.exec("COMMIT");
+    expect(db.pragma("user_version", { simple: true })).toBe(7);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'advisory_disposition' AND term = 'adopted with steward revision'").get()).toMatchObject({ count: 0 });
+    db.close();
+
+    const migrated = WorldFile.open(path);
+
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(CURRENT_SCHEMA_VERSION);
+    expect(readdirSync(join(path, "..")).some((name) => name.includes(`pre-migration-v7-to-v${CURRENT_SCHEMA_VERSION}`))).toBe(true);
+    expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'advisory_disposition' AND term = 'adopted with steward revision'").get()).toMatchObject({ count: 1 });
     migrated.close();
   });
 

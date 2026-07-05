@@ -43,6 +43,7 @@ export const registerPromptOutRoutes = (app: RouteApp, dependencies: RouteDepend
       templateKey: string;
       recordId?: number;
       stepKey: string;
+      mode?: "proposal" | "pressure";
       label?: string;
       admissionLevel?: string;
       workScale?: string;

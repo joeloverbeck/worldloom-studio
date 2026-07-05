@@ -6,6 +6,7 @@ import * as InstitutionalFlow from "./institutional-flow.js";
 import * as PromptOut from "./prompt-out.js";
 import * as PropagationFlow from "./propagation-flow.js";
 import * as QaFlow from "./qa-flow.js";
+import type { DecisionPointPromptModeSummary, PromptMode } from "./decision-point-contract.js";
 import type { RecordRow, WorldFile } from "./world-file.js";
 
 export interface PromptOutStepActionContext {
@@ -14,6 +15,7 @@ export interface PromptOutStepActionContext {
   templateKey?: string;
   recordId?: number;
   stepKey: string;
+  mode?: PromptMode;
   admissionLevel?: string;
   workScale?: string;
 }
@@ -21,6 +23,7 @@ export interface PromptOutStepActionContext {
 export interface PromptOutStepOfferInput extends PromptOutStepActionContext {
   templateKey: string;
   label?: string;
+  availableModes?: DecisionPointPromptModeSummary[];
 }
 
 interface PromptOutStepAction {
@@ -32,6 +35,8 @@ export interface PromptOutStepDto {
   id: string;
   label: string;
   templateKey: string;
+  mode: PromptMode;
+  availableModes: DecisionPointPromptModeSummary[];
   context: {
     flowKey: string | null;
     flowId: number | null;
@@ -99,6 +104,7 @@ const actionHref = (action: "generate" | "store-advisory" | "disposition" | "ski
     templateKey: input.templateKey,
     recordId: input.recordId,
     stepKey: input.stepKey,
+    mode: input.mode,
     admissionLevel: input.admissionLevel,
     workScale: input.workScale
   };
@@ -131,6 +137,7 @@ export const promptOutActionContextFromQuery = (query: (key: string) => string |
   templateKey: query("templateKey"),
   recordId: optionalNumber(query("recordId")),
   stepKey: query("stepKey") ?? "",
+  mode: query("mode") === "proposal" ? "proposal" : "pressure",
   admissionLevel: query("admissionLevel"),
   workScale: query("workScale")
 });
@@ -138,10 +145,28 @@ export const promptOutActionContextFromQuery = (query: (key: string) => string |
 export const buildPromptOutStep = (world: WorldFile, input: PromptOutStepOfferInput): PromptOutStepDto => {
   const template = PromptOut.listPromptTemplates(world).find((row) => row.key === input.templateKey);
   if (!template) throw new Error(`Prompt template not found: ${input.templateKey}`);
+  const mode = input.mode ?? "pressure";
   return {
     id: stepId(input),
     label: input.label?.trim() || template.role_name || input.stepKey,
     templateKey: input.templateKey,
+    mode,
+    availableModes: input.availableModes ?? [
+      {
+        mode: "proposal",
+        label: "Proposal mode",
+        framing: "Request labeled candidates with alternatives and assumptions; adoption remains steward authorship.",
+        available: true,
+        blocker: null
+      },
+      {
+        mode: "pressure",
+        label: "Pressure mode",
+        framing: "Request challenge, risks, alternatives, and questions on steward-authored material.",
+        available: true,
+        blocker: null
+      }
+    ],
     context: {
       flowKey: input.flowKey ?? null,
       flowId: input.flowId ?? null,
@@ -172,7 +197,8 @@ export const runPromptOutGenerateAction = (world: WorldFile, input: PromptOutSte
     flowId: input.flowId,
     templateKey: input.templateKey ?? "",
     recordId: input.recordId,
-    stepKey: input.stepKey
+    stepKey: input.stepKey,
+    mode: input.mode
   });
 
 export const runPromptOutStoreAdvisoryAction = (
@@ -203,6 +229,7 @@ export const runPromptOutStoreAdvisoryAction = (
       flowKey: input.flowKey,
       flowId: input.flowId,
       stepKey: input.stepKey,
+      mode: input.mode,
       promptText: payload.promptText,
       responseText: payload.responseText
     })

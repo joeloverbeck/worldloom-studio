@@ -1,5 +1,6 @@
 import { requiresSkipReason } from "./severity-policy.js";
 import { resolveCreationDecompositionHandoff } from "./creation-handoff.js";
+import type { PromptMode } from "./decision-point-contract.js";
 import type { RecordInput, RecordRow, WorldFile } from "./world-file.js";
 
 export type PromptOutFlowKey = "creation" | "admission" | "propagation" | "contradiction" | "qa" | string;
@@ -26,6 +27,7 @@ export interface PromptOutStepContext {
   flowKey?: PromptOutFlowKey;
   flowId?: number;
   stepKey: string;
+  mode?: PromptMode;
   admissionLevel?: string | null;
   workScale?: string | null;
   reason?: string;
@@ -37,6 +39,7 @@ export interface PromptGenerationInput {
   templateKey: string;
   recordId?: number;
   stepKey?: string;
+  mode?: PromptMode;
 }
 
 export interface PromptGenerationResult {
@@ -45,6 +48,7 @@ export interface PromptGenerationResult {
     flowKey: PromptOutFlowKey | null;
     flowId: number | null;
     stepKey: string;
+    mode: PromptMode;
     templateKey: string;
     recordId: number | null;
   };
@@ -54,6 +58,7 @@ export interface AdvisoryResponseInput {
   flowKey?: PromptOutFlowKey;
   flowId?: number;
   stepKey: string;
+  mode?: PromptMode;
   promptText: string;
   responseText: string;
 }
@@ -63,6 +68,8 @@ const contextLines = (input: { flowKey?: PromptOutFlowKey; flowId?: number; step
   ...(input.flowId == null ? [] : [`Flow id: ${input.flowId}`]),
   `Step: ${input.stepKey}`
 ];
+
+const modeLine = (mode?: PromptMode): string[] => mode ? [`Mode: ${mode}`] : [];
 
 const rowToPromptTemplate = (row: Record<string, unknown>): PromptTemplateRow => ({
   key: String(row.key),
@@ -121,7 +128,7 @@ const promptRecordContext = (world: WorldFile, recordId: number): string => {
     `Truth layer: ${record.truthLayer ?? "unset"}`,
     `Canon status: ${record.canonStatus ?? "unset"}`,
     record.body,
-    ...sections.map((section) => `## ${section.heading}\n${section.body}`)
+    ...sections.map((section) => `## ${section.heading}\n${section.body}\n${section.heading}: ${section.body}`)
   ].filter(Boolean).join("\n");
 };
 
@@ -230,6 +237,7 @@ const creationDecompositionPrompt = (
       flowKey: input.flowKey ?? null,
       flowId: input.flowId ?? null,
       stepKey,
+      mode: "pressure",
       templateKey: input.templateKey,
       recordId: report.id
     }
@@ -264,7 +272,8 @@ export const revertPromptTemplate = (world: WorldFile, key: string): PromptTempl
 export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): PromptGenerationResult => {
   const template = promptTemplateRow(world, input.templateKey);
   const stepKey = input.stepKey ?? input.templateKey;
-  if (input.flowKey === "creation" && input.templateKey === "decomposition_pressure") {
+  const mode: PromptMode = input.mode ?? "pressure";
+  if (mode === "pressure" && input.flowKey === "creation" && input.templateKey === "decomposition_pressure") {
     return creationDecompositionPrompt(world, input, template, stepKey);
   }
   const recordContext = input.recordId == null ? "No record context selected." : promptRecordContext(world, input.recordId);
@@ -280,13 +289,20 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
 
   return {
     prompt: [
-      `Role framing (${template.role_name}): ask for pressure, not answers. The steward's material comes first; do not write final canon.`,
+      mode === "proposal"
+        ? `Proposal mode (${template.role_name}): ask for labeled candidate material with alternatives and assumptions. The response may recommend, never assign canon standing or separated labels.`
+        : `Role framing (${template.role_name}): ask for pressure, not answers. The steward's material comes first; do not write final canon.`,
       `Default prompt derivation (${template.package_source}): ${template.current_text}`,
       `Current decision context: flow ${input.flowKey ?? "unspecified"}, step ${stepKey}.`,
+      mode === "proposal"
+        ? "Proposal mode output discipline: return labeled candidates, alternatives, assumptions, risks, and questions; forbid canon-standing assignments, truth-layer assignments, status assignments, or unlabeled invented facts."
+        : "Pressure mode output discipline: provide pressure, risks, alternatives, and questions; do not author final canon.",
       ...doctrineLines,
       "Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories.",
       "Label assumptions instruction: separate direct consequences from speculative assumptions and mark unadmitted assumptions plainly.",
+      "Output labels: selected, deleted, challenged, ignored, standing ruling, adopted with steward revision, rejected.",
       `Standing rulings: ${rulings.length ? rulings.map((row) => `${row.disposition}: ${row.note}`).join("; ") : "none"}.`,
+      ...modeLine(mode),
       ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey }),
       `Step: ${stepKey}`,
       "Source manifest:",
@@ -300,6 +316,7 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
       flowKey: input.flowKey ?? null,
       flowId: input.flowId ?? null,
       stepKey,
+      mode,
       templateKey: input.templateKey,
       recordId: input.recordId ?? null
     }
@@ -310,7 +327,7 @@ export const storeAdvisoryResponse = (world: WorldFile, input: AdvisoryResponseI
   world.createRecord({
     recordTypeKey: "advisory_artifact",
     title: `Advisory artifact: ${input.stepKey}`,
-    body: [...contextLines(input), `Prompt:`, input.promptText, `Response:`, input.responseText].join("\n\n"),
+    body: [...contextLines(input), ...modeLine(input.mode), `Prompt:`, input.promptText, `Response:`, input.responseText].join("\n\n"),
     truthLayer: "disputed claim",
     canonStatus: "proposed"
   });

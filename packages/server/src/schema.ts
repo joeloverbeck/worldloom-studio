@@ -12,7 +12,7 @@ import {
 import { QA_RED_TEAM_PROMPT_TEXT, QA_TEST_CATALOG } from "./qa-catalog.js";
 
 export const APPLICATION_ID = 0x574c4f4d;
-export const CURRENT_SCHEMA_VERSION = 7;
+export const CURRENT_SCHEMA_VERSION = 8;
 
 const sqlString = (value: string): string => `'${value.replaceAll("'", "''")}'`;
 
@@ -1432,4 +1432,11 @@ CREATE TABLE IF NOT EXISTS constraint_skips (
 ) STRICT;
 
 PRAGMA user_version = 7;
+`;
+
+export const migration008 = `
+INSERT OR IGNORE INTO vocabulary_terms (vocabulary, term, package_source, extension_allowed, seeded_other)
+VALUES ('advisory_disposition', 'adopted with steward revision', 'docs/worldbuilding-system/20_ai_assisted_workflow.md', 0, 0);
+
+PRAGMA user_version = 8;
 `;

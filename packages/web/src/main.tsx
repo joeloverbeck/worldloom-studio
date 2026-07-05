@@ -455,6 +455,7 @@ interface AdmissionDecisionPoint {
     templateKey: string;
     stepKey: string;
     role: string;
+    modes?: PromptOutMode[];
     stepRequest: {
       method: "POST";
       href: string;
@@ -463,6 +464,7 @@ interface AdmissionDecisionPoint {
         templateKey: string;
         recordId: number;
         stepKey: string;
+        mode?: "proposal" | "pressure";
         label: string;
         admissionLevel?: string;
         workScale?: string;
@@ -526,6 +528,7 @@ interface CreationDecisionPoint {
     templateKey: string;
     stepKey: string;
     role: string;
+    modes?: PromptOutMode[];
     stepRequest: {
       method: "POST";
       href: string;
@@ -535,6 +538,7 @@ interface CreationDecisionPoint {
         recordId: number;
         templateKey: string;
         stepKey: string;
+        mode?: "proposal" | "pressure";
         label: string;
       };
     } | null;
@@ -635,6 +639,21 @@ interface AppProps {
 
 type PromptFlowKey = "creation" | "admission" | "propagation" | "contradiction" | "qa" | "institutional_economic_suppression" | "constraint_composition";
 
+interface PromptOutMode {
+  mode: "proposal" | "pressure";
+  label: string;
+  available: boolean;
+  availability?: "available" | "blocked";
+  blocker: string | null;
+  framing: string;
+  outputLabels: string[];
+  stepRequest: {
+    method: "POST";
+    href: string;
+    body: Record<string, unknown>;
+  } | null;
+}
+
 interface PromptOutActionLink {
   method: "POST";
   href: string;
@@ -644,6 +663,8 @@ interface PromptOutStep {
   id: string;
   label: string;
   templateKey: string;
+  mode?: "proposal" | "pressure";
+  availableModes?: Array<{ mode: "proposal" | "pressure"; label: string; framing: string; available: boolean; blocker: string | null }>;
   context: {
     flowKey: string | null;
     flowId: number | null;
@@ -1555,30 +1576,32 @@ function App({
   const loadAdmissionPromptStep = async () => {
     if (!admissionDecision) return null;
     const request = admissionDecision.promptOut.stepRequest;
+    setPromptFlowKey("admission");
+    setPromptTemplateKey(admissionDecision.promptOut.templateKey);
+    setPromptRecordId(String(admissionDecision.promptOut.stepRequest.body.recordId));
     const payload = await api<{ step: PromptOutStep }>(request.href, {
       method: request.method,
       body: JSON.stringify(request.body)
     });
     setPromptStep(payload.step);
-    setPromptFlowKey("admission");
-    setPromptTemplateKey(admissionDecision.promptOut.templateKey);
-    setPromptRecordId(String(admissionDecision.promptOut.stepRequest.body.recordId));
     setPromptText(admissionDecision.promptOut.preview.promptText);
     setMessage(`Loaded Admission Prompt-out step ${payload.step.label}`);
     return payload.step;
   };
 
   const loadCreationPromptStep = async () => {
-    if (!creationDecision?.promptOut.stepRequest) return null;
-    const request = creationDecision.promptOut.stepRequest;
+    if (!creationDecision?.promptOut.stepRequest && !creationDecision?.promptOut.modes?.some((mode) => mode.stepRequest)) return null;
+    const mode = creationDecision.promptOut.modes?.find((mode) => mode.available && mode.stepRequest) ?? null;
+    const request = mode?.stepRequest ?? creationDecision.promptOut.stepRequest;
+    if (!request) return null;
+    setPromptFlowKey("creation");
+    setPromptTemplateKey(String(request.body.templateKey ?? creationDecision.promptOut.templateKey));
+    setPromptRecordId(String(request.body.recordId ?? ""));
     const payload = await api<{ step: PromptOutStep }>(request.href, {
       method: request.method,
       body: JSON.stringify(request.body)
     });
     setPromptStep(payload.step);
-    setPromptFlowKey("creation");
-    setPromptTemplateKey(creationDecision.promptOut.templateKey);
-    setPromptRecordId(String(request.body.recordId));
     setPromptText(creationDecision.promptOut.preview.promptText);
     setMessage(`Loaded Creation Prompt-out step ${payload.step.label}`);
     return payload.step;
@@ -2896,6 +2919,10 @@ function App({
               <div className="doctrine">
                 <strong>Server-owned step</strong>
                 <span>{promptStep ? `${promptStep.label} · ${promptStep.context.stepKey}` : "Load a server-returned Prompt-out step before actions."}</span>
+                {promptStep?.mode && <span>{promptStep.mode === "proposal" ? "Proposal mode" : "Pressure mode"}</span>}
+                {(promptStep?.availableModes ?? []).map((mode) => (
+                  <span key={mode.mode}>{`${mode.label}: ${mode.available ? "available" : mode.blocker ?? "blocked"} · ${mode.framing}`}</span>
+                ))}
                 <span>{promptStep?.selectedRecord ? `${promptStep.selectedRecord.shortId} · ${promptStep.selectedRecord.title}` : "No selected record context loaded."}</span>
               </div>
               <button onClick={generatePrompt} disabled={!openWorld}>Generate Prompt</button>
@@ -2995,6 +3022,14 @@ function App({
               <section className="subpanel">
                 <h3>Prompt packet preview</h3>
                 <p>{admissionDecision?.promptOut.role ?? "Admission Prompt-out role loads after selecting a record."} · {admissionDecision?.promptOut.advisory ?? "optional"} advisory pressure</p>
+                {(admissionDecision?.promptOut.modes ?? []).map((mode) => (
+                  <div className="doctrine" key={mode.mode}>
+                    <strong>{mode.label}</strong>
+                    <span>{mode.available ? "Available from server" : mode.blocker ?? "Blocked by server"}</span>
+                    <span>{mode.framing}</span>
+                    <span>Output labels: {mode.outputLabels.join(", ")}</span>
+                  </div>
+                ))}
                 <p>{admissionDecision?.promptOut.preview.currentDecision ?? "Prompt-out appears only after steward-authored material exists."}</p>
                 <strong>Source manifest</strong>
                 {(admissionDecision?.promptOut.preview.sourceManifest ?? ["No source manifest loaded yet."]).map((item) => <p key={item}>{item}</p>)}
@@ -3824,6 +3859,14 @@ function App({
             <section className="subpanel">
               <h3>Prompt-out preview</h3>
               <p>{displayedCreationDecision.promptOut.role} · {displayedCreationDecision.promptOut.available ? "available" : "blocked"}</p>
+              {(displayedCreationDecision.promptOut.modes ?? []).map((mode) => (
+                <div className="doctrine" key={mode.mode}>
+                  <strong>{mode.label}</strong>
+                  <span>{mode.available ? "Available from server" : mode.blocker ?? "Blocked by server"}</span>
+                  <span>{mode.framing}</span>
+                  <span>Output labels: {mode.outputLabels.join(", ")}</span>
+                </div>
+              ))}
               <p>{displayedCreationDecision.promptOut.preview.currentDecision}</p>
               <strong>Source manifest</strong>
               {displayedCreationDecision.promptOut.preview.sourceManifest.map((item) => <p key={item}>{item}</p>)}
@@ -3834,7 +3877,7 @@ function App({
               <strong>Advisory/canon warning</strong>
               <p>{displayedCreationDecision.promptOut.preview.advisoryCanonWarning}</p>
               <p>Pasted responses remain advisory artifacts and do not mutate kernel sections, seed records, reports, or proposals without explicit steward use.</p>
-              <button onClick={loadCreationPromptStep} disabled={!openWorld || !creationDecision?.promptOut.stepRequest}>Load Creation Prompt-out Step</button>
+              <button onClick={loadCreationPromptStep} disabled={!openWorld || (!creationDecision?.promptOut.stepRequest && !creationDecision?.promptOut.modes?.some((mode) => mode.stepRequest))}>Load Creation Prompt-out Step</button>
             </section>
             <section className="subpanel">
               <h3>Seed decomposition decision</h3>
