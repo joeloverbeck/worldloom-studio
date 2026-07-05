@@ -79,6 +79,8 @@ Use the available sub-agent mechanism, if permitted, with two independent read-o
 - Apply the smell baseline as judgement-call heuristics, not hard violations, and let documented repo standards override it.
 - In the Standards output, include a dedicated `Smell baseline applied: <yes / skipped because ...>.` line before findings, so a zero-finding fallback still proves the baseline was considered.
 - End with the required axis summary: `Standards <count/worst>, Spec <count/worst>`.
+- If any finding is fixed before closeout, distinguish `Findings found` from `Residual findings` in the fallback report or immediate-fix block. The final axis count may be zero residual, but the found-and-fixed item must remain visible.
+- Before leaving local fallback, perform a fallback shape hard stop: confirm the output contains the review frame, `## Standards`, `## Spec`, `Smell baseline applied:`, the PRD child coverage table when reviewing a child-issue family, the axis summary, and the exact `Review fallback:` closeout-ready line when invoked by `implement`. If any required piece is missing, stop and fill it before moving to the implementation pre-close audit or issue closeout.
 
 Mandatory local fallback output — paste this shape even when both axes have zero findings:
 
@@ -142,13 +144,15 @@ If the review resumes, compacts, or is interrupted before final reporting, reval
 
 End with a one-line summary: total findings per axis, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes — that's the reranking the separation exists to prevent.
 
-When this review is part of implementation closeout, report findings first. If fixes are made immediately, rerun the relevant verification, state whether the commit was amended or followed by a new commit, and include the review outcome in the implementation closeout evidence. When a finding requires a behavior change, invoke the repo `tdd` skill where possible: add or adjust the smallest assertion first and run it red before fixing. If the code was already fixed to protect the tree or unblock verification, record that red-first was skipped and why.
+When this review is part of implementation closeout, report findings first. If fixes are made immediately, rerun the relevant verification, state whether the commit was amended or followed by a new commit, and include the review outcome in the implementation closeout evidence. When a finding requires a behavior change, invoke the repo `tdd` skill where possible: add or adjust the smallest assertion first and run it red before fixing. If the code was already fixed to protect the tree or unblock verification, record that red-first was skipped and why. For behavior-changing review fixes, generic wording such as `fixed and covered` is not enough; the closeout must include the red command/failure or an explicit `red-first skipped because ...` reason. If a review finding is missing proof or coverage only, add the smallest assertion and run it; if it passes without code changes, record `coverage-only review fix; red-first N/A because behavior already existed and no code changed`; if it fails, treat the finding as missing behavior and use the normal TDD red-green path. If a review fix touches UI, route handlers, browser-consumed API shapes, fixtures, or an action path covered by earlier browser/manual evidence, rerun that evidence on the final tree or record an explicit blocked/stale reason.
 
 For immediate-fix closeout, use this compact shape after the two axis reports:
 
 - **Findings found**: `<count and short titles, or none>`
-- **Fixes made**: `<files/behavior changed, or none>`
+- **Fixes made**: `<files/behavior changed, proof/coverage added, or none>`
+- **TDD/review-fix evidence**: `<red command/failure per behavior-changing fix, coverage-only review fix reason, or explicit red-first skipped because ...>`
 - **Verification rerun**: `<commands and browser/manual checks>`
+- **Browser/manual evidence freshness**: `<rerun evidence on final tree, not affected, or explicit blocked/stale reason>`
 - **Commit handling**: `<unchanged implementation commit SHA / amended commit SHA / follow-up commit SHA / no commit yet>`
 - **Residual findings**: `<remaining Standards and Spec findings, or none>`
 - **Axis summary**: `Standards <count/worst>, Spec <count/worst>`
