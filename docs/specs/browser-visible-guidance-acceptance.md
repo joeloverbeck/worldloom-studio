@@ -9,13 +9,15 @@ For a guided-flow browser slice, acceptance should include the smallest useful s
 - screenshot, Playwright smoke, or component-render evidence showing the task card or equivalent decision-point surface;
 - selected record, draft, debt item, or report example that starts the flow;
 - severity path example when severity changes obligations;
-- source doctrine visible at the decision point;
+- source doctrine visible at the decision point as app-owned rule text, checklist text, template expectation, or operating-card excerpt, with file paths kept as provenance/detail rather than the only guidance;
 - required/optional/skippable fields visible in the same step context;
 - blocker example showing substance validation, not checkbox completion;
 - skip example showing recorded skip behavior and reason threshold when offered;
 - prompt packet preview with source manifest and advisory/canon warning when prompt-out is in scope;
 - resulting record, report, link, queue entry, advisory artifact, debt item, or explicit non-mutation;
 - read-side trail in Current Canon, Audit Trail, record detail, export, or a stated deferral.
+
+When the slice touches provenance, reviewers should be able to distinguish primary instructions from provenance. Source paths, package filenames, issue numbers, and markdown anchors may appear in manifests or expandable detail, but the visible decision point still carries the current obligation, blocker, write intent, prompt role, and next step in wording a docs-naive steward can act on.
 
 For setup/open-world browser slices, acceptance should include:
 
@@ -35,6 +37,7 @@ For learnability-sensitive changes, run a lightweight naive-steward walkthrough:
 4. The steward can see prompt-out as advisory pressure, not canon generation.
 5. The steward can predict what the app will write, link, route, or leave untouched.
 6. The steward can exit and resume without losing orientation.
+7. The steward can tell which file paths are provenance and which visible text is the operating instruction.
 
 Record failures as follow-up work unless they block the issue's own acceptance criteria.
 
@@ -42,4 +45,4 @@ For setup/open-world changes, also record that the steward can start without cop
 
 ## Principles
 
-Touches `guided-workflow-usability.md` W-8, `workflow-principles.md` W-2/W-4/W-7, `canon-sovereignty.md` P-2/W-1/T-5, `data-principles.md` P-6/W-5/W-6, ADR 0004, and PRD #158. It affirms non-contradiction.
+Touches `docs/worldbuilding-system/05_creation_protocol.md`, `docs/worldbuilding-system/06_canon_fact_admission_protocol.md`, `docs/worldbuilding-system/20_ai_assisted_workflow.md`, `docs/worldbuilding-system/operating_card.md`, `docs/specs/creation-flow.md`, `docs/specs/prompt-out-context-assembly.md`, `docs/specs/workflow-map-and-navigation.md`, `guided-workflow-usability.md` W-8, `workflow-principles.md` W-2/W-3/W-4/W-7, `canon-sovereignty.md` P-2/W-1/T-5, `domain-fidelity.md` P-1/T-2, `data-principles.md` P-6/W-5/W-6/T-5, ADR 0007, ADR 0009, PRD #150, PRD #158, and PRD #165. It affirms non-contradiction.

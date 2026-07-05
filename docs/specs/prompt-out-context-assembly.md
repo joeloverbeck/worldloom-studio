@@ -10,9 +10,9 @@ Every dependency-bearing prompt-out step assembles a self-contained prompt packe
 
 1. **Current decision** — flow, step, local decision, severity path, and intended package role.
 2. **Steward material** — the steward-authored fact, draft, report section, score, repair, or consequence under pressure.
-3. **Source records** — selected records and links needed for the role, with short IDs and source paths where available.
+3. **Source records** — selected records and links needed for the role, with short IDs and source paths where available as provenance.
 4. **Current-canon context** — the smallest relevant world-kernel, current-canon, debt, contradiction, skip, or standing-ruling context needed for the pressure task.
-5. **Package doctrine** — governing protocol, checklist, template, operating-card, and vocabulary excerpts.
+5. **Package doctrine** — governing protocol, checklist, template, operating-card, and vocabulary excerpts. File paths may label provenance, but they do not substitute for the decision-relevant rule text.
 6. **Role request** — one of `20_ai_assisted_workflow.md`'s analyst roles or a flow-specific derivation.
 7. **Forbidden moves** — no final canon, no hidden assumptions, no auto-admission, no unlabelled invented facts.
 8. **Output labels** — the advisory disposition labels or flow-specific labels the steward will use.
@@ -27,10 +27,14 @@ Every dependency-bearing prompt-out step assembles a self-contained prompt packe
 - Include open canon debt, skipped instruments, and unresolved contradictions when they can affect the requested pressure.
 - Include source manifests even for short prompts so cold external sessions can assess provenance.
 - For Creation Prompt-out, include the current Creation decision, current kernel or decomposition material, source kernel when available, `05_creation_protocol.md` Phase 1 or Phase 2 as applicable, `templates/world_kernel.md` where kernel authoring is in scope, `20` role framing, advisory warning, and omission reasons. The normal in-flow Creation path is pre-bound and does not ask the steward for a raw record id.
+- For Creation `decomposition_pressure` after seed parking, the material under pressure is the seed-decomposition report and parked seed records, not the world kernel alone. The prompt packet includes the report title/body/sections, parked seed short IDs and titles, seed bodies, truth layers, current `proposed` status, granularity rationale or confirmation, Admission intent when supplied, supporting kernel summary, derived-from links to the kernel and report, standing rulings when relevant, source manifest, explicit omissions, advisory/canon warning, and requested analyst role.
+- Open canon debt is included only when it affects the decomposition decision. Frontloaded seed audit results and Admission gate results are included only when they exist; otherwise the omission is explicit because Admission owns those instruments.
 
 ## Omission Rules
 
 When relevant context is unavailable, too large, or intentionally excluded, the prompt preview must state the omission and why the prompt is still useful. Silent omission is allowed only for context that is irrelevant to the role.
+
+For `decomposition_pressure`, missing or incomplete decomposition material is a blocker, not a reason to generate a kernel-only prompt. Required material is the seed-decomposition report plus at least one parked seed derived from it.
 
 ## Lifecycle
 
@@ -47,6 +51,8 @@ When relevant context is unavailable, too large, or intentionally excluded, the 
 
 A prompt packet passes when a model with no prior world or repository context can give useful pressure, risks, alternatives, or questions without being asked to author final canon. The test fails if the steward must manually add doctrine, source records, vocabulary guardrails, or advisory/canon boundaries before the prompt is usable.
 
+For decomposition pressure, the prompt passes only when the external model can inspect the exact parked seeds, report rationale, governance status, and Creation-to-Admission boundary without opening repository files or asking the steward for missing seed context.
+
 ## Principles
 
-Touches `canon-sovereignty.md` P-2/W-1/T-5, `guided-workflow-usability.md` W-8, `workflow-principles.md` W-1/W-4/W-7, `domain-fidelity.md` P-1/T-2, `data-principles.md` T-5, and ADR 0007. It affirms non-contradiction.
+Touches `docs/worldbuilding-system/05_creation_protocol.md`, `docs/worldbuilding-system/06_canon_fact_admission_protocol.md`, `docs/worldbuilding-system/20_ai_assisted_workflow.md`, `docs/specs/creation-flow.md`, `canon-sovereignty.md` P-2/W-1/T-5, `guided-workflow-usability.md` W-8, `workflow-principles.md` W-1/W-3/W-4/W-7, `domain-fidelity.md` P-1/T-2, `data-principles.md` T-5, ADR 0007, ADR 0009, PRD #150, PRD #158, and PRD #165. It affirms non-contradiction.

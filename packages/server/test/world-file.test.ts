@@ -176,6 +176,21 @@ describe("WorldFile", () => {
       body: "Echo laws split into testimony, cost, and enforcement seeds.",
       ...explicitJudgment
     });
+    store.replaceSections(decomposition.id, [
+      { heading: "Kernel source", body: "KER-1 World kernel", position: 1 },
+      { heading: "Drafts consumed", body: "(empty)", position: 2 },
+      { heading: "Granularity decisions", body: "Each seed can be rejected independently.", position: 3 },
+      { heading: "Parked seeds", body: "FAC-1 Echo court testimony", position: 4 },
+      { heading: "Thin-start boundary", body: "No seed is admitted by Creation.\nAdmission intent: audit in Admission.", position: 5 }
+    ]);
+    const seed = store.createRecord({
+      recordTypeKey: "canon_fact",
+      title: "Echo court testimony",
+      body: "Courts accept echo testimony under conditions.",
+      ...explicitJudgment
+    });
+    store.createLink(seed.id, kernel.id, "derived_from", "Seed decomposed from world kernel");
+    store.createLink(seed.id, decomposition.id, "derived_from", "Seed recorded by decomposition report");
     store.db.prepare("DELETE FROM prompt_template_versions WHERE template_key IN ('kernel_pressure', 'decomposition_pressure')").run();
     store.db.prepare("DELETE FROM prompt_templates WHERE key IN ('kernel_pressure', 'decomposition_pressure')").run();
     store.close();
@@ -230,6 +245,9 @@ describe("WorldFile", () => {
     expect(decompositionPrompt.prompt).toContain("Prerequisite auditor");
     expect(decompositionPrompt.prompt).toContain("Vocabulary guardrail");
     expect(decompositionPrompt.prompt).toContain("Echo laws split into testimony, cost, and enforcement seeds.");
+    expect(decompositionPrompt.prompt).toContain("FAC-1");
+    expect(decompositionPrompt.prompt).toContain("Courts accept echo testimony under conditions.");
+    expect(decompositionPrompt.prompt).toContain("Admission intent: audit in Admission.");
 
     reopened.close();
   });

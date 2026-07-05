@@ -279,10 +279,89 @@ describe("Creation decision-point HTTP surface", () => {
       })
     });
     expect(decomposed.status).toBe(201);
-    expect(await json(decomposed)).toMatchObject({
+    const decomposedPayload = await json<{
+      report: { id: number; shortId: string; title: string };
+      records: Array<{ id: number; shortId: string; title: string; body: string; truthLayer: string; canonStatus: string }>;
+      decisionPoint: {
+        currentStep: string;
+        handoff: {
+          seedDecompositionReport: { id: number; shortId: string; title: string };
+          parkedSeeds: Array<{ id: number; shortId: string; title: string; body: string; truthLayer: string; canonStatus: string; sourceLinks: unknown[] }>;
+          granularityRationale: string;
+          admissionIntent: string | null;
+          admissionQueueRoute: string;
+          currentStatus: string;
+          nextStep: string;
+          sourceLinks: unknown[];
+          doctrineAtPointOfUse: string[];
+        };
+        promptOut: {
+          available: boolean;
+          blocker: string | null;
+          stepRequest: { method: "POST"; href: string; body: { flowKey: string; flowId: number; recordId: number; templateKey: string; stepKey: string } };
+          preview: { contextPreview: string; sourceManifest: string[]; omissions: string[]; advisoryCanonWarning: string };
+        };
+        writeIntent: { willWrite: string[]; willRouteOnward: string[] };
+        readSideTrail: Array<{ label: string }>;
+      };
+    }>(decomposed);
+    expect(decomposedPayload).toMatchObject({
       records: [{ canonStatus: "proposed", truthLayer: "Objective canon" }],
       decisionPoint: {
         currentStep: "decomposition:complete",
+        handoff: {
+          seedDecompositionReport: { id: decomposedPayload.report.id, shortId: decomposedPayload.report.shortId },
+          parkedSeeds: [expect.objectContaining({
+            shortId: decomposedPayload.records[0]?.shortId,
+            title: "Echo court testimony",
+            body: "Courts accept echo testimony under conditions",
+            truthLayer: "Objective canon",
+            canonStatus: "proposed",
+            sourceLinks: expect.arrayContaining([
+              expect.objectContaining({ linkTypeKey: "derived_from" })
+            ])
+          })],
+          granularityRationale: "Each seed can be rejected without rewriting its siblings.",
+          admissionIntent: "Audit during Admission for institutional cost.",
+          admissionQueueRoute: "/api/admission/queue",
+          currentStatus: "proposed",
+          nextStep: "Admission queue selection",
+          sourceLinks: expect.arrayContaining([
+            expect.objectContaining({ label: expect.stringContaining("Kernel") }),
+            expect.objectContaining({ label: expect.stringContaining("Seed decomposition report") })
+          ]),
+          doctrineAtPointOfUse: expect.arrayContaining([
+            expect.stringContaining("independently rejected"),
+            expect.stringContaining("Creation parks proposed seeds"),
+            expect.stringContaining("Admission owns first canon standing")
+          ])
+        },
+        promptOut: {
+          available: true,
+          blocker: null,
+          stepRequest: {
+            body: {
+              flowKey: "creation",
+              flowId: start.flow.id,
+              recordId: decomposedPayload.report.id,
+              templateKey: "decomposition_pressure",
+              stepKey: "creation:decomposition_prompt"
+            }
+          },
+          preview: {
+            contextPreview: expect.stringContaining("Echo court testimony"),
+            sourceManifest: expect.arrayContaining([
+              expect.stringContaining("Seed decomposition report"),
+              expect.stringContaining("Parked seed"),
+              expect.stringContaining("Doctrine excerpt")
+            ]),
+            omissions: expect.arrayContaining([
+              expect.stringContaining("Frontloaded seed audit"),
+              expect.stringContaining("Admission gate results")
+            ]),
+            advisoryCanonWarning: expect.stringContaining("advisory artifacts")
+          }
+        },
         writeIntent: {
           willWrite: expect.arrayContaining(["seed_decomposition report", "canon_fact records fixed at proposed"]),
           willRouteOnward: expect.arrayContaining(["Admission flow"])
@@ -292,6 +371,61 @@ describe("Creation decision-point HTTP surface", () => {
           expect.objectContaining({ label: "Admission queue" })
         ])
       }
+    });
+
+    const promptStep = await json<{ step: { actions: { generate: { method: "POST"; href: string } } } }>(await app.request(
+      decomposedPayload.decisionPoint.promptOut.stepRequest.href,
+      {
+        method: decomposedPayload.decisionPoint.promptOut.stepRequest.method,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(decomposedPayload.decisionPoint.promptOut.stepRequest.body)
+      }
+    ));
+    const generated = await json<{ prompt: string; promptOut: { flowKey: string; recordId: number; templateKey: string } }>(await app.request(
+      promptStep.step.actions.generate.href,
+      { method: promptStep.step.actions.generate.method }
+    ));
+    expect(generated.promptOut).toMatchObject({
+      flowKey: "creation",
+      recordId: decomposedPayload.report.id,
+      templateKey: "decomposition_pressure"
+    });
+    expect(generated.prompt).toContain("Seed decomposition report");
+    expect(generated.prompt).toContain(decomposedPayload.report.shortId);
+    expect(generated.prompt).toContain("Echo court testimony");
+    expect(generated.prompt).toContain("Courts accept echo testimony under conditions");
+    expect(generated.prompt).toContain("Truth layer: Objective canon");
+    expect(generated.prompt).toContain("Canon status: proposed");
+    expect(generated.prompt).toContain("Granularity rationale: Each seed can be rejected without rewriting its siblings.");
+    expect(generated.prompt).toContain("Admission intent: Audit during Admission for institutional cost.");
+    expect(generated.prompt).toContain("Supporting kernel context");
+    expect(generated.prompt).toContain("Creation parks proposed seeds; Admission owns first canon standing.");
+    expect(generated.prompt).toContain("Frontloaded seed audit results omitted: Admission owns that instrument and no result exists yet.");
+    expect(generated.prompt).toContain("Provide pressure, risks, alternatives, and questions");
+    expect(generated.prompt).not.toContain("Record context:\nKER-");
+  });
+
+  it("does not generate a kernel-only decomposition prompt when decomposition material is missing", async () => {
+    const app = await openWorld();
+    const start = await json<{ flow: { id: number } }>(await app.request("/api/flows/creation/start", { method: "POST" }));
+    const saved = await json<{ kernel: { id: number } }>(await app.request("/api/flows/creation/kernel-step", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        flowId: start.flow.id,
+        heading: "World premise",
+        body: "A city hears its dead.",
+        consequenceMode: "weird"
+      })
+    }));
+
+    const generated = await app.request(`/api/prompt-out/steps/actions/generate?flowKey=creation&flowId=${start.flow.id}&templateKey=decomposition_pressure&recordId=${saved.kernel.id}&stepKey=creation:decomposition_prompt`, {
+      method: "POST"
+    });
+
+    expect(generated.status).toBe(400);
+    expect(await json<{ error: string }>(generated)).toMatchObject({
+      error: expect.stringContaining("decomposition prompt requires a seed-decomposition report and parked seeds")
     });
   });
 });

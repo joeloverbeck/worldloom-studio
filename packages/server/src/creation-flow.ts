@@ -1,4 +1,5 @@
 import { parkCreationSeedForAdmission } from "./admission-flow.js";
+import { creationHandoffContext, type CreationHandoffContext } from "./creation-handoff.js";
 import * as PromptOut from "./prompt-out.js";
 import type { FlowInstanceRow, RecordRow, SectionRow, WorldFile } from "./world-file.js";
 
@@ -95,6 +96,7 @@ interface CreationDecisionPayload {
   };
   readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
   handoffs: string[];
+  handoff: CreationHandoffContext;
 }
 
 export class CreationFlowBlockedError extends Error {
@@ -194,6 +196,8 @@ export const creationDecisionPoint = (
   const materialPresent = kernelMaterialPresent(kernel, sections);
   const currentStep = flow.current_step;
   const decompositionStep = currentStep.startsWith("decomposition");
+  const handoff = creationHandoffContext(worldFile, kernel, output);
+  const decompositionPromptReady = Boolean(handoff.seedDecompositionReport && handoff.parkedSeeds.length);
   const localDecision = decompositionStep
     ? "Split broad steward material into smaller seed facts that can be independently rejected."
     : "Define the world's first governing kernel or pressure seed.";
@@ -218,11 +222,53 @@ export const creationDecisionPoint = (
   const templateKey = decompositionStep ? "decomposition_pressure" : "kernel_pressure";
   const stepKey = decompositionStep ? "creation:decomposition_prompt" : "creation:kernel_prompt";
   const role = decompositionStep ? "Prerequisite auditor" : "Consequence scout";
-  const promptAvailable = materialPresent && kernel != null;
-  const contextPreview = [
-    kernel ? `${kernel.shortId} ${kernel.title}` : "No kernel record yet.",
-    kernelText(sections)
-  ].filter(Boolean).join("\n");
+  const promptAvailable = decompositionStep ? decompositionPromptReady : materialPresent && kernel != null;
+  const promptRecordId = decompositionStep ? handoff.seedDecompositionReport?.id : kernel?.id;
+  const contextPreview = decompositionStep && decompositionPromptReady
+    ? [
+        handoff.seedDecompositionReport ? `Seed decomposition report ${handoff.seedDecompositionReport.shortId}: ${handoff.seedDecompositionReport.title}` : "",
+        handoff.granularityRationale ? `Granularity rationale: ${handoff.granularityRationale}` : "",
+        handoff.admissionIntent ? `Admission intent: ${handoff.admissionIntent}` : "",
+        ...handoff.parkedSeeds.map((seed) => [
+          `Parked seed ${seed.shortId}: ${seed.title}`,
+          `Truth layer: ${seed.truthLayer ?? "unset"}`,
+          `Canon status: ${seed.canonStatus ?? "unset"}`,
+          seed.body
+        ].filter(Boolean).join("\n")),
+        handoff.supportingKernel ? `Supporting kernel ${handoff.supportingKernel.shortId}: ${handoff.supportingKernel.title}` : ""
+      ].filter(Boolean).join("\n\n")
+    : [
+        kernel ? `${kernel.shortId} ${kernel.title}` : "No kernel record yet.",
+        kernelText(sections)
+      ].filter(Boolean).join("\n");
+  const sourceManifest = decompositionStep && decompositionPromptReady
+    ? [
+        `Seed decomposition report: ${handoff.seedDecompositionReport?.shortId} ${handoff.seedDecompositionReport?.title}`,
+        ...handoff.parkedSeeds.map((seed) => `Parked seed: ${seed.shortId} ${seed.title} (${seed.truthLayer ?? "unset"} / ${seed.canonStatus ?? "unset"})`),
+        ...(handoff.supportingKernel ? [`Supporting kernel: ${handoff.supportingKernel.shortId} ${handoff.supportingKernel.title}`] : []),
+        "Doctrine excerpt: Phase 2 granularity rule - split until each seed can be independently rejected without destroying its siblings.",
+        "Doctrine excerpt: thin-start boundary - stop before facts become too small to owe consequences.",
+        "Doctrine excerpt: Creation parks proposed seeds; Admission owns first canon standing.",
+        "Omissions: Frontloaded seed audit and Admission gate results do not exist inside Creation."
+      ]
+    : [
+        ...(kernel ? [`Record ${kernel.shortId}: ${kernel.title}`] : []),
+        "Doctrine: docs/worldbuilding-system/05_creation_protocol.md Phase 1",
+        "Doctrine: docs/worldbuilding-system/05_creation_protocol.md Phase 2",
+        "Doctrine: docs/worldbuilding-system/templates/world_kernel.md",
+        "Doctrine: docs/worldbuilding-system/20_ai_assisted_workflow.md",
+        "Omissions: no Admission gate results exist inside Creation."
+      ];
+  const omissions = decompositionStep && decompositionPromptReady
+    ? [
+        "Frontloaded seed audit results omitted: Admission owns that instrument and no result exists yet.",
+        "Admission gate results omitted: Admission has not selected severity or run a gate yet.",
+        "Open canon debt omitted unless it directly affects this decomposition decision."
+      ]
+    : [
+        ...(!materialPresent ? ["Current kernel material is absent until the steward writes it."] : []),
+        "Frontloaded seed audit and first canon standing are omitted because Admission owns them."
+      ];
 
   return {
     flow: {
@@ -264,7 +310,11 @@ export const creationDecisionPoint = (
     blockers,
     promptOut: {
       available: promptAvailable,
-      blocker: promptAvailable ? null : "Creation Prompt-out requires steward-authored kernel material and a current kernel record.",
+      blocker: promptAvailable
+        ? null
+        : decompositionStep
+          ? "Creation decomposition Prompt-out requires a seed-decomposition report and parked seed records."
+          : "Creation Prompt-out requires steward-authored kernel material and a current kernel record.",
       templateKey,
       stepKey,
       role,
@@ -275,7 +325,7 @@ export const creationDecisionPoint = (
             body: {
               flowKey: "creation",
               flowId: flow.id,
-              recordId: kernel.id,
+              recordId: promptRecordId ?? kernel.id,
               templateKey,
               stepKey,
               label: role
@@ -288,22 +338,12 @@ export const creationDecisionPoint = (
           `Role framing (${role}): ask for pressure, not answers.`,
           `Current decision: ${localDecision}`,
           contextPreview,
-          "Doctrine excerpts: 05 Creation Protocol, world-kernel template, and 20 AI-assisted workflow.",
+          ...(decompositionStep ? handoff.doctrineAtPointOfUse : ["Doctrine excerpts: 05 Creation Protocol, world-kernel template, and 20 AI-assisted workflow."]),
           "Advisory/canon warning: pasted responses remain advisory artifacts and never mutate canon fields automatically."
         ].filter(Boolean).join("\n\n"),
         contextPreview,
-        sourceManifest: [
-          ...(kernel ? [`Record ${kernel.shortId}: ${kernel.title}`] : []),
-          "Doctrine: docs/worldbuilding-system/05_creation_protocol.md Phase 1",
-          "Doctrine: docs/worldbuilding-system/05_creation_protocol.md Phase 2",
-          "Doctrine: docs/worldbuilding-system/templates/world_kernel.md",
-          "Doctrine: docs/worldbuilding-system/20_ai_assisted_workflow.md",
-          "Omissions: no Admission gate results exist inside Creation."
-        ],
-        omissions: [
-          ...(!materialPresent ? ["Current kernel material is absent until the steward writes it."] : []),
-          "Frontloaded seed audit and first canon standing are omitted because Admission owns them."
-        ],
+        sourceManifest,
+        omissions,
         advisoryCanonWarning: "Prompt-out is optional advisory pressure. Pasted responses remain advisory artifacts and are not admitted canon."
       }
     },
@@ -334,14 +374,15 @@ export const creationDecisionPoint = (
       nextStep: mode && materialPresent ? "seed decomposition" : "continue kernel authoring",
       safeExit: "Safe exit leaves the Creation flow in progress and resumable from the same world file."
     },
-    readSideTrail: trail(kernel, output.report, output.records ?? []),
+    readSideTrail: trail(kernel, output.report ?? (handoff.seedDecompositionReport ? worldFile.getRecord(handoff.seedDecompositionReport.id) : undefined), output.records ?? handoff.parkedSeeds.map((seed) => worldFile.getRecord(seed.id))),
     handoffs: [
       "new-world navigation",
       "kernel decision surface",
       "Creation-bound Prompt-out",
       "seed decomposition surface",
       "browser evidence/coverage closeout"
-    ]
+    ],
+    handoff
   };
 };
 

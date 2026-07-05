@@ -48,4 +48,134 @@ describe("Creation decision-point web surface", () => {
     expect(decomposeAction).not.toContain("recordForm.canonStatus");
     expect(creationPanel).not.toContain("recordForm.canonStatus");
   });
+
+  it("renders the post-decomposition handoff from server-owned policy without turning source paths into guidance", () => {
+    const handoffDecision = {
+      flow: { key: "creation", runState: "complete" },
+      currentStep: "decomposition:complete",
+      localDecision: "Split broad steward material into smaller seed facts that can be independently rejected.",
+      packageAuthority: {
+        primary: "docs/worldbuilding-system/05_creation_protocol.md",
+        why: "Phase 2 owns seed decomposition, granularity, and the boundary before Admission.",
+        citations: ["docs/worldbuilding-system/05_creation_protocol.md#phase-2-seed-decomposition"]
+      },
+      currentKernel: { id: 1, shortId: "KER-1", title: "World kernel" },
+      sectionPrompts: [],
+      work: {
+        required: ["Seed title", "Seed body", "Truth layer"],
+        optional: ["Admission intent note for future review"],
+        allowedEmpty: [],
+        skippable: ["Prompt-out advisory pressure can be declined with a skip_record"]
+      },
+      blockers: [],
+      promptOut: {
+        available: true,
+        blocker: null,
+        templateKey: "decomposition_pressure",
+        stepKey: "creation:decomposition_prompt",
+        role: "Prerequisite auditor",
+        stepRequest: {
+          method: "POST",
+          href: "/api/prompt-out/steps",
+          body: {
+            flowKey: "creation",
+            flowId: 1,
+            recordId: 3,
+            templateKey: "decomposition_pressure",
+            stepKey: "creation:decomposition_prompt",
+            label: "Prerequisite auditor"
+          }
+        },
+        preview: {
+          currentDecision: "Split broad steward material into smaller seed facts that can be independently rejected.",
+          promptText: "Seed decomposition report SEE-1\nParked seed FAC-1\nCreation parks proposed seeds; Admission owns first canon standing.",
+          contextPreview: "Seed decomposition report SEE-1\nParked seed FAC-1: Echo court testimony\nCanon status: proposed",
+          sourceManifest: [
+            "Seed decomposition report: SEE-1 Seed decomposition",
+            "Parked seed: FAC-1 Echo court testimony",
+            "Doctrine excerpt: Phase 2 granularity rule"
+          ],
+          omissions: ["Frontloaded seed audit results omitted: Admission owns that instrument and no result exists yet."],
+          advisoryCanonWarning: "Prompt-out is optional advisory pressure. Pasted responses remain advisory artifacts and are not admitted canon."
+        }
+      },
+      writeIntent: {
+        willWrite: ["seed_decomposition report", "canon_fact records fixed at proposed"],
+        willLink: ["derived_from links from parked seeds to the kernel and decomposition report"],
+        willQueue: ["parked seeds appear in the Admission queue"],
+        willRouteOnward: ["Admission flow"],
+        willLeaveUntouched: ["canon standing is not admitted inside Creation", "pasted advisory text does not alter canon fields"]
+      },
+      nextOrResumeState: {
+        currentStep: "decomposition:complete",
+        nextStep: "Admission queue selection",
+        safeExit: "Safe exit keeps the completed handoff visible from the world file."
+      },
+      readSideTrail: [
+        { label: "Kernel record", href: "/api/canon-workbench/records/1", recordId: 1 },
+        { label: "Seed decomposition report", href: "/api/canon-workbench/records/3", recordId: 3 },
+        { label: "Parked seed FAC-1", href: "/api/canon-workbench/records/4", recordId: 4 },
+        { label: "Admission queue", href: "/api/admission/queue" }
+      ],
+      handoffs: ["seed decomposition surface", "browser evidence/coverage closeout"],
+      handoff: {
+        seedDecompositionReport: { id: 3, shortId: "SEE-1", title: "Seed decomposition", recordTypeKey: "seed_decomposition", body: "Kernel KER-1", truthLayer: "Objective canon", canonStatus: "proposed" },
+        reportSections: [],
+        parkedSeeds: [{
+          id: 4,
+          shortId: "FAC-1",
+          title: "Echo court testimony",
+          recordTypeKey: "canon_fact",
+          body: "Courts accept echo testimony under conditions.",
+          truthLayer: "Objective canon",
+          canonStatus: "proposed",
+          sourceLinks: [
+            { label: "Kernel KER-1: World kernel", href: "/api/canon-workbench/records/1", recordId: 1, shortId: "KER-1", title: "World kernel", recordTypeKey: "world_kernel", linkTypeKey: "derived_from", note: "Seed decomposed from world kernel" },
+            { label: "Seed decomposition report SEE-1: Seed decomposition", href: "/api/canon-workbench/records/3", recordId: 3, shortId: "SEE-1", title: "Seed decomposition", recordTypeKey: "seed_decomposition", linkTypeKey: "derived_from", note: "Seed recorded by decomposition report" }
+          ]
+        }],
+        supportingKernel: { id: 1, shortId: "KER-1", title: "World kernel", recordTypeKey: "world_kernel", body: "A city hears its dead.", truthLayer: "Objective canon", canonStatus: "proposed" },
+        kernelSections: [],
+        granularityRationale: "Each seed can be rejected without rewriting its siblings.",
+        admissionIntent: "Audit during Admission for institutional cost.",
+        admissionQueueRoute: "/api/admission/queue",
+        currentStatus: "proposed",
+        nextStep: "Admission queue selection",
+        sourceLinks: [
+          { label: "Kernel KER-1: World kernel", href: "/api/canon-workbench/records/1", recordId: 1, shortId: "KER-1", title: "World kernel", recordTypeKey: "world_kernel", linkTypeKey: "derived_from", note: "Creation handoff kernel" },
+          { label: "Seed decomposition report SEE-1: Seed decomposition", href: "/api/canon-workbench/records/3", recordId: 3, shortId: "SEE-1", title: "Seed decomposition", recordTypeKey: "seed_decomposition", linkTypeKey: "derived_from", note: "Creation handoff report" }
+        ],
+        doctrineAtPointOfUse: [
+          "Phase 2 granularity rule: split until each seed could be independently rejected without destroying its siblings.",
+          "Creation parks proposed seeds; Admission owns first canon standing.",
+          "Prompt-out is optional advisory pressure after steward-authored material."
+        ]
+      }
+    };
+
+    const html = renderToString(<App
+      initialOpenWorld="/tmp/creation.sqlite"
+      initialRecords={[
+        { id: 1, shortId: "KER-1", title: "World kernel", recordTypeKey: "world_kernel", body: "", truthLayer: "Objective canon", canonStatus: "proposed", updatedAt: "now" },
+        { id: 4, shortId: "FAC-1", title: "Echo court testimony", recordTypeKey: "canon_fact", body: "Courts accept echo testimony under conditions.", truthLayer: "Objective canon", canonStatus: "proposed", updatedAt: "now" }
+      ]}
+      initialCreationDecision={handoffDecision as any}
+    />);
+    const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
+
+    expect(html).toContain("Creation-to-Admission handoff");
+    expect(html).toContain("FAC-1 · Echo court testimony");
+    expect(html).toContain("Courts accept echo testimony under conditions.");
+    expect(html).toContain("Current canon status: proposed");
+    expect(html).toContain("Admission intent: Audit during Admission for institutional cost.");
+    expect(html).toContain("Creation parks proposed seeds; Admission owns first canon standing.");
+    expect(html).toContain("File paths and package sources are provenance, not primary operating instructions.");
+    expect(html).toContain("Seed decomposition report SEE-1");
+    expect(html).toContain("Admission queue selection");
+    expect(html).toContain("Prompt-out substrate/admin");
+    expect(html).toContain("Generic Prompt-out is secondary to the in-flow Creation Prompt-out path.");
+    expect(html).toContain("Not current: work from the Creation handoff before starting unrelated advanced flows.");
+    expect(source).toContain("creationDecision.handoff");
+    expect(source).toContain("displayedCreationDecision.handoff.parkedSeeds");
+  });
 });

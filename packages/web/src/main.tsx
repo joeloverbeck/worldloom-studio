@@ -561,6 +561,63 @@ interface CreationDecisionPoint {
   };
   readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
   handoffs: string[];
+  handoff: {
+    seedDecompositionReport: {
+      id: number;
+      shortId: string;
+      title: string;
+      recordTypeKey: string;
+      body: string;
+      truthLayer: string | null;
+      canonStatus: string | null;
+    } | null;
+    reportSections: SectionRow[];
+    parkedSeeds: Array<{
+      id: number;
+      shortId: string;
+      title: string;
+      recordTypeKey: string;
+      body: string;
+      truthLayer: string | null;
+      canonStatus: string | null;
+      sourceLinks: Array<{
+        label: string;
+        href: string;
+        recordId: number;
+        shortId: string;
+        title: string;
+        recordTypeKey: string;
+        linkTypeKey: string;
+        note: string;
+      }>;
+    }>;
+    supportingKernel: {
+      id: number;
+      shortId: string;
+      title: string;
+      recordTypeKey: string;
+      body: string;
+      truthLayer: string | null;
+      canonStatus: string | null;
+    } | null;
+    kernelSections: SectionRow[];
+    granularityRationale: string | null;
+    admissionIntent: string | null;
+    admissionQueueRoute: string;
+    currentStatus: string;
+    nextStep: string;
+    sourceLinks: Array<{
+      label: string;
+      href: string;
+      recordId: number;
+      shortId: string;
+      title: string;
+      recordTypeKey: string;
+      linkTypeKey: string;
+      note: string;
+    }>;
+    doctrineAtPointOfUse: string[];
+  };
 }
 
 interface AppProps {
@@ -727,7 +784,21 @@ const defaultCreationDecision: CreationDecisionPoint = {
     { label: "Audit Trail", href: "/api/canon-workbench/audit" },
     { label: "Admission queue", href: "/api/admission/queue" }
   ],
-  handoffs: ["new-world navigation", "kernel decision surface", "Creation-bound Prompt-out", "seed decomposition surface", "browser evidence/coverage closeout"]
+  handoffs: ["new-world navigation", "kernel decision surface", "Creation-bound Prompt-out", "seed decomposition surface", "browser evidence/coverage closeout"],
+  handoff: {
+    seedDecompositionReport: null,
+    reportSections: [],
+    parkedSeeds: [],
+    supportingKernel: null,
+    kernelSections: [],
+    granularityRationale: null,
+    admissionIntent: null,
+    admissionQueueRoute: "/api/admission/queue",
+    currentStatus: "not parked",
+    nextStep: "complete seed decomposition",
+    sourceLinks: [],
+    doctrineAtPointOfUse: []
+  }
 };
 
 const emptyQaProfile: QaProfileFields = {
@@ -1080,6 +1151,8 @@ function App({
   const selectedTemplate = templates.find((template) => template.key === promptTemplateKey);
   const selectedAdmissionRecord = records.find((record) => record.id === Number(admissionRecordId));
   const displayedCreationDecision = creationDecision ?? defaultCreationDecision;
+  const creationDecisionHandoff = creationDecision ? creationDecision.handoff : displayedCreationDecision.handoff;
+  const creationHandoffReady = displayedCreationDecision.handoff.parkedSeeds.length > 0;
   const relatedAuditItems = useMemo(() => selectedCanonRecordId == null
     ? []
     : canonAuditTrail.filter((item) => item.affectedCurrentRecords.some((record) => record.id === selectedCanonRecordId)),
@@ -2578,6 +2651,55 @@ function App({
             <span>Fill a lean world kernel, decompose seeds until each can be independently rejected, then admit later through `06`.</span>
           </div>
 
+          {creationHandoffReady && (
+            <div className="panel method-frontier">
+              <section className="subpanel">
+                <h2>Creation-to-Admission handoff</h2>
+                <p className="status">Not current: work from the Creation handoff before starting unrelated advanced flows.</p>
+                <p>File paths and package sources are provenance, not primary operating instructions.</p>
+                <div className="doctrine">
+                  <strong>Method rule</strong>
+                  {creationDecisionHandoff.doctrineAtPointOfUse.map((rule) => <span key={rule}>{rule}</span>)}
+                </div>
+                <div className="grid compact-grid">
+                  <section className="subpanel">
+                    <h3>Parked seeds</h3>
+                    {creationDecisionHandoff.parkedSeeds.map((seed) => (
+                      <article key={seed.id}>
+                        <h3>{`${seed.shortId} · ${seed.title}`}</h3>
+                        <p>{seed.body}</p>
+                        <p className="meta">{`Truth layer: ${seed.truthLayer ?? "unset"} · Current canon status: ${seed.canonStatus ?? "unset"}`}</p>
+                        <p>{`Source links: ${seed.sourceLinks.map((link) => link.label).join(" · ") || "none"}`}</p>
+                      </article>
+                    ))}
+                  </section>
+                  <section className="subpanel">
+                    <h3>Report and rationale</h3>
+                    <p>{creationDecisionHandoff.seedDecompositionReport
+                      ? `Seed decomposition report ${creationDecisionHandoff.seedDecompositionReport.shortId}: ${creationDecisionHandoff.seedDecompositionReport.title}`
+                      : "No seed-decomposition report yet."}</p>
+                    <p>{creationDecisionHandoff.granularityRationale ? `Granularity rationale: ${creationDecisionHandoff.granularityRationale}` : "Granularity rationale not recorded yet."}</p>
+                    {creationDecisionHandoff.admissionIntent && <p>{`Admission intent: ${creationDecisionHandoff.admissionIntent}`}</p>}
+                  </section>
+                  <section className="subpanel">
+                    <h3>Prompt packet</h3>
+                    <p>{displayedCreationDecision.promptOut.role} · {displayedCreationDecision.promptOut.available ? "available" : "blocked"}</p>
+                    <p>{displayedCreationDecision.promptOut.blocker ?? displayedCreationDecision.promptOut.preview.currentDecision}</p>
+                    <p>{displayedCreationDecision.promptOut.preview.advisoryCanonWarning}</p>
+                  </section>
+                  <section className="subpanel">
+                    <h3>Next and read-side trail</h3>
+                    <p>{creationDecisionHandoff.nextStep}</p>
+                    <p>{`Admission route: ${creationDecisionHandoff.admissionQueueRoute}`}</p>
+                    <div className="chips">
+                      {displayedCreationDecision.readSideTrail.map((item) => <span key={`${item.label}-${item.href}`}>{`${item.label} · ${item.href}`}</span>)}
+                    </div>
+                  </section>
+                </div>
+              </section>
+            </div>
+          )}
+
           {!records.some((record) => record.recordTypeKey === "world_kernel") && (
             <div className="panel">
               <section className="subpanel">
@@ -2739,7 +2861,8 @@ function App({
               ))}
             </section>
             <section className="subpanel">
-              <h2>Prompt-out</h2>
+              <h2>Prompt-out substrate/admin</h2>
+              <p className="status">Generic Prompt-out is secondary to the in-flow Creation Prompt-out path.</p>
               <label>Prompt context<select value={promptFlowKey} onChange={(event) => {
                 const next = event.target.value as PromptFlowKey;
                 setPromptFlowKey(next);

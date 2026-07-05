@@ -12,7 +12,7 @@ The setup shell has no manual token input and does not require a copied terminal
 
 Create/open policy remains server-owned. The browser shows server-returned path, wrong-file, future-schema, migration/backup, integrity, filesystem, and open/create failures next to the setup controls while preserving the entered path for correction. A successful create/open names the world file, updates recent worlds, and reveals the workspace.
 
-After a world is open, setup controls become secondary. A world with no `world_kernel` foregrounds Creation start/resume as the primary active guided path; unrelated flows show prerequisite or not-yet-ready states until the kernel prerequisite exists.
+After a world is open, setup controls become secondary. A world with no `world_kernel` foregrounds Creation start/resume as the primary active guided path; unrelated flows show prerequisite or not-yet-ready states until the kernel prerequisite exists. A world that has just parked Creation seeds foregrounds the Creation-to-Admission handoff: parked proposed seeds, seed-decomposition report, source links, granularity rationale, optional decomposition Prompt-out, and Admission queue route. Unrelated advanced flows remain available as substrate or later work, but they are visually secondary to the immediate handoff where this state is in scope.
 
 ## Standard Affordances
 
@@ -33,6 +33,7 @@ Every guided flow browser surface exposes:
 
 - A new world with no `world_kernel` foregrounds Creation start/resume as the primary active guided path; unrelated flows show prerequisites or not-yet-ready states until the kernel prerequisite exists.
 - Creation parks seeds at `proposed`; Admission owns first canon standing.
+- After seed parking, the active handoff names the seed-decomposition report, derived-from links, current/next/resume state, prompt-out state or governed skip, and read-side trail before steering the steward to Admission.
 - Sweeps and specialized passes propose facts; Admission admits.
 - Propagation, contradiction, institutional/economic/suppression, and QA may mint canon debt; debt appears in the relevant queue without changing canon standing.
 - Read-side workbench views link back to flow artifacts but do not mutate them.
@@ -51,7 +52,8 @@ A browser workflow slice that changes navigation must show:
 - an exit/resume path;
 - the resulting read-side trail or explicit reason none exists yet.
 - for setup/open-world changes, a walkthrough from no-world setup through create/open success and the empty-world Creation prerequisite state.
+- for Creation-to-Admission handoff changes, a walkthrough from open early-world state through seed parking, prompt preview or governed skip, and Admission handoff, with unrelated advanced flows presented as not-current or prerequisite surfaces where the slice touches them.
 
 ## Principles
 
-Touches `guided-workflow-usability.md` W-8, `workflow-principles.md` P-5/W-2/W-3/W-4/W-7, `data-principles.md` P-6/W-5/W-6, `charter.md` v1 scope, ADR 0004, PRD #150, PRD #158, and `canon-sovereignty.md` W-1 where prompt-out appears. It affirms non-contradiction.
+Touches `docs/worldbuilding-system/05_creation_protocol.md`, `docs/worldbuilding-system/06_canon_fact_admission_protocol.md`, `docs/worldbuilding-system/20_ai_assisted_workflow.md`, `docs/specs/creation-flow.md`, `docs/specs/prompt-out-context-assembly.md`, `docs/specs/browser-visible-guidance-acceptance.md`, `guided-workflow-usability.md` W-8, `workflow-principles.md` P-5/W-2/W-3/W-4/W-7, `data-principles.md` P-6/W-5/W-6, `charter.md` v1 scope and T-8, `domain-fidelity.md` P-1/T-2, ADR 0007, ADR 0009, PRD #150, PRD #158, and PRD #165. It affirms non-contradiction.
