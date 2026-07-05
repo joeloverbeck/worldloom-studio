@@ -75,6 +75,7 @@ Use the available sub-agent mechanism, if permitted, with two independent read-o
 - Keep the outputs separated under `## Standards` and `## Spec`.
 - For PRD child issue families, include the compact per-child coverage table `Issue | Acceptance source | Evidence reviewed | Findings/residuals` before reporting zero residual Spec findings.
 - Cite the concrete standards/spec sources used for each axis.
+- Source lists must name exact files, issue numbers, or other concrete authorities. Do not use generic placeholders such as `relevant principles/ADRs` or `named principle/ADR sources`; put Principles/ADRs on the Standards axis only when the named source states a coding, review, tracker, or verification convention.
 - Apply the smell baseline as judgement-call heuristics, not hard violations, and let documented repo standards override it.
 - In the Standards output, include a dedicated `Smell baseline applied: <yes / skipped because ...>.` line before findings, so a zero-finding fallback still proves the baseline was considered.
 - End with the required axis summary: `Standards <count/worst>, Spec <count/worst>`.
@@ -87,13 +88,13 @@ Review frame: fixed point <ref>; diff command `git diff <fixed-point>...HEAD`; c
 ## Standards
 
 Fallback used: <unavailable tooling / policy-blocked delegation / other reason>.
-Sources reviewed: <standards-source files, root agent instructions, smell baseline>.
+Sources reviewed: <exact standards-source files or issue numbers; root agent instructions; smell baseline; named Principles/ADRs only when they state coding/workflow conventions>.
 Smell baseline applied: <yes / skipped because ...>.
 Findings: <none / bullets with file+hunk and standard or smell label>.
 
 ## Spec
 
-Sources reviewed: <issue/PRD/spec files, Principles/ADRs when applicable>.
+Sources reviewed: <exact issue/PRD/spec files, named Principles/ADRs when applicable>.
 
 | Issue | Acceptance source | Evidence reviewed | Findings/residuals |
 |---|---|---|---|

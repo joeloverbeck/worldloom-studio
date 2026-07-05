@@ -95,9 +95,11 @@ Before declaring completion, closing issues, or closing a parent PRD:
 - If the issue breakdown is wrong, comment with the proposed tracker correction instead of closing mismatched issues.
 - Run a final `git status --short`. For untracked verification artifacts, either remove them if safe, stage them if they are intended evidence, or explicitly report them in the final response.
 
-Mechanical audit-shape stop: before entering the closeout command gate, inspect the posted audit table. If it lacks both `Acceptance criterion or conformance check` and `Status` columns, or if any issue row summarizes multiple acceptance checkboxes without naming each one, stop and expand the audit before running any issue-close command.
+Mechanical audit-shape stop: before entering the closeout command gate, inspect the posted audit table. If it lacks both `Acceptance criterion or conformance check` and `Status` columns, if any status uses `PASS`, `OK`, `done`, checkmarks, or prose instead of the literal `satisfied`, `blocked`, or `not done`, or if any issue row summarizes multiple acceptance checkboxes without naming each one, stop and expand the audit before running any issue-close command.
 
 Mandatory closeout self-check before any `gh issue close`, `glab issue close`, or equivalent: the audit table must have exact `Acceptance criterion or conformance check` and `Status` columns, every acceptance checkbox or conformance check must be named explicitly, and every row for the issue being closed must be `satisfied`.
+
+Closeout artifact body check: before running any closeout command, inspect the exact body that will be posted to the issue or the exact linked durable rollup body that the issue comment will cite. The body must contain the final SHA, verification evidence, review evidence, any required Principles/ADR conformance phrase or approved exception, and, when the SHA is local-only, an explicit statement that the SHA is not remote-reachable and why local-only closeout is acceptable. If one durable parent rollup covers several child issues, verify this once against that rollup and cite it from each child closeout comment.
 
 Closeout command gate: do not run `gh issue close`, `glab issue close`, or equivalent until all of these are true:
 
