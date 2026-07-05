@@ -28,6 +28,50 @@ export interface HealthPayload {
   version: string;
 }
 
+export type WorkflowMapStageState = "done" | "active" | "owed" | "blocked" | "not_yet_earned";
+export type WorkflowMapDestinationKind = "guided-flow" | "read-side" | "substrate";
+export type WorkflowMapDestinationState = "active" | "available" | "owed" | "blocked" | "not_yet_earned";
+
+export interface WorkflowMapStage {
+  key: string;
+  label: string;
+  state: WorkflowMapStageState;
+  summary: string;
+  destinationKey: string;
+  unlockReason?: string;
+}
+
+export interface WorkflowMapQueue {
+  key: string;
+  label: string;
+  count: number;
+  destinationKey: string;
+  href: string;
+  summary: string;
+}
+
+export interface WorkflowMapDestination {
+  key: string;
+  label: string;
+  kind: WorkflowMapDestinationKind;
+  summary: string;
+  state: WorkflowMapDestinationState;
+}
+
+export interface WorkflowMapPayload {
+  readOnly: true;
+  world: { path: string };
+  stages: WorkflowMapStage[];
+  queues: WorkflowMapQueue[];
+  nextDecision: {
+    destinationKey: string;
+    label: string;
+    reason: string;
+    href: string;
+  };
+  destinations: WorkflowMapDestination[];
+}
+
 export const APP_VERSION = "0.0.0";
 
 export const RECORD_TYPES: RecordTypeDefinition[] = [

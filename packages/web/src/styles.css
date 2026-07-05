@@ -81,6 +81,70 @@ label {
   min-height: calc(100vh - 76px);
 }
 
+.workflow-shell {
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+}
+
+.surface-navigation {
+  display: grid;
+  gap: 8px;
+}
+
+.surface-navigation button {
+  justify-content: flex-start;
+  text-align: left;
+  background: #fffdfa;
+  color: #1f3d36;
+  border-color: #b8b2a5;
+}
+
+.surface-navigation button.active {
+  background: #1f3d36;
+  color: #fffdfa;
+  border-color: #1f3d36;
+}
+
+.workflow-map-home,
+.destination-surface {
+  display: grid;
+  gap: 18px;
+}
+
+.surface-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 980px;
+  margin-bottom: 4px;
+}
+
+.surface-heading h2,
+.surface-heading p {
+  margin: 0;
+}
+
+.surface-heading p {
+  color: #485047;
+}
+
+.next-decision {
+  border-color: #6d7f54;
+}
+
+.pill {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  border: 1px solid #b8b2a5;
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: #f7f5ef;
+  color: #33423d;
+  font-size: 0.85rem;
+}
+
 .setup-shell {
   max-width: 860px;
   margin: 0 auto;

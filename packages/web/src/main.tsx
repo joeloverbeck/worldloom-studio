@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { HealthPayload, LinkTypeDefinition, RecordTypeDefinition } from "@worldloom/shared";
+import type { HealthPayload, LinkTypeDefinition, RecordTypeDefinition, WorkflowMapPayload } from "@worldloom/shared";
+import { WorkflowShell } from "./workflow-shell.js";
 import "./styles.css";
 
 interface RecordRow {
@@ -629,6 +630,8 @@ interface AppProps {
   initialOpenWorld?: string | null;
   initialRecentWorlds?: RecentWorld[];
   initialSetupError?: SetupErrorState | null;
+  initialWorkflowMap?: WorkflowMapPayload | null;
+  initialDestination?: string;
   initialCanonCurrent?: CanonWorkbenchCurrentRow[];
   initialCanonAudit?: CanonWorkbenchAuditItem[];
   initialCanonDetail?: CanonWorkbenchDetail | null;
@@ -945,6 +948,8 @@ function App({
   initialOpenWorld = null,
   initialRecentWorlds = [],
   initialSetupError = null,
+  initialWorkflowMap = null,
+  initialDestination,
   initialCanonCurrent = [],
   initialCanonAudit = [],
   initialCanonDetail = null,
@@ -954,6 +959,8 @@ function App({
 }: AppProps = {}) {
   const [worldPath, setWorldPath] = useState("");
   const [openWorld, setOpenWorld] = useState<string | null>(initialOpenWorld);
+  const [workflowMap, setWorkflowMap] = useState<WorkflowMapPayload | null>(initialWorkflowMap);
+  const [activeDestination, setActiveDestination] = useState<string>(initialDestination ?? (initialWorkflowMap ? "map" : "legacy"));
   const [serverVersion, setServerVersion] = useState("");
   const [serverStatus, setServerStatus] = useState<"checking" | "ready" | "failed">("checking");
   const [catalogStatus, setCatalogStatus] = useState<"checking" | "ready" | "failed">("checking");
@@ -1274,7 +1281,8 @@ function App({
   };
 
   const loadWorldData = async () => {
-    const [recordPayload, linkPayload, vocabularyPayload, headingPayload, draftPayload, templatePayload, queuePayload, debtPayload, propagationQueuePayload, stage13OwedPayload, canonCurrentPayload, canonAuditPayload] = await Promise.all([
+    const [workflowMapPayload, recordPayload, linkPayload, vocabularyPayload, headingPayload, draftPayload, templatePayload, queuePayload, debtPayload, propagationQueuePayload, stage13OwedPayload, canonCurrentPayload, canonAuditPayload] = await Promise.all([
+      api<WorkflowMapPayload>("/api/workflow-map"),
       api<{ records: RecordRow[] }>("/api/records"),
       api<{ links: LinkRow[] }>("/api/links"),
       api<{ terms: VocabularyTerm[] }>("/api/vocabularies"),
@@ -1288,6 +1296,7 @@ function App({
       api<{ rows: CanonWorkbenchCurrentRow[] }>("/api/canon-workbench/current"),
       api<{ spine: CanonWorkbenchAuditItem[] }>("/api/canon-workbench/audit")
     ]);
+    setWorkflowMap(workflowMapPayload);
     setRecords(recordPayload.records);
     setLinks(linkPayload.links);
     setTerms(vocabularyPayload.terms);
@@ -1361,6 +1370,7 @@ function App({
       setOpenWorld(payload.path);
       setWorldPath(payload.path);
       setRecords(payload.records);
+      setActiveDestination("map");
       setSetupError(null);
       if (payload.setupStatus?.recentWorlds) setRecentWorlds(payload.setupStatus.recentWorlds);
       await loadWorldData();
@@ -2634,6 +2644,259 @@ function App({
           {setupPanel()}
           {message && <p className="status">{message}</p>}
         </section>
+      </main>
+    );
+  }
+
+  if (activeDestination !== "legacy") {
+    if (!workflowMap) {
+      return (
+        <main>
+          <header className="topbar">
+            <div>
+              <h1>Worldloom Studio</h1>
+              <p>{serverVersion ? `Server ${serverVersion} · ` : ""}World open · {openWorld}</p>
+            </div>
+          </header>
+          <section className="workspace workflow-shell">
+            <aside className="sidebar">
+              {setupPanel(true)}
+            </aside>
+            <section className="editor">
+              <div className="panel">
+                <h2>Workflow map</h2>
+                <p className="status">Loading server-owned workflow map.</p>
+              </div>
+            </section>
+          </section>
+        </main>
+      );
+    }
+
+    const displayedWorkflowMap = workflowMap;
+    const shellSurfaces = {
+      creation: (
+        <section className="panel creation-decision">
+          <div className="operating-card">
+            <strong>Operating Card</strong>
+            <span>Source: docs/worldbuilding-system/operating_card.md</span>
+            <span>Fill a lean world kernel, decompose seeds until each can be independently rejected, then admit later through `06`.</span>
+          </div>
+          <h2>{"Creation decision point"}</h2>
+          <p className="status">Primary active path for a new world</p>
+          <section className="subpanel">
+            <h3>{displayedCreationDecision.currentStep}</h3>
+            <p>{displayedCreationDecision.localDecision}</p>
+            <p>{displayedCreationDecision.packageAuthority.primary}</p>
+            <p>{displayedCreationDecision.packageAuthority.why}</p>
+            <div className="chips">
+              {displayedCreationDecision.packageAuthority.citations.map((citation) => <span key={citation}>{citation}</span>)}
+            </div>
+          </section>
+          {creationHandoffReady && (
+            <section className="subpanel">
+              <h3>Creation-to-Admission handoff</h3>
+              <p className="status">Not current: work from the Creation handoff before starting unrelated advanced flows.</p>
+              <p>File paths and package sources are provenance, not primary operating instructions.</p>
+              <div className="grid compact-grid">
+                {creationDecisionHandoff.parkedSeeds.map((seed) => (
+                  <article key={seed.id} className="subpanel">
+                    <h3>{`${seed.shortId} · ${seed.title}`}</h3>
+                    <p>{seed.body}</p>
+                    <p className="meta">{`Truth layer: ${seed.truthLayer ?? "unset"} · Current canon status: ${seed.canonStatus ?? "unset"}`}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
+          <section className="subpanel">
+            <h3>Prerequisites before other flows</h3>
+            <div className="grid compact-grid">
+              {displayedCreationDecision.blockers.map((blocker) => (
+                <article key={blocker.key} className="subpanel">
+                  <h3>{blocker.label}</h3>
+                  <p>{blocker.message}</p>
+                  <p className="meta">{blocker.requires}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+          <section className="subpanel">
+            <h3>Kernel authoring</h3>
+            <p>Consequence mode is steward judgment.</p>
+            <div className="grid compact-grid">
+              <label>Kernel step<select value={kernelHeading} onChange={(event) => setKernelHeading(event.target.value)}>{displayedCreationDecision.sectionPrompts.map((prompt) => <option key={prompt.heading}>{prompt.heading}</option>)}</select></label>
+              <label>Kernel section<textarea rows={4} value={kernelBody} onChange={(event) => setKernelBody(event.target.value)} placeholder={displayedCreationDecision.sectionPrompts.find((prompt) => prompt.heading === kernelHeading)?.prompt} /></label>
+              {displayedCreationDecision.sectionPrompts.map((prompt) => (
+                <p key={prompt.heading} className="meta">{prompt.heading} · {prompt.obligation}</p>
+              ))}
+            </div>
+            <button onClick={saveKernelStep} disabled={flowId == null}>Save kernel step</button>
+          </section>
+          <section className="subpanel">
+            <h3>{"Prompt-out preview"}</h3>
+            <p>{displayedCreationDecision.promptOut.preview.currentDecision}</p>
+            <p>{displayedCreationDecision.promptOut.preview.promptText}</p>
+            <p>{displayedCreationDecision.promptOut.preview.advisoryCanonWarning}</p>
+            <h3>Source manifest</h3>
+            <div className="chips">
+              {displayedCreationDecision.promptOut.preview.sourceManifest.map((source) => <span key={source}>{source}</span>)}
+            </div>
+            <button onClick={loadCreationPromptStep} disabled={!openWorld || (!creationDecision?.promptOut.stepRequest && !creationDecision?.promptOut.modes?.some((mode) => mode.stepRequest))}>Load Creation Prompt-out Step</button>
+          </section>
+          <section className="subpanel">
+            <h3>Seed decomposition decision</h3>
+            <p>Actual current status: proposed</p>
+            <div className="grid compact-grid">
+              <label>Seed title<input value={seedTitle} onChange={(event) => setSeedTitle(event.target.value)} /></label>
+              <label>Seed body<textarea rows={3} value={seedBody} onChange={(event) => setSeedBody(event.target.value)} /></label>
+              <label>Admission intent<input value={admissionIntent} onChange={(event) => setAdmissionIntent(event.target.value)} /></label>
+            </div>
+            <label>Granularity rationale<textarea rows={3} value={granularityRationale} onChange={(event) => setGranularityRationale(event.target.value)} /></label>
+            <label className="inline-check"><input type="checkbox" checked={granularityConfirmed} onChange={(event) => setGranularityConfirmed(event.target.checked)} />Granularity confirmation</label>
+            <button onClick={decompose} disabled={flowId == null || kernelRecordId == null}>Decompose and Park Seed</button>
+          </section>
+          <section className="subpanel">
+            <h3>Write preview</h3>
+            <p>{displayedCreationDecision.writeIntent.willWrite.join(" · ")}</p>
+            <p>{displayedCreationDecision.writeIntent.willLink.join(" · ")}</p>
+            <p>Admission handoff: {displayedCreationDecision.writeIntent.willRouteOnward.join(" · ")}</p>
+          </section>
+          <section className="subpanel">
+            <h3>Read-side trail</h3>
+            <div className="chips">
+              {displayedCreationDecision.readSideTrail.map((item) => <span key={`${item.label}:${item.href}`}>{item.label} · {item.href}</span>)}
+            </div>
+            <p>Safe exit/resume: {displayedCreationDecision.nextOrResumeState.safeExit}</p>
+          </section>
+          <section className="subpanel">
+            <h3>Naive steward walkthrough</h3>
+            <ol>
+              <li>Identify the current Creation decision and source doctrine.</li>
+              <li>Distinguish required, optional, skippable, and allowed-empty obligations.</li>
+              <li>Treat Prompt-out as advisory pressure, not canon generation.</li>
+            </ol>
+          </section>
+        </section>
+      ),
+      admission: (
+        <section className="panel">
+          <h2>Admission flow</h2>
+          <p>Admission is the only flow that changes canon standing.</p>
+          <section className="subpanel">
+            <h3>Queue</h3>
+            {admissionQueue.length === 0 ? <p className="status">No Admission work is queued.</p> : admissionQueue.map((record) => <p key={record.id}>{record.shortId} · {record.title}</p>)}
+          </section>
+          {admissionDecision && (
+            <section className="subpanel">
+              <h3>{admissionDecision.currentStep}</h3>
+              <p>{admissionDecision.localDecision}</p>
+              <p>{admissionDecision.packageAuthority.primary}</p>
+            </section>
+          )}
+        </section>
+      ),
+      propagation: (
+        <section className="panel">
+          <h2>Propagation flow</h2>
+          <p>Work shock cones, consequence domains, and stopping-rule dispositions.</p>
+          {propagationQueue.map((record) => <p key={record.id}>{record.shortId} · {record.title}</p>)}
+        </section>
+      ),
+      constraint: (
+        <section className="panel">
+          <h2>Constraint composition flow</h2>
+          <p>Compose constraints where facts apply.</p>
+        </section>
+      ),
+      stage12: (
+        <section className="panel">
+          <h2>Institutional / Economic / Suppression flow</h2>
+          <p>Run conditional institutional, economic, and suppression passes.</p>
+        </section>
+      ),
+      contradiction: (
+        <section className="panel">
+          <h2>Contradiction/Retcon/Mystery flow</h2>
+          <p>Repair contradictions and preserve protected effects.</p>
+          {stage13OwedBoundaries.map((row) => <p key={row.propagationDispositionId}>Boundary #{row.propagationDispositionId} · protected record {row.protectedRecordId}</p>)}
+        </section>
+      ),
+      qa: (
+        <section className="panel">
+          <h2>QA</h2>
+          <p>Score stability before calling the world stable.</p>
+        </section>
+      ),
+      "canon-workbench": (
+        <section className="panel">
+          <h2>Canon Workbench</h2>
+          <p>Current Canon</p>
+          <p>Audit Trail</p>
+          <p>Canon Workbench text query</p>
+          {canonCurrentRows.map((row) => <p key={row.id}>{row.shortId} · {row.title}</p>)}
+        </section>
+      ),
+      "markdown-export": (
+        <section className="panel">
+          <h2>Markdown export</h2>
+          <label>Markdown export directory<input value={exportDirectory} onChange={(event) => setExportDirectory(event.target.value)} placeholder="/tmp/example-markdown-export" /></label>
+          <button onClick={exportWorldMarkdown} disabled={!openWorld || !exportDirectory.trim()}>Export World Markdown</button>
+          {exportedMarkdown && <textarea rows={12} value={exportedMarkdown} readOnly />}
+        </section>
+      ),
+      substrate: (
+        <section className="panel">
+          <h2>Substrate</h2>
+          <p>Generic records, links, search, draft space, and Prompt-out substrate/admin.</p>
+          <section className="subpanel">
+            <h3>Search and links</h3>
+            <label>Search<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="record title or prose" /></label>
+            <div className="row">
+              <button onClick={runSearch} disabled={!openWorld}>Search</button>
+              <button onClick={loadWorldData} disabled={!openWorld}>All</button>
+            </div>
+            <label>Link from<input value={fromRecordId} onChange={(event) => setFromRecordId(event.target.value)} placeholder="record id" /></label>
+            <label>Link to<input value={toRecordId} onChange={(event) => setToRecordId(event.target.value)} placeholder="record id" /></label>
+            <button onClick={createLink} disabled={!openWorld}>Create Link</button>
+          </section>
+          <section className="subpanel">
+            <h3>New record</h3>
+            <label>Title<input value={recordForm.title} onChange={(event) => setRecordForm({ ...recordForm, title: event.target.value })} /></label>
+            <label>Body<textarea rows={5} value={recordForm.body} onChange={(event) => setRecordForm({ ...recordForm, body: event.target.value })} /></label>
+            <button onClick={saveRecord} disabled={!canSaveRecord}>Save record</button>
+          </section>
+          <section className="subpanel">
+            <h3>Prompt-out substrate/admin</h3>
+            <p>Generic Prompt-out is secondary to the in-flow Creation Prompt-out path.</p>
+            <button onClick={loadPromptStep} disabled={!openWorld}>Load Prompt Step</button>
+          </section>
+          {records.map((record) => (
+            <article key={record.id} className="subpanel">
+              <h3>{record.shortId} · {record.title}</h3>
+              <p>{record.body || "No prose yet."}</p>
+            </article>
+          ))}
+        </section>
+      )
+    };
+
+    return (
+      <main>
+        <header className="topbar">
+          <div>
+            <h1>Worldloom Studio</h1>
+            <p>{serverVersion ? `Server ${serverVersion} · ` : ""}World open · {openWorld}</p>
+          </div>
+        </header>
+        <WorkflowShell
+          workflowMap={displayedWorkflowMap}
+          activeDestination={activeDestination}
+          setupControls={setupPanel(true)}
+          surfaces={shellSurfaces}
+          status={message ? <p className="status">{message}</p> : null}
+          onNavigate={setActiveDestination}
+        />
       </main>
     );
   }

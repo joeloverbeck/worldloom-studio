@@ -4,6 +4,20 @@ This spec defines the cross-flow orientation grammar for guided workflows. It is
 
 The workflow map is not a gamified dashboard and not a project-management layer. It is a compact answer to: where am I in the method, why am I here, what blocks me, and what happens next?
 
+## Journey Model
+
+The map renders the operating card's method journey, not a loose list of app features.
+
+1. **Creation**: start with a lean `world_kernel`, then decompose seeds until each can be independently rejected without destroying its siblings.
+2. **Frontloaded seed audit and Admission**: after Creation parks proposed seeds, the frontloaded seed audit and Canon Fact Admission govern first canon standing. Admission is the only path from proposed fact to canon standing.
+3. **Propagation**: major facts owe shock-cone work, consequence dispositions, and stopping-rule judgments.
+4. **Conditional passes**: constraint composition and the institutional/economic/suppression pass appear as "when facts apply" work, never as false universal prerequisites.
+5. **Contradiction/retcon/mystery**: contradiction pressure, repair work, and mystery-preservation duties are worked after propagation or canon pressure exposes them. Owed-boundary work is filled by propagation dispositions that protect mysteries.
+6. **QA**: stability checks run before calling a world version stable.
+7. **Steady-state maintenance loop**: after the first stable path, new material re-enters at the lightest valid instrument: propose/admit, propagate when owed, run conditional passes when facts apply, repair contradictions or protected boundaries, and re-check QA when the version's load-bearing material changes.
+
+The browser may use friendlier labels, but the state grammar and destination list stay aligned to this journey.
+
 ## Setup/Open-World Entry
 
 Before a world is open, the browser renders setup work only: server status, catalog status, create/open world-file controls, recently opened worlds, and setup/open errors. It does not render workflow panels, search, snapshot/export, generic record/link tools, Prompt-out, Canon Workbench work, or method step content as competing inactive surfaces.
@@ -12,7 +26,74 @@ The setup shell has no manual token input and does not require a copied terminal
 
 Create/open policy remains server-owned. The browser shows server-returned path, wrong-file, future-schema, migration/backup, integrity, filesystem, and open/create failures next to the setup controls while preserving the entered path for correction. A successful create/open names the world file, updates recent worlds, and reveals the workspace.
 
-After a world is open, setup controls become secondary. A world with no `world_kernel` foregrounds Creation start/resume as the primary active guided path; unrelated flows show prerequisite or not-yet-ready states until the kernel prerequisite exists. A world that has just parked Creation seeds foregrounds the Creation-to-Admission handoff: parked proposed seeds, seed-decomposition report, source links, granularity rationale, optional decomposition Prompt-out, and Admission queue route. Unrelated advanced flows remain available as substrate or later work, but they are visually secondary to the immediate handoff where this state is in scope.
+After a world is open, setup controls become secondary and the workflow map becomes the home surface. A world with no `world_kernel` foregrounds Creation start/resume from the map as the primary active guided path; unrelated flows show prerequisite or not-yet-ready states until the kernel prerequisite exists. A world that has just parked Creation seeds foregrounds the Creation-to-Admission handoff and the Admission queue route: parked proposed seeds, seed-decomposition report, source links, granularity rationale, optional decomposition Prompt-out, and Admission queue route. Unrelated advanced flows remain available as substrate or later work, but they are visually secondary to the immediate handoff where this state is in scope.
+
+## Map-as-Home Rule
+
+Once a world is open, the map is the open-world home. Guided flows are destinations entered from it and presented one visible destination at a time. Read-side views and the record substrate remain reachable from the map, but they do not compete with the active guided path as peer first actions.
+
+The map itself is a read-side orientation surface. It performs no writes, mints no records, admits no canon, records no skips, and runs no flow step. It renders server-returned state and route affordances. The browser computes no prerequisite, readiness, queue, or next-decision policy locally.
+
+## State Grammar
+
+Stages render with one of these states:
+
+- `done`: the stage's current prerequisite or open work has been satisfied for the current world state.
+- `active`: the steward can act on this stage now, or a run in this stage is in progress.
+- `owed`: the world already contains material that owes this stage work.
+- `blocked`: enough world material exists for the stage to matter, but no specific owed item is currently foregrounded.
+- `not_yet_earned`: the stage is unavailable until an earlier method prerequisite exists.
+
+Stages in `blocked` or `not_yet_earned` state must state what unlocks them. Conditional passes use this language to explain "when facts apply" instead of presenting the passes as mandatory stops for every fact.
+
+## Foregrounding and Queues
+
+The map foregrounds state in this order unless a future spec narrows the order further:
+
+- an empty world foregrounds **Start Creation** because no `world_kernel` exists;
+- parked proposed seeds or under-review facts foreground the **Admission queue**;
+- propagation-scoped debt foregrounds **Owed propagation**;
+- propagation dispositions that protect mysteries foreground **Owed boundaries** for contradiction/retcon/mystery work;
+- when no owed queue is foregrounded, the next decision may point to QA or another stability check if enough world material exists.
+
+The map displays queue signals with counts for:
+
+- Admission queue;
+- owed propagation;
+- owed boundaries;
+- open canon debt;
+- skips.
+
+Counts come from the server's existing flow, queue, debt, and record reads. A zero-count queue may remain visible when it teaches the next prerequisite; it must not imply hidden work.
+
+## Destinations
+
+The map owns destination entry for:
+
+- Creation;
+- Admission;
+- Propagation;
+- constraint composition;
+- institutional/economic/suppression;
+- contradiction/retcon/mystery;
+- QA;
+- Canon Workbench;
+- markdown export;
+- substrate.
+
+The substrate destination contains generic records, links, search, draft space, and Prompt-out admin tools. The Canon Workbench and markdown export are read-side destinations. Guided-flow destinations keep their decision-point interiors, current/next/resume state, blockers, Prompt-out affordances, write previews, and read-side trails per the standard affordances below.
+
+Every destination has a safe return to the map. Returning to the map after a flow action reloads a fresh server-owned map payload so stage state, owed queues, and next decision reflect the current world file.
+
+## Prompt-Out Classification
+
+In-flow Prompt-out is the only prompt path on guided routes. It belongs to the current decision point and carries that decision point's context, doctrine, omissions, and advisory/canon warning.
+
+The generic Prompt-out panel is classified as substrate/admin. It remains reachable, but it does not appear beside guided-flow decision points and does not compete with in-flow Prompt-out.
+
+## Propagation Before Protected-Boundary Work
+
+The owed-boundaries queue is downstream of propagation dispositions. Protected consequences found during propagation create owed contradiction/retcon/mystery work; the map exposes that queue once it exists. The browser must not invent contradiction prerequisites locally, and the map must not imply that protected-boundary work exists before the propagation or canon pressure that creates it.
 
 ## Standard Affordances
 
@@ -46,6 +127,8 @@ The browser renders server-returned step maps, blockers, severity paths, prompt-
 
 A browser workflow slice that changes navigation must show:
 
+- for map-first shell changes, a walkthrough from setup through open-world to the map, into a guided flow, back to the map with run state parked and refreshed, and into the Admission queue when Admission is owed;
+- on the map, stage state, queue counts, next decision, why that decision is next, and unlock reasons for unearned stages;
 - a start/resume path;
 - a visible current decision point;
 - at least one next-step or blocker state;

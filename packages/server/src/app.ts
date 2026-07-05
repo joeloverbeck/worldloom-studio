@@ -12,6 +12,7 @@ import { registerPropagationRoutes } from "./http/propagation-routes.js";
 import { registerQaRoutes } from "./http/qa-routes.js";
 import { registerStage12Routes } from "./http/stage-12-routes.js";
 import { registerSubstrateRoutes } from "./http/substrate-routes.js";
+import { registerWorkflowMapRoutes } from "./http/workflow-map-routes.js";
 import type { RouteDependencies } from "./http/route-support.js";
 
 interface AppOptions {
@@ -33,6 +34,7 @@ export const createApp = (_options: AppOptions = {}) => {
   const dependencies: RouteDependencies = { activeWorldSession };
 
   registerSubstrateRoutes(app, dependencies);
+  registerWorkflowMapRoutes(app, dependencies);
   registerPromptOutRoutes(app, dependencies);
   registerCreationRoutes(app, dependencies);
   registerAdmissionRoutes(app, dependencies);
