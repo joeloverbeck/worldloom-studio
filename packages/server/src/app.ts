@@ -18,18 +18,17 @@ interface AppOptions {
   token?: string;
 }
 
-const activeWorldSession = new ActiveWorldSession();
+const localDevelopmentOrigins = [
+  "http://127.0.0.1:5173",
+  "http://localhost:5173",
+  "http://127.0.0.1:5174",
+  "http://localhost:5174"
+];
 
-export const createApp = (options: AppOptions = {}) => {
+export const createApp = (_options: AppOptions = {}) => {
+  const activeWorldSession = new ActiveWorldSession();
   const app = new Hono();
-  app.use("*", cors());
-
-  app.use("/api/*", async (c, next) => {
-    if (options.token && c.req.header("x-worldloom-token") !== options.token) {
-      return c.json({ error: "Missing or invalid Worldloom token" }, 401);
-    }
-    await next();
-  });
+  app.use("*", cors({ origin: localDevelopmentOrigins }));
 
   const dependencies: RouteDependencies = { activeWorldSession };
 

@@ -17,6 +17,14 @@ For a guided-flow browser slice, acceptance should include the smallest useful s
 - resulting record, report, link, queue entry, advisory artifact, debt item, or explicit non-mutation;
 - read-side trail in Current Canon, Audit Trail, record detail, export, or a stated deferral.
 
+For setup/open-world browser slices, acceptance should include:
+
+- first-load evidence with no token field, server status, catalog status, create/open controls, recent worlds, and no workflow panels competing before a world is open;
+- an inline create/open failure with the entered path preserved and the server-returned recovery text visible near the setup controls;
+- a successful create/open that names the open world, updates recent worlds, and reveals the workspace only after success;
+- an empty-world state that foregrounds Creation as the primary next path while unrelated flows show prerequisites or unavailable states;
+- confirmation that Prompt-out, Admission, Propagation, QA, Canon Workbench work, search, snapshot/export, and generic record/link tools are hidden or blocked before a world is open.
+
 ## Cognitive Walkthrough Checklist
 
 For learnability-sensitive changes, run a lightweight naive-steward walkthrough:
@@ -30,6 +38,8 @@ For learnability-sensitive changes, run a lightweight naive-steward walkthrough:
 
 Record failures as follow-up work unless they block the issue's own acceptance criteria.
 
+For setup/open-world changes, also record that the steward can start without copying a token, distinguish server/catalog readiness from world-file failures, recover from one create/open failure without retyping the path, and arrive at Creation as the first empty-world guided path.
+
 ## Principles
 
-Touches `guided-workflow-usability.md` W-8, `workflow-principles.md` W-2/W-4/W-7, `canon-sovereignty.md` P-2/W-1/T-5, and `data-principles.md` W-5/W-6. It affirms non-contradiction.
+Touches `guided-workflow-usability.md` W-8, `workflow-principles.md` W-2/W-4/W-7, `canon-sovereignty.md` P-2/W-1/T-5, `data-principles.md` P-6/W-5/W-6, ADR 0004, and PRD #158. It affirms non-contradiction.

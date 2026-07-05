@@ -21,6 +21,18 @@ This spec deliberately keeps guided flow behavior out of scope. Downstream flow 
 - Migrations are forward-only and create a pre-migration backup before changing an older file.
 - Browser storage is never canonical.
 
+## Setup/Open-World Expectations
+
+The server owns world-file create/open policy. The browser may display paths, status, and recovery text, but it does not infer world-file validity locally.
+
+Setup/open-world behavior preserves the schema v1 invariants:
+
+- create/open succeeds without a manual browser token;
+- create/open success names the canonical world file and updates recently opened worlds;
+- wrong-file, future-schema, integrity, migration/backup, filesystem, and missing-path failures are returned before workflow surfaces are revealed;
+- failed create/open attempts keep the entered path visible for retry;
+- no schema migration is introduced by default for setup-shell work, and existing migration behavior remains the `WorldFile.open` responsibility.
+
 ## Record Types and Mutation Regimes
 
 Record types are stored in a seeded `record_types` table and referenced by records. Migration seed data is owned by immutable per-migration snapshots; the shared catalog in `packages/shared` is the current source for API validation and UI options. When the current catalog changes, a new migration owns the seed delta instead of changing historical migrations.
@@ -208,4 +220,4 @@ The first implementation slice must provide:
 
 ## Principles
 
-Touches `charter.md` (P-3, P-4, T-8), `canon-sovereignty.md` (P-2, T-5), `domain-fidelity.md` (P-1, T-2), `workflow-principles.md` (P-5, W-2, W-3, W-4, W-7), `guided-workflow-usability.md` (W-8, by boundary), `data-principles.md` (P-6, W-5, W-6, T-1, T-3, T-4, T-6), and ADRs 0001-0004 and 0009. This spec affirms non-contradiction with all of them.
+Touches `charter.md` (P-3, P-4, T-8), `canon-sovereignty.md` (P-2, T-5), `domain-fidelity.md` (P-1, T-2), `workflow-principles.md` (P-5, W-2, W-3, W-4, W-7), `guided-workflow-usability.md` (W-8, by boundary), `data-principles.md` (P-6, W-5, W-6, T-1, T-3, T-4, T-6), ADRs 0001-0004 and 0009, and PRD #158. This spec affirms non-contradiction with all of them.

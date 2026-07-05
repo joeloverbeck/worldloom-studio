@@ -4,6 +4,16 @@ This spec defines the cross-flow orientation grammar for guided workflows. It is
 
 The workflow map is not a gamified dashboard and not a project-management layer. It is a compact answer to: where am I in the method, why am I here, what blocks me, and what happens next?
 
+## Setup/Open-World Entry
+
+Before a world is open, the browser renders setup work only: server status, catalog status, create/open world-file controls, recently opened worlds, and setup/open errors. It does not render workflow panels, search, snapshot/export, generic record/link tools, Prompt-out, Canon Workbench work, or method step content as competing inactive surfaces.
+
+The setup shell has no manual token input and does not require a copied terminal token. Health, catalog, create, and open are normal local app dependencies. If server or catalog readiness fails, the browser reports that state instead of showing blank catalog-backed controls as if the method has no vocabulary.
+
+Create/open policy remains server-owned. The browser shows server-returned path, wrong-file, future-schema, migration/backup, integrity, filesystem, and open/create failures next to the setup controls while preserving the entered path for correction. A successful create/open names the world file, updates recent worlds, and reveals the workspace.
+
+After a world is open, setup controls become secondary. A world with no `world_kernel` foregrounds Creation start/resume as the primary active guided path; unrelated flows show prerequisite or not-yet-ready states until the kernel prerequisite exists.
+
 ## Standard Affordances
 
 Every guided flow browser surface exposes:
@@ -40,7 +50,8 @@ A browser workflow slice that changes navigation must show:
 - at least one next-step or blocker state;
 - an exit/resume path;
 - the resulting read-side trail or explicit reason none exists yet.
+- for setup/open-world changes, a walkthrough from no-world setup through create/open success and the empty-world Creation prerequisite state.
 
 ## Principles
 
-Touches `guided-workflow-usability.md` W-8, `workflow-principles.md` P-5/W-2/W-3/W-4/W-7, `data-principles.md` W-5/W-6, and `canon-sovereignty.md` W-1 where prompt-out appears. It affirms non-contradiction.
+Touches `guided-workflow-usability.md` W-8, `workflow-principles.md` P-5/W-2/W-3/W-4/W-7, `data-principles.md` P-6/W-5/W-6, `charter.md` v1 scope, ADR 0004, PRD #150, PRD #158, and `canon-sovereignty.md` W-1 where prompt-out appears. It affirms non-contradiction.

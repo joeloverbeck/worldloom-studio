@@ -64,7 +64,9 @@ describe("HTTP API", () => {
       body: JSON.stringify({ path: tempPath("missing.sqlite") })
     });
     expect(failedOpen.status).toBe(400);
-    expect((await app.request("/api/records")).status).toBe(409);
+    const stillOpen = await app.request("/api/records");
+    expect(stillOpen.status).toBe(200);
+    expect(await json(stillOpen)).toMatchObject({ records: [] });
   });
 
   it("creates every generic record type, edits cards, preserves reports, links, traverses, searches, promotes, and snapshots", async () => {

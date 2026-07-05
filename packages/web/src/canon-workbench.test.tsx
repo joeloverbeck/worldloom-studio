@@ -86,7 +86,8 @@ describe("Canon Workbench web surface", () => {
     expect(html).toContain("Export Markdown");
 
     const emptyHtml = renderToString(<App />);
-    expect(emptyHtml).toContain("No world is open");
+    expect(emptyHtml).toContain("Setup/open world");
+    expect(emptyHtml).toContain("No world open");
   });
 
   it("consumes Canon Workbench API shapes instead of duplicating server read policy", () => {

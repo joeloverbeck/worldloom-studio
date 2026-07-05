@@ -15,7 +15,7 @@ describe("markdown export web surface", () => {
       truthLayer: "Objective canon",
       canonStatus: "proposed",
       updatedAt: "2026-07-02T00:00:00.000Z"
-    }]} />);
+    }]} initialOpenWorld="/tmp/markdown.sqlite" />);
 
     expect(html).toContain("Markdown export directory");
     expect(html).toContain("Export World Markdown");
@@ -24,7 +24,7 @@ describe("markdown export web surface", () => {
   });
 
   it("renders server-owned Prompt-out controls and uses returned action URLs", () => {
-    const html = renderToString(<App />);
+    const html = renderToString(<App initialOpenWorld="/tmp/prompt.sqlite" />);
     const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
 
     expect(html).toContain("Prompt context");

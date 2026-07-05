@@ -1,7 +1,80 @@
+import type { Context } from "hono";
 import { APP_VERSION, LINK_TYPES, RECORD_TYPES, type HealthPayload } from "@worldloom/shared";
+import type { ActiveWorldSession } from "../active-world-session.js";
 import * as PromptOut from "../prompt-out.js";
 import type { FacetInput, RecordInput } from "../world-file.js";
-import { badRequest, readJson, tryRoute, withWorld, type RouteApp, type RouteDependencies } from "./route-support.js";
+import { readJson, tryRoute, withWorld, type RouteApp, type RouteDependencies } from "./route-support.js";
+
+type SetupErrorKind =
+  | "missing_path"
+  | "wrong_file"
+  | "future_schema"
+  | "integrity_failure"
+  | "migration_or_backup_failure"
+  | "filesystem_failure"
+  | "open_failed";
+
+const setupStatus = (activeWorldSession: ActiveWorldSession) => ({
+  server: { reachable: true, version: APP_VERSION },
+  catalog: { ready: true, recordTypeCount: RECORD_TYPES.length, linkTypeCount: LINK_TYPES.length },
+  world: activeWorldSession.current
+    ? { open: true as const, path: activeWorldSession.current.path }
+    : { open: false as const },
+  recentWorlds: activeWorldSession.recentWorlds()
+});
+
+const errorMessage = (error: unknown): string => error instanceof Error ? error.message : String(error);
+
+const setupErrorKind = (message: string): SetupErrorKind => {
+  if (/path is required|does not exist/i.test(message)) return "missing_path";
+  if (/not a Worldloom world file/i.test(message)) return "wrong_file";
+  if (/newer than this app/i.test(message)) return "future_schema";
+  if (/integrity check failed|database disk image is malformed|file is not a database/i.test(message)) return "integrity_failure";
+  if (/migration|backup|VACUUM INTO/i.test(message)) return "migration_or_backup_failure";
+  if (/EACCES|EPERM|ENOENT|SQLITE_CANTOPEN|unable to open database|permission|directory/i.test(message)) return "filesystem_failure";
+  return "open_failed";
+};
+
+const recoveryFor = (kind: SetupErrorKind): string => {
+  switch (kind) {
+    case "missing_path":
+      return "Correct the path or choose a Worldloom world file that already exists.";
+    case "wrong_file":
+      return "Choose a Worldloom world file, or create a new one at a different path.";
+    case "future_schema":
+      return "Open this file with the newer app version that created it; do not migrate it with this version.";
+    case "integrity_failure":
+      return "Choose a backup copy before continuing; the selected file failed SQLite integrity checks.";
+    case "migration_or_backup_failure":
+      return "Check that the world file and its directory are writable before trying again.";
+    case "filesystem_failure":
+      return "Check the directory, file permissions, and path spelling before retrying.";
+    case "open_failed":
+      return "Correct the world-file prerequisite shown here, then retry create or open.";
+  }
+};
+
+const setupFailure = (
+  c: Context,
+  activeWorldSession: ActiveWorldSession,
+  action: "create" | "open",
+  path: string,
+  error: unknown
+) => {
+  const message = errorMessage(error);
+  const kind = setupErrorKind(message);
+  return c.json({
+    error: message,
+    setupError: {
+      action,
+      path,
+      kind,
+      message,
+      recovery: recoveryFor(kind)
+    },
+    setupStatus: setupStatus(activeWorldSession)
+  }, 400);
+};
 
 export const registerSubstrateRoutes = (app: RouteApp, dependencies: RouteDependencies): void => {
   const { activeWorldSession } = dependencies;
@@ -9,14 +82,20 @@ export const registerSubstrateRoutes = (app: RouteApp, dependencies: RouteDepend
   app.get("/api/health", (c) => c.json({ ok: true, version: APP_VERSION } satisfies HealthPayload));
   app.get("/api/catalog", (c) => c.json({ recordTypes: RECORD_TYPES, linkTypes: LINK_TYPES }));
   app.get("/api/recent-worlds", (c) => c.json({ recentWorlds: activeWorldSession.recentWorlds() }));
+  app.get("/api/setup/status", (c) => c.json(setupStatus(activeWorldSession)));
 
   app.post("/api/worlds/create", async (c) => {
     const input = await readJson<{ path: string }>(c);
     try {
       const worldFile = activeWorldSession.create(input.path);
-      return c.json({ path: worldFile.path, records: worldFile.listRecords() }, 201);
+      return c.json({
+        path: worldFile.path,
+        world: { open: true, path: worldFile.path },
+        records: worldFile.listRecords(),
+        setupStatus: setupStatus(activeWorldSession)
+      }, 201);
     } catch (error) {
-      return badRequest(c, error);
+      return setupFailure(c, activeWorldSession, "create", input.path, error);
     }
   });
 
@@ -24,9 +103,14 @@ export const registerSubstrateRoutes = (app: RouteApp, dependencies: RouteDepend
     const input = await readJson<{ path: string }>(c);
     try {
       const worldFile = activeWorldSession.open(input.path);
-      return c.json({ path: worldFile.path, records: worldFile.listRecords() });
+      return c.json({
+        path: worldFile.path,
+        world: { open: true, path: worldFile.path },
+        records: worldFile.listRecords(),
+        setupStatus: setupStatus(activeWorldSession)
+      });
     } catch (error) {
-      return badRequest(c, error);
+      return setupFailure(c, activeWorldSession, "open", input.path, error);
     }
   });
 

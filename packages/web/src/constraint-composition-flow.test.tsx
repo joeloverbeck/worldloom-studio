@@ -38,7 +38,7 @@ describe("Constraint Composition web surface", () => {
   });
 
   it("offers Constraint challenger Prompt-out through the shared prompt lifecycle", () => {
-    const html = renderToString(<App />);
+    const html = renderToString(<App initialOpenWorld="/tmp/constraint.sqlite" />);
     const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
 
     expect(html).toContain("<option value=\"constraint_composition\">Constraint Composition</option>");

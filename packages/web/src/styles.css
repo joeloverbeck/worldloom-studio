@@ -75,14 +75,30 @@ label {
   overflow-wrap: anywhere;
 }
 
-.topbar input {
-  max-width: 320px;
-}
-
 .workspace {
   display: grid;
   grid-template-columns: minmax(260px, 340px) 1fr;
   min-height: calc(100vh - 76px);
+}
+
+.setup-shell {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px 18px;
+}
+
+.setup-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.compact-setup {
+  border-bottom: 1px solid #d7d1c3;
+  padding-bottom: 14px;
+}
+
+.setup-error {
+  border-color: #8d3b31;
 }
 
 .sidebar {

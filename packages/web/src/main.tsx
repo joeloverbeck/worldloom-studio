@@ -60,6 +60,21 @@ interface RecentWorld {
   openedAt: string;
 }
 
+interface SetupErrorState {
+  action: "create" | "open";
+  path: string;
+  kind: string;
+  message: string;
+  recovery: string;
+}
+
+interface SetupStatusPayload {
+  server: { reachable: true; version: string };
+  catalog: { ready: boolean; recordTypeCount: number; linkTypeCount: number };
+  world: { open: false } | { open: true; path: string };
+  recentWorlds: RecentWorld[];
+}
+
 interface AdmissionQueueRow extends RecordRow {
   admissionLevel: string | null;
   workScale: string | null;
@@ -551,6 +566,8 @@ interface CreationDecisionPoint {
 interface AppProps {
   initialRecords?: RecordRow[];
   initialOpenWorld?: string | null;
+  initialRecentWorlds?: RecentWorld[];
+  initialSetupError?: SetupErrorState | null;
   initialCanonCurrent?: CanonWorkbenchCurrentRow[];
   initialCanonAudit?: CanonWorkbenchAuditItem[];
   initialCanonDetail?: CanonWorkbenchDetail | null;
@@ -598,20 +615,28 @@ interface PromptOutStep {
   };
 }
 
-const storedToken = () => typeof window === "undefined" ? "" : window.localStorage.getItem("worldloom-token") ?? "";
+class ApiError extends Error {
+  readonly status: number;
+  readonly payload: unknown;
+
+  constructor(message: string, status: number, payload: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.payload = payload;
+  }
+}
 
 const api = async <T,>(path: string, init?: RequestInit): Promise<T> => {
-  const token = storedToken();
   const response = await fetch(path, {
     ...init,
     headers: {
       "content-type": "application/json",
-      ...(token ? { "x-worldloom-token": token } : {}),
       ...init?.headers
     }
   });
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error ?? response.statusText);
+  if (!response.ok) throw new ApiError(payload.error ?? response.statusText, response.status, payload);
   return payload as T;
 };
 
@@ -826,6 +851,8 @@ const optionalNumber = (value: string): number | undefined => {
 function App({
   initialRecords = [],
   initialOpenWorld = null,
+  initialRecentWorlds = [],
+  initialSetupError = null,
   initialCanonCurrent = [],
   initialCanonAudit = [],
   initialCanonDetail = null,
@@ -833,16 +860,18 @@ function App({
   initialAdmissionDecision = null,
   initialCreationDecision = null
 }: AppProps = {}) {
-  const [token, setToken] = useState(storedToken());
   const [worldPath, setWorldPath] = useState("");
   const [openWorld, setOpenWorld] = useState<string | null>(initialOpenWorld);
   const [serverVersion, setServerVersion] = useState("");
+  const [serverStatus, setServerStatus] = useState<"checking" | "ready" | "failed">("checking");
+  const [catalogStatus, setCatalogStatus] = useState<"checking" | "ready" | "failed">("checking");
+  const [setupError, setSetupError] = useState<SetupErrorState | null>(initialSetupError);
   const [message, setMessage] = useState("");
   const [recordTypes, setRecordTypes] = useState<RecordTypeDefinition[]>([]);
   const [linkTypes, setLinkTypes] = useState<LinkTypeDefinition[]>([]);
   const [records, setRecords] = useState<RecordRow[]>(initialRecords);
   const [links, setLinks] = useState<LinkRow[]>([]);
-  const [recentWorlds, setRecentWorlds] = useState<RecentWorld[]>([]);
+  const [recentWorlds, setRecentWorlds] = useState<RecentWorld[]>(initialRecentWorlds);
   const [terms, setTerms] = useState<VocabularyTerm[]>([]);
   const [headings, setHeadings] = useState<SectionHeading[]>([]);
   const [sections, setSections] = useState<SectionRow[]>([]);
@@ -1057,12 +1086,18 @@ function App({
   [canonAuditTrail, selectedCanonRecordId]);
 
   useEffect(() => {
-    if (!token) return;
     api<HealthPayload>("/api/health")
-      .then((health) => setServerVersion(health.version))
-      .catch((error: Error) => setMessage(error.message));
+      .then((health) => {
+        setServerVersion(health.version);
+        setServerStatus("ready");
+      })
+      .catch((error: Error) => {
+        setServerStatus("failed");
+        setMessage(error.message);
+      });
     api<{ recordTypes: RecordTypeDefinition[]; linkTypes: LinkTypeDefinition[] }>("/api/catalog")
       .then((catalog) => {
+        setCatalogStatus("ready");
         setRecordTypes(catalog.recordTypes);
         setLinkTypes(catalog.linkTypes);
         setRecordTypeKey(catalog.recordTypes[0]?.key ?? "canon_fact");
@@ -1070,8 +1105,11 @@ function App({
         setLinkTypeKey(catalog.linkTypes[0]?.key ?? "depends_on");
         return loadRecentWorlds();
       })
-      .catch((error: Error) => setMessage(error.message));
-  }, [token]);
+      .catch((error: Error) => {
+        setCatalogStatus("failed");
+        setMessage(error.message);
+      });
+  }, []);
 
   useEffect(() => {
     if (!facetTerm && facetTerms[0]) setFacetTerm(facetTerms[0].term);
@@ -1135,11 +1173,6 @@ function App({
     stage13WorkScale,
     workScale
   ]);
-
-  const rememberToken = (next: string) => {
-    setToken(next);
-    if (typeof window !== "undefined") window.localStorage.setItem("worldloom-token", next);
-  };
 
   const loadRecentWorlds = async () => {
     const payload = await api<{ recentWorlds: RecentWorld[] }>("/api/recent-worlds");
@@ -1222,15 +1255,36 @@ function App({
   };
 
   const createOrOpen = async (mode: "create" | "open", selectedPath = worldPath) => {
-    const payload = await api<{ path: string; records: RecordRow[] }>(`/api/worlds/${mode}`, {
-      method: "POST",
-      body: JSON.stringify({ path: selectedPath })
-    });
-    setOpenWorld(payload.path);
-    setRecords(payload.records);
-    await loadWorldData();
-    await loadRecentWorlds();
-    setMessage(`${mode === "create" ? "Created" : "Opened"} ${payload.path}`);
+    try {
+      const payload = await api<{
+        path: string;
+        records: RecordRow[];
+        setupStatus?: SetupStatusPayload;
+      }>(`/api/worlds/${mode}`, {
+        method: "POST",
+        body: JSON.stringify({ path: selectedPath })
+      });
+      setOpenWorld(payload.path);
+      setWorldPath(payload.path);
+      setRecords(payload.records);
+      setSetupError(null);
+      if (payload.setupStatus?.recentWorlds) setRecentWorlds(payload.setupStatus.recentWorlds);
+      await loadWorldData();
+      await loadRecentWorlds();
+      setMessage(`${mode === "create" ? "Created" : "Opened"} ${payload.path}`);
+    } catch (error) {
+      const payload = error instanceof ApiError ? error.payload as { setupError?: SetupErrorState; setupStatus?: SetupStatusPayload } : null;
+      const nextError = payload?.setupError ?? {
+        action: mode,
+        path: selectedPath,
+        kind: "open_failed",
+        message: error instanceof Error ? error.message : String(error),
+        recovery: "Correct the world-file prerequisite shown here, then retry create or open."
+      };
+      setSetupError(nextError);
+      if (payload?.setupStatus?.recentWorlds) setRecentWorlds(payload.setupStatus.recentWorlds);
+      setMessage(nextError.message);
+    }
   };
 
   const resetRecordForm = () => {
@@ -2432,30 +2486,78 @@ function App({
     await loadWorldData();
   };
 
+  const setupPanel = (secondary = false) => (
+    <section className={secondary ? "setup-panel compact-setup" : "setup-panel"}>
+      <h2>{secondary ? "Setup controls" : "Setup/open world"}</h2>
+      <div className="grid compact-grid">
+        <section className="subpanel">
+          <h3>Server status</h3>
+          <p className="status">{serverStatus === "ready" ? `Reachable (${serverVersion})` : serverStatus === "failed" ? "Server unreachable" : "Checking local server"}</p>
+        </section>
+        <section className="subpanel">
+          <h3>Catalog status</h3>
+          <p className="status">{catalogStatus === "ready" ? `${recordTypes.length} record types and ${linkTypes.length} link types available` : catalogStatus === "failed" ? "Catalog unavailable" : "Loading app catalog"}</p>
+        </section>
+      </div>
+      <label>World file path<input value={worldPath} onChange={(event) => setWorldPath(event.target.value)} placeholder="/tmp/example.worldloom.sqlite" /></label>
+      <div className="row">
+        <button onClick={() => createOrOpen("create")}>Create world</button>
+        <button onClick={() => createOrOpen("open")}>Open world</button>
+      </div>
+      {setupError && (
+        <section className="subpanel setup-error">
+          <h3>{setupError.action === "create" ? "Create failed" : "Open failed"}</h3>
+          <p>{setupError.message}</p>
+          <p>{setupError.recovery}</p>
+          <p className="meta">{setupError.path}</p>
+        </section>
+      )}
+      <section className="subpanel">
+        <h3>Recent worlds</h3>
+        {recentWorlds.length === 0 ? (
+          <p className="status">{catalogStatus === "failed" ? "Recent worlds unavailable until the app catalog loads." : "No recent worlds yet."}</p>
+        ) : (
+          <div className="recent">
+            {recentWorlds.map((recent) => <button key={recent.path} onClick={() => { setWorldPath(recent.path); void createOrOpen("open", recent.path); }}>{recent.path}</button>)}
+          </div>
+        )}
+      </section>
+    </section>
+  );
+
+  if (!openWorld) {
+    return (
+      <main>
+        <header className="topbar">
+          <div>
+            <h1>Worldloom Studio</h1>
+            <p>{serverVersion ? `Server ${serverVersion} · ` : ""}No world open</p>
+          </div>
+        </header>
+        <section className="setup-shell">
+          {setupPanel()}
+          {message && <p className="status">{message}</p>}
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main>
       <header className="topbar">
         <div>
           <h1>Worldloom Studio</h1>
-          <p>{serverVersion ? `Server ${serverVersion} · ` : ""}{openWorld ?? "No world file open"}</p>
+          <p>{serverVersion ? `Server ${serverVersion} · ` : ""}World open · {openWorld}</p>
         </div>
-        <input aria-label="Worldloom token" placeholder="server token" value={token} onChange={(event) => rememberToken(event.target.value)} />
       </header>
 
       <section className="workspace">
         <aside className="sidebar">
-          <label>World file path<input value={worldPath} onChange={(event) => setWorldPath(event.target.value)} placeholder="/tmp/example.worldloom.sqlite" /></label>
-          <div className="row">
-            <button onClick={() => createOrOpen("create")}>Create</button>
-            <button onClick={() => createOrOpen("open")}>Open</button>
-          </div>
+          {setupPanel(true)}
           <label>Snapshot path<input value={snapshotPath} onChange={(event) => setSnapshotPath(event.target.value)} placeholder="/tmp/example.snapshot.sqlite" /></label>
           <button onClick={snapshot} disabled={!openWorld}>Snapshot</button>
           <label>Markdown export directory<input value={exportDirectory} onChange={(event) => setExportDirectory(event.target.value)} placeholder="/tmp/example-markdown-export" /></label>
           <button onClick={exportWorldMarkdown} disabled={!openWorld || !exportDirectory.trim()}>Export World Markdown</button>
-          <div className="recent">
-            {recentWorlds.map((recent) => <button key={recent.path} onClick={() => { setWorldPath(recent.path); void createOrOpen("open", recent.path); }}>{recent.path}</button>)}
-          </div>
           <label>Search<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="record title or prose" /></label>
           <div className="row">
             <button onClick={runSearch} disabled={!openWorld}>Search</button>
@@ -2475,6 +2577,16 @@ function App({
             <span>Source: docs/worldbuilding-system/operating_card.md</span>
             <span>Fill a lean world kernel, decompose seeds until each can be independently rejected, then admit later through `06`.</span>
           </div>
+
+          {!records.some((record) => record.recordTypeKey === "world_kernel") && (
+            <div className="panel">
+              <section className="subpanel">
+                <h2>Prerequisites before other flows</h2>
+                <p className="status">Creation is the primary path until a world_kernel exists.</p>
+                <p>Admission, Propagation, QA, Canon Workbench work, and generic substrate tools are available after a world is open, but they do not replace the first kernel decision.</p>
+              </section>
+            </div>
+          )}
 
           <div className="panel canon-workbench">
             <h2>Canon Workbench</h2>
