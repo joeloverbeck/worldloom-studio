@@ -51,6 +51,7 @@ For each issue:
 - If the work is docs-only or process-only and mentions UI/browser behavior only as inventory, coverage, or citation without changing UI, routes, browser-consumed API shapes, fixtures, or action paths, record `browser smoke N/A` with that reason instead of running a smoke.
 - For browser-consumed API-only changes with no rendered UI change, a real browser page executing the route sequence via `fetch` qualifies as the browser smoke when the evidence records the route, action path, observed HTTP status or JSON, and server/browser cleanup. When fetching localhost APIs from a browser page, navigate to a same-origin localhost route first, such as `/api/health` or the app shell; avoid `data:` or `about:blank` origins because browser private-network/CORS policy may block loopback fetches.
 - When a UI browser smoke requires starting a dev server, record the server URL and whether the server was stopped or intentionally left running. Include that URL or cleanup note in closeout/final evidence so no background session is left ambiguous.
+- For dense app screens or long single-page snapshots, keep browser-smoke evidence bounded: prefer targeted DOM/text assertions, concise excerpts, and screenshots over full-page snapshot dumps. The closeout still needs route, action path, and observed outcome; the raw browser transcript does not need to include the whole page.
 - If any later edit touches the UI, route handlers, browser-consumed API shapes, fixture/data setup, or action path covered by a browser/manual smoke, treat the earlier smoke as preliminary and rerun it on the final tree before closeout, or record why rerun is blocked.
 
 Run typechecking regularly and single test files regularly. After a focused test command, check the output confirms the intended file or seam actually ran. If a package script does not forward file arguments cleanly, invoke the underlying runner directly, for example `pnpm --filter <pkg> exec vitest run test/file.test.ts`.
@@ -58,6 +59,13 @@ Run typechecking regularly and single test files regularly. After a focused test
 Before closeout, read the root verification guidance and run the canonical gates required for the work's blast radius. In this repo, workflow, package, cross-package, or closeout-scale changes require `pnpm test`, `pnpm typecheck`, and `pnpm build`; do not report a lint, browser/e2e, or hard-audit gate as satisfied unless the repo adds that script and policy.
 
 Before committing, draft the pre-close audit row-by-row against each in-scope issue's acceptance criteria and Principles/ADR checks. Patch any row that would be `blocked` or `not done` before entering review, unless the right outcome is to leave that issue open.
+
+Implementation commit gate:
+
+- Pre-close audit drafted with every in-scope criterion and Principles/ADR check mapped to evidence and status.
+- Any `blocked` or `not done` rows are either fixed before review or explicitly justify leaving the issue open.
+- `git status --short` has been rerun and unrelated dirty files are identified.
+- Only implementation-owned files are staged for the implementation commit.
 
 ## 3. Review before closeout
 
@@ -97,7 +105,7 @@ Before declaring completion, closing issues, or closing a parent PRD:
 - If the issue breakdown is wrong, comment with the proposed tracker correction instead of closing mismatched issues.
 - Run a final `git status --short`. For untracked verification artifacts, either remove them if safe, stage them if they are intended evidence, or explicitly report them in the final response.
 
-Large tracker body workflow: for long parent rollups or child-family audits, compose the body in a temporary file under `/tmp`, inspect the exact file contents before posting, post with the tracker CLI's `--body-file` option, capture the resulting issue/comment URL or exact reference, and keep the staging path out of the published body. Do not leave temporary body files in the repo unless they are intentional committed evidence.
+Large tracker body workflow: for long parent rollups or child-family audits, compose the body in a temporary file under `/tmp`, inspect the exact file contents before posting, post with the tracker CLI's `--body-file` option, capture the resulting issue/comment URL or exact reference, and keep the staging path out of the published body. For GitHub, `gh issue close` only accepts an inline `--comment`, not `--body-file`; post long evidence first with `gh issue comment --body-file <file>`, capture that comment URL, then close with a short inline pointer to the evidence comment. Do not leave temporary body files in the repo unless they are intentional committed evidence.
 
 Local-only SHA preflight: if the final SHA is not reachable from the intended remote branch, paste the copy-ready `Local-only SHA:` line below into the durable rollup or closeout comment before any close command. The line must state both why the SHA is not remote-reachable and why local-only closeout is acceptable.
 
@@ -105,7 +113,7 @@ Mechanical audit-shape stop: before entering the closeout command gate, inspect 
 
 Mandatory closeout self-check before any `gh issue close`, `glab issue close`, or equivalent: the audit table must have exact `Acceptance criterion or conformance check` and `Status` columns, every acceptance checkbox or conformance check must be named explicitly, and every row for the issue being closed must be `satisfied`.
 
-Closeout artifact body check: before running any closeout command, inspect the exact body that will be posted to the issue or the exact linked durable rollup body that the issue comment will cite. The body must contain the final SHA, verification evidence, review evidence, any required Principles/ADR conformance phrase or approved exception, and, when the SHA is local-only, an explicit statement that the SHA is not remote-reachable and why local-only closeout is acceptable. If one durable parent rollup covers several child issues, verify this once against that rollup and cite it from each child closeout comment.
+Closeout artifact body check: before running any closeout command, inspect the exact body that will be posted to the issue or the exact linked durable rollup body that the issue comment will cite. The body must contain the final SHA, verification evidence, review evidence, any required Principles/ADR conformance phrase or approved exception, and, when the SHA is local-only, an explicit statement that the SHA is not remote-reachable and why local-only closeout is acceptable. When any in-scope issue or parent PRD has a `## Principles` section, grep or visually verify that the closeout body or linked durable rollup contains the exact string `Principles/ADR conformance:` before running any close command. If one durable parent rollup covers several child issues, verify this once against that rollup and cite it from each child closeout comment.
 
 Copy-ready closeout lines:
 

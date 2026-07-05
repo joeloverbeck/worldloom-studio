@@ -19,13 +19,13 @@ You play three roles; keep them honest:
 
 - **doc-track author** — reads the governing protocol and knows what each decision point requires. Faithful to the actual file, never to memory.
 - **app-track steward** — **blind**. Uses ONLY what the current screen shows. Never lets doc knowledge leak into "they'd figure it out."
-- **external LLM** — when the app generates a prompt-out, you answer it to produce the field content so the walk can proceed. This is also how you test prompt quality.
+- **external LLM** — when the app generates a usable prompt-out, you answer it to produce the field content so the walk can proceed. When the prompt packet is materially incomplete or wrong, you capture that as prompt-quality evidence instead of laundering it into field content.
 
 ## Step 1 — Orient and set up
 
 - **Read the frontier.** Read the latest `reports/app-parity-trial-*.md` if any exists: the trial world's name and premise, which stages are already walked, and where the last run said to resume. No prior report ⇒ this is run `01`.
 - **Baseline the worktree.** Run `git status --short` before the walk and record any existing dirt in the live log. The report is the only repo file this skill should newly introduce; unrelated pre-existing dirt may remain.
-- **Start the app.** Run `pnpm dev` in the background (builds `@worldloom/shared`, starts the Hono API on `127.0.0.1:4173` and normally starts the Vite web UI on `127.0.0.1:5173` with `/api` proxied). If deps are missing, `pnpm install --frozen-lockfile` first. Wait until the web server answers. If Vite chooses a different port because `5173` is occupied, use the logged Vite URL, record the port drift in the live log, and continue.
+- **Start or reuse the app.** If no matching dev server is already running, run `pnpm dev` in the background (builds `@worldloom/shared`, starts the Hono API on `127.0.0.1:4173` and normally starts the Vite web UI on `127.0.0.1:5173` with `/api` proxied). If deps are missing, `pnpm install --frozen-lockfile` first. If a matching repo-root dev server is already running, reuse it only after verifying the web UI and API answer, then record that reuse, the observed URLs, and that you did not start or own the process. If Vite chooses a different port because `5173` is occupied, use the logged Vite URL, record the port drift in the live log, and continue.
 - **Open browser automation** at the live Vite URL and screenshot the entry screen — the blind steward's first impression.
 - **Open a live log** at `/tmp/worldloom-parity-trial/parity-log.md` unless an existing scratchpad is already in use: raw, append-only observations during the walk. Polishing happens later, in the report — keep the walk fast. The scratch log is not the deliverable.
 - **Resume or seed the trial world:**
@@ -42,12 +42,12 @@ Pick the next unwalked stretch of the operating-card new-world path (crosswalk b
 1. **See** — screenshot the screen. As the blind steward: is it clear what this screen is *for* and what to do next, with no docs? Is it dumping too much at once? *(→ O)*
 2. **Know** — as the doc-track author, read the governing protocol for what this decision point requires and which fields it fills. Faithful to the file.
 3. **Decide** — can the blind steward make this decision from the UI alone? Does the app name the decision, explain the options, and gate on substance the way the methodology does? *(→ G)*
-4. **Prompt-out** — does the app offer to generate a prompt for this decision point? Trigger it. Read the prompt: does it gather the *exact* world context this decision needs to be answered well in an external LLM — no more, no less? Then, as the external LLM, answer it to produce the field content. *(→ P)*
+4. **Prompt-out** — does the app offer to generate a prompt for this decision point? Trigger it. Read the prompt: does it gather the *exact* world context this decision needs to be answered well in an external LLM — no more, no less? If the prompt is materially incomplete or wrong, capture the prompt text plus DOM/network evidence, log it as a prompt-out finding, and do not answer or store advisory material unless a minimal answer is still needed to keep the walk moving. If the prompt packet is usable, then, as the external LLM, answer it to produce the field content. *(→ P)*
 5. **Fill** — enter the content via browser automation. Any friction accepting or saving it? *(→ G)*
 6. **Check fidelity** — did the app do what the methodology says, or diverge? Flag each divergence as justified or not. *(→ D)* A clean decision point earns a *V*.
 7. **Advance** to the next decision point.
 
-Log every finding as you go — typed, with the screenshot or DOM as evidence, never from assumption. Name screenshots `app-parity-<NN>-<short-slug>` and record those names in the live log; when screenshots are not durable file paths, capture a short DOM/text excerpt as supporting evidence. **Drive the UI; never infer a flow works from its code or tests.** The house trap is a flow "done" at the server/test layer but unreachable in the UI (issues #109–#113); only the running UI settles parity.
+Log every finding as you go — typed, with the screenshot or DOM as evidence, never from assumption. Name screenshots `app-parity-<NN>-<short-slug>` and record those names in the live log. If the browser tool writes screenshots to tool-chosen paths, rename or move them to the naming pattern when practical; otherwise record the generated artifact path and include a short DOM/text excerpt as supporting evidence. **Drive the UI; never infer a flow works from its code or tests.** The house trap is a flow "done" at the server/test layer but unreachable in the UI (issues #109–#113); only the running UI settles parity.
 
 **Stop at the first of:**
 
@@ -106,11 +106,13 @@ For each `[G/P/D/O/V/Q]-NN` — one-line title. Severity: blocking | friction | 
 - The gap: <the parity break>
 - Fix direction: <where it likely lands>
 - Touches: <docs/specs/… , principle, or issue #>
+- Principle reinforcement candidate: <if the implementation shows an existing principle/spec allowed the wrong shape, name the principle/spec wording that likely needs tightening; otherwise `none`>
 
 ## PRD seed
 - Problem (steward's view): …
 - Scope (one PRD): …
 - Out of scope / deferred to later runs: …
+- Principle reinforcement: <principle/spec/doc wording to strengthen, or `none`>
 - Extends / duplicates: issues #109–#113, research report R…/M… (don't re-report known work)
 
 ## Frontier
