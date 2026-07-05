@@ -26,6 +26,7 @@ Every dependency-bearing prompt-out step assembles a self-contained prompt packe
 - Include standing rulings when the same advisory pattern, vocabulary, or forbidden move has been disposed before.
 - Include open canon debt, skipped instruments, and unresolved contradictions when they can affect the requested pressure.
 - Include source manifests even for short prompts so cold external sessions can assess provenance.
+- For Creation Prompt-out, include the current Creation decision, current kernel or decomposition material, source kernel when available, `05_creation_protocol.md` Phase 1 or Phase 2 as applicable, `templates/world_kernel.md` where kernel authoring is in scope, `20` role framing, advisory warning, and omission reasons. The normal in-flow Creation path is pre-bound and does not ask the steward for a raw record id.
 
 ## Omission Rules
 

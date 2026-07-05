@@ -132,6 +132,27 @@ const standingRulingRows = (world: WorldFile): Array<{ disposition: string; note
       return { disposition: String(values.disposition), note: String(values.note ?? "") };
     });
 
+const creationDoctrineLines = (input: PromptGenerationInput): string[] => {
+  if (input.flowKey !== "creation") return [];
+  if (input.templateKey === "kernel_pressure") {
+    return [
+      "Current Creation decision: define the world's first governing kernel or pressure seed.",
+      "Creation doctrine: docs/worldbuilding-system/05_creation_protocol.md Phase 1.",
+      "Template doctrine: docs/worldbuilding-system/templates/world_kernel.md.",
+      "AI workflow doctrine: docs/worldbuilding-system/20_ai_assisted_workflow.md."
+    ];
+  }
+  if (input.templateKey === "decomposition_pressure") {
+    return [
+      "Current Creation decision: split broad steward material into smaller seed facts that can be independently rejected.",
+      "Creation doctrine: docs/worldbuilding-system/05_creation_protocol.md Phase 2.",
+      "Granularity rule: split until each seed can be independently rejected without destroying its siblings.",
+      "AI workflow doctrine: docs/worldbuilding-system/20_ai_assisted_workflow.md."
+    ];
+  }
+  return [];
+};
+
 const insertAdvisoryDisposition = (
   world: WorldFile,
   advisoryRecordId: number,
@@ -162,8 +183,10 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
   const stepKey = input.stepKey ?? input.templateKey;
   const recordContext = input.recordId == null ? "No record context selected." : promptRecordContext(world, input.recordId);
   const rulings = standingRulingRows(world);
+  const doctrineLines = creationDoctrineLines(input);
   const sourceManifest = [
     `Prompt template: ${template.key} (${template.package_source})`,
+    ...doctrineLines,
     input.recordId == null ? "Selected record: none" : `Selected record id: ${input.recordId}`,
     `Standing rulings: ${rulings.length}`,
     "Omissions: no hidden repository context; unavailable world context must be named before copy-out."
@@ -174,6 +197,7 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
       `Role framing (${template.role_name}): ask for pressure, not answers. The steward's material comes first; do not write final canon.`,
       `Default prompt derivation (${template.package_source}): ${template.current_text}`,
       `Current decision context: flow ${input.flowKey ?? "unspecified"}, step ${stepKey}.`,
+      ...doctrineLines,
       "Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories.",
       "Label assumptions instruction: separate direct consequences from speculative assumptions and mark unadmitted assumptions plainly.",
       `Standing rulings: ${rulings.length ? rulings.map((row) => `${row.disposition}: ${row.note}`).join("; ") : "none"}.`,

@@ -476,6 +476,78 @@ interface AdmissionDecisionPoint {
   readSideTrail: Array<{ label: string; href: string }>;
 }
 
+interface CreationDecisionPoint {
+  flow: {
+    key: "creation";
+    runState: string;
+  };
+  currentStep: string;
+  localDecision: string;
+  packageAuthority: {
+    primary: string;
+    why: string;
+    citations: string[];
+  };
+  currentKernel: {
+    id: number;
+    shortId: string;
+    title: string;
+  } | null;
+  sectionPrompts: Array<{
+    heading: string;
+    prompt: string;
+    obligation: "required" | "optional" | "allowed-empty";
+  }>;
+  work: {
+    required: string[];
+    optional: string[];
+    allowedEmpty: string[];
+    skippable: string[];
+  };
+  blockers: Array<{ key: string; label: string; message: string; requires: string }>;
+  promptOut: {
+    available: boolean;
+    blocker: string | null;
+    templateKey: string;
+    stepKey: string;
+    role: string;
+    stepRequest: {
+      method: "POST";
+      href: string;
+      body: {
+        flowKey: "creation";
+        flowId: number;
+        recordId: number;
+        templateKey: string;
+        stepKey: string;
+        label: string;
+      };
+    } | null;
+    preview: {
+      currentDecision: string;
+      promptText: string;
+      contextPreview: string;
+      sourceManifest: string[];
+      omissions: string[];
+      advisoryCanonWarning: string;
+    };
+  };
+  writeIntent: {
+    willWrite: string[];
+    willLink: string[];
+    willQueue: string[];
+    willRouteOnward: string[];
+    willLeaveUntouched: string[];
+  };
+  nextOrResumeState: {
+    currentStep: string;
+    nextStep: string;
+    safeExit: string;
+  };
+  readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
+  handoffs: string[];
+}
+
 interface AppProps {
   initialRecords?: RecordRow[];
   initialOpenWorld?: string | null;
@@ -484,6 +556,7 @@ interface AppProps {
   initialCanonDetail?: CanonWorkbenchDetail | null;
   initialAdmissionQueue?: AdmissionQueueRow[];
   initialAdmissionDecision?: AdmissionDecisionPoint | null;
+  initialCreationDecision?: CreationDecisionPoint | null;
 }
 
 type PromptFlowKey = "creation" | "admission" | "propagation" | "contradiction" | "qa" | "institutional_economic_suppression" | "constraint_composition";
@@ -547,6 +620,89 @@ const emptyRecordForm = {
   body: "",
   truthLayer: "",
   canonStatus: ""
+};
+
+const defaultCreationDecision: CreationDecisionPoint = {
+  flow: {
+    key: "creation",
+    runState: "not started"
+  },
+  currentStep: "kernel:World premise",
+  localDecision: "Define the world's first governing kernel or pressure seed.",
+  packageAuthority: {
+    primary: "docs/worldbuilding-system/05_creation_protocol.md",
+    why: "Phase 1 owns the world kernel as a pressure seed, not an encyclopedia.",
+    citations: [
+      "docs/worldbuilding-system/05_creation_protocol.md",
+      "docs/worldbuilding-system/templates/world_kernel.md",
+      "docs/worldbuilding-system/20_ai_assisted_workflow.md",
+      "docs/specs/creation-flow.md"
+    ]
+  },
+  currentKernel: null,
+  sectionPrompts: [
+    { heading: "World premise", prompt: "What is the world, in one or two sentences?", obligation: "required" },
+    { heading: "Core promise", prompt: "What experience should the world reliably create?", obligation: "allowed-empty" },
+    { heading: "Starting scale", prompt: "Name where the world starts.", obligation: "required" },
+    { heading: "Genre, tone, and consequence-mode commitments", prompt: "Name consequence mode explicitly.", obligation: "required" },
+    { heading: "Initial mysteries and protected effects", prompt: "Name protected unknowns if they exist.", obligation: "allowed-empty" }
+  ],
+  work: {
+    required: [
+      "Write steward-authored kernel material",
+      "Explicitly select consequence mode before seed decomposition",
+      "For decomposition, provide seed title, body, truth layer, and granularity confirmation"
+    ],
+    optional: [
+      "Allowed-empty kernel sections may remain thin",
+      "Creation Prompt-out advisory pressure after steward-authored material exists",
+      "Admission intent note for future review"
+    ],
+    allowedEmpty: ["Core promise", "Foundational constraints", "Initial mysteries and protected effects", "Ordinary-life promise"],
+    skippable: ["Prompt-out advisory pressure can be declined with a skip_record"]
+  },
+  blockers: [
+    { key: "kernel_material", label: "Kernel material", message: "Creation Prompt-out and seed decomposition wait for steward-authored kernel material.", requires: "steward-authored kernel material" },
+    { key: "consequence_mode", label: "Consequence mode", message: "Seed decomposition cannot proceed until the steward explicitly selects consequence mode.", requires: "explicit consequence mode" }
+  ],
+  promptOut: {
+    available: false,
+    blocker: "Creation Prompt-out requires steward-authored kernel material and a current kernel record.",
+    templateKey: "kernel_pressure",
+    stepKey: "creation:kernel_prompt",
+    role: "Consequence scout",
+    stepRequest: null,
+    preview: {
+      currentDecision: "Define the world's first governing kernel or pressure seed.",
+      promptText: "Role framing: ask for pressure, not answers.",
+      contextPreview: "No kernel material has been saved yet.",
+      sourceManifest: [
+        "Doctrine: docs/worldbuilding-system/05_creation_protocol.md Phase 1",
+        "Doctrine: docs/worldbuilding-system/templates/world_kernel.md",
+        "Doctrine: docs/worldbuilding-system/20_ai_assisted_workflow.md"
+      ],
+      omissions: ["Current kernel material is absent until the steward writes it."],
+      advisoryCanonWarning: "Pasted responses remain advisory artifacts and are not admitted canon."
+    }
+  },
+  writeIntent: {
+    willWrite: ["one living world_kernel record", "seed_decomposition report", "canon_fact records fixed at proposed"],
+    willLink: ["read-side trail placeholders until records exist", "derived_from links from parked seeds to the kernel and decomposition report"],
+    willQueue: ["parked seeds appear in the Admission queue"],
+    willRouteOnward: ["Seed decomposition after explicit consequence mode", "Admission flow"],
+    willLeaveUntouched: ["canon standing is not admitted inside Creation", "pasted advisory text does not alter canon fields"]
+  },
+  nextOrResumeState: {
+    currentStep: "kernel:World premise",
+    nextStep: "continue kernel authoring",
+    safeExit: "Safe exit leaves the Creation flow in progress and resumable from the same world file."
+  },
+  readSideTrail: [
+    { label: "Current Canon", href: "/api/canon-workbench/current" },
+    { label: "Audit Trail", href: "/api/canon-workbench/audit" },
+    { label: "Admission queue", href: "/api/admission/queue" }
+  ],
+  handoffs: ["new-world navigation", "kernel decision surface", "Creation-bound Prompt-out", "seed decomposition surface", "browser evidence/coverage closeout"]
 };
 
 const emptyQaProfile: QaProfileFields = {
@@ -674,7 +830,8 @@ function App({
   initialCanonAudit = [],
   initialCanonDetail = null,
   initialAdmissionQueue = [],
-  initialAdmissionDecision = null
+  initialAdmissionDecision = null,
+  initialCreationDecision = null
 }: AppProps = {}) {
   const [token, setToken] = useState(storedToken());
   const [worldPath, setWorldPath] = useState("");
@@ -694,6 +851,7 @@ function App({
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [admissionQueue, setAdmissionQueue] = useState<AdmissionQueueRow[]>(initialAdmissionQueue);
   const [admissionDecision, setAdmissionDecision] = useState<AdmissionDecisionPoint | null>(initialAdmissionDecision);
+  const [creationDecision, setCreationDecision] = useState<CreationDecisionPoint | null>(initialCreationDecision);
   const [canonDebt, setCanonDebt] = useState<RecordRow[]>([]);
   const [propagationQueue, setPropagationQueue] = useState<PropagationQueueRow[]>([]);
   const [propagationPlan, setPropagationPlan] = useState<PropagationPlan | null>(null);
@@ -829,6 +987,10 @@ function App({
   const [consequenceMode, setConsequenceMode] = useState("");
   const [seedTitle, setSeedTitle] = useState("");
   const [seedBody, setSeedBody] = useState("");
+  const [seedTruthLayer, setSeedTruthLayer] = useState("");
+  const [granularityRationale, setGranularityRationale] = useState("");
+  const [granularityConfirmed, setGranularityConfirmed] = useState(false);
+  const [admissionIntent, setAdmissionIntent] = useState("");
   const [admissionRecordId, setAdmissionRecordId] = useState("");
   const [admissionLevel, setAdmissionLevel] = useState("");
   const [workScale, setWorkScale] = useState("");
@@ -888,6 +1050,7 @@ function App({
   const selectedHeadings = headings.filter((heading) => heading.record_type_key === recordTypeKey);
   const selectedTemplate = templates.find((template) => template.key === promptTemplateKey);
   const selectedAdmissionRecord = records.find((record) => record.id === Number(admissionRecordId));
+  const displayedCreationDecision = creationDecision ?? defaultCreationDecision;
   const relatedAuditItems = useMemo(() => selectedCanonRecordId == null
     ? []
     : canonAuditTrail.filter((item) => item.affectedCurrentRecords.some((record) => record.id === selectedCanonRecordId)),
@@ -1278,6 +1441,22 @@ function App({
     return payload.step;
   };
 
+  const loadCreationPromptStep = async () => {
+    if (!creationDecision?.promptOut.stepRequest) return null;
+    const request = creationDecision.promptOut.stepRequest;
+    const payload = await api<{ step: PromptOutStep }>(request.href, {
+      method: request.method,
+      body: JSON.stringify(request.body)
+    });
+    setPromptStep(payload.step);
+    setPromptFlowKey("creation");
+    setPromptTemplateKey(creationDecision.promptOut.templateKey);
+    setPromptRecordId(String(request.body.recordId));
+    setPromptText(creationDecision.promptOut.preview.promptText);
+    setMessage(`Loaded Creation Prompt-out step ${payload.step.label}`);
+    return payload.step;
+  };
+
   const ensurePromptStep = async () => promptStep ?? loadPromptStep();
 
   const generatePrompt = async () => {
@@ -1314,18 +1493,20 @@ function App({
   };
 
   const startFlow = async () => {
-    const payload = await api<{ flow: { id: number; kernel_record_id?: number } }>("/api/flows/creation/start", { method: "POST" });
+    const payload = await api<{ flow: { id: number; kernel_record_id?: number }; decisionPoint: CreationDecisionPoint }>("/api/flows/creation/start", { method: "POST" });
     setFlowId(payload.flow.id);
     if (payload.flow.kernel_record_id) setKernelRecordId(payload.flow.kernel_record_id);
+    setCreationDecision(payload.decisionPoint);
   };
 
   const saveKernelStep = async () => {
     if (flowId == null) return;
-    const payload = await api<{ kernel: { id: number } }>("/api/flows/creation/kernel-step", {
+    const payload = await api<{ kernel: { id: number }; decisionPoint: CreationDecisionPoint }>("/api/flows/creation/kernel-step", {
       method: "POST",
       body: JSON.stringify({ flowId, heading: kernelHeading, body: kernelBody, consequenceMode: consequenceMode || undefined })
     });
     setKernelRecordId(payload.kernel.id);
+    setCreationDecision(payload.decisionPoint);
     await loadWorldData();
   };
 
@@ -1352,16 +1533,22 @@ function App({
 
   const decompose = async () => {
     if (flowId == null || kernelRecordId == null) return;
-    await api("/api/flows/creation/decompose", {
+    const payload = await api<{ decisionPoint: CreationDecisionPoint }>("/api/flows/creation/decompose", {
       method: "POST",
       body: JSON.stringify({
         flowId,
         kernelRecordId,
-        seeds: [{ title: seedTitle, body: seedBody, truthLayer: recordForm.truthLayer, canonStatus: recordForm.canonStatus }]
+        granularityRationale,
+        admissionIntent,
+        seeds: [{ title: seedTitle, body: seedBody, truthLayer: seedTruthLayer, granularityConfirmed }]
       })
     });
+    setCreationDecision(payload.decisionPoint);
     setSeedTitle("");
     setSeedBody("");
+    setGranularityRationale("");
+    setGranularityConfirmed(false);
+    setAdmissionIntent("");
     await loadWorldData();
   };
 
@@ -3326,28 +3513,131 @@ function App({
             </div>
           </div>
 
-          <div className="panel">
-            <h2>Creation flow</h2>
+          <div className="panel creation-decision">
+            <h2>Creation decision point</h2>
+            <p className="status">Primary active path for a new world</p>
             <div className="row">
-              <button onClick={startFlow} disabled={!openWorld}>Start or Resume</button>
-              <span className="status">{flowId ? `Flow ${flowId}${kernelRecordId ? ` · kernel ${kernelRecordId}` : ""}` : ""}</span>
+              <button onClick={startFlow} disabled={!openWorld}>Start or Resume Creation</button>
+              <span className="status">{flowId ? `Flow ${flowId}${kernelRecordId ? ` · kernel ${kernelRecordId}` : ""}` : "No Creation flow loaded"}</span>
             </div>
-            <div className="grid">
-              <label>Kernel step<select value={kernelHeading} onChange={(event) => setKernelHeading(event.target.value)}>{headings.filter((heading) => heading.record_type_key === "world_kernel").map((heading) => <option key={heading.heading}>{heading.heading}</option>)}</select></label>
-              <label>Consequence mode<select value={consequenceMode} onChange={(event) => setConsequenceMode(event.target.value)}><option></option>{consequenceModes.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+            <section className="decision-point">
+              <h3>Current decision</h3>
+              <p><strong>{displayedCreationDecision.localDecision}</strong></p>
+              <div className="chips">
+                <span>Flow state: {displayedCreationDecision.flow.runState}</span>
+                <span>Current step: {displayedCreationDecision.currentStep}</span>
+                <span>Next: {displayedCreationDecision.nextOrResumeState.nextStep}</span>
+                <span>Safe exit/resume</span>
+              </div>
+              <div className="doctrine">
+                <strong>Package authority</strong>
+                <span>{displayedCreationDecision.packageAuthority.primary}</span>
+                <span>{displayedCreationDecision.packageAuthority.why}</span>
+                {displayedCreationDecision.packageAuthority.citations.map((citation) => <span key={citation}>{citation}</span>)}
+              </div>
+            </section>
+            <div className="grid compact-grid">
+              <section className="subpanel work-list required-work">
+                <h3>Required</h3>
+                {displayedCreationDecision.work.required.map((item) => <p key={item}>{item}</p>)}
+              </section>
+              <section className="subpanel work-list optional-work">
+                <h3>Optional</h3>
+                {displayedCreationDecision.work.optional.map((item) => <p key={item}>{item}</p>)}
+              </section>
+              <section className="subpanel work-list allowed-empty-work">
+                <h3>Allowed-empty</h3>
+                {displayedCreationDecision.work.allowedEmpty.map((item) => <p key={item}>{item}</p>)}
+              </section>
+              <section className="subpanel work-list skippable-work">
+                <h3>Skippable</h3>
+                {displayedCreationDecision.work.skippable.map((item) => <p key={item}>{item}</p>)}
+              </section>
             </div>
-            <div className="doctrine">
-              <strong>Doctrine at point of use</strong>
-              <span>Kernel steps derive from docs/worldbuilding-system/05_creation_protocol.md and docs/worldbuilding-system/templates/world_kernel.md.</span>
-              <span>Decomposition uses the granularity rule: split until each seed can be independently rejected without destroying its siblings; stop at the thin-start boundary.</span>
-            </div>
-            <label>Kernel section<textarea rows={4} value={kernelBody} onChange={(event) => setKernelBody(event.target.value)} /></label>
-            <button onClick={saveKernelStep} disabled={flowId == null}>Save Kernel Step</button>
-            <div className="grid">
-              <label>Seed title<input value={seedTitle} onChange={(event) => setSeedTitle(event.target.value)} /></label>
-              <label>Seed body<input value={seedBody} onChange={(event) => setSeedBody(event.target.value)} /></label>
-            </div>
-            <button onClick={decompose} disabled={flowId == null || kernelRecordId == null || !seedTitle || !recordForm.truthLayer || !recordForm.canonStatus}>Decompose and Park Seed</button>
+            <section className="subpanel">
+              <h3>Server blockers</h3>
+              {displayedCreationDecision.blockers.length === 0
+                ? <p className="status">No Creation blockers returned for the current step.</p>
+                : displayedCreationDecision.blockers.map((blocker) => (
+                  <p key={blocker.key}><strong>{blocker.label}</strong>: {blocker.message} Requires {blocker.requires}.</p>
+                ))}
+            </section>
+            <section className="subpanel">
+              <h3>Kernel authoring</h3>
+              <p>Consequence mode is steward judgment; the app does not infer, default, or silently reuse it.</p>
+              <div className="grid">
+                <label>Kernel step<select value={kernelHeading} onChange={(event) => setKernelHeading(event.target.value)}>{headings.filter((heading) => heading.record_type_key === "world_kernel").map((heading) => <option key={heading.heading}>{heading.heading}</option>)}</select></label>
+                <label>Consequence mode<select value={consequenceMode} onChange={(event) => setConsequenceMode(event.target.value)}><option></option>{consequenceModes.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+              </div>
+              <div className="grid compact-grid">
+                {displayedCreationDecision.sectionPrompts.map((section) => (
+                  <div key={section.heading} className="doctrine">
+                    <strong>{section.heading}</strong>
+                    <span>{section.obligation}</span>
+                    <span>{section.prompt}</span>
+                  </div>
+                ))}
+              </div>
+              <label>Kernel section<textarea rows={4} value={kernelBody} onChange={(event) => setKernelBody(event.target.value)} /></label>
+              <div className="subpanel">
+                <h3>Write preview</h3>
+                <p>{displayedCreationDecision.writeIntent.willWrite.join(" · ")}</p>
+                <p>{displayedCreationDecision.writeIntent.willLeaveUntouched.join(" · ")}</p>
+              </div>
+              <button onClick={saveKernelStep} disabled={flowId == null}>Save Kernel Step</button>
+            </section>
+            <section className="subpanel">
+              <h3>Prompt-out preview</h3>
+              <p>{displayedCreationDecision.promptOut.role} · {displayedCreationDecision.promptOut.available ? "available" : "blocked"}</p>
+              <p>{displayedCreationDecision.promptOut.preview.currentDecision}</p>
+              <strong>Source manifest</strong>
+              {displayedCreationDecision.promptOut.preview.sourceManifest.map((item) => <p key={item}>{item}</p>)}
+              <strong>Context preview</strong>
+              <p>{displayedCreationDecision.promptOut.preview.contextPreview}</p>
+              <strong>Omissions</strong>
+              {displayedCreationDecision.promptOut.preview.omissions.map((item) => <p key={item}>{item}</p>)}
+              <strong>Advisory/canon warning</strong>
+              <p>{displayedCreationDecision.promptOut.preview.advisoryCanonWarning}</p>
+              <p>Pasted responses remain advisory artifacts and do not mutate kernel sections, seed records, reports, or proposals without explicit steward use.</p>
+              <button onClick={loadCreationPromptStep} disabled={!openWorld || !creationDecision?.promptOut.stepRequest}>Load Creation Prompt-out Step</button>
+            </section>
+            <section className="subpanel">
+              <h3>Seed decomposition decision</h3>
+              <p>Split broad steward material into smaller seed facts that can be independently rejected.</p>
+              <p>Actual current status: proposed</p>
+              <div className="grid">
+                <label>Seed title<input value={seedTitle} onChange={(event) => setSeedTitle(event.target.value)} /></label>
+                <label>Seed body<input value={seedBody} onChange={(event) => setSeedBody(event.target.value)} /></label>
+                <label>Truth layer<select value={seedTruthLayer} onChange={(event) => setSeedTruthLayer(event.target.value)}><option></option>{truthLayers.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+                <label>Admission intent<input value={admissionIntent} onChange={(event) => setAdmissionIntent(event.target.value)} placeholder="advisory future handling only" /></label>
+              </div>
+              <label>Granularity rationale<textarea rows={3} value={granularityRationale} onChange={(event) => setGranularityRationale(event.target.value)} /></label>
+              <label className="inline-check"><input type="checkbox" checked={granularityConfirmed} onChange={(event) => setGranularityConfirmed(event.target.checked)} />Granularity confirmation</label>
+              <div className="subpanel">
+                <h3>Write preview</h3>
+                <p>{displayedCreationDecision.writeIntent.willWrite.join(" · ")}</p>
+                <p>{displayedCreationDecision.writeIntent.willLink.join(" · ")}</p>
+                <p>{displayedCreationDecision.writeIntent.willQueue.join(" · ")}</p>
+                <p>Admission handoff: {displayedCreationDecision.writeIntent.willRouteOnward.join(" · ")}</p>
+              </div>
+              <button onClick={decompose} disabled={flowId == null || kernelRecordId == null}>Decompose and Park Seed</button>
+            </section>
+            <section className="subpanel">
+              <h3>Read-side trail</h3>
+              <div className="chips">
+                {displayedCreationDecision.readSideTrail.map((item) => <span key={`${item.label}:${item.href}`}>{item.label} · {item.href}</span>)}
+              </div>
+            </section>
+            <section className="subpanel">
+              <h3>Naive steward walkthrough</h3>
+              <ol>
+                <li>Identify the current Creation decision and source doctrine.</li>
+                <li>Distinguish required, optional, skippable, and allowed-empty obligations.</li>
+                <li>Treat Prompt-out as advisory pressure, not canon generation.</li>
+                <li>Predict the kernel, report, seed records, links, Admission handoff, and non-mutations before writing.</li>
+                <li>Exit and resume without losing flow orientation.</li>
+              </ol>
+            </section>
           </div>
 
           {message && <p className="status">{message}</p>}

@@ -455,7 +455,8 @@ describe("WorldFile", () => {
     const result = CreationFlow.decomposeSeeds(store, {
       flowId: flow.id,
       kernelRecordId: kernelStep.kernel.id,
-      seeds: [{ title: "Echo bridges answer", body: "The bridges answer questions at dawn", truthLayer: "Objective canon", canonStatus: "proposed" }]
+      granularityRationale: "The bridge seed can be rejected independently.",
+      seeds: [{ title: "Echo bridges answer", body: "The bridges answer questions at dawn", truthLayer: "Objective canon", granularityConfirmed: true }]
     }) as { report: { id: number }; records: Array<{ id: number; canonStatus: string }> };
     expect(result.records).toMatchObject([{ canonStatus: "proposed" }]);
     expect(AdmissionFlow.admissionQueue(store)).toEqual(expect.arrayContaining([expect.objectContaining({ id: result.records[0]!.id, canonStatus: "proposed" })]));

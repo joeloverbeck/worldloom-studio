@@ -283,7 +283,8 @@ describe("HTTP API", () => {
       body: JSON.stringify({
         flowId: flow.flow.id,
         kernelRecordId: kernelStep.kernel.id,
-        seeds: [{ title: "Echo court testimony", body: "Courts accept echo testimony under conditions", truthLayer: "Objective canon", canonStatus: "proposed" }]
+        granularityRationale: "The court testimony seed can be rejected independently.",
+        seeds: [{ title: "Echo court testimony", body: "Courts accept echo testimony under conditions", truthLayer: "Objective canon", granularityConfirmed: true }]
       })
     });
     expect(decomposed.status).toBe(201);

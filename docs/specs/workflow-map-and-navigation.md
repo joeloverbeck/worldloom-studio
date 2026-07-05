@@ -21,6 +21,7 @@ Every guided flow browser surface exposes:
 
 ## Cross-Flow Handoffs
 
+- A new world with no `world_kernel` foregrounds Creation start/resume as the primary active guided path; unrelated flows show prerequisites or not-yet-ready states until the kernel prerequisite exists.
 - Creation parks seeds at `proposed`; Admission owns first canon standing.
 - Sweeps and specialized passes propose facts; Admission admits.
 - Propagation, contradiction, institutional/economic/suppression, and QA may mint canon debt; debt appears in the relevant queue without changing canon standing.
