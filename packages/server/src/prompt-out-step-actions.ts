@@ -1,4 +1,5 @@
 import * as AdmissionFlow from "./admission-flow.js";
+import * as ConstraintFlow from "./constraint-composition-flow.js";
 import * as ContradictionFlow from "./contradiction-flow.js";
 import * as CreationFlow from "./creation-flow.js";
 import * as InstitutionalFlow from "./institutional-flow.js";
@@ -78,6 +79,8 @@ export interface PromptOutSkipBody {
   unresolved?: boolean;
   debtName?: string;
   existingDebtRecordId?: number;
+  admissionLevel?: string;
+  workScale?: string;
 }
 
 const actionBase = "/api/prompt-out/steps/actions";
@@ -176,10 +179,19 @@ export const runPromptOutStoreAdvisoryAction = (
   world: WorldFile,
   input: PromptOutStepActionContext,
   payload: PromptOutStoreAdvisoryBody
-): { record: RecordRow } | ReturnType<typeof InstitutionalFlow.storeStage12Advisory> => {
+): { record: RecordRow } | ReturnType<typeof InstitutionalFlow.storeStage12Advisory> | ReturnType<typeof ConstraintFlow.storeConstraintAdvisory> => {
   if (input.flowKey === InstitutionalFlow.FLOW_KEY) {
     if (input.flowId == null) throw new Error("Stage-12 Prompt-out actions require a flow id");
     return InstitutionalFlow.storeStage12Advisory(world, {
+      flowId: input.flowId,
+      stepKey: input.stepKey,
+      promptText: payload.promptText,
+      responseText: payload.responseText
+    });
+  }
+  if (input.flowKey === ConstraintFlow.FLOW_KEY) {
+    if (input.flowId == null) throw new Error("Constraint Composition Prompt-out actions require a flow id");
+    return ConstraintFlow.storeConstraintAdvisory(world, {
       flowId: input.flowId,
       stepKey: input.stepKey,
       promptText: payload.promptText,
@@ -230,6 +242,15 @@ const skipHandlers: Record<string, SkipHandler> = {
       flowId: input.flowId,
       stepKey: input.stepKey
     });
+  },
+  [ConstraintFlow.FLOW_KEY]: (world, input, payload) => {
+    if (input.flowId == null) throw new Error("Constraint Composition Prompt-out skip actions require a flow id");
+    return ConstraintFlow.skipConstraintStep(world, {
+      ...input,
+      ...payload,
+      flowId: input.flowId,
+      stepKey: input.stepKey
+    });
   }
 };
 
@@ -239,14 +260,19 @@ export const runPromptOutSkipAction = (
   payload: PromptOutSkipBody = {}
 ): unknown => {
   const handler = input.flowKey ? skipHandlers[input.flowKey] : undefined;
-  if (handler) return handler(world, input, payload);
+  const mergedInput = {
+    ...input,
+    admissionLevel: payload.admissionLevel ?? input.admissionLevel,
+    workScale: payload.workScale ?? input.workScale
+  };
+  if (handler) return handler(world, mergedInput, payload);
   return {
     record: PromptOut.recordPromptOutSkip(world, {
       flowKey: input.flowKey,
       flowId: input.flowId,
       stepKey: input.stepKey,
-      admissionLevel: input.admissionLevel,
-      workScale: input.workScale,
+      admissionLevel: mergedInput.admissionLevel,
+      workScale: mergedInput.workScale,
       reason: payload.reason
     })
   };

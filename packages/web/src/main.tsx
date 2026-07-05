@@ -208,6 +208,49 @@ interface Stage12Run {
   closeReadiness: { status: string; blockers: Stage12CloseBlocker[] };
 }
 
+interface ConstraintCloseBlocker {
+  kind: string;
+  key: string;
+  label: string;
+  message: string;
+}
+
+interface ConstraintRun {
+  flow: { id: number; state: string; current_step: string };
+  report: RecordRow;
+  source: {
+    sourceType: string;
+    sourceRecordId: number | null;
+    sourceSectionHeading: string | null;
+    materialTitle: string;
+    materialBody: string;
+    constrainedSubject: string;
+    sourceSummary: string;
+  };
+  doctrine: {
+    flowKey: string;
+    protocol: string;
+    checklist: string;
+    template: string;
+    stepMap: Array<{ key: string; label: string; decision: string }>;
+    completionRule: string;
+    browserPolicy: string;
+  };
+  inventory: Array<{ id: number; constrainedFact: string; constraintStatement: string; constraintType: string; prevents: string; allows: string; enforcement: string; residue: string }>;
+  composition: Array<{ id: number; analysisType: string; body: string }>;
+  leakage: { loopholes: string; countermeasures: string } | null;
+  residue: { ordinaryLife: string; institutionalEffects: string; economicEffects: string } | null;
+  linkedCards: Array<{ id: number; relation: string; card: RecordRow }>;
+  proposals: Array<{ id: number; sourceStep: string; record: RecordRow }>;
+  debt: Array<{ id: number; sourceStep: string; record: RecordRow }>;
+  advisories: Array<{ id: number; stepKey: string; record: RecordRow }>;
+  skips: Array<{ id: number; stepKey: string; record: RecordRow; debt: RecordRow | null }>;
+  closeReadiness: { status: string; blockers: ConstraintCloseBlocker[] };
+  closePreview: { state: string; outcomeState: string; beforeCompletion: string[]; afterCompletion: string[] };
+  promptOut: { available: boolean; templateKey: string; stepKey: string; coldUseEvidence: string; sourceRecordId: number | null };
+  readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
+}
+
 interface Stage13Run {
   flow: {
     id: number;
@@ -443,7 +486,7 @@ interface AppProps {
   initialAdmissionDecision?: AdmissionDecisionPoint | null;
 }
 
-type PromptFlowKey = "creation" | "admission" | "propagation" | "contradiction" | "qa" | "institutional_economic_suppression";
+type PromptFlowKey = "creation" | "admission" | "propagation" | "contradiction" | "qa" | "institutional_economic_suppression" | "constraint_composition";
 
 interface PromptOutActionLink {
   method: "POST";
@@ -571,6 +614,44 @@ const stage13MysterySectionHeadings = [
 
 const emptyStage13RetconCosts = Object.fromEntries(stage13RetconCostKeys.map((key) => [key, ""])) as Record<string, string>;
 const emptyStage13MysterySections = Object.fromEntries(stage13MysterySectionHeadings.map((heading) => [heading, ""])) as Record<string, string>;
+const constraintCompositionTypes = ["stacking", "gate", "tradeoff", "threshold", "sequential", "cancellation", "contradiction", "chain"];
+
+const emptyConstraintInventory = {
+  constrainedFact: "",
+  constraintStatement: "",
+  constraintType: "access",
+  prevents: "",
+  allows: "",
+  boundaryKnowledge: "",
+  bypassActors: "",
+  causeOrMysteryBoundary: "",
+  enforcement: "",
+  residue: "",
+  costOrObservable: ""
+};
+
+const emptyConstraintLeakage = {
+  bottleneck: "",
+  loopholes: "",
+  partialWorkarounds: "",
+  falseBypasses: "",
+  accidents: "",
+  countermeasures: "",
+  boundaryTesters: ""
+};
+
+const emptyConstraintResidue = {
+  ordinaryLife: "",
+  institutionalEffects: "",
+  economicEffects: "",
+  visibleTraces: "",
+  expertise: "",
+  resentment: "",
+  crime: "",
+  ritual: "",
+  markets: "",
+  failureModes: ""
+};
 
 const parseNumberList = (value: string): number[] =>
   value
@@ -634,6 +715,26 @@ function App({
   const [stage12AdvisoryRecordId, setStage12AdvisoryRecordId] = useState("");
   const [stage12SkipStep, setStage12SkipStep] = useState("black_market_depth");
   const [stage12SkipUnresolved, setStage12SkipUnresolved] = useState(false);
+  const [constraintRun, setConstraintRun] = useState<ConstraintRun | null>(null);
+  const [constraintFlowId, setConstraintFlowId] = useState<number | null>(null);
+  const [constraintSourceType, setConstraintSourceType] = useState<"fact" | "capability" | "constraint_card" | "canon_debt" | "material" | "record_section" | "pass_report">("fact");
+  const [constraintSourceRecordId, setConstraintSourceRecordId] = useState("");
+  const [constraintSourceSection, setConstraintSourceSection] = useState("");
+  const [constraintMaterialTitle, setConstraintMaterialTitle] = useState("");
+  const [constraintMaterialBody, setConstraintMaterialBody] = useState("");
+  const [constraintSubject, setConstraintSubject] = useState("");
+  const [constraintInventory, setConstraintInventory] = useState(emptyConstraintInventory);
+  const [constraintCompositionType, setConstraintCompositionType] = useState("stacking");
+  const [constraintCompositionBody, setConstraintCompositionBody] = useState("");
+  const [constraintLeakage, setConstraintLeakage] = useState(emptyConstraintLeakage);
+  const [constraintResidue, setConstraintResidue] = useState(emptyConstraintResidue);
+  const [constraintInventoryId, setConstraintInventoryId] = useState("");
+  const [constraintExistingCardId, setConstraintExistingCardId] = useState("");
+  const [constraintCardRelation, setConstraintCardRelation] = useState("");
+  const [constraintSourceStep, setConstraintSourceStep] = useState("constraint:challenge");
+  const [constraintAdvisoryRecordId, setConstraintAdvisoryRecordId] = useState("");
+  const [constraintSkipStep, setConstraintSkipStep] = useState("constraint:challenge");
+  const [constraintSkipUnresolved, setConstraintSkipUnresolved] = useState(false);
   const [stage13Run, setStage13Run] = useState<Stage13Run | null>(null);
   const [stage13FlowId, setStage13FlowId] = useState<number | null>(null);
   const [stage13SourceRecordId, setStage13SourceRecordId] = useState("");
@@ -767,6 +868,7 @@ function App({
   const vocabularies = useMemo(() => [...new Set(terms.map((term) => term.vocabulary))], [terms]);
   const facetTerms = useMemo(() => terms.filter((term) => term.vocabulary === facetVocabulary), [terms, facetVocabulary]);
   const consequenceModes = useMemo(() => terms.filter((term) => term.vocabulary === "consequence_mode"), [terms]);
+  const constraintTypes = useMemo(() => terms.filter((term) => term.vocabulary === "constraint_type"), [terms]);
   const advisoryDispositions = useMemo(() => terms.filter((term) => term.vocabulary === "advisory_disposition"), [terms]);
   const admissionLevels = useMemo(() => terms.filter((term) => term.vocabulary === "admission_level"), [terms]);
   const workScales = useMemo(() => terms.filter((term) => term.vocabulary === "work_scale"), [terms]);
@@ -853,6 +955,8 @@ function App({
   }, [
     admissionLevel,
     admissionRecordId,
+    constraintFlowId,
+    constraintSourceRecordId,
     flowId,
     promptFlowKey,
     promptRecordId,
@@ -1118,6 +1222,7 @@ function App({
     if (promptFlowKey === "propagation") return propagationFlowId ?? undefined;
     if (promptFlowKey === "qa") return qaFlowId ?? undefined;
     if (promptFlowKey === "institutional_economic_suppression") return stage12FlowId ?? undefined;
+    if (promptFlowKey === "constraint_composition") return constraintFlowId ?? undefined;
     if (promptFlowKey === "contradiction") return stage13FlowId ?? undefined;
     return undefined;
   };
@@ -1132,9 +1237,11 @@ function App({
           ? optionalNumber(qaSubjectRecordId)
           : promptFlowKey === "institutional_economic_suppression"
             ? optionalNumber(stage12SourceRecordId)
-            : promptFlowKey === "contradiction"
-              ? optionalNumber(stage13SourceRecordId)
-              : undefined);
+            : promptFlowKey === "constraint_composition"
+              ? optionalNumber(constraintSourceRecordId)
+              : promptFlowKey === "contradiction"
+                ? optionalNumber(stage13SourceRecordId)
+                : undefined);
 
   const loadPromptStep = async () => {
     const payload = await api<{ step: PromptOutStep }>("/api/prompt-out/steps", {
@@ -1144,7 +1251,7 @@ function App({
         flowId: promptStepFlowId(),
         templateKey: promptTemplateKey,
         recordId: promptStepRecordId(),
-        stepKey: promptTemplateKey,
+        stepKey: promptFlowKey === "constraint_composition" ? "constraint:challenge" : promptTemplateKey,
         label: selectedTemplate?.role_name ?? promptTemplateKey,
         admissionLevel: admissionLevel || undefined,
         workScale: promptFlowKey === "contradiction" ? (stage13WorkScale || undefined) : (workScale || undefined)
@@ -1225,15 +1332,22 @@ function App({
   const skipPrompt = async () => {
     const promptStep = await ensurePromptStep();
     const stage12 = promptStep.context.flowKey === "institutional_economic_suppression";
+    const constraint = promptStep.context.flowKey === "constraint_composition";
     await api(promptStep.actions.skip.href, {
       method: promptStep.actions.skip.method,
       body: JSON.stringify({
         reason: gateNotApplicable || undefined,
-        unresolved: stage12 ? stage12SkipUnresolved : undefined,
-        debtName: stage12 && stage12SkipUnresolved ? (canonDebtName || "Stage-12 skipped-work debt") : undefined
+        unresolved: stage12 ? stage12SkipUnresolved : constraint ? constraintSkipUnresolved : undefined,
+        debtName: stage12 && stage12SkipUnresolved
+          ? (canonDebtName || "Stage-12 skipped-work debt")
+          : constraint && constraintSkipUnresolved
+            ? (canonDebtName || "Constraint Composition skipped-work debt")
+            : undefined,
+        workScale: constraint ? (workScale || undefined) : undefined
       })
     });
     await loadWorldData();
+    if (constraintFlowId != null) await refreshConstraintRun(constraintFlowId);
   };
 
   const decompose = async () => {
@@ -1571,6 +1685,183 @@ function App({
     const payload = await api<Stage12Run>(`/api/institutional/runs/${stage12FlowId}/close`, { method: "POST" });
     applyStage12Run(payload);
     setMessage(`Closed stage-12 run with ${payload.report.shortId}`);
+    await loadWorldData();
+  };
+
+  const applyConstraintRun = (payload: ConstraintRun) => {
+    setConstraintRun(payload);
+    setConstraintFlowId(payload.flow.id);
+    if (payload.source.sourceRecordId != null) setConstraintSourceRecordId(String(payload.source.sourceRecordId));
+    setConstraintSubject(payload.source.constrainedSubject);
+    if (payload.inventory[0] && !constraintInventoryId) setConstraintInventoryId(String(payload.inventory[0].id));
+  };
+
+  const refreshConstraintRun = async (flowId = constraintFlowId) => {
+    if (flowId == null) return;
+    applyConstraintRun(await api<ConstraintRun>(`/api/constraint-composition/runs/${flowId}`));
+  };
+
+  const constraintStartPayload = () => {
+    if (constraintSourceType === "material") {
+      return {
+        sourceType: constraintSourceType,
+        materialTitle: constraintMaterialTitle,
+        materialBody: constraintMaterialBody,
+        constrainedSubject: constraintSubject || undefined
+      };
+    }
+    if (constraintSourceType === "record_section") {
+      return {
+        sourceType: constraintSourceType,
+        recordId: Number(constraintSourceRecordId),
+        sectionHeading: constraintSourceSection,
+        constrainedSubject: constraintSubject || undefined
+      };
+    }
+    if (constraintSourceType === "pass_report") {
+      return { sourceType: constraintSourceType, reportRecordId: Number(constraintSourceRecordId) };
+    }
+    return {
+      sourceType: constraintSourceType,
+      recordId: Number(constraintSourceRecordId),
+      constrainedSubject: constraintSubject || undefined
+    };
+  };
+
+  const startConstraintRun = async () => {
+    const payload = await api<ConstraintRun>("/api/constraint-composition/runs/start", {
+      method: "POST",
+      body: JSON.stringify(constraintStartPayload())
+    });
+    applyConstraintRun(payload);
+    setPromptFlowKey("constraint_composition");
+    setPromptTemplateKey("constraint_challenger");
+    if (payload.promptOut.sourceRecordId != null) setPromptRecordId(String(payload.promptOut.sourceRecordId));
+    await loadWorldData();
+  };
+
+  const saveConstraintInventory = async () => {
+    if (constraintFlowId == null) return;
+    await api("/api/constraint-composition/inventory", {
+      method: "POST",
+      body: JSON.stringify({ flowId: constraintFlowId, ...constraintInventory })
+    });
+    await refreshConstraintRun(constraintFlowId);
+  };
+
+  const saveConstraintComposition = async () => {
+    if (constraintFlowId == null) return;
+    await api("/api/constraint-composition/composition", {
+      method: "POST",
+      body: JSON.stringify({ flowId: constraintFlowId, analysisType: constraintCompositionType, body: constraintCompositionBody })
+    });
+    setConstraintCompositionBody("");
+    await refreshConstraintRun(constraintFlowId);
+  };
+
+  const saveConstraintLeakage = async () => {
+    if (constraintFlowId == null) return;
+    await api("/api/constraint-composition/leakage", {
+      method: "POST",
+      body: JSON.stringify({ flowId: constraintFlowId, ...constraintLeakage })
+    });
+    await refreshConstraintRun(constraintFlowId);
+  };
+
+  const saveConstraintResidue = async () => {
+    if (constraintFlowId == null) return;
+    await api("/api/constraint-composition/residue", {
+      method: "POST",
+      body: JSON.stringify({ flowId: constraintFlowId, ...constraintResidue })
+    });
+    await refreshConstraintRun(constraintFlowId);
+  };
+
+  const createOrLinkConstraintCard = async () => {
+    if (constraintFlowId == null) return;
+    await api("/api/constraint-composition/cards", {
+      method: "POST",
+      body: JSON.stringify({
+        flowId: constraintFlowId,
+        existingRecordId: constraintExistingCardId ? Number(constraintExistingCardId) : undefined,
+        inventoryId: constraintInventoryId ? Number(constraintInventoryId) : undefined,
+        title: recordForm.title || undefined,
+        body: recordForm.body || undefined,
+        relation: constraintCardRelation || undefined,
+        advisoryRecordId: constraintAdvisoryRecordId ? Number(constraintAdvisoryRecordId) : undefined
+      })
+    });
+    await refreshConstraintRun(constraintFlowId);
+    await loadWorldData();
+  };
+
+  const routeConstraintProposal = async () => {
+    if (constraintFlowId == null) return;
+    await api("/api/constraint-composition/proposals", {
+      method: "POST",
+      body: JSON.stringify({
+        flowId: constraintFlowId,
+        sourceStep: constraintSourceStep,
+        title: recordForm.title,
+        body: recordForm.body || constraintCompositionBody || constraintInventory.constraintStatement,
+        truthLayer: recordForm.truthLayer || "Objective canon",
+        advisoryRecordId: constraintAdvisoryRecordId ? Number(constraintAdvisoryRecordId) : undefined
+      })
+    });
+    await refreshConstraintRun(constraintFlowId);
+    await loadWorldData();
+  };
+
+  const mintConstraintDebt = async () => {
+    if (constraintFlowId == null) return;
+    await api("/api/constraint-composition/debt", {
+      method: "POST",
+      body: JSON.stringify({
+        flowId: constraintFlowId,
+        sourceStep: constraintSourceStep,
+        name: canonDebtName || "Constraint Composition follow-up debt",
+        reason: gateNotApplicable || constraintCompositionBody || constraintInventory.residue,
+        severityOrConsequenceMode: workScale || consequenceMode || undefined,
+        advisoryRecordId: constraintAdvisoryRecordId ? Number(constraintAdvisoryRecordId) : undefined
+      })
+    });
+    await refreshConstraintRun(constraintFlowId);
+    await loadWorldData();
+  };
+
+  const recordConstraintSkip = async () => {
+    if (constraintFlowId == null) return;
+    const payload = await api<{ step: PromptOutStep }>("/api/prompt-out/steps", {
+      method: "POST",
+      body: JSON.stringify({
+        flowKey: "constraint_composition",
+        flowId: constraintFlowId,
+        templateKey: "constraint_challenger",
+        recordId: optionalNumber(constraintSourceRecordId),
+        stepKey: constraintSkipStep,
+        label: "Constraint challenger",
+        workScale: workScale || undefined
+      })
+    });
+    await api(payload.step.actions.skip.href, {
+      method: payload.step.actions.skip.method,
+      body: JSON.stringify({
+        reason: gateNotApplicable || undefined,
+        unresolved: constraintSkipUnresolved,
+        debtName: constraintSkipUnresolved ? (canonDebtName || "Constraint Composition skipped-work debt") : undefined,
+        workScale: workScale || undefined
+      })
+    });
+    setPromptStep(payload.step);
+    await refreshConstraintRun(constraintFlowId);
+    await loadWorldData();
+  };
+
+  const closeConstraintRun = async () => {
+    if (constraintFlowId == null) return;
+    const payload = await api<ConstraintRun>(`/api/constraint-composition/runs/${constraintFlowId}/close`, { method: "POST" });
+    applyConstraintRun(payload);
+    setMessage(`Closed Constraint Composition run with ${payload.report.shortId}`);
     await loadWorldData();
   };
 
@@ -2154,6 +2445,7 @@ function App({
                 const next = event.target.value as PromptFlowKey;
                 setPromptFlowKey(next);
                 if (next === "institutional_economic_suppression") setPromptTemplateKey("institution_economy_analyst");
+                if (next === "constraint_composition") setPromptTemplateKey("constraint_challenger");
                 if (next === "contradiction") setPromptTemplateKey("repair_challenge");
               }}>
                 <option value="creation">Creation</option>
@@ -2162,6 +2454,7 @@ function App({
                 <option value="contradiction">Contradiction</option>
                 <option value="qa">QA</option>
                 <option value="institutional_economic_suppression">Institutional / economic / suppression</option>
+                <option value="constraint_composition">Constraint Composition</option>
               </select></label>
               <label>Template<select value={promptTemplateKey} onChange={(event) => setPromptTemplateKey(event.target.value)}>{templates.map((template) => <option key={template.key} value={template.key}>{template.role_name} v{template.current_version}</option>)}</select></label>
               {selectedTemplate && (
@@ -2493,6 +2786,200 @@ function App({
                 </div>
               </>
             )}
+          </div>
+
+          <div className="panel">
+            <h2>Constraint Composition flow</h2>
+            <section className="subpanel">
+              <h3>Start or Resume Constraint Composition</h3>
+              <div className="doctrine">
+                <strong>Doctrine, checklist, and template</strong>
+                <span>{constraintRun ? `${constraintRun.doctrine.protocol} · ${constraintRun.doctrine.checklist} · ${constraintRun.doctrine.template}` : "Start or resume a run to load server-returned doctrine."}</span>
+                <span>{constraintRun?.doctrine.completionRule ?? "The server owns constraint budget, loopholes, enforcement, residue, and close readiness."}</span>
+              </div>
+              <div className="grid">
+                <label>Source type<select value={constraintSourceType} onChange={(event) => setConstraintSourceType(event.target.value as typeof constraintSourceType)}>
+                  <option value="fact">fact</option>
+                  <option value="capability">capability</option>
+                  <option value="constraint_card">constraint card</option>
+                  <option value="canon_debt">canon debt</option>
+                  <option value="material">selected material</option>
+                  <option value="record_section">record section</option>
+                  <option value="pass_report">pass report</option>
+                </select></label>
+                <label>Source or report id<input value={constraintSourceRecordId} onChange={(event) => setConstraintSourceRecordId(event.target.value)} /></label>
+                <label>Section heading<input value={constraintSourceSection} onChange={(event) => setConstraintSourceSection(event.target.value)} /></label>
+                <label>Flow id<input value={constraintFlowId ?? ""} onChange={(event) => setConstraintFlowId(event.target.value ? Number(event.target.value) : null)} /></label>
+              </div>
+              <div className="grid">
+                <label>Material title<input value={constraintMaterialTitle} onChange={(event) => setConstraintMaterialTitle(event.target.value)} /></label>
+                <label>Material body<textarea rows={2} value={constraintMaterialBody} onChange={(event) => setConstraintMaterialBody(event.target.value)} /></label>
+                <label>Constrained subject<input value={constraintSubject} onChange={(event) => setConstraintSubject(event.target.value)} /></label>
+              </div>
+              <div className="row">
+                <button onClick={startConstraintRun} disabled={!openWorld || (constraintSourceType !== "material" && !constraintSourceRecordId) || (constraintSourceType === "material" && (!constraintMaterialTitle.trim() || !constraintMaterialBody.trim()))}>Start or Resume Constraint Composition</button>
+                <button onClick={() => void refreshConstraintRun()} disabled={!openWorld || constraintFlowId == null}>Refresh Constraint Run</button>
+                <button onClick={closeConstraintRun} disabled={!openWorld || constraintFlowId == null}>Close Constraint Run</button>
+              </div>
+            </section>
+
+            <section className="subpanel">
+              <h3>Current decision</h3>
+              <p className="status">{constraintRun ? `${constraintRun.report.shortId} · ${constraintRun.source.sourceSummary} · ${constraintRun.flow.current_step}` : "No Constraint Composition run loaded."}</p>
+              <p className="meta">{constraintRun?.doctrine.browserPolicy ?? "Browser controls surface server policy, blockers, write intent, Prompt-out state, and read-side trail."}</p>
+              <ol>
+                {(constraintRun?.doctrine.stepMap ?? [
+                  { key: "source_selection", label: "Source selection", decision: "Pick the constrained material." },
+                  { key: "constraint_inventory", label: "Constraint inventory", decision: "Record budget, loopholes, enforcement, and residue." },
+                  { key: "close_preview", label: "Close preview", decision: "Use server-returned blockers before appending a report." }
+                ]).map((step) => <li key={step.key}>{step.label}: {step.decision}</li>)}
+              </ol>
+            </section>
+
+            <section className="subpanel">
+              <h3>Server close blockers</h3>
+              {constraintRun && constraintRun.closeReadiness.blockers.length === 0 ? (
+                <p className="status">No server-returned blockers.</p>
+              ) : (
+                <ul>
+                  {(constraintRun?.closeReadiness.blockers ?? [
+                    { key: "constraint_budget", label: "Constraint budget", message: "Start a run to load exact server blockers." },
+                    { key: "loopholes", label: "Loopholes", message: "Start a run to load exact server blockers." },
+                    { key: "enforcement", label: "Enforcement", message: "Start a run to load exact server blockers." },
+                    { key: "residue", label: "Residue", message: "Start a run to load exact server blockers." }
+                  ]).map((blocker) => <li key={blocker.key}>{blocker.label}: {blocker.message}</li>)}
+                </ul>
+              )}
+            </section>
+
+            <section className="subpanel">
+              <h3>Constraint Inventory</h3>
+              <div className="grid">
+                <label>Constrained fact<input value={constraintInventory.constrainedFact} onChange={(event) => setConstraintInventory((current) => ({ ...current, constrainedFact: event.target.value }))} /></label>
+                <label>Constraint statement<input value={constraintInventory.constraintStatement} onChange={(event) => setConstraintInventory((current) => ({ ...current, constraintStatement: event.target.value }))} /></label>
+                <label>Constraint type<select value={constraintInventory.constraintType} onChange={(event) => setConstraintInventory((current) => ({ ...current, constraintType: event.target.value }))}>
+                  {constraintTypes.map((term) => <option key={term.term}>{term.term}</option>)}
+                </select></label>
+                <label>Boundary knowledge<input value={constraintInventory.boundaryKnowledge} onChange={(event) => setConstraintInventory((current) => ({ ...current, boundaryKnowledge: event.target.value }))} /></label>
+              </div>
+              <div className="grid">
+                <label>Prevents<textarea rows={2} value={constraintInventory.prevents} onChange={(event) => setConstraintInventory((current) => ({ ...current, prevents: event.target.value }))} /></label>
+                <label>Allows<textarea rows={2} value={constraintInventory.allows} onChange={(event) => setConstraintInventory((current) => ({ ...current, allows: event.target.value }))} /></label>
+                <label>Bypass actors<textarea rows={2} value={constraintInventory.bypassActors} onChange={(event) => setConstraintInventory((current) => ({ ...current, bypassActors: event.target.value }))} /></label>
+                <label>Cause or mystery boundary<textarea rows={2} value={constraintInventory.causeOrMysteryBoundary} onChange={(event) => setConstraintInventory((current) => ({ ...current, causeOrMysteryBoundary: event.target.value }))} /></label>
+                <label>Enforcement<textarea rows={2} value={constraintInventory.enforcement} onChange={(event) => setConstraintInventory((current) => ({ ...current, enforcement: event.target.value }))} /></label>
+                <label>Residue<textarea rows={2} value={constraintInventory.residue} onChange={(event) => setConstraintInventory((current) => ({ ...current, residue: event.target.value }))} /></label>
+                <label>Cost or observable<input value={constraintInventory.costOrObservable} onChange={(event) => setConstraintInventory((current) => ({ ...current, costOrObservable: event.target.value }))} /></label>
+              </div>
+              <button onClick={saveConstraintInventory} disabled={constraintFlowId == null}>Save Constraint Inventory</button>
+            </section>
+
+            <section className="subpanel">
+              <h3>Composition Testing</h3>
+              <div className="grid">
+                <label>Analysis type<select value={constraintCompositionType} onChange={(event) => setConstraintCompositionType(event.target.value)}>
+                  {constraintCompositionTypes.map((type) => <option key={type}>{type}</option>)}
+                </select></label>
+                <label>Analysis<textarea rows={3} value={constraintCompositionBody} onChange={(event) => setConstraintCompositionBody(event.target.value)} /></label>
+              </div>
+              <button onClick={saveConstraintComposition} disabled={constraintFlowId == null || !constraintCompositionBody.trim()}>Save Composition Test</button>
+              <p className="meta">Saved: {constraintRun?.composition.map((entry) => entry.analysisType).join(", ") || "none"}</p>
+            </section>
+
+            <section className="subpanel">
+              <h3>Leakage and Residue</h3>
+              <div className="grid two">
+                <div>
+                  <label>Bottleneck<textarea rows={2} value={constraintLeakage.bottleneck} onChange={(event) => setConstraintLeakage((current) => ({ ...current, bottleneck: event.target.value }))} /></label>
+                  <label>Loopholes<textarea rows={2} value={constraintLeakage.loopholes} onChange={(event) => setConstraintLeakage((current) => ({ ...current, loopholes: event.target.value }))} /></label>
+                  <label>Partial workarounds<textarea rows={2} value={constraintLeakage.partialWorkarounds} onChange={(event) => setConstraintLeakage((current) => ({ ...current, partialWorkarounds: event.target.value }))} /></label>
+                  <label>False bypasses<textarea rows={2} value={constraintLeakage.falseBypasses} onChange={(event) => setConstraintLeakage((current) => ({ ...current, falseBypasses: event.target.value }))} /></label>
+                  <label>Accidents<textarea rows={2} value={constraintLeakage.accidents} onChange={(event) => setConstraintLeakage((current) => ({ ...current, accidents: event.target.value }))} /></label>
+                  <label>Countermeasures<textarea rows={2} value={constraintLeakage.countermeasures} onChange={(event) => setConstraintLeakage((current) => ({ ...current, countermeasures: event.target.value }))} /></label>
+                  <label>Boundary testers<textarea rows={2} value={constraintLeakage.boundaryTesters} onChange={(event) => setConstraintLeakage((current) => ({ ...current, boundaryTesters: event.target.value }))} /></label>
+                  <button onClick={saveConstraintLeakage} disabled={constraintFlowId == null}>Save Leakage</button>
+                </div>
+                <div>
+                  <label>Ordinary life<textarea rows={2} value={constraintResidue.ordinaryLife} onChange={(event) => setConstraintResidue((current) => ({ ...current, ordinaryLife: event.target.value }))} /></label>
+                  <label>Institutional effects<textarea rows={2} value={constraintResidue.institutionalEffects} onChange={(event) => setConstraintResidue((current) => ({ ...current, institutionalEffects: event.target.value }))} /></label>
+                  <label>Economic effects<textarea rows={2} value={constraintResidue.economicEffects} onChange={(event) => setConstraintResidue((current) => ({ ...current, economicEffects: event.target.value }))} /></label>
+                  <label>Visible traces<textarea rows={2} value={constraintResidue.visibleTraces} onChange={(event) => setConstraintResidue((current) => ({ ...current, visibleTraces: event.target.value }))} /></label>
+                  <label>Expertise<input value={constraintResidue.expertise} onChange={(event) => setConstraintResidue((current) => ({ ...current, expertise: event.target.value }))} /></label>
+                  <label>Resentment<input value={constraintResidue.resentment} onChange={(event) => setConstraintResidue((current) => ({ ...current, resentment: event.target.value }))} /></label>
+                  <label>Crime<input value={constraintResidue.crime} onChange={(event) => setConstraintResidue((current) => ({ ...current, crime: event.target.value }))} /></label>
+                  <label>Ritual<input value={constraintResidue.ritual} onChange={(event) => setConstraintResidue((current) => ({ ...current, ritual: event.target.value }))} /></label>
+                  <label>Markets<input value={constraintResidue.markets} onChange={(event) => setConstraintResidue((current) => ({ ...current, markets: event.target.value }))} /></label>
+                  <label>Failure modes<input value={constraintResidue.failureModes} onChange={(event) => setConstraintResidue((current) => ({ ...current, failureModes: event.target.value }))} /></label>
+                  <button onClick={saveConstraintResidue} disabled={constraintFlowId == null}>Save Residue</button>
+                </div>
+              </div>
+            </section>
+
+            <div className="grid two">
+              <section className="subpanel">
+                <h3>Create or Link Constraint Card</h3>
+                <div className="grid">
+                  <label>Inventory id<input value={constraintInventoryId} onChange={(event) => setConstraintInventoryId(event.target.value)} /></label>
+                  <label>Existing card id<input value={constraintExistingCardId} onChange={(event) => setConstraintExistingCardId(event.target.value)} /></label>
+                  <label>Relation<input value={constraintCardRelation} onChange={(event) => setConstraintCardRelation(event.target.value)} /></label>
+                  <label>Advisory id<input value={constraintAdvisoryRecordId} onChange={(event) => setConstraintAdvisoryRecordId(event.target.value)} /></label>
+                </div>
+                <button onClick={createOrLinkConstraintCard} disabled={constraintFlowId == null || (!constraintExistingCardId && !recordForm.title.trim() && !constraintInventoryId)}>Create or Link Constraint Card</button>
+                <p>Cards: {constraintRun?.linkedCards.map((card) => `${card.card.shortId} ${card.card.title}`).join(", ") || "none"}</p>
+              </section>
+              <section className="subpanel">
+                <h3>Route Admission Proposal</h3>
+                <label>Source step<input value={constraintSourceStep} onChange={(event) => setConstraintSourceStep(event.target.value)} /></label>
+                <button onClick={routeConstraintProposal} disabled={constraintFlowId == null || !recordForm.title.trim() || !(recordForm.body || constraintCompositionBody || constraintInventory.constraintStatement).trim()}>Route Admission Proposal</button>
+                <h3>Mint Constraint Debt</h3>
+                <button onClick={mintConstraintDebt} disabled={constraintFlowId == null || !(canonDebtName || recordForm.title).trim() || !(gateNotApplicable || constraintCompositionBody || constraintInventory.residue).trim()}>Mint Constraint Debt</button>
+                <p>Proposals: {constraintRun?.proposals.map((proposal) => `${proposal.record.shortId} ${proposal.record.title}`).join(", ") || "none"}</p>
+                <p>Debt: {constraintRun?.debt.map((debt) => `${debt.record.shortId} ${debt.record.title}`).join(", ") || "none"}</p>
+              </section>
+            </div>
+
+            <div className="grid two">
+              <section className="subpanel">
+                <h3>Record Governed Skip</h3>
+                <div className="grid">
+                  <label>Skip step<input value={constraintSkipStep} onChange={(event) => setConstraintSkipStep(event.target.value)} /></label>
+                  <label className="inline-check"><input type="checkbox" checked={constraintSkipUnresolved} onChange={(event) => setConstraintSkipUnresolved(event.target.checked)} />Unresolved follow-up</label>
+                </div>
+                <button onClick={recordConstraintSkip} disabled={constraintFlowId == null || !constraintSkipStep.trim()}>Record Governed Skip</button>
+                <p>Skips: {constraintRun?.skips.map((skip) => `${skip.record.shortId} ${skip.stepKey}`).join(", ") || "none"}</p>
+              </section>
+              <section className="subpanel">
+                <h3>Prompt-out preview</h3>
+                <p className="meta">{constraintRun?.promptOut.coldUseEvidence ?? "Prompt-out becomes available after steward-authored constraint material exists."}</p>
+                <button onClick={() => {
+                  setPromptFlowKey("constraint_composition");
+                  setPromptTemplateKey("constraint_challenger");
+                  if (constraintRun?.promptOut.sourceRecordId != null) setPromptRecordId(String(constraintRun.promptOut.sourceRecordId));
+                }} disabled={!constraintRun}>Use Constraint Challenger</button>
+                <p>Advisory: {constraintRun?.advisories.map((advisory) => `${advisory.record.shortId} ${advisory.stepKey}`).join(", ") || "none"}</p>
+              </section>
+            </div>
+
+            <section className="subpanel">
+              <h3>Read-side trail</h3>
+              <ul>
+                {(constraintRun?.readSideTrail ?? [
+                  { label: "Pass report", href: "/api/canon-workbench/records/:id" },
+                  { label: "Audit Trail", href: "/api/canon-workbench/audit" },
+                  { label: "Current Canon", href: "/api/canon-workbench/current" }
+                ]).map((item) => <li key={`${item.label}-${item.href}`}>{item.label}: {item.href}</li>)}
+              </ul>
+            </section>
+
+            <section className="subpanel">
+              <h3>Naive steward walkthrough</h3>
+              <ol>
+                <li>Start from a fact, capability, constraint card, canon debt, selected material, record section, or pass report.</li>
+                <li>Fill inventory, composition testing, leakage, and residue until the server removes close blockers.</li>
+                <li>Choose card, proposal, debt, Prompt-out, or skip outcomes without directly mutating canon from advisory material.</li>
+                <li>Close only when the pass report and read-side trail show the governed outcome.</li>
+              </ol>
+            </section>
           </div>
 
           <div className="panel">

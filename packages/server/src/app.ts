@@ -4,6 +4,7 @@ import { ActiveWorldSession } from "./active-world-session.js";
 import { registerAdmissionRoutes } from "./http/admission-routes.js";
 import { registerCanonDebtRoutes } from "./http/canon-debt-routes.js";
 import { registerCanonWorkbenchRoutes } from "./http/canon-workbench-routes.js";
+import { registerConstraintCompositionRoutes } from "./http/constraint-composition-routes.js";
 import { registerContradictionRoutes } from "./http/contradiction-routes.js";
 import { registerCreationRoutes } from "./http/creation-routes.js";
 import { registerPromptOutRoutes } from "./http/prompt-out-routes.js";
@@ -40,6 +41,7 @@ export const createApp = (options: AppOptions = {}) => {
   registerCanonWorkbenchRoutes(app, dependencies);
   registerPropagationRoutes(app, dependencies);
   registerStage12Routes(app, dependencies);
+  registerConstraintCompositionRoutes(app, dependencies);
   registerContradictionRoutes(app, dependencies);
   registerQaRoutes(app, dependencies);
 

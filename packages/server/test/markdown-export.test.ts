@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
 import { RECORD_TYPES } from "@worldloom/shared";
 import { createApp } from "../src/app.js";
+import { CURRENT_SCHEMA_VERSION } from "../src/schema.js";
 
 let tempDirs: string[] = [];
 
@@ -88,7 +89,7 @@ describe("markdown export HTTP API", () => {
 
     expect(payload.markdown).toContain(`# ${record.shortId} - Bridge law survives`);
     expect(payload.markdown).toContain(`Source world: ${path}`);
-    expect(payload.markdown).toContain("Schema version: 6");
+    expect(payload.markdown).toContain(`Schema version: ${CURRENT_SCHEMA_VERSION}`);
     expect(payload.markdown).toContain("Record type: Canon fact (`canon_fact`)");
     expect(payload.markdown).toContain("Package source: `docs/worldbuilding-system/templates/canon_fact_card.md`");
     expect(payload.markdown).toContain("Truth layer: Objective canon");
@@ -197,7 +198,7 @@ describe("markdown export HTTP API", () => {
     const index = readFileSync(firstPayload.indexPath, "utf8");
     expect(index).toContain(`# Worldloom Markdown Export`);
     expect(index).toContain(`Source world: ${path}`);
-    expect(index).toContain("Schema version: 6");
+    expect(index).toContain(`Schema version: ${CURRENT_SCHEMA_VERSION}`);
     expect(index).toContain("## Canon fact");
     expect(index).toContain(`[${fact.shortId} - ${fact.title}](FAC-1-bridge-law.md)`);
     expect(index).not.toContain("Ungoverned draft");
