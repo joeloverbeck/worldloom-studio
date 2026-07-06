@@ -24,6 +24,12 @@ TDD preflight:
 
 For shared-boundary issue families, instantiate the compact evidence table as the row plan before the first red test. The red and green cells can be `TBD` while work is still in progress, but every in-scope issue and agreed seam must already have a row with a `red-first`, `no-runnable`, or `evidence-only` classification.
 
+Non-bypassable TDD closeout gate:
+
+- Before handing work to review, a pre-close audit, issue closure, parent PRD closeout, or the repo `implement` skill's closeout gate, inspect the durable audit sink that will carry TDD evidence.
+- The durable sink must contain the compact table below or equivalent explicit fields: issue(s), context/doctrine read status, seam, red command/failure or skip reason, green command/evidence, and acceptance covered.
+- Make the literal `TDD evidence gate passed:` line visible in the conversation, implementation ledger, or durable audit sink. If any field is missing or only implied, stop and add it before leaving the TDD loop.
+
 ## What a good test is
 
 Tests verify behavior through public interfaces, not implementation details. Code can change entirely; tests shouldn't. A good test reads like a specification — "user can checkout with valid cart" tells you exactly what capability exists — and survives refactors because it doesn't care about internal structure.

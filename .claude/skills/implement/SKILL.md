@@ -95,6 +95,12 @@ Before the implementation commit or any review-fix commit, rerun `git status --s
 
 Before declaring completion, closing issues, or closing a parent PRD:
 
+Non-bypassable closeout gate:
+
+- Before any `gh issue comment`, `gh issue close`, `glab issue close`, or equivalent closeout command, fill in the closeout preflight scratchpad below and make the literal `Closeout gate passed:` line visible in the conversation or durable audit sink.
+- This gate applies even when a parent rollup will carry the detailed audit. The rollup URL is not a substitute for the visible gate line; it is the audit sink named by that line.
+- If any required preflight field is unknown, missing, or only implied, stop and fill it before posting comments or closing issues.
+
 - Closeout execution order for 4+ in-scope child issues defaults to: post the parent PRD rollup/audit comment first, capture its URL or exact comment reference, cite that rollup from each child closeout comment, close child issues, verify child states by exact issue number, then close the parent. Use per-child full audit comments instead only when no parent rollup is used.
 - For 4+ in-scope child issues, follow this command sequence unless you explicitly choose and state a different durable audit sink:
   1. Draft the parent rollup/audit body under `/tmp`.
@@ -103,7 +109,8 @@ Before declaring completion, closing issues, or closing a parent PRD:
   4. Capture the returned parent comment URL.
   5. Draft or patch every child closeout body so it cites the parent rollup URL.
   6. Inspect every child body before posting.
-  7. Post child closeout comments, close children, verify each child state by exact issue number, then comment on and close the parent.
+  7. Post each child closeout with `gh issue comment <child> --body-file <child-body>`, capture the returned child comment URL, then close with `gh issue close <child> --reason completed --comment "Completed; evidence: <child-comment-url>"`. Never use `--comment-file` with `gh issue close`; this GitHub command accepts inline `--comment` only.
+  8. Verify each child state by exact issue number, then comment on and close the parent.
 - If each child closeout is a short fixed-template inline comment that only cites an inspected parent rollup URL, inspect and record that exact template once in the closeout preflight instead of creating separate child body files. Any child-specific evidence or variation still needs its own inspected body.
 - Produce a pre-close per-issue audit before closing any issue: every acceptance criterion and required principles/ADR conformance check mapped to concrete evidence, with status `satisfied`, `blocked`, or `not done`. Default to one row per acceptance criterion or conformance check; do not group acceptance checkboxes into one prose row unless the row names each checkbox explicitly. Capture the audit in one durable sink before closeout: the conversation, a tracker comment on the issue or parent PRD, or another durable tracker artifact. For large child-issue families where the explicit row table would be unwieldy in conversation, prefer one parent PRD tracker comment when practical, then link or cite that durable audit sink from each child closeout comment. If the audit is not in the conversation, each affected closeout comment must link the durable audit sink.
 - For 4+ in-scope child issues, choose and state the durable audit sink before closing any issue: conversation, parent PRD tracker comment, child issue comments, or another durable tracker artifact. If using a parent PRD tracker rollup, post that comment before child closeout, capture its URL or exact issue/comment reference, and cite it from each affected child closeout comment instead of relying on unstated conversation context.
