@@ -116,8 +116,8 @@ evidence says otherwise.
 |---|---|---|
 | Stage 13 UI reachability | Guided flow. The prior server-only coverage gap is closed; Stage 13 is browser-reachable and Prompt-out is wired. | #109 closed; #120 closed. |
 | `08` constraint composition | Dedicated guided flow implemented from PRD #141 with coverage ledger, browser decision surface, Prompt-out challenger path, and read-side trail. Future work is app field validation, not flow grooming. | #141; #142-#149. |
-| `09` temporal/timeline | Field-tested but flowless. It remains visible as sweep-only coverage and needs future PRD grooming before a dedicated guided flow. | #111 open. |
-| Creation phases 4-8 | Record the ratified decision: add a non-generative Minimal Viable World / First Stable Candidate checkpoint as a future follow-up after this ledger exists. | #112 closed. |
+| `09` temporal/timeline | Field-tested but flowless. PRD #201 grooms the dedicated guided flow; sweep-only coverage remains the honest state until it ships. | #111 closed; #201 open. |
+| Creation phases 4-8 | The #112 ratified decision — a non-generative Minimal Viable World / First Stable Candidate checkpoint — is groomed as PRD #202; coverage stays phases 1-2 until it ships. | #112 closed; #202 open. |
 | Creation prompt-out bug | The original adjacent W-1 prompt bug is closed. PRD #165 adds specific evidence that post-decomposition `decomposition_pressure` no longer falls back to a kernel-only prompt, without upgrading global Prompt-out maturity. | #113 closed; #165; #166-#169. |
 | Prompt-out proposal mode | Proposal and pressure modes are app-implemented for the shared Prompt-out contract. PRD #170 supplied a browser walkthrough for the Creation kernel path; PRD #173 extends browser-visible mode availability to Propagation, Stage 12, Stage 13, and QA. Keep global maturity below field-validated until a real field trial exercises proposal mode beyond these representative paths. | #170; #174-#179; #173; #193-#199. |
 

@@ -85,7 +85,7 @@ Each maps to a requirement the app must meet. Number within type as you log: `G-
 | Prompt-out (cross-cutting, every decision point) | `20` | prompt-out lifecycle | `prompt-out-context-assembly.md` |
 | Export | — | markdown-export | `markdown-export.md` |
 
-**Frontier territory** — passes with likely *no* UI home yet, where faithful-recreation (D) gaps will be richest: `09` temporal (sweep-only, #111), `10` spatial, `11` agent/psychology, `14` uncertainty, `15` branching/collaboration, `16` extraction, `17` aesthetic.
+**Frontier territory** — passes with likely *no* UI home yet, where faithful-recreation (D) gaps will be richest: `09` temporal (sweep-only; guided flow groomed as PRD #201), `10` spatial, `11` agent/psychology, `14` uncertainty, `15` branching/collaboration, `16` extraction, `17` aesthetic. Creation phases 4–8 are groomed as PRD #202.
 
 ## Step 3 — Write the report
 
@@ -94,7 +94,7 @@ When the walk stops, consolidate the live log into `reports/app-parity-trial-<NN
 ```
 # App Parity Field Trial <NN> — <stretch>
 
-**Date:** <date>  ·  **App commit:** <short sha>  ·  **Method version:** worldbuilding-system 1.0
+**Date:** <date>  ·  **App commit:** <short sha>  ·  **Method version:** worldbuilding-system 1.1
 **Trial world:** <name> — <one-line premise>. Machinery: <material/institutional/…>, distinct from Saltmarrow & Carillon.
 **Stretch walked:** <flows / new-world-path steps>.  **Prior runs:** <links or none>.
 
