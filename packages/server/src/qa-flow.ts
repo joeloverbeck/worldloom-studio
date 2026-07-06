@@ -1,5 +1,6 @@
 import { intakeProposedFact } from "./admission-flow.js";
-import { methodCard, methodCardsForFlow } from "./method-cards.js";
+import { ADVISORY_OUTPUT_LABELS, promptMode, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
+import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest, methodCardsForFlow } from "./method-cards.js";
 import * as PromptOut from "./prompt-out.js";
 import { requiresSkipReason } from "./severity-policy.js";
 import {
@@ -51,6 +52,11 @@ type QaFlowRow = {
   qa_pass_record_id: number;
 };
 
+const FLOW_KEY = "qa";
+const QA_PROTOCOL = "docs/worldbuilding-system/18_quality_assurance_tests.md";
+const AI_WORKFLOW_PROTOCOL = "docs/worldbuilding-system/20_ai_assisted_workflow.md";
+const PROMPT_TEMPLATE_KEY = "qa_red_team";
+
 const PROFILE_FIELD_LABELS: Record<keyof QaProfileFields, string> = {
   strongestDomain: "strongest domain",
   weakestDomain: "weakest domain",
@@ -64,7 +70,7 @@ const PROFILE_FIELD_LABELS: Record<keyof QaProfileFields, string> = {
 };
 
 const readQaFlow = (store: WorldFile, flowId: number): QaFlowRow => {
-  const row = store.getFlowInstance(flowId, "qa");
+  const row = store.getFlowInstance(flowId, FLOW_KEY);
   if (row.qa_pass_record_id == null) throw new Error(`QA flow has no pass report: ${flowId}`);
   return {
     id: Number(row.id),
@@ -89,11 +95,176 @@ const qaMethodCardForStep = (stepKey: string) => {
   return methodCard("qa.scorecard");
 };
 
-const scorecard = (store: WorldFile, subjectRecordId: number | null, stepKey = "qa:scorecard") => ({
+const qaCloseBlockers = (store: WorldFile, flowId: number): DecisionPointSharedContract["blockers"] => {
+  const scores = store.qaScores(flowId);
+  const blockers: DecisionPointSharedContract["blockers"] = [];
+  const unexplainedNa = scores.find((score) => score.score === "na" && !score.naReason.trim());
+  if (unexplainedNa) {
+    blockers.push({
+      key: "na-reason",
+      label: "N/A reason",
+      message: `N/A reason required for QA test ${unexplainedNa.testNumber}.`,
+      requires: "n/a reason"
+    });
+  }
+  const missingRepair = scores.find((score) =>
+    score.loadBearing
+    && score.repairRouted
+    && (score.score === "0" || score.score === "1")
+    && !score.requiredRepair.trim()
+  );
+  if (missingRepair) {
+    blockers.push({
+      key: "required-repair",
+      label: "Required repair",
+      message: `Required repair substance missing for QA test ${missingRepair.testNumber}.`,
+      requires: "repair substance"
+    });
+  }
+  return blockers;
+};
+
+const qaPromptModes = (
+  store: WorldFile,
+  input: { flowId?: number; subjectRecordId: number | null; passRecordId?: number; stepKey: string }
+): DecisionPointPromptMode[] => {
+  const subject = input.subjectRecordId == null ? null : store.getRecord(input.subjectRecordId);
+  const pass = input.passRecordId == null ? null : store.getRecord(input.passRecordId);
+  const recordId = subject?.id ?? pass?.id;
+  const hasMaterial = Boolean(subject?.body.trim() || pass?.body.trim());
+  const commonBody = {
+    flowKey: FLOW_KEY,
+    flowId: input.flowId,
+    recordId,
+    templateKey: PROMPT_TEMPLATE_KEY,
+    stepKey: input.stepKey
+  };
+  return withPromptModeSummaries([
+    promptMode({
+      mode: "proposal",
+      label: "Proposal mode",
+      available: true,
+      blocker: null,
+      framing: "Request labeled QA score, repair-route, and regression-profile candidates; adoption remains steward authorship.",
+      role: "QA proposal",
+      templateKey: PROMPT_TEMPLATE_KEY,
+      stepKey: input.stepKey,
+      outputLabels: ADVISORY_OUTPUT_LABELS,
+      stepRequest: {
+        method: "POST",
+        href: "/api/prompt-out/steps",
+        body: { ...commonBody, mode: "proposal", label: "Proposal mode" }
+      }
+    }),
+    promptMode({
+      mode: "pressure",
+      label: "Pressure mode",
+      available: hasMaterial,
+      blocker: hasMaterial ? null : "Pressure prompts require a QA subject or pass record with steward-authored material.",
+      framing: "Ask for weak scores, hidden contradictions, fragile mysteries, missing institutions, floor risks, and repair routing pressure.",
+      role: "QA red team",
+      templateKey: PROMPT_TEMPLATE_KEY,
+      stepKey: input.stepKey,
+      outputLabels: ADVISORY_OUTPUT_LABELS,
+      stepRequest: hasMaterial
+        ? {
+            method: "POST",
+            href: "/api/prompt-out/steps",
+            body: { ...commonBody, mode: "pressure", label: "QA red team" }
+          }
+        : null
+    })
+  ]);
+};
+
+const qaDecisionPoint = (
+  store: WorldFile,
+  input: { flowId?: number; subjectRecordId: number | null; passRecordId?: number; stepKey: string; runState?: string }
+): { sharedContract: DecisionPointSharedContract } => {
+  const subject = input.subjectRecordId == null ? null : store.getRecord(input.subjectRecordId);
+  const pass = input.passRecordId == null ? null : store.getRecord(input.passRecordId);
+  const cardValue = qaMethodCardForStep(input.stepKey);
+  const blockers = input.flowId == null ? [] : qaCloseBlockers(store, input.flowId);
+  return {
+    sharedContract: {
+      contractVersion: "decision-point/v1",
+      methodCard: cardValue,
+      flow: { key: FLOW_KEY, runState: input.runState ?? "not_started" },
+      step: {
+        key: input.stepKey,
+        localDecision: cardValue.decision,
+        packageSource: QA_PROTOCOL,
+        why: "QA scores stability, names n/a and repair evidence, and routes repairs without changing canon standing directly."
+      },
+      obligations: {
+        required: ["Score each applicable QA test", "Record n/a reasons", "Route required repairs when weak load-bearing scores are marked"],
+        optional: ["Regression profile", "Pass/fail floor advisory", "Repair loop evidence"],
+        skippable: ["Prompt-out advisory pressure can be declined with a skip_record"],
+        severityDependent: ["Major floor overrides require a reason when the pass declares major-or-higher context"]
+      },
+      skipRule: {
+        offered: true,
+        reasonRequired: false,
+        reasonThreshold: "major-or-higher QA work",
+        recordType: "skip_record"
+      },
+      doctrine: {
+        slots: methodCardDoctrineSlots(cardValue),
+        packageSources: [QA_PROTOCOL, AI_WORKFLOW_PROTOCOL]
+      },
+      bearingContext: {
+        displayed: [
+          subject ? `Subject: ${subject.shortId} ${subject.title}` : "Subject: whole world",
+          subject?.body ?? "",
+          pass ? `QA scorecard: ${pass.shortId} ${pass.title}` : "",
+          `Current step: ${input.stepKey}`,
+          `Subject mode: ${subjectMode(store, input.subjectRecordId) ?? "unset"}`
+        ].filter(Boolean),
+        sourceManifest: [
+          ...(subject == null ? [] : [`Subject record: ${subject.shortId} ${subject.title}`]),
+          ...(pass == null ? [] : [`QA scorecard: ${pass.shortId} ${pass.title}`]),
+          ...methodCardSourceManifest(cardValue)
+        ],
+        omissions: ["QA repair candidates remain routed outcomes until the steward admits or resolves them in the receiving flow."]
+      },
+      promptOut: { serverOwned: true, modes: qaPromptModes(store, input) },
+      blockers,
+      substanceValidations: [
+        "N/A scores require reasons before finalization.",
+        "Weak load-bearing scores marked as repair-routed require repair substance."
+      ],
+      writeIntent: {
+        willWrite: ["qa_scorecard/pass report sections, score rows, profile rows, floor advisory rows, repair rows, and skips when the steward acts"],
+        willLink: ["assesses links, repair/debt links, and advisory links only after explicit steward use"],
+        willQueue: ["fact-shaped QA repairs and canon debt only when explicitly routed"],
+        willRouteOnward: ["fact-shaped repairs route to Admission as proposed", "canon-debt repairs route to open canon debt"],
+        willLeaveUntouched: ["QA never changes canon standing directly", "subject records remain unchanged unless a later governed repair flow changes them"]
+      },
+      nextOrResumeState: {
+        currentStep: input.stepKey,
+        nextStep: blockers.length ? "clear QA finalization blockers" : "continue scoring, repair routing, or finalize",
+        safeExit: "Return to the workflow map; this QA pass can be resumed from its scorecard."
+      },
+      readSideTrail: [
+        ...(subject == null ? [] : [{ label: "Subject record", href: `/api/canon-workbench/records/${subject.id}`, recordId: subject.id }]),
+        ...(pass == null ? [] : [{ label: "QA scorecard", href: `/api/canon-workbench/records/${pass.id}`, recordId: pass.id }]),
+        { label: "Current Canon", href: "/api/canon-workbench/current" },
+        { label: "Audit Trail", href: "/api/canon-workbench/audit" }
+      ]
+    }
+  };
+};
+
+const scorecard = (
+  store: WorldFile,
+  subjectRecordId: number | null,
+  stepKey = "qa:scorecard",
+  context: { flowId?: number; passRecordId?: number; runState?: string } = {}
+) => ({
   tests: store.qaTestCatalog(),
   subjectMode: subjectMode(store, subjectRecordId),
   methodCard: qaMethodCardForStep(stepKey),
-  methodCards: methodCardsForFlow("qa"),
+  methodCards: methodCardsForFlow(FLOW_KEY),
   doctrine: {
     scoreGuidance: QA_SCORE_GUIDANCE,
     interpretation: {
@@ -104,8 +275,15 @@ const scorecard = (store: WorldFile, subjectRecordId: number | null, stepKey = "
     modeBenchmarks: QA_MODE_BENCHMARKS,
     redFlags: QA_RED_FLAGS,
     repairLoop: QA_REPAIR_LOOP,
-    source: "docs/worldbuilding-system/18_quality_assurance_tests.md"
-  }
+    source: QA_PROTOCOL
+  },
+  decisionPoint: qaDecisionPoint(store, {
+    flowId: context.flowId,
+    passRecordId: context.passRecordId,
+    runState: context.runState,
+    subjectRecordId,
+    stepKey
+  })
 });
 
 export const derivedBand = (scores: QaScoreRow[]): QaBand => {
@@ -162,7 +340,7 @@ export const startQaPass = (
       { heading: "Close audit", body: "Pass opened; not finalized.", position: 7 }
     ]);
     const flow = store.createFlowInstance({
-      flowKey: "qa",
+      flowKey: FLOW_KEY,
       currentStep: "qa:entry",
       qaSubjectRecordId: subjectRecordId,
       qaPassRecordId: pass.id
@@ -173,7 +351,7 @@ export const startQaPass = (
     return {
       flow,
       pass,
-      scorecard: scorecard(store, subjectRecordId, "qa:entry"),
+      scorecard: scorecard(store, subjectRecordId, "qa:entry", { flowId: Number(flow.id), passRecordId: pass.id, runState: String(flow.state ?? "in_progress") }),
       band: derivedBand([])
     };
   });
@@ -187,7 +365,7 @@ export const getQaPass = (store: WorldFile, flowId: number): unknown => {
     flow,
     pass,
     subject: flow.qa_subject_record_id == null ? null : store.getRecord(flow.qa_subject_record_id),
-    scorecard: scorecard(store, flow.qa_subject_record_id, flow.current_step),
+    scorecard: scorecard(store, flow.qa_subject_record_id, flow.current_step, { flowId, passRecordId: flow.qa_pass_record_id, runState: flow.state }),
     scores,
     band: derivedBand(scores),
     profile: store.qaRegressionProfile(flowId),

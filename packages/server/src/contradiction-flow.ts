@@ -1,6 +1,7 @@
 import { intakeProposedFact } from "./admission-flow.js";
 import * as ContradictionStore from "./contradiction-store.js";
-import { methodCard, methodCardsForFlow } from "./method-cards.js";
+import { ADVISORY_OUTPUT_LABELS, promptMode, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
+import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest, methodCardsForFlow } from "./method-cards.js";
 import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, RecordRow, SectionInput, WorldFile } from "./world-file.js";
 
@@ -42,6 +43,13 @@ type ContradictionFlowRow = {
   contradiction_source_record_id: number | null;
   contradiction_report_record_id: number | null;
 };
+
+const FLOW_KEY = "contradiction";
+const CONTRADICTION_PROTOCOL = "docs/worldbuilding-system/13_contradiction_retcon_and_mystery.md";
+const CONTRADICTION_REPORT_TEMPLATE = "docs/worldbuilding-system/templates/contradiction_report.md";
+const AI_WORKFLOW_PROTOCOL = "docs/worldbuilding-system/20_ai_assisted_workflow.md";
+const REPAIR_PROMPT_TEMPLATE_KEY = "repair_challenge";
+const BOUNDARY_PROMPT_TEMPLATE_KEY = "boundary_guard";
 
 const TRIAGE_SECTION_BY_STEP: Record<string, string> = {
   contradiction_statement: "Contradiction statement",
@@ -102,7 +110,7 @@ const safeLink = (store: WorldFile, fromRecordId: number, toRecordId: number, li
 };
 
 const readContradictionFlow = (store: WorldFile, flowId: number): ContradictionFlowRow => {
-  const row = store.getFlowInstance(flowId, "contradiction");
+  const row = store.getFlowInstance(flowId, FLOW_KEY);
   return {
     id: Number(row.id),
     state: String(row.state),
@@ -159,6 +167,186 @@ const contradictionMethodCardForStep = (stepKey: string) => {
   return methodCard("contradiction.triage");
 };
 
+const contradictionCloseBlockers = (store: WorldFile, flowId: number): DecisionPointSharedContract["blockers"] => {
+  const blockers: DecisionPointSharedContract["blockers"] = [];
+  const selectedDisposition = disposition(store, flowId);
+  const selectedWorkScale = workScale(store, flowId);
+  const operations = repairOperations(store, flowId);
+  if (!selectedWorkScale) {
+    blockers.push({
+      key: "work-scale",
+      label: "Work scale",
+      message: "Work scale must be steward-declared before close.",
+      requires: "steward-declared work scale"
+    });
+  }
+  if (!selectedDisposition) {
+    blockers.push({
+      key: "disposition",
+      label: "Disposition",
+      message: "Contradiction disposition is required before close.",
+      requires: "contradiction disposition"
+    });
+  }
+  if (selectedDisposition && REPAIR_DISPOSITIONS.has(selectedDisposition.disposition) && !operations.length) {
+    blockers.push({
+      key: "repair-operations",
+      label: "Repair operations",
+      message: "Repair-required close requires ordered repair operations and written repair text.",
+      requires: "repair operation order"
+    });
+  }
+  if (operations.some((row) => row.operation === "retcon") && !retconCosts(store, flowId).length) {
+    blockers.push({
+      key: "retcon-cost",
+      label: "Retcon cost",
+      message: "Retcon repairs require a retcon cost.",
+      requires: "retcon cost"
+    });
+  }
+  if (selectedDisposition?.disposition === "mystery-preserving conflict" && !completedChecklistForFlow(store, flowId)) {
+    blockers.push({
+      key: "mystery-preservation",
+      label: "Mystery preservation",
+      message: "Mystery-preserving close requires a completed preservation checklist.",
+      requires: "preservation checklist"
+    });
+  }
+  return blockers;
+};
+
+const promptTemplateForStep = (stepKey: string): string =>
+  stepKey.includes("mystery") || stepKey.includes("checklist") || stepKey.includes("boundary")
+    ? BOUNDARY_PROMPT_TEMPLATE_KEY
+    : REPAIR_PROMPT_TEMPLATE_KEY;
+
+const contradictionPromptModes = (store: WorldFile, flowId: number): DecisionPointPromptMode[] => {
+  const flow = readContradictionFlow(store, flowId);
+  const source = flow.contradiction_source_record_id == null ? null : store.getRecord(flow.contradiction_source_record_id);
+  const stepKey = String(flow.current_step ?? "contradiction:entry");
+  const templateKey = promptTemplateForStep(stepKey);
+  const triage = triageEntries(store, flowId);
+  const hasMaterial = Boolean(source?.body.trim() || triage.some((entry) => entry.body.trim()));
+  const commonBody = {
+    flowKey: FLOW_KEY,
+    flowId,
+    recordId: source?.id,
+    templateKey,
+    stepKey
+  };
+  return withPromptModeSummaries([
+    promptMode({
+      mode: "proposal",
+      label: "Proposal mode",
+      available: true,
+      blocker: null,
+      framing: "Request labeled repair, disposition, or mystery-preservation candidates; adoption remains steward authorship.",
+      role: "Stage 13 proposal",
+      templateKey,
+      stepKey,
+      outputLabels: ADVISORY_OUTPUT_LABELS,
+      stepRequest: {
+        method: "POST",
+        href: "/api/prompt-out/steps",
+        body: { ...commonBody, mode: "proposal", label: "Proposal mode" }
+      }
+    }),
+    promptMode({
+      mode: "pressure",
+      label: "Pressure mode",
+      available: hasMaterial,
+      blocker: hasMaterial ? null : "Pressure prompts require source or triage material for the current contradiction decision.",
+      framing: "Ask for contradiction pressure, repair alternatives, retcon costs, propagation obligations, and mystery-boundary risks.",
+      role: templateKey === BOUNDARY_PROMPT_TEMPLATE_KEY ? "Boundary guard" : "Repair challenger",
+      templateKey,
+      stepKey,
+      outputLabels: ADVISORY_OUTPUT_LABELS,
+      stepRequest: hasMaterial
+        ? {
+            method: "POST",
+            href: "/api/prompt-out/steps",
+            body: { ...commonBody, mode: "pressure", label: templateKey === BOUNDARY_PROMPT_TEMPLATE_KEY ? "Boundary guard" : "Repair challenger" }
+          }
+        : null
+    })
+  ]);
+};
+
+const contradictionDecisionPoint = (store: WorldFile, flowId: number): { sharedContract: DecisionPointSharedContract } => {
+  const flow = readContradictionFlow(store, flowId);
+  const source = flow.contradiction_source_record_id == null ? null : store.getRecord(flow.contradiction_source_record_id);
+  const stepKey = String(flow.current_step ?? "contradiction:entry");
+  const cardValue = contradictionMethodCardForStep(stepKey);
+  const blockers = contradictionCloseBlockers(store, flowId);
+  return {
+    sharedContract: {
+      contractVersion: "decision-point/v1",
+      methodCard: cardValue,
+      flow: { key: FLOW_KEY, runState: flow.state },
+      step: {
+        key: stepKey,
+        localDecision: cardValue.decision,
+        packageSource: CONTRADICTION_PROTOCOL,
+        why: "Stage 13 separates contradiction triage, repair, retcon cost, propagation obligation, and mystery preservation before closing."
+      },
+      obligations: {
+        required: ["Contradiction triage", "Work scale", "Disposition"],
+        optional: ["Repair operations", "Retcon costs", "Repair-created Admission proposals", "Mystery-preservation checklist"],
+        skippable: ["Prompt-out advisory pressure can be declined with a skip_record"],
+        severityDependent: ["Repair-required dispositions owe repair operations; retcons owe retcon cost; mystery-preserving conflicts owe preservation evidence"]
+      },
+      skipRule: {
+        offered: true,
+        reasonRequired: false,
+        reasonThreshold: "major-or-higher contradiction work",
+        recordType: "skip_record"
+      },
+      doctrine: {
+        slots: methodCardDoctrineSlots(cardValue),
+        packageSources: [CONTRADICTION_PROTOCOL, CONTRADICTION_REPORT_TEMPLATE, AI_WORKFLOW_PROTOCOL]
+      },
+      bearingContext: {
+        displayed: [
+          source ? `Source: ${source.shortId} ${source.title}` : "Source: free-standing contradiction",
+          source?.body ?? "",
+          `Current step: ${stepKey}`,
+          `Work scale: ${workScale(store, flowId) ?? "unset"}`,
+          `Disposition: ${disposition(store, flowId)?.disposition ?? "unset"}`
+        ].filter(Boolean),
+        sourceManifest: [
+          ...(source == null ? [] : [`Source record: ${source.shortId} ${source.title}`]),
+          ...methodCardSourceManifest(cardValue)
+        ],
+        omissions: ["Stage 13 repair-created facts route to Admission as proposed unless the steward explicitly repairs existing records."]
+      },
+      promptOut: { serverOwned: true, modes: contradictionPromptModes(store, flowId) },
+      blockers,
+      substanceValidations: [
+        "Contradiction close requires work scale and disposition.",
+        "Repair-required dispositions require ordered repair operations.",
+        "Mystery-preserving conflicts require completed preservation evidence."
+      ],
+      writeIntent: {
+        willWrite: ["contradiction report sections, triage rows, disposition, repair operations, retcon costs, mystery ledgers, and skips when the steward acts"],
+        willLink: ["derived_from links to implicated records, repair-created proposals, preservation ledgers, and advisory material only after explicit use"],
+        willQueue: ["repair-created proposed facts and propagation canon debt only when explicitly routed"],
+        willRouteOnward: ["fact-shaped repairs route to Admission as proposed", "repair propagation routes to canon debt or a governed decline"],
+        willLeaveUntouched: ["Stage 13 does not silently admit new facts", "mystery boundaries remain governed instead of flattened by repair"]
+      },
+      nextOrResumeState: {
+        currentStep: stepKey,
+        nextStep: blockers.length ? "clear Stage 13 close blockers" : "close Stage 13 report",
+        safeExit: "Return to the workflow map; this Stage 13 run can be resumed."
+      },
+      readSideTrail: [
+        ...(source == null ? [] : [{ label: "Source record", href: `/api/canon-workbench/records/${source.id}`, recordId: source.id }]),
+        { label: "Current Canon", href: "/api/canon-workbench/current" },
+        { label: "Audit Trail", href: "/api/canon-workbench/audit" }
+      ]
+    }
+  };
+};
+
 const replaceSingleFacet = (store: WorldFile, recordId: number, vocabulary: string, term: string): void => {
   assertVocabularyTerm(store, vocabulary, term);
   for (const facet of store.listFacets(recordId).filter((row) => row.vocabulary === vocabulary)) {
@@ -206,7 +394,7 @@ export const startContradictionRun = (
     if (existing) return existing;
   }
 
-  const flow = store.createFlowInstance({ flowKey: "contradiction", currentStep: "contradiction:entry", contradictionSourceRecordId: input.sourceRecordId ?? null });
+  const flow = store.createFlowInstance({ flowKey: FLOW_KEY, currentStep: "contradiction:entry", contradictionSourceRecordId: input.sourceRecordId ?? null });
   const flowId = Number(flow.id);
   for (const recordId of implicatedRecordIds) {
     ContradictionStore.insertContradictionImplicatedRecord(store, flowId, recordId);
@@ -223,7 +411,7 @@ export const getContradictionRun = (store: WorldFile, flowId: number): unknown =
   return {
     flow,
     methodCard: contradictionMethodCardForStep(String(flow.current_step ?? "contradiction:entry")),
-    methodCards: methodCardsForFlow("contradiction"),
+    methodCards: methodCardsForFlow(FLOW_KEY),
     implicatedRecords,
     triage: triageEntries(store, flowId),
     workScale: workScale(store, flowId),
@@ -233,7 +421,8 @@ export const getContradictionRun = (store: WorldFile, flowId: number): unknown =
     retconCosts: retconCosts(store, flowId),
     repairPropagation: repairPropagation(store, flowId),
     proposals: ContradictionStore.contradictionRepairCreatedProposals(store, flowId),
-    checklists: ContradictionStore.mysteryPreservationChecklistsForFlow(store, flowId)
+    checklists: ContradictionStore.mysteryPreservationChecklistsForFlow(store, flowId),
+    decisionPoint: contradictionDecisionPoint(store, flowId)
   };
 };
 

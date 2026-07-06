@@ -173,6 +173,190 @@ describe("shared decision-point contract", () => {
     });
   });
 
+  it("serves the W-8 shared contract for Propagation, Stage 12, Stage 13, and QA adoption flows", async () => {
+    const app = await createWorld();
+    const fact = await json<{ record: { id: number } }>(await postJson(app, "/api/records", {
+      recordTypeKey: "canon_fact",
+      title: "Bridge ghosts sell toll testimony",
+      body: "Dead witnesses can charge living merchants for safe bridge crossings.",
+      truthLayer: "Objective canon",
+      canonStatus: "accepted"
+    }));
+    expect((await postJson(app, `/api/records/${fact.record.id}/facets`, {
+      vocabulary: "admission_level",
+      term: "3"
+    })).status).toBe(201);
+    expect((await postJson(app, `/api/records/${fact.record.id}/facets`, {
+      vocabulary: "work_scale",
+      term: "major"
+    })).status).toBe(201);
+
+    const propagationPlan = await json<{
+      plan: {
+        decisionPoint: {
+          sharedContract: {
+            contractVersion: string;
+            flow: { key: string; runState: string };
+            step: { localDecision: string; packageSource: string };
+            obligations: { required: string[]; skippable: string[]; severityDependent: string[] };
+            doctrine: { slots: string[]; packageSources: string[] };
+            promptOut: { modes: Array<{ mode: string; availability: string; blocker: string | null; stepRequest: unknown }> };
+            blockers: Array<{ key: string; message: string }>;
+            writeIntent: { willRouteOnward: string[]; willLeaveUntouched: string[] };
+            nextOrResumeState: { safeExit: string };
+            readSideTrail: Array<{ label: string; href: string }>;
+          };
+        };
+      };
+    }>(await app.request(`/api/propagation/records/${fact.record.id}/plan`));
+    expect(propagationPlan.plan.decisionPoint.sharedContract).toMatchObject({
+      contractVersion: "decision-point/v1",
+      flow: { key: "propagation", runState: "not_started" },
+      step: {
+        localDecision: expect.stringContaining("shock cone"),
+        packageSource: "docs/worldbuilding-system/07_propagation_engine.md"
+      },
+      obligations: {
+        required: expect.arrayContaining(["Start from a canon fact or propagation-scoped canon debt"]),
+        skippable: expect.arrayContaining(["Prompt-out advisory support can be declined with a skip_record"]),
+        severityDependent: expect.arrayContaining(["Major-or-higher facts require multiple orders and direct/dependency/reaction domains"])
+      },
+      promptOut: {
+        modes: expect.arrayContaining([
+          expect.objectContaining({ mode: "proposal", availability: "available", blocker: null, stepRequest: expect.anything() }),
+          expect.objectContaining({ mode: "pressure", availability: "available", blocker: null, stepRequest: expect.anything() })
+        ])
+      },
+      writeIntent: {
+        willRouteOnward: expect.arrayContaining(["surfaced facts route to Admission as proposed"]),
+        willLeaveUntouched: expect.arrayContaining(["Propagation never admits facts"])
+      },
+      nextOrResumeState: { safeExit: "Return to the workflow map; this propagation run can be resumed." },
+      readSideTrail: expect.arrayContaining([expect.objectContaining({ label: "Source fact" })])
+    });
+
+    const propagation = await json<{ flow: { id: number } }>(await postJson(app, "/api/propagation/runs/start", { factRecordId: fact.record.id }));
+    const high = await json<{ consequence: { id: number } }>(await postJson(app, "/api/propagation/consequences", {
+      flowId: propagation.flow.id,
+      orderKey: "first",
+      domainName: "Economy, trade, and scarcity",
+      body: "Bridge toll testimony changes merchant insurance and route pricing.",
+      pressure: "high"
+    }));
+    const propagationRun = await json<{ decisionPoint: { sharedContract: { blockers: Array<{ key: string; message: string }> } } }>(
+      await app.request(`/api/propagation/runs/${propagation.flow.id}`)
+    );
+    expect(propagationRun.decisionPoint.sharedContract.blockers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: "undispositioned-high-pressure",
+        message: expect.stringContaining(`#${high.consequence.id}`)
+      })
+    ]));
+
+    const stage12 = await json<{
+      decisionPoint: {
+        sharedContract: {
+          flow: { key: string };
+          step: { localDecision: string; packageSource: string };
+          obligations: { required: string[] };
+          promptOut: { modes: Array<{ mode: string; availability: string; blocker: string | null }> };
+          blockers: Array<{ key: string }>;
+        };
+      };
+    }>(await postJson(app, "/api/institutional/runs/start", {
+      sourceType: "fact",
+      recordId: fact.record.id
+    }));
+    expect(stage12.decisionPoint.sharedContract).toMatchObject({
+      flow: { key: "institutional_economic_suppression" },
+      step: {
+        localDecision: expect.stringContaining("institutional"),
+        packageSource: "docs/worldbuilding-system/12_institutional_economic_and_suppression_protocol.md"
+      },
+      obligations: {
+        required: expect.arrayContaining(["Action arena", "Rules-in-use", "Transaction cost"])
+      },
+      promptOut: {
+        modes: expect.arrayContaining([
+          expect.objectContaining({ mode: "proposal", availability: "available", blocker: null }),
+          expect.objectContaining({ mode: "pressure", availability: "available", blocker: null })
+        ])
+      },
+      blockers: expect.arrayContaining([expect.objectContaining({ key: "action_arena" })])
+    });
+
+    const stage13Start = await json<{ flow: { id: number } }>(await postJson(app, "/api/contradiction/runs/start", {
+      sourceRecordId: fact.record.id,
+      title: "Ghost toll contradiction"
+    }));
+    const stage13 = await json<{
+      decisionPoint: {
+        sharedContract: {
+          flow: { key: string };
+          step: { localDecision: string; packageSource: string };
+          obligations: { required: string[] };
+          promptOut: { modes: Array<{ mode: string; availability: string; blocker: string | null }> };
+          blockers: Array<{ key: string }>;
+        };
+      };
+    }>(await app.request(`/api/contradiction/runs/${stage13Start.flow.id}`));
+    expect(stage13.decisionPoint.sharedContract).toMatchObject({
+      flow: { key: "contradiction" },
+      step: {
+        localDecision: expect.stringContaining("contradiction"),
+        packageSource: "docs/worldbuilding-system/13_contradiction_retcon_and_mystery.md"
+      },
+      obligations: {
+        required: expect.arrayContaining(["Contradiction triage", "Work scale", "Disposition"])
+      },
+      promptOut: {
+        modes: expect.arrayContaining([
+          expect.objectContaining({ mode: "proposal", availability: "available", blocker: null }),
+          expect.objectContaining({ mode: "pressure", availability: "available", blocker: null })
+        ])
+      },
+      blockers: expect.arrayContaining([expect.objectContaining({ key: "work-scale" })])
+    });
+
+    const qa = await json<{
+      scorecard: {
+        decisionPoint: {
+          sharedContract: {
+            flow: { key: string };
+            step: { localDecision: string; packageSource: string };
+            obligations: { required: string[] };
+            promptOut: { modes: Array<{ mode: string; availability: string; blocker: string | null }> };
+            writeIntent: { willRouteOnward: string[]; willLeaveUntouched: string[] };
+          };
+        };
+      };
+    }>(await postJson(app, "/api/qa/passes/start", {
+      subjectType: "record",
+      subjectRecordId: fact.record.id,
+      title: "QA bridge ghosts"
+    }));
+    expect(qa.scorecard.decisionPoint.sharedContract).toMatchObject({
+      flow: { key: "qa" },
+      step: {
+        localDecision: expect.stringContaining("score"),
+        packageSource: "docs/worldbuilding-system/18_quality_assurance_tests.md"
+      },
+      obligations: {
+        required: expect.arrayContaining(["Score each applicable QA test", "Record n/a reasons"])
+      },
+      promptOut: {
+        modes: expect.arrayContaining([
+          expect.objectContaining({ mode: "proposal", availability: "available", blocker: null }),
+          expect.objectContaining({ mode: "pressure", availability: "available", blocker: null })
+        ])
+      },
+      writeIntent: {
+        willRouteOnward: expect.arrayContaining(["fact-shaped repairs route to Admission as proposed"]),
+        willLeaveUntouched: expect.arrayContaining(["QA never changes canon standing directly"])
+      }
+    });
+  });
+
   it("uses the displayed context assembly for prompt packets and proposal-mode lifecycle actions", async () => {
     const app = await createWorld();
     const start = await json<{ flow: { id: number } }>(await postJson(app, "/api/flows/creation/start"));

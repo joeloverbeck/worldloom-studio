@@ -10,6 +10,10 @@ describe("Contradiction/Retcon/Mystery web surface", () => {
     const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
 
     expect(html).toContain("Contradiction/Retcon/Mystery flow");
+    expect(html).toContain("Stage 13 decision contract");
+    expect(html).toContain("Prompt modes");
+    expect(html).toContain("Write intent");
+    expect(html).toContain("Next/resume");
     expect(html).toContain("Start or Resume Stage 13");
     expect(html).toContain("Refresh Stage 13");
     expect(html).toContain("Contradiction statement");

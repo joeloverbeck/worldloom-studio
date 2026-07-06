@@ -41,6 +41,8 @@ Proposal mode and pressure mode follow `docs/worldbuilding-system/20_ai_assisted
 - **Adoption remains authorship.** A pasted response is advisory material. The steward selects, edits, discards, or adopts with revision, then authors any surviving material into the governed record in their own wording.
 - **Essence exception.** Proposal mode is refused for the Creation kernel World premise section only, with a server-owned blocker naming `05_creation_protocol.md` Phase 1 and `20`'s essence rule. Other kernel sections and later Creation decision points may offer proposal mode.
 
+PRD #173 completes the shared-contract rollout of these two modes across already-guided flows. Creation, Admission, Constraint Composition, Propagation, Stage 12, Stage 13, and QA expose proposal/pressure availability through the `decision-point/v1` contract; the flow specs' Step Map tables are the authority for the local decision, dependency-bearing status, severity path, and pressure role at each step.
+
 ## Omission Rules
 
 When relevant context is unavailable, too large, or intentionally excluded, the prompt preview must state the omission and why the prompt is still useful. Silent omission is allowed only for context that is irrelevant to the role.

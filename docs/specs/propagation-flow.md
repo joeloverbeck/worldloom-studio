@@ -23,6 +23,17 @@ The flow works a fact's shock cone. It never admits facts and never generates co
 15. **Skips.** Declined propagation steps write `skip_record` mechanically. A reason is required only at major-or-higher thresholds.
 16. **Provenance.** Records keep actor/timestamp provenance; propagation consequence, domain, disposition, proposal, and flow rows record the flow step that produced them.
 
+## Step Map
+
+| Step | Package source | Decision point | Dependency-bearing | Severity path | Prompt-out modes and pressure role |
+|---|---|---|---|---|---|
+| Run entry | `07_propagation_engine.md` | Start the shock cone from a canon fact or propagation-scoped canon debt. | yes | Coverage is derived from existing `admission_level` and `work_scale` facets; the flow never reclassifies severity. | Proposal and pressure modes use `propagation_consequence_scout`; pressure is Consequence scout over source fact material. |
+| Shock-cone orders | `07_propagation_engine.md` | Record zeroth through fifth-order consequences as steward-written prose. | yes | Major-or-higher facts require multiple orders; foundational facts require the deepest coverage. | Proposal mode can suggest labeled consequences; pressure mode challenges adaptations, countermeasures, fossils, and assumptions. |
+| Domain-atlas sweep | `04_domain_atlas.md` | Mark domains direct, dependency, reaction, negative, or unswept with explanation where owed. | yes | Major-or-higher facts owe direct/dependency/reaction coverage; foundational facts owe the full atlas. | Proposal mode can suggest candidate domain pressure; pressure mode challenges quiet domains and missing residues. |
+| Consequence disposition | `07_propagation_engine.md` | Choose answered, intentionally scoped out, assigned as canon debt, or protected as a mystery boundary. | yes | All high-pressure consequences block close until dispositioned. | Proposal mode can label stopping-state candidates; pressure mode tests whether the stop state hides unresolved work. |
+| Surfaced proposals | `06_canon_fact_admission_protocol.md` and `07_propagation_engine.md` | Route surfaced facts to Admission at `proposed`. | yes | Admission later owns severity. | Proposal mode can shape candidates; pressure mode cannot admit facts and must preserve advisory/canon warning. |
+| Close/result | `07_propagation_engine.md` and `21_templates_index.md` | Write the append-only propagation report and read-side trail after blockers clear. | yes | Close is blocked by undispositioned high-pressure consequences. | Prompt-out remains optional/skippable; used advisory material must be explicitly disposed and linked. |
+
 ## Decision-Point UI Contract
 
 This flow must satisfy `guided-workflow-usability.md` W-8 and `guided-flow-spec-template.md`.

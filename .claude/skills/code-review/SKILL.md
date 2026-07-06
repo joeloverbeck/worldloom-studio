@@ -68,6 +68,12 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 
 ### 4. Run both review axes
 
+Non-bypassable review fallback gate:
+
+- When local fallback is used during repo `implement` closeout, the full mandatory fallback block below must be present in the durable closeout sink, or in an explicitly linked adjacent durable sink, before the implementation pre-close audit or any tracker closeout.
+- The one-line `Review fallback:` evidence line is not enough by itself. The durable sink must also include the review frame, `## Standards`, `## Spec`, `Smell baseline applied:`, the PRD child coverage table when applicable, the axis summary, and the literal `Review fallback gate passed:` line.
+- If any fallback field is missing or only implied, stop and fill it before handing back to `implement` closeout.
+
 Use the available sub-agent mechanism, if permitted, with two independent read-only review tasks. Prefer running the axes in parallel; if the tool surface uses different role names, choose the closest general read-only reviewer role. If sub-agent tools may be deferred or lazy-loaded, perform the minimal tool-discovery check needed to inspect the surfaced sub-agent policy before deciding. If the discovered policy requires explicit user authorization to spawn agents and the user did not grant it, record `policy-blocked` and do not spawn. If the discovered policy says spawning agents requires explicit user authorization and the user did not explicitly ask for sub-agents, delegation, parallel agents, or parallel agent work, the discovery check is complete: record `policy-blocked`, skip sub-agent prompt inspection/preparation, and proceed directly to local fallback. If sub-agents are unavailable or policy-blocked, run both axes locally against the same fixed point, keep the analysis separated under the same headings, and state that the fallback path was used.
 
 **Local fallback checklist** — use this when sub-agents cannot run:

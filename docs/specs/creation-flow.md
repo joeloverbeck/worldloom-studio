@@ -22,10 +22,10 @@ PRD #165 extends the already-shipped phases 1-2 path after the Trial 03 field tr
 
 ## Step Map
 
-| Step | Package source | Analyst role | Dependency-bearing | Prompt template |
-|---|---|---|---|---|
-| Kernel authoring | `05_creation_protocol.md` Phase 1 and `templates/world_kernel.md` | Consequence scout, assigned from `20` because kernel authoring is not named in the workflow table | yes | `kernel_pressure` |
-| Seed decomposition | `05_creation_protocol.md` Phase 2 | Prerequisite auditor, assigned from `20` for pressure on hidden assumptions | yes | `decomposition_pressure` |
+| Step | Package source | Decision point | Dependency-bearing | Severity path | Prompt-out modes and pressure role |
+|---|---|---|---|---|---|
+| Kernel authoring | `05_creation_protocol.md` Phase 1 and `templates/world_kernel.md` | Define the first governing kernel or pressure seed, including explicit consequence mode. | yes | Not severity-scaled; consequence mode is steward-declared and never defaulted. | Proposal and pressure modes use `kernel_pressure`; pressure role is Consequence scout. The World premise section keeps the server-owned essence exception/blocker until steward material exists. |
+| Seed decomposition | `05_creation_protocol.md` Phase 2 | Split broad steward material into seed facts that can be independently rejected, then park them at `proposed`. | yes | Not severity-scaled; Admission later owns severity. | Proposal and pressure modes use `decomposition_pressure`; pressure role is Prerequisite auditor over the seed-decomposition report plus parked seeds after decomposition material exists. |
 
 Both prompts preserve `20`'s invariant sequence: the steward's material is present first, and the model is asked for pressure, not first-draft canon.
 

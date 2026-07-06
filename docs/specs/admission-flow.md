@@ -25,6 +25,17 @@ The flow is where a proposed fact becomes governed canon. Sweeps and checklist r
 17. **Severity policy boundary.** Neutral severity thresholds such as major-or-higher, foundational, and catastrophic remain shared app policy. Admission owns queue ordering, gate path and steps, full-gate validation, and foundational open-debt warning behavior.
 18. **Schema migration.** No new record types are needed. Existing records, facets, links, `jurisdiction_events`, prompt templates, flow instances, and report/card mutation regimes cover the slice.
 
+## Step Map
+
+| Step | Package source | Decision point | Dependency-bearing | Severity path | Prompt-out modes and pressure role |
+|---|---|---|---|---|---|
+| Queue selection | `06_canon_fact_admission_protocol.md` | Choose which proposed fact enters Admission now. | yes | Severity is undeclared until steward sets `admission_level` and `work_scale`. | Proposal mode can request labeled candidate Admission material; pressure mode is blocked until steward-authored proposed-fact material exists. |
+| Severity declaration | `06_canon_fact_admission_protocol.md` | Declare `admission_level` and `work_scale` without inference or defaults. | yes | Chooses minor ledger, moderate-plus, full gate, severe, or catastrophic obligations. | Proposal and pressure modes use Admission prompt roles only after source material exists; pressure identifies risks, dependencies, costs, and open questions. |
+| Minor ledger | `templates/admission_ledger.md` | Complete the ledger row and ordered admission operations for low-scale work. | yes | Level 0-1 or `minor`, with moderate-plus additions when declared. | Proposal and pressure modes preserve labeled candidates, alternatives, assumptions, and advisory/canon warning. |
+| Full gate | `checklists/canon_fact_gate.md` | Complete written gate substance, n/a reasons, quiet-domain declarations, and follow-up debt where owed. | yes | Level 3+ or major-or-higher work. | Proposal and pressure modes use prerequisite/constraint challenge roles; pressure is blocked without steward-authored gate material. |
+| Frontloaded seed audit | `checklists/frontloaded_seed_audit.md` | Complete or decline the offered pre-admission seed audit without mutating seed standing. | yes when offered | Reason threshold follows major-or-higher work. | Proposal and pressure modes are advisory; declining writes `skip_record`. |
+| Close/result | `06_canon_fact_admission_protocol.md` | Apply the accepted governed canon-status change and preserve report/history/read-side trail. | yes | Severity path controls blockers and required evidence before completion. | Prompt-out remains advisory-only; pasted material must be stored/disposed before explicit use. |
+
 ## Decision-Point UI Contract
 
 This flow must satisfy `guided-workflow-usability.md` W-8 and `guided-flow-spec-template.md`.
