@@ -63,7 +63,7 @@ describe("method-card guidance layer", () => {
     expect(spec).toContain("docs/worldbuilding-system/22_glossary.md");
     expect(spec).toContain("Package file paths are provenance");
     expect(spec).toContain("Guidance depth follows `docs/principles/workflow-principles.md` W-2");
-    for (const surface of ["Creation", "Admission", "Constraint Composition", "Stage 12", "Propagation", "Contradiction/Retcon/Mystery", "QA", "Setup and workflow map"]) {
+    for (const surface of ["Creation", "Admission", "Constraint Composition", "Temporal/Timeline", "Stage 12", "Propagation", "Contradiction/Retcon/Mystery", "QA", "Setup and workflow map"]) {
       expect(spec).toContain(surface);
     }
     for (const excluded of ["spatial/geographic", "agent/character psychology", "uncertainty/belief/evidence", "narrative/game/transmedia extraction", "aesthetic coherence"]) {
@@ -88,6 +88,16 @@ describe("method-card guidance layer", () => {
       "constraint.prompt-out-skips",
       "constraint.close-preview",
       "constraint.read-side-trail",
+      "temporal.run-entry",
+      "temporal.questions",
+      "temporal.date-type-granularity",
+      "temporal.latency-residue",
+      "temporal.sequence-retrospective",
+      "temporal.mystery-boundaries",
+      "temporal.outcomes",
+      "temporal.prompt-out-skips",
+      "temporal.close-preview",
+      "temporal.read-side-trail",
       "stage12.entry",
       "stage12.lens",
       "stage12.outcomes",
@@ -198,6 +208,16 @@ describe("method-card guidance layer", () => {
     );
     expect(constraint.decisionPoint.sharedContract.methodCard.key).toBe("constraint.source-selection");
     expect(constraint.decisionPoint.sharedContract.doctrine.slots).toEqual(expect.arrayContaining(methodCardDoctrineSlots(methodCard("constraint.source-selection"))));
+
+    const temporal = await json<{ decisionPoint: { sharedContract: { methodCard: { key: string }; doctrine: { slots: string[] } } }; methodCards: Array<{ key: string }> }>(
+      await postJson(app, "/api/temporal/runs/start", {
+        sourceType: "fact",
+        recordId: fact.record.id
+      })
+    );
+    expect(temporal.decisionPoint.sharedContract.methodCard.key).toBe("temporal.run-entry");
+    expect(temporal.decisionPoint.sharedContract.doctrine.slots).toEqual(expect.arrayContaining(methodCardDoctrineSlots(methodCard("temporal.run-entry"))));
+    expect(temporal.methodCards.map((card) => card.key)).toEqual(expect.arrayContaining(["temporal.questions", "temporal.outcomes", "temporal.read-side-trail"]));
 
     const stage12 = await json<{ methodCard: { key: string }; methodCards: Array<{ key: string }> }>(
       await postJson(app, "/api/institutional/runs/start", {

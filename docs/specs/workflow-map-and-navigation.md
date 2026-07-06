@@ -11,7 +11,7 @@ The map renders the operating card's method journey, not a loose list of app fea
 1. **Creation**: start with a lean `world_kernel`, then decompose seeds until each can be independently rejected without destroying its siblings.
 2. **Frontloaded seed audit and Admission**: after Creation parks proposed seeds, the frontloaded seed audit and Canon Fact Admission govern first canon standing. Admission is the only path from proposed fact to canon standing.
 3. **Propagation**: major facts owe shock-cone work, consequence dispositions, and stopping-rule judgments.
-4. **Conditional passes**: constraint composition and the institutional/economic/suppression pass appear as "when facts apply" work, never as false universal prerequisites.
+4. **Conditional passes**: constraint composition, Temporal/Timeline, and the institutional/economic/suppression pass appear as "when facts apply" work, never as false universal prerequisites.
 5. **Contradiction/retcon/mystery**: contradiction pressure, repair work, and mystery-preservation duties are worked after propagation or canon pressure exposes them. Owed-boundary work is filled by propagation dispositions that protect mysteries.
 6. **QA**: stability checks run before calling a world version stable.
 7. **Steady-state maintenance loop**: after the first stable path, new material re-enters at the lightest valid instrument: propose/admit, propagate when owed, run conditional passes when facts apply, repair contradictions or protected boundaries, and re-check QA when the version's load-bearing material changes.
@@ -53,6 +53,7 @@ The map foregrounds state in this order unless a future spec narrows the order f
 - an empty world foregrounds **Start Creation** because no `world_kernel` exists;
 - parked proposed seeds or under-review facts foreground the **Admission queue**;
 - propagation-scoped debt foregrounds **Owed propagation**;
+- temporal/timeline debt foregrounds the **Temporal/Timeline** destination when sequence, latency, residue, or timing-boundary work is owed;
 - propagation dispositions that protect mysteries foreground **Owed boundaries** for contradiction/retcon/mystery work;
 - when no owed queue is foregrounded, the next decision may point to QA or another stability check if enough world material exists.
 
@@ -74,6 +75,7 @@ The map owns destination entry for:
 - Admission;
 - Propagation;
 - constraint composition;
+- Temporal/Timeline;
 - institutional/economic/suppression;
 - contradiction/retcon/mystery;
 - QA;
@@ -115,7 +117,7 @@ Every guided flow browser surface exposes:
 - A new world with no `world_kernel` foregrounds Creation start/resume as the primary active guided path; unrelated flows show prerequisites or not-yet-ready states until the kernel prerequisite exists.
 - Creation parks seeds at `proposed`; Admission owns first canon standing.
 - After seed parking, the active handoff names the seed-decomposition report, derived-from links, current/next/resume state, prompt-out state or governed skip, and read-side trail before steering the steward to Admission.
-- Sweeps and specialized passes propose facts; Admission admits.
+- Sweeps and specialized passes, including Temporal/Timeline, propose facts; Admission admits.
 - Propagation, contradiction, institutional/economic/suppression, and QA may mint canon debt; debt appears in the relevant queue without changing canon standing.
 - Read-side workbench views link back to flow artifacts but do not mutate them.
 
@@ -139,4 +141,4 @@ A browser workflow slice that changes navigation must show:
 
 ## Principles
 
-Touches `docs/worldbuilding-system/05_creation_protocol.md`, `docs/worldbuilding-system/06_canon_fact_admission_protocol.md`, `docs/worldbuilding-system/20_ai_assisted_workflow.md`, `docs/specs/creation-flow.md`, `docs/specs/prompt-out-context-assembly.md`, `docs/specs/browser-visible-guidance-acceptance.md`, `guided-workflow-usability.md` W-8, `workflow-principles.md` P-5/W-2/W-3/W-4/W-7, `data-principles.md` P-6/W-5/W-6, `charter.md` v1 scope and T-8, `domain-fidelity.md` P-1/T-2, ADR 0007, ADR 0009, PRD #150, PRD #158, and PRD #165. It affirms non-contradiction.
+Touches `docs/worldbuilding-system/05_creation_protocol.md`, `docs/worldbuilding-system/06_canon_fact_admission_protocol.md`, `docs/worldbuilding-system/09_temporal_and_timeline_protocol.md`, `docs/worldbuilding-system/20_ai_assisted_workflow.md`, `docs/specs/creation-flow.md`, `docs/specs/temporal-timeline-flow.md`, `docs/specs/prompt-out-context-assembly.md`, `docs/specs/browser-visible-guidance-acceptance.md`, `guided-workflow-usability.md` W-8, `workflow-principles.md` P-5/W-2/W-3/W-4/W-7, `data-principles.md` P-6/W-5/W-6, `charter.md` v1 scope and T-8, `domain-fidelity.md` P-1/T-2, ADR 0007, ADR 0009, PRD #150, PRD #158, PRD #165, and PRD #201. It affirms non-contradiction.

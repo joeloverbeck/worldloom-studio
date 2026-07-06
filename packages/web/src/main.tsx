@@ -310,6 +310,63 @@ interface ConstraintRun {
   decisionPoint?: { sharedContract: { methodCard?: MethodCard } };
 }
 
+interface TemporalCloseBlocker {
+  kind: string;
+  key: string;
+  label: string;
+  message: string;
+}
+
+interface TemporalCoverage {
+  temporalQuestions: string;
+  firstTrueOrRelativeSequence: string;
+  firstKnownOrReason: string;
+  dateTypesAndGranularity: string;
+  latency: string;
+  residueByTimescale: string;
+  sequenceIntegrity: string;
+  retrospectiveInsertion: string;
+  temporalMysteryBoundaries: string;
+  outcomeDecision: string;
+}
+
+interface TemporalRun {
+  flow: { id: number; state: string; current_step: string };
+  report: RecordRow;
+  source: {
+    sourceType: string;
+    sourceRecordId: number | null;
+    materialTitle: string;
+    materialBody: string;
+    auditedSubject: string;
+    sourceSummary: string;
+    triggerRecommendation: string;
+  };
+  doctrine: {
+    flowKey: string;
+    protocol: string;
+    checklist: string;
+    template: string;
+    triggerRecommendation: string;
+    stepMap: Array<{ key: string; label: string; decision: string }>;
+    completionRule: string;
+    browserPolicy: string;
+  };
+  methodCards?: MethodCard[];
+  coverage: TemporalCoverage | null;
+  sections: SectionRow[];
+  cards: Array<{ card: RecordRow }>;
+  proposals: Array<{ record: RecordRow }>;
+  debt: Array<{ record: RecordRow }>;
+  advisories: Array<{ record: RecordRow }>;
+  skips: Array<{ record: RecordRow }>;
+  closeReadiness: { status: string; blockers: TemporalCloseBlocker[] };
+  closePreview: { status: string; blockers: TemporalCloseBlocker[] };
+  promptOut: { available: boolean; templateKey: string; stepKey: string; coldUseEvidence: string; sourceRecordId: number | null };
+  readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
+  decisionPoint?: DecisionPointEnvelope;
+}
+
 interface Stage13Run {
   flow: {
     id: number;
@@ -688,7 +745,7 @@ interface AppProps {
   initialCreationDecision?: CreationDecisionPoint | null;
 }
 
-type PromptFlowKey = "creation" | "admission" | "propagation" | "contradiction" | "qa" | "institutional_economic_suppression" | "constraint_composition";
+type PromptFlowKey = "creation" | "admission" | "propagation" | "contradiction" | "qa" | "institutional_economic_suppression" | "constraint_composition" | "temporal_timeline";
 
 interface PromptOutMode {
   mode: "proposal" | "pressure";
@@ -1045,6 +1102,32 @@ const emptyConstraintResidue = {
   failureModes: ""
 };
 
+const emptyTemporalCoverage: TemporalCoverage = {
+  temporalQuestions: "",
+  firstTrueOrRelativeSequence: "",
+  firstKnownOrReason: "",
+  dateTypesAndGranularity: "",
+  latency: "",
+  residueByTimescale: "",
+  sequenceIntegrity: "",
+  retrospectiveInsertion: "",
+  temporalMysteryBoundaries: "",
+  outcomeDecision: ""
+};
+
+const temporalCoverageLabels: Array<[keyof TemporalCoverage, string]> = [
+  ["temporalQuestions", "Temporal Questions"],
+  ["firstTrueOrRelativeSequence", "First True or Relative Sequence"],
+  ["firstKnownOrReason", "First Known Date or Reason"],
+  ["dateTypesAndGranularity", "Date Types and Granularity"],
+  ["latency", "Latency and Residue"],
+  ["residueByTimescale", "Residue by Timescale"],
+  ["sequenceIntegrity", "Sequence Integrity"],
+  ["retrospectiveInsertion", "Retrospective Insertion"],
+  ["temporalMysteryBoundaries", "Temporal Mystery Boundaries"],
+  ["outcomeDecision", "Outcome Decision"]
+];
+
 const parseNumberList = (value: string): number[] =>
   value
     .split(/[\s,]+/)
@@ -1138,6 +1221,20 @@ function App({
   const [constraintAdvisoryRecordId, setConstraintAdvisoryRecordId] = useState("");
   const [constraintSkipStep, setConstraintSkipStep] = useState("constraint:challenge");
   const [constraintSkipUnresolved, setConstraintSkipUnresolved] = useState(false);
+  const [temporalRun, setTemporalRun] = useState<TemporalRun | null>(null);
+  const [temporalFlowId, setTemporalFlowId] = useState<number | null>(null);
+  const [temporalSourceType, setTemporalSourceType] = useState<"fact" | "capability" | "canon_debt" | "material" | "pass_report">("fact");
+  const [temporalSourceRecordId, setTemporalSourceRecordId] = useState("");
+  const [temporalMaterialTitle, setTemporalMaterialTitle] = useState("");
+  const [temporalMaterialBody, setTemporalMaterialBody] = useState("");
+  const [temporalSubject, setTemporalSubject] = useState("");
+  const [temporalCoverage, setTemporalCoverage] = useState<TemporalCoverage>(emptyTemporalCoverage);
+  const [temporalExistingCardId, setTemporalExistingCardId] = useState("");
+  const [temporalCardRelation, setTemporalCardRelation] = useState("");
+  const [temporalSourceStep, setTemporalSourceStep] = useState("temporal:outcome");
+  const [temporalAdvisoryRecordId, setTemporalAdvisoryRecordId] = useState("");
+  const [temporalSkipStep, setTemporalSkipStep] = useState("temporal:spatial-temporal-analysis");
+  const [temporalSkipUnresolved, setTemporalSkipUnresolved] = useState(false);
   const [stage13Run, setStage13Run] = useState<Stage13Run | null>(null);
   const [stage13FlowId, setStage13FlowId] = useState<number | null>(null);
   const [stage13SourceRecordId, setStage13SourceRecordId] = useState("");
@@ -1661,6 +1758,7 @@ function App({
     if (promptFlowKey === "qa") return qaFlowId ?? undefined;
     if (promptFlowKey === "institutional_economic_suppression") return stage12FlowId ?? undefined;
     if (promptFlowKey === "constraint_composition") return constraintFlowId ?? undefined;
+    if (promptFlowKey === "temporal_timeline") return temporalFlowId ?? undefined;
     if (promptFlowKey === "contradiction") return stage13FlowId ?? undefined;
     return undefined;
   };
@@ -1677,9 +1775,11 @@ function App({
             ? optionalNumber(stage12SourceRecordId)
             : promptFlowKey === "constraint_composition"
               ? optionalNumber(constraintSourceRecordId)
-              : promptFlowKey === "contradiction"
-                ? optionalNumber(stage13SourceRecordId)
-                : undefined);
+              : promptFlowKey === "temporal_timeline"
+                ? optionalNumber(temporalSourceRecordId)
+                : promptFlowKey === "contradiction"
+                  ? optionalNumber(stage13SourceRecordId)
+                  : undefined);
 
   const loadPromptStep = async () => {
     const payload = await api<{ step: PromptOutStep }>("/api/prompt-out/steps", {
@@ -1689,7 +1789,7 @@ function App({
         flowId: promptStepFlowId(),
         templateKey: promptTemplateKey,
         recordId: promptStepRecordId(),
-        stepKey: promptFlowKey === "constraint_composition" ? "constraint:challenge" : promptTemplateKey,
+        stepKey: promptFlowKey === "constraint_composition" ? "constraint:challenge" : promptFlowKey === "temporal_timeline" ? "temporal:spatial-temporal-analysis" : promptTemplateKey,
         label: selectedTemplate?.role_name ?? promptTemplateKey,
         admissionLevel: admissionLevel || undefined,
         workScale: promptFlowKey === "contradiction" ? (stage13WorkScale || undefined) : (workScale || undefined)
@@ -1791,21 +1891,25 @@ function App({
     const promptStep = await ensurePromptStep();
     const stage12 = promptStep.context.flowKey === "institutional_economic_suppression";
     const constraint = promptStep.context.flowKey === "constraint_composition";
+    const temporal = promptStep.context.flowKey === "temporal_timeline";
     await api(promptStep.actions.skip.href, {
       method: promptStep.actions.skip.method,
       body: JSON.stringify({
         reason: gateNotApplicable || undefined,
-        unresolved: stage12 ? stage12SkipUnresolved : constraint ? constraintSkipUnresolved : undefined,
+        unresolved: stage12 ? stage12SkipUnresolved : constraint ? constraintSkipUnresolved : temporal ? temporalSkipUnresolved : undefined,
         debtName: stage12 && stage12SkipUnresolved
           ? (canonDebtName || "Stage-12 skipped-work debt")
           : constraint && constraintSkipUnresolved
             ? (canonDebtName || "Constraint Composition skipped-work debt")
-            : undefined,
-        workScale: constraint ? (workScale || undefined) : undefined
+            : temporal && temporalSkipUnresolved
+              ? (canonDebtName || "Temporal/Timeline skipped-work debt")
+              : undefined,
+        workScale: constraint || temporal ? (workScale || undefined) : undefined
       })
     });
     await loadWorldData();
     if (constraintFlowId != null) await refreshConstraintRun(constraintFlowId);
+    if (temporalFlowId != null) await refreshTemporalRun(temporalFlowId);
   };
 
   const decompose = async () => {
@@ -2332,6 +2436,147 @@ function App({
     await loadWorldData();
   };
 
+  const applyTemporalRun = (payload: TemporalRun) => {
+    setTemporalRun(payload);
+    setTemporalFlowId(payload.flow.id);
+    if (payload.source.sourceRecordId != null) setTemporalSourceRecordId(String(payload.source.sourceRecordId));
+    setTemporalSubject(payload.source.auditedSubject);
+    if (payload.coverage) setTemporalCoverage(payload.coverage);
+  };
+
+  const refreshTemporalRun = async (flowId = temporalFlowId) => {
+    if (flowId == null) return;
+    applyTemporalRun(await api<TemporalRun>(`/api/temporal/runs/${flowId}`));
+  };
+
+  const temporalStartPayload = () => {
+    if (temporalSourceType === "material") {
+      return {
+        sourceType: temporalSourceType,
+        materialTitle: temporalMaterialTitle,
+        materialBody: temporalMaterialBody,
+        auditedSubject: temporalSubject || undefined
+      };
+    }
+    if (temporalSourceType === "pass_report") {
+      return { sourceType: temporalSourceType, reportRecordId: Number(temporalSourceRecordId) };
+    }
+    return {
+      sourceType: temporalSourceType,
+      recordId: Number(temporalSourceRecordId),
+      auditedSubject: temporalSubject || undefined
+    };
+  };
+
+  const startTemporalRun = async () => {
+    const payload = await api<TemporalRun>("/api/temporal/runs/start", {
+      method: "POST",
+      body: JSON.stringify(temporalStartPayload())
+    });
+    applyTemporalRun(payload);
+    setPromptFlowKey("temporal_timeline");
+    setPromptTemplateKey("temporal_spatial_analyst");
+    if (payload.promptOut.sourceRecordId != null) setPromptRecordId(String(payload.promptOut.sourceRecordId));
+    await loadWorldData();
+  };
+
+  const saveTemporalCoverage = async () => {
+    if (temporalFlowId == null) return;
+    await api("/api/temporal/coverage", {
+      method: "POST",
+      body: JSON.stringify({ flowId: temporalFlowId, ...temporalCoverage })
+    });
+    await refreshTemporalRun(temporalFlowId);
+  };
+
+  const createOrLinkTemporalCard = async () => {
+    if (temporalFlowId == null) return;
+    await api("/api/temporal/cards", {
+      method: "POST",
+      body: JSON.stringify({
+        flowId: temporalFlowId,
+        existingRecordId: temporalExistingCardId ? Number(temporalExistingCardId) : undefined,
+        title: recordForm.title || undefined,
+        body: recordForm.body || undefined,
+        truthLayer: recordForm.truthLayer || undefined,
+        canonStatus: recordForm.canonStatus || undefined,
+        relation: temporalCardRelation || undefined,
+        advisoryRecordId: temporalAdvisoryRecordId ? Number(temporalAdvisoryRecordId) : undefined
+      })
+    });
+    await refreshTemporalRun(temporalFlowId);
+    await loadWorldData();
+  };
+
+  const routeTemporalProposal = async () => {
+    if (temporalFlowId == null) return;
+    await api("/api/temporal/proposals", {
+      method: "POST",
+      body: JSON.stringify({
+        flowId: temporalFlowId,
+        sourceStep: temporalSourceStep,
+        title: recordForm.title,
+        body: recordForm.body || temporalCoverage.outcomeDecision || temporalCoverage.firstTrueOrRelativeSequence,
+        truthLayer: recordForm.truthLayer || undefined,
+        advisoryRecordId: temporalAdvisoryRecordId ? Number(temporalAdvisoryRecordId) : undefined
+      })
+    });
+    await refreshTemporalRun(temporalFlowId);
+    await loadWorldData();
+  };
+
+  const mintTemporalDebt = async () => {
+    if (temporalFlowId == null) return;
+    await api("/api/temporal/debt", {
+      method: "POST",
+      body: JSON.stringify({
+        flowId: temporalFlowId,
+        sourceStep: temporalSourceStep,
+        name: canonDebtName || recordForm.title || "Temporal/Timeline follow-up debt",
+        reason: gateNotApplicable || temporalCoverage.outcomeDecision || temporalCoverage.temporalMysteryBoundaries,
+        advisoryRecordId: temporalAdvisoryRecordId ? Number(temporalAdvisoryRecordId) : undefined
+      })
+    });
+    await refreshTemporalRun(temporalFlowId);
+    await loadWorldData();
+  };
+
+  const recordTemporalSkip = async () => {
+    if (temporalFlowId == null) return;
+    const payload = await api<{ step: PromptOutStep }>("/api/prompt-out/steps", {
+      method: "POST",
+      body: JSON.stringify({
+        flowKey: "temporal_timeline",
+        flowId: temporalFlowId,
+        templateKey: "temporal_spatial_analyst",
+        recordId: optionalNumber(temporalSourceRecordId),
+        stepKey: temporalSkipStep,
+        label: "Spatial-temporal analyst",
+        workScale: workScale || undefined
+      })
+    });
+    await api(payload.step.actions.skip.href, {
+      method: payload.step.actions.skip.method,
+      body: JSON.stringify({
+        reason: gateNotApplicable || undefined,
+        unresolved: temporalSkipUnresolved,
+        debtName: temporalSkipUnresolved ? (canonDebtName || "Temporal/Timeline skipped-work debt") : undefined,
+        workScale: workScale || undefined
+      })
+    });
+    setPromptStep(payload.step);
+    await refreshTemporalRun(temporalFlowId);
+    await loadWorldData();
+  };
+
+  const closeTemporalRun = async () => {
+    if (temporalFlowId == null) return;
+    const payload = await api<TemporalRun>(`/api/temporal/runs/${temporalFlowId}/close`, { method: "POST" });
+    applyTemporalRun(payload);
+    setMessage(`Closed Temporal/Timeline run with ${payload.report.shortId}`);
+    await loadWorldData();
+  };
+
   const applyStage13Run = (payload: Stage13Run) => {
     setStage13Run(payload);
     setStage13FlowId(payload.flow.id);
@@ -2761,6 +3006,154 @@ function App({
     </section>
   );
 
+  const temporalPanel = (
+    <div className="panel">
+      <h2>Temporal/Timeline flow</h2>
+      <MethodCardPanel card={temporalRun?.decisionPoint?.sharedContract.methodCard} />
+      <DecisionContractPanel title="Temporal decision contract" contract={temporalRun?.decisionPoint?.sharedContract} />
+      <section className="subpanel">
+        <h3>Start or Resume Temporal</h3>
+        <div className="doctrine">
+          <strong>trigger recommendation</strong>
+          <span>{temporalRun?.doctrine.triggerRecommendation ?? "Run `09` for Level 2+ facts with first appearance, discovery, public knowledge, institutional reaction, branch divergence, retcon, prophecy, inheritance, war, migration, law, aging, or evidence implications."}</span>
+          <span>{temporalRun?.doctrine.completionRule ?? "Complete Temporal/Timeline work by recording sequence, latency, date facets, residue, mystery boundaries, and an explicit outcome."}</span>
+        </div>
+        <div className="grid">
+          <label>Source type<select value={temporalSourceType} onChange={(event) => setTemporalSourceType(event.target.value as typeof temporalSourceType)}>
+            <option value="fact">fact</option>
+            <option value="capability">capability</option>
+            <option value="canon_debt">canon debt</option>
+            <option value="material">selected material</option>
+            <option value="pass_report">pass report</option>
+          </select></label>
+          <label>Source or report id<input value={temporalSourceRecordId} onChange={(event) => setTemporalSourceRecordId(event.target.value)} /></label>
+          <label>Flow id<input value={temporalFlowId ?? ""} onChange={(event) => setTemporalFlowId(event.target.value ? Number(event.target.value) : null)} /></label>
+        </div>
+        <div className="grid">
+          <label>Material title<input value={temporalMaterialTitle} onChange={(event) => setTemporalMaterialTitle(event.target.value)} /></label>
+          <label>Material body<textarea rows={2} value={temporalMaterialBody} onChange={(event) => setTemporalMaterialBody(event.target.value)} /></label>
+          <label>Audited subject<input value={temporalSubject} onChange={(event) => setTemporalSubject(event.target.value)} /></label>
+        </div>
+        <div className="row">
+          <button onClick={startTemporalRun} disabled={!openWorld || (temporalSourceType !== "material" && !temporalSourceRecordId) || (temporalSourceType === "material" && (!temporalMaterialTitle.trim() || !temporalMaterialBody.trim()))}>Start or Resume Temporal</button>
+          <button onClick={() => void refreshTemporalRun()} disabled={!openWorld || temporalFlowId == null}>Refresh Temporal</button>
+          <button onClick={closeTemporalRun} disabled={!openWorld || temporalFlowId == null}>Close Temporal Run</button>
+        </div>
+      </section>
+
+      <section className="subpanel">
+        <h3>Current decision</h3>
+        <p className="status">{temporalRun ? `${temporalRun.report.shortId} · ${temporalRun.source.sourceSummary} · ${temporalRun.flow.current_step}` : "No Temporal/Timeline run loaded."}</p>
+        <p className="meta">{temporalRun?.doctrine.browserPolicy ?? "Browser controls surface server policy, blockers, write intent, Prompt-out state, and read-side trail."}</p>
+        <ol>
+          {(temporalRun?.doctrine.stepMap ?? [
+            { key: "run_entry", label: "Run entry and trigger recommendation", decision: "Choose source material and inspect the server recommendation." },
+            { key: "temporal_questions", label: "Temporal questions", decision: "Record when the fact became true, known, adapted, and consequential." },
+            { key: "close_preview", label: "Close preview", decision: "Use server-returned blockers before appending the pass report." }
+          ]).map((step) => <li key={step.key}>{step.label}: {step.decision}</li>)}
+        </ol>
+      </section>
+
+      <section className="subpanel">
+        <h3>Server close blockers</h3>
+        {temporalRun ? (
+          temporalRun.closeReadiness.blockers.length === 0 ? (
+            <p className="status">No server-returned blockers.</p>
+          ) : (
+            <ul>{temporalRun.closeReadiness.blockers.map((blocker) => <li key={blocker.key}>{blocker.label}: {blocker.message}</li>)}</ul>
+          )
+        ) : (
+          <ul>
+            <li>First true or relative sequence: Start a run to load exact server blockers.</li>
+            <li>Date types and granularity: Start a run to load exact server blockers.</li>
+            <li>Latency and residue: Start a run to load exact server blockers.</li>
+          </ul>
+        )}
+      </section>
+
+      <section className="subpanel">
+        <h3>Temporal coverage</h3>
+        <div className="grid two">
+          {temporalCoverageLabels.map(([key, label]) => (
+            <label key={key}>{label}<textarea rows={2} value={temporalCoverage[key]} onChange={(event) => setTemporalCoverage((current) => ({ ...current, [key]: event.target.value }))} /></label>
+          ))}
+        </div>
+        <button onClick={saveTemporalCoverage} disabled={temporalFlowId == null}>Save Temporal Coverage</button>
+      </section>
+
+      <div className="grid two">
+        <section className="subpanel">
+          <h3>Create or Link Temporal Timeline Card</h3>
+          <div className="grid">
+            <label>Outcome title<input value={recordForm.title} onChange={(event) => setRecordForm({ ...recordForm, title: event.target.value })} /></label>
+            <label>Outcome body<textarea rows={2} value={recordForm.body} onChange={(event) => setRecordForm({ ...recordForm, body: event.target.value })} /></label>
+            <label>Truth layer<input value={recordForm.truthLayer} onChange={(event) => setRecordForm({ ...recordForm, truthLayer: event.target.value })} /></label>
+            <label>Canon status<input value={recordForm.canonStatus} onChange={(event) => setRecordForm({ ...recordForm, canonStatus: event.target.value })} /></label>
+          </div>
+          <div className="grid">
+            <label>Existing card id<input value={temporalExistingCardId} onChange={(event) => setTemporalExistingCardId(event.target.value)} /></label>
+            <label>Relation<input value={temporalCardRelation} onChange={(event) => setTemporalCardRelation(event.target.value)} /></label>
+            <label>Advisory id<input value={temporalAdvisoryRecordId} onChange={(event) => setTemporalAdvisoryRecordId(event.target.value)} /></label>
+          </div>
+          <button onClick={createOrLinkTemporalCard} disabled={temporalFlowId == null || (!temporalExistingCardId && (!recordForm.title.trim() || !recordForm.truthLayer.trim() || !recordForm.canonStatus.trim()))}>Create or Link Temporal Timeline Card</button>
+          <p>Cards: {temporalRun?.cards.map((card) => `${card.card.shortId} ${card.card.title}`).join(", ") || "none"}</p>
+        </section>
+        <section className="subpanel">
+          <h3>Route Admission Proposal</h3>
+          <label>Source step<input value={temporalSourceStep} onChange={(event) => setTemporalSourceStep(event.target.value)} /></label>
+          <button onClick={routeTemporalProposal} disabled={temporalFlowId == null || !recordForm.title.trim() || !recordForm.truthLayer.trim() || !(recordForm.body || temporalCoverage.outcomeDecision || temporalCoverage.firstTrueOrRelativeSequence).trim()}>Route Admission Proposal</button>
+          <h3>Mint Temporal Debt</h3>
+          <button onClick={mintTemporalDebt} disabled={temporalFlowId == null || !(canonDebtName || recordForm.title).trim() || !(gateNotApplicable || temporalCoverage.outcomeDecision || temporalCoverage.temporalMysteryBoundaries).trim()}>Mint Temporal Debt</button>
+          <p>Proposals: {temporalRun?.proposals.map((proposal) => `${proposal.record.shortId} ${proposal.record.title}`).join(", ") || "none"}</p>
+          <p>Debt: {temporalRun?.debt.map((debt) => `${debt.record.shortId} ${debt.record.title}`).join(", ") || "none"}</p>
+        </section>
+      </div>
+
+      <div className="grid two">
+        <section className="subpanel">
+          <h3>Record Governed Skip</h3>
+          <div className="grid">
+            <label>Skip step<input value={temporalSkipStep} onChange={(event) => setTemporalSkipStep(event.target.value)} /></label>
+            <label className="inline-check"><input type="checkbox" checked={temporalSkipUnresolved} onChange={(event) => setTemporalSkipUnresolved(event.target.checked)} />Unresolved follow-up</label>
+          </div>
+          <button onClick={recordTemporalSkip} disabled={temporalFlowId == null || !temporalSkipStep.trim()}>Record Governed Skip</button>
+          <p>Skips: {temporalRun?.skips.map((skip) => `${skip.record.shortId} ${skip.record.title}`).join(", ") || "none"}</p>
+        </section>
+        <section className="subpanel">
+          <h3>Prompt-out preview</h3>
+          <p className="meta">{temporalRun?.promptOut.coldUseEvidence ?? "Prompt-out becomes available after steward-authored Temporal material exists."}</p>
+          <button onClick={() => {
+            setPromptFlowKey("temporal_timeline");
+            setPromptTemplateKey("temporal_spatial_analyst");
+            if (temporalRun?.promptOut.sourceRecordId != null) setPromptRecordId(String(temporalRun.promptOut.sourceRecordId));
+          }} disabled={!temporalRun}>Use Spatial-temporal analyst</button>
+          <p>Advisory: {temporalRun?.advisories.map((advisory) => `${advisory.record.shortId} ${advisory.record.title}`).join(", ") || "none"}</p>
+        </section>
+      </div>
+
+      <section className="subpanel">
+        <h3>Read-side trail</h3>
+        <ul>
+          {(temporalRun?.readSideTrail ?? [
+            { label: "Temporal pass report", href: "/api/canon-workbench/records/:id" },
+            { label: "Audit Trail", href: "/api/canon-workbench/audit" },
+            { label: "Current Canon", href: "/api/canon-workbench/current" }
+          ]).map((item) => <li key={`${item.label}-${item.href}`}>{item.label}: {item.href}</li>)}
+        </ul>
+      </section>
+
+      <section className="subpanel">
+        <h3>Naive steward walkthrough</h3>
+        <ol>
+          <li>Start from a fact, capability, canon debt, selected material, or pass report.</li>
+          <li>Record date types, first-true sequence, first-known timing, latency, residue, sequence integrity, retrospective insertion, and mystery boundaries.</li>
+          <li>Choose card, Admission proposal, canon debt, Prompt-out, or governed skip outcomes without admitting canon inside Temporal.</li>
+          <li>Close only when the server removes blockers and the read-side trail shows the pass report and routed outcomes.</li>
+        </ol>
+      </section>
+    </div>
+  );
+
   if (!openWorld) {
     return (
       <main>
@@ -2969,6 +3362,7 @@ function App({
           <MethodCardPanel card={constraintRun?.decisionPoint?.sharedContract.methodCard} />
         </section>
       ),
+      temporal: temporalPanel,
       stage12: (
         <section className="panel">
           <h2>Institutional / Economic / Suppression flow</h2>
@@ -3367,6 +3761,7 @@ function App({
                 setPromptFlowKey(next);
                 if (next === "institutional_economic_suppression") setPromptTemplateKey("institution_economy_analyst");
                 if (next === "constraint_composition") setPromptTemplateKey("constraint_challenger");
+                if (next === "temporal_timeline") setPromptTemplateKey("temporal_spatial_analyst");
                 if (next === "contradiction") setPromptTemplateKey("repair_challenge");
               }}>
                 <option value="creation">Creation</option>
@@ -3376,6 +3771,7 @@ function App({
                 <option value="qa">QA</option>
                 <option value="institutional_economic_suppression">Institutional / economic / suppression</option>
                 <option value="constraint_composition">Constraint Composition</option>
+                <option value="temporal_timeline">Temporal/Timeline</option>
               </select></label>
               <label>Template<select value={promptTemplateKey} onChange={(event) => setPromptTemplateKey(event.target.value)}>{templates.map((template) => <option key={template.key} value={template.key}>{template.role_name} v{template.current_version}</option>)}</select></label>
               {selectedTemplate && (
@@ -3722,6 +4118,8 @@ function App({
               </>
             )}
           </div>
+
+          {temporalPanel}
 
           <div className="panel">
             <h2>Constraint Composition flow</h2>

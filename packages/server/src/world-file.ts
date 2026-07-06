@@ -1272,6 +1272,11 @@ export class WorldFile {
         key: "institution_economy_analyst",
         roleName: "Institution/economy analyst",
         text: "Pressure-test this institutional, economic, and suppression sweep. Work from steward-authored material first. Identify action arenas, rules-in-use, transaction costs, surplus capture, suppression residue, counter-institutions, daily-life residue, and power conflict. Do not admit facts; label surfaced facts as proposed-only and name unresolved canon debt."
+      },
+      {
+        key: "temporal_spatial_analyst",
+        roleName: "Spatial-temporal analyst",
+        text: "Pressure-test this Temporal/Timeline pass. Work from steward-authored material first. Identify date type separation, granularity pressure, first-true sequence, discovery latency, institutional reaction, residue by timescale, diffusion speed, chronology pluralism, and temporal mystery boundaries. Do not admit facts; label surfaced facts as proposed-only and name unresolved canon debt."
       }
     ];
     this.db.transaction(() => {

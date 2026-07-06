@@ -38,7 +38,7 @@ describe("Prompt-out lifecycle web surface", () => {
 
   it("renders server-returned prompt modes, essence blockers, and disposition labels without local availability policy", () => {
     const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
-    const creationPromptPanel = snippetBetween(source, "<h3>Prompt-out preview</h3>", "<button onClick={loadCreationPromptStep}");
+    const creationPromptPanel = snippetBetween(source, "<p>{displayedCreationDecision.promptOut.role}", "<button onClick={loadCreationPromptStep}");
     const creationPromptButton = snippetBetween(source, "<button onClick={loadCreationPromptStep}", "</button>");
     const promptLoader = snippetBetween(source, "const loadCreationPromptStep = async () =>", "const ensurePromptStep = async");
     const html = renderToString(<App

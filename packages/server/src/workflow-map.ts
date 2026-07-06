@@ -18,6 +18,8 @@ const flowDestination = (flowKey: string): string => {
       return "stage12";
     case "constraint_composition":
       return "constraint";
+    case "temporal_timeline":
+      return "temporal";
     case "contradiction":
       return "contradiction";
     case "qa":
@@ -66,6 +68,7 @@ const destinations = (activeDestination: string | null, owedDestinations: Set<st
   { key: "admission", label: "Admission", kind: "guided-flow", summary: "Govern proposed facts into canon standing.", state: activeDestination === "admission" ? "active" : "available" },
   { key: "propagation", label: "Propagation", kind: "guided-flow", summary: "Work shock cones and consequence dispositions.", state: owedDestinations.has("propagation") ? "owed" : activeDestination === "propagation" ? "active" : "available" },
   { key: "constraint", label: "Constraint Composition", kind: "guided-flow", summary: "Compose constraints where facts apply.", state: activeDestination === "constraint" ? "active" : "available" },
+  { key: "temporal", label: "Temporal/Timeline", kind: "guided-flow", summary: "Conditional `09` pass for first appearance, discovery, institutional reaction, retcon, inheritance, war, migration, law, aging, or evidence implications.", state: owedDestinations.has("temporal") ? "owed" : activeDestination === "temporal" ? "active" : "available" },
   { key: "stage12", label: "Institutional / Economic / Suppression", kind: "guided-flow", summary: "Run conditional institutional, economic, and suppression passes.", state: activeDestination === "stage12" ? "active" : "available" },
   { key: "contradiction", label: "Contradiction/Retcon/Mystery", kind: "guided-flow", summary: "Repair conflicts and protect owed mystery boundaries.", state: owedDestinations.has("contradiction") ? "owed" : activeDestination === "contradiction" ? "active" : "available" },
   { key: "qa", label: "QA", kind: "guided-flow", summary: "Score stability before calling the world stable.", state: activeDestination === "qa" ? "active" : "available" },
@@ -84,6 +87,7 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
   const owedBoundaries = ContradictionFlow.owedBoundariesQueue(world);
   const openCanonDebt = CanonDebt.listCanonDebt(world, true);
   const skipCount = records.filter((record) => record.recordTypeKey === "skip_record").length;
+  const temporalDebt = openCanonDebt.filter((debt) => /\btemporal\b|\btimeline\b/i.test(`${debt.title}\n${debt.body}`));
 
   const activeDestination =
     admissionQueue.length > 0 ? "admission"
@@ -91,7 +95,8 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
         : flows[0] ? flowDestination(String(flows[0].flow_key)) : null;
   const owedDestinations = new Set<string>([
     ...(propagationQueue.length > 0 ? ["propagation"] : []),
-    ...(owedBoundaries.length > 0 ? ["contradiction"] : [])
+    ...(owedBoundaries.length > 0 ? ["contradiction"] : []),
+    ...(temporalDebt.length > 0 ? ["temporal"] : [])
   ]);
 
   const stages: WorkflowMapStage[] = [
@@ -121,10 +126,10 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
     stage(
       "conditional-passes",
       "Conditional passes",
-      hasInProgressFlow(flows, "institutional_economic_suppression") || hasInProgressFlow(flows, "constraint_composition") ? "active" : worldHasCanonMaterial ? "blocked" : "not_yet_earned",
-      "Constraint and institutional/economic/suppression passes run when facts apply.",
-      "stage12",
-      worldHasCanonMaterial ? "Run these passes when the fact's domain makes them relevant." : "Canon material must exist before conditional passes apply."
+      hasInProgressFlow(flows, "institutional_economic_suppression") || hasInProgressFlow(flows, "constraint_composition") || hasInProgressFlow(flows, "temporal_timeline") ? "active" : temporalDebt.length > 0 ? "owed" : worldHasCanonMaterial ? "blocked" : "not_yet_earned",
+      "Constraint, Temporal/Timeline, and institutional/economic/suppression passes run when facts apply.",
+      temporalDebt.length > 0 ? "temporal" : "stage12",
+      worldHasCanonMaterial ? "Run these passes when the fact's domain or `09` trigger recommendation makes them relevant." : "Canon material must exist before conditional passes apply."
     ),
     stage(
       "contradiction",
@@ -158,9 +163,11 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
       ? { destinationKey: "contradiction", label: "Work owed boundaries", reason: "A protected propagation consequence needs mystery-ledger governance.", href: "/api/contradiction/owed-boundaries" }
       : propagationQueue.length > 0
         ? { destinationKey: "propagation", label: "Work owed propagation", reason: "Propagation-scoped canon debt is open.", href: "/api/propagation/queue" }
-        : !hasKernel
-          ? { destinationKey: "creation", label: "Start Creation", reason: "No world kernel exists yet; create the world kernel first.", href: "/api/flows/creation/start" }
-          : { destinationKey: "qa", label: "Review stability", reason: "No owed queue is currently foregrounded; QA is the next stability check when enough material exists.", href: "/api/qa/passes/start" };
+        : temporalDebt.length > 0
+          ? { destinationKey: "temporal", label: "Work Temporal/Timeline debt", reason: "Open Temporal/Timeline canon debt needs sequence, latency, residue, or boundary work.", href: "/api/temporal/runs/start" }
+          : !hasKernel
+            ? { destinationKey: "creation", label: "Start Creation", reason: "No world kernel exists yet; create the world kernel first.", href: "/api/flows/creation/start" }
+            : { destinationKey: "qa", label: "Review stability", reason: "No owed queue is currently foregrounded; QA is the next stability check when enough material exists.", href: "/api/qa/passes/start" };
 
   return {
     readOnly: true,

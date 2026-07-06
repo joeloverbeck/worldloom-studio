@@ -12,6 +12,7 @@ import { registerPropagationRoutes } from "./http/propagation-routes.js";
 import { registerQaRoutes } from "./http/qa-routes.js";
 import { registerStage12Routes } from "./http/stage-12-routes.js";
 import { registerSubstrateRoutes } from "./http/substrate-routes.js";
+import { registerTemporalRoutes } from "./http/temporal-routes.js";
 import { registerWorkflowMapRoutes } from "./http/workflow-map-routes.js";
 import type { RouteDependencies } from "./http/route-support.js";
 
@@ -43,6 +44,7 @@ export const createApp = (_options: AppOptions = {}) => {
   registerPropagationRoutes(app, dependencies);
   registerStage12Routes(app, dependencies);
   registerConstraintCompositionRoutes(app, dependencies);
+  registerTemporalRoutes(app, dependencies);
   registerContradictionRoutes(app, dependencies);
   registerQaRoutes(app, dependencies);
 

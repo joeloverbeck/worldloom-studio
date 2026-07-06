@@ -6,6 +6,7 @@ import * as InstitutionalFlow from "./institutional-flow.js";
 import * as PromptOut from "./prompt-out.js";
 import * as PropagationFlow from "./propagation-flow.js";
 import * as QaFlow from "./qa-flow.js";
+import * as TemporalFlow from "./temporal-flow.js";
 import type { DecisionPointPromptModeSummary, PromptMode } from "./decision-point-contract.js";
 import type { RecordRow, WorldFile } from "./world-file.js";
 
@@ -205,7 +206,7 @@ export const runPromptOutStoreAdvisoryAction = (
   world: WorldFile,
   input: PromptOutStepActionContext,
   payload: PromptOutStoreAdvisoryBody
-): { record: RecordRow } | ReturnType<typeof InstitutionalFlow.storeStage12Advisory> | ReturnType<typeof ConstraintFlow.storeConstraintAdvisory> => {
+): { record: RecordRow } | ReturnType<typeof InstitutionalFlow.storeStage12Advisory> | ReturnType<typeof ConstraintFlow.storeConstraintAdvisory> | ReturnType<typeof TemporalFlow.storeTemporalAdvisory> => {
   if (input.flowKey === InstitutionalFlow.FLOW_KEY) {
     if (input.flowId == null) throw new Error("Stage-12 Prompt-out actions require a flow id");
     return InstitutionalFlow.storeStage12Advisory(world, {
@@ -220,6 +221,16 @@ export const runPromptOutStoreAdvisoryAction = (
     return ConstraintFlow.storeConstraintAdvisory(world, {
       flowId: input.flowId,
       stepKey: input.stepKey,
+      promptText: payload.promptText,
+      responseText: payload.responseText
+    });
+  }
+  if (input.flowKey === TemporalFlow.FLOW_KEY) {
+    if (input.flowId == null) throw new Error("Temporal Prompt-out actions require a flow id");
+    return TemporalFlow.storeTemporalAdvisory(world, {
+      flowId: input.flowId,
+      stepKey: input.stepKey,
+      mode: input.mode,
       promptText: payload.promptText,
       responseText: payload.responseText
     });
@@ -273,6 +284,15 @@ const skipHandlers: Record<string, SkipHandler> = {
   [ConstraintFlow.FLOW_KEY]: (world, input, payload) => {
     if (input.flowId == null) throw new Error("Constraint Composition Prompt-out skip actions require a flow id");
     return ConstraintFlow.skipConstraintStep(world, {
+      ...input,
+      ...payload,
+      flowId: input.flowId,
+      stepKey: input.stepKey
+    });
+  },
+  [TemporalFlow.FLOW_KEY]: (world, input, payload) => {
+    if (input.flowId == null) throw new Error("Temporal Prompt-out skip actions require a flow id");
+    return TemporalFlow.skipTemporalStep(world, {
       ...input,
       ...payload,
       flowId: input.flowId,

@@ -154,11 +154,45 @@ const promptMethodCard = (input: PromptGenerationInput): MethodCard | null => {
     if (stepKey.includes("skip") || stepKey.includes("prompt") || stepKey.includes("advisory")) return methodCard("constraint.prompt-out-skips");
     return methodCard("constraint.outcomes");
   }
+  if (input.flowKey === "temporal_timeline") {
+    const stepKey = input.stepKey ?? "";
+    if (stepKey.includes("date") || stepKey.includes("granularity")) return methodCard("temporal.date-type-granularity");
+    if (stepKey.includes("latency") || stepKey.includes("residue")) return methodCard("temporal.latency-residue");
+    if (stepKey.includes("sequence") || stepKey.includes("retrospective")) return methodCard("temporal.sequence-retrospective");
+    if (stepKey.includes("mystery") || stepKey.includes("branch")) return methodCard("temporal.mystery-boundaries");
+    if (stepKey.includes("skip") || stepKey.includes("prompt") || stepKey.includes("advisory")) return methodCard("temporal.prompt-out-skips");
+    return methodCard("temporal.outcomes");
+  }
   if (input.flowKey === "institutional_economic_suppression") return methodCard("stage12.outcomes");
   if (input.flowKey === "propagation") return methodCard("propagation.disposition");
   if (input.flowKey === "contradiction") return methodCard(input.templateKey === "boundary_guard" ? "contradiction.mystery-preservation" : "contradiction.repair");
   if (input.flowKey === "qa") return methodCard(input.templateKey === "qa_red_team" ? "qa.repair-routing" : "qa.scorecard");
   return maybeMethodCard(`${input.flowKey ?? ""}.${input.stepKey ?? input.templateKey}`);
+};
+
+const temporalReportIdFromStep = (step: string): number | null => {
+  const match = step.match(/^temporal:report:(\d+):/);
+  return match ? Number(match[1]) : null;
+};
+
+const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): { lines: string[]; sourceManifest: string[] } => {
+  if (input.flowKey !== "temporal_timeline" || input.flowId == null) return { lines: [], sourceManifest: [] };
+  const flow = world.getFlowInstance(input.flowId, "temporal_timeline");
+  const reportId = temporalReportIdFromStep(String(flow.current_step));
+  if (reportId == null) return { lines: ["Temporal pass report omitted: flow current step does not name a report."], sourceManifest: ["Omission: Temporal pass report not found in current step"] };
+  const report = world.getRecord(reportId);
+  const sections = world.listSections(report.id);
+  return {
+    lines: [
+      `Temporal pass report: ${report.shortId} ${report.title}`,
+      report.body,
+      ...sections.map((section) => `### ${section.heading}\n${section.body}`)
+    ],
+    sourceManifest: [
+      `Temporal pass report: ${report.shortId} ${report.title}`,
+      ...sections.map((section) => `Temporal report section: ${section.heading}`)
+    ]
+  };
 };
 
 const creationDecompositionPrompt = (
@@ -277,9 +311,11 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
   const rulings = standingRulingRows(world);
   const cardValue = promptMethodCard(input);
   const doctrineLines = cardValue ? methodCardDoctrineSlots(cardValue) : [];
+  const flowContext = temporalPromptContext(world, input);
   const sourceManifest = [
     `Prompt template: ${template.key} (${template.package_source})`,
     ...(cardValue ? methodCardSourceManifest(cardValue) : []),
+    ...flowContext.sourceManifest,
     input.recordId == null ? "Selected record: none" : `Selected record id: ${input.recordId}`,
     `Standing rulings: ${rulings.length}`,
     "Omissions: no hidden repository context; unavailable world context must be named before copy-out."
@@ -306,6 +342,7 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
       "Source manifest:",
       sourceManifest,
       "Context preview:",
+      ...(flowContext.lines.length ? ["Flow context:", flowContext.lines.join("\n\n")] : []),
       "Record context:",
       recordContext,
       "Advisory/canon warning: this prompt asks for optional pressure only. Pasted responses stay advisory artifacts until the steward authors and admits canon through the governed flow."

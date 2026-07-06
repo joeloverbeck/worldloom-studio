@@ -16,7 +16,7 @@ This spec defines Worldloom Studio's Constraint Composition guided flow for `08_
 - Purpose: guide a steward through constraint inventory, composition testing, leakage, residue, outcome routing, Prompt-out pressure, governed skips, and a durable append-only pass report.
 - Steward-owned judgments: constraint type, boundary meaning, whether a loophole matters, whether a constraint is worth keeping, whether material is canon-worthy, and final wording.
 - App-owned clerking: source capture, doctrine payload, step map, blockers, report assembly, links, proposal/debt routing, advisory artifact handling, skip records, close readiness, and read-side trail.
-- Explicit non-goals: no Temporal/Timeline flow, no generic specialized-pass framework, no automatic constraint classification, no LLM API integration, no automatic canon mutation, no replacement of read-side views with mutation workflows.
+- Explicit non-goals: no Temporal/Timeline work inside Constraint Composition, no generic specialized-pass framework, no automatic constraint classification, no LLM API integration, no automatic canon mutation, no replacement of read-side views with mutation workflows.
 
 ## Fixed Decisions
 
@@ -88,7 +88,7 @@ Task: a steward starts from a capability that risks flattening the world and wan
 
 - Field-trial evidence: `08` is field-tested and was deferred from earlier guided-flow PRDs as flowless coverage.
 - Real app-use evidence: this PRD provides first app evidence for a dedicated `08` flow.
-- Untested package surfaces: `09` Temporal/Timeline remains out of scope and the immediate follow-up candidate.
+- Adjacent package surfaces: `09` Temporal/Timeline is specified by `docs/specs/temporal-timeline-flow.md`; it remains out of scope for this Constraint Composition flow.
 - Coverage ledger update: when implemented, `docs/methodology-coverage.md` promotes `08` from sweep-inside-another-flow to guided flow and records honest guidance maturity based on browser evidence.
 
 ## Testing Seams

@@ -31,6 +31,7 @@ Cards are owed for these guided surfaces:
 - Creation: world kernel and seed decomposition.
 - Admission: queue/severity selection, minor ledger, full gate, and frontloaded seed audit.
 - Constraint Composition: source selection, constrained-fact framing, inventory, composition testing, leakage/residue, outcomes, Prompt-out/skips, close preview, and read-side trail.
+- Temporal/Timeline: run entry, temporal questions, date type and granularity, latency/residue, sequence integrity and retrospective insertion, mystery boundaries, outcomes, Prompt-out/skips, close preview, and read-side trail.
 - Stage 12: run entry, every lens, outcomes, and close readiness.
 - Propagation: run entry, shock-cone orders, domain-atlas sweep, consequence disposition, surfaced proposals, and close.
 - Contradiction/Retcon/Mystery: triage, work scale, disposition, repair, retcon cost, repair propagation, mystery preservation, and close.

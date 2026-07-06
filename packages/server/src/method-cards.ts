@@ -219,6 +219,142 @@ export const METHOD_CARDS: MethodCard[] = [
     ]
   }),
   card({
+    key: "temporal.run-entry",
+    flowKey: "temporal_timeline",
+    decisionPoint: "Temporal run entry",
+    decision: "Choose the source and decide whether the Temporal trigger recommendation applies.",
+    operativeRule: "Start from a fact, capability, selected material, canon debt, or pass report; the app shows `09`'s trigger rule as guidance and never classifies applicability.",
+    why: "Temporal work only earns its keep when timing is load-bearing enough to affect sequence, discovery, institutions, residue, evidence, branch, or retcon pressure.",
+    goodMaterial: "Good entry material names the audited subject, source provenance, and why timing matters without defaulting date type, granularity, or trigger judgment.",
+    guidanceDepth: "standard",
+    packageSources: ["docs/worldbuilding-system/09_temporal_and_timeline_protocol.md"]
+  }),
+  card({
+    key: "temporal.questions",
+    flowKey: "temporal_timeline",
+    decisionPoint: "Temporal questions",
+    decision: "Answer when the fact became true, became known, adapted, and left residue.",
+    operativeRule: "Work time as causality under sequence, duration, delay, memory, and residue rather than as a date field.",
+    why: "The package asks these questions to keep causal order from breaking when timing becomes load-bearing.",
+    goodMaterial: "Good answers separate first-true, first-known, public, institutional, ordinary-life, and mythic timing where those distinctions matter.",
+    guidanceDepth: "full",
+    packageSources: [
+      "docs/worldbuilding-system/09_temporal_and_timeline_protocol.md",
+      "docs/worldbuilding-system/checklists/temporal_timeline_sweep.md"
+    ]
+  }),
+  card({
+    key: "temporal.date-type-granularity",
+    flowKey: "temporal_timeline",
+    decisionPoint: "Date type and granularity",
+    decision: "Separate date facets and choose the lightest granularity that preserves causal order.",
+    operativeRule: "Event, discovery, public, institutional, ordinary-life, mythic, and authorial revision dates remain separate prose facets; the app never collapses them into one timestamp.",
+    why: "A fact can be ancient, publicly recent, institutionally suppressed, and mythically misdated at the same time.",
+    goodMaterial: "Good granularity states whether before/after, season, reign, generation, era, exact date, ritual cycle, draft phase, mythic age, or subjective time is enough.",
+    guidanceDepth: "full",
+    packageSources: [
+      "docs/worldbuilding-system/09_temporal_and_timeline_protocol.md",
+      "docs/principles/data-principles.md"
+    ]
+  }),
+  card({
+    key: "temporal.latency-residue",
+    flowKey: "temporal_timeline",
+    decisionPoint: "Latency and residue",
+    decision: "Explain why adaptation is delayed and what residue remains by timescale.",
+    operativeRule: "Latency must be plausible, and old facts need old residue; unreasoned 'none' is not Temporal evidence.",
+    why: "Latency explains why a powerful fact has not transformed everything instantly.",
+    goodMaterial: "Good material names discovery, proof, travel, training, manufacturing, adoption, legal, generational, taboo, suppression, ecological, or aesthetic reveal delay plus days/months, years, generations, or era-scale fossils.",
+    guidanceDepth: "full",
+    packageSources: [
+      "docs/worldbuilding-system/09_temporal_and_timeline_protocol.md",
+      "docs/worldbuilding-system/checklists/temporal_timeline_sweep.md"
+    ]
+  }),
+  card({
+    key: "temporal.sequence-retrospective",
+    flowKey: "temporal_timeline",
+    decisionPoint: "Sequence integrity and retrospective insertion",
+    decision: "Check that effects follow causes, and treat inserted facts as timeline disturbances.",
+    operativeRule: "An inserted fact must state what was always true, what became true later, who noticed first, and what old canon should now reflect.",
+    why: "Sequence failures are where a timeline breaks even when dates look plausible.",
+    goodMaterial: "Good material names precursor events, later effects, existing scenes or institutions that must change, and any reader/player-facing explanation owed.",
+    guidanceDepth: "full",
+    packageSources: ["docs/worldbuilding-system/09_temporal_and_timeline_protocol.md"]
+  }),
+  card({
+    key: "temporal.mystery-boundaries",
+    flowKey: "temporal_timeline",
+    decisionPoint: "Temporal mystery boundaries",
+    decision: "Record observable boundaries without solving protected time mysteries or opening branch UI.",
+    operativeRule: "Temporal mysteries can remain mysterious, but recurrence windows, boundaries, forbidden uses, branch divergence, and observable residue stay governed.",
+    why: "Protected time cannot become unmanaged time; mystery limits explanation, not continuity.",
+    goodMaterial: "Good material names cyclical history, prophecy, missing years, disagreeing records, outside-time agents, unreliable calendars, or branch memories with boundaries and forbidden uses.",
+    guidanceDepth: "full",
+    packageSources: [
+      "docs/worldbuilding-system/09_temporal_and_timeline_protocol.md",
+      "docs/adr/0003-branch-and-collaboration-schema-door.md"
+    ]
+  }),
+  card({
+    key: "temporal.outcomes",
+    flowKey: "temporal_timeline",
+    decisionPoint: "Temporal outcomes",
+    decision: "Choose card links, Admission proposals, canon debt, advisory use, skips, explicit no-card close, or non-mutation.",
+    operativeRule: "Temporal sweeps propose and route; only Admission admits, and timing cards are written only when timing itself is load-bearing.",
+    why: "The pass may discover precursor events, era boundaries, archives, or institutions, but those facts still need Admission.",
+    goodMaterial: "Good outcomes name the timeline card or no-card reason, proposed facts, debt, advisory provenance if used, and read-side trail.",
+    guidanceDepth: "standard",
+    packageSources: [
+      "docs/worldbuilding-system/09_temporal_and_timeline_protocol.md",
+      "docs/worldbuilding-system/templates/temporal_timeline_card.md",
+      "docs/worldbuilding-system/06_canon_fact_admission_protocol.md"
+    ]
+  }),
+  card({
+    key: "temporal.prompt-out-skips",
+    flowKey: "temporal_timeline",
+    decisionPoint: "Temporal Prompt-out and skips",
+    decision: "Use, dispose, cite, or skip advisory Temporal pressure.",
+    operativeRule: "Prompt-out is advisory; skipped instruments and used advisory material must leave governed records before they affect outcomes.",
+    why: "Spatial-temporal pressure can catch hidden sequence and residue failures without becoming canon authority.",
+    goodMaterial: "Good advisory handling names the prompt-out step, disposition, consulted artifact if used, and any skip or debt left by declined work.",
+    guidanceDepth: "standard",
+    packageSources: [
+      "docs/worldbuilding-system/09_temporal_and_timeline_protocol.md",
+      "docs/worldbuilding-system/20_ai_assisted_workflow.md",
+      "docs/worldbuilding-system/21_templates_index.md"
+    ]
+  }),
+  card({
+    key: "temporal.close-preview",
+    flowKey: "temporal_timeline",
+    decisionPoint: "Temporal close preview",
+    decision: "Check server blockers before the pass report closes.",
+    operativeRule: "Close only after sequence, latency, date facets, residue, mystery boundaries, and outcomes have steward-authored substance or governed routing.",
+    why: "Temporal close prevents a checked timeline from replacing a worked chronology.",
+    goodMaterial: "Good close evidence names satisfied blockers, cards/proposals/debt/skips, explicit non-mutations, and the pass report that preserves the audit.",
+    guidanceDepth: "standard",
+    packageSources: [
+      "docs/worldbuilding-system/09_temporal_and_timeline_protocol.md",
+      "docs/worldbuilding-system/21_templates_index.md"
+    ]
+  }),
+  card({
+    key: "temporal.read-side-trail",
+    flowKey: "temporal_timeline",
+    decisionPoint: "Temporal read-side trail",
+    decision: "Follow the pass report, source, cards, proposals, debt, advisory artifacts, and skips after the decision.",
+    operativeRule: "Temporal outcomes remain auditable through record links and read-side trails rather than hidden browser state.",
+    why: "The steward must be able to see how a timing pass created or routed later work.",
+    goodMaterial: "A good trail links the pass report, source record, timeline cards, surfaced proposals, canon debt, skipped instruments, and consulted advisory material.",
+    guidanceDepth: "lean",
+    packageSources: [
+      "docs/worldbuilding-system/09_temporal_and_timeline_protocol.md",
+      "docs/principles/data-principles.md"
+    ]
+  }),
+  card({
     key: "stage12.entry",
     flowKey: "institutional_economic_suppression",
     decisionPoint: "Stage 12 run entry",
