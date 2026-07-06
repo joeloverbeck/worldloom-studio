@@ -8,14 +8,14 @@ A skill exists to wrangle determinism out of a stochastic system. **Predictabili
 
 **Bold terms** are defined in [`GLOSSARY.md`](GLOSSARY.md); look them up there for the full meaning.
 
-**Writing one from zero?** These are levers, not a sequence — but a serviceable order is: settle **invocation** first (it sets what every other choice costs), mine the **leading words** you already say when you want the skill, draft, then prune and self-check the draft against the **failure modes** below. Editing an existing skill, jump straight to the lever at issue.
+**Writing one from zero?** These are levers, not a sequence — but a serviceable order is: settle **invocation** first (it sets what every other choice costs), mine the **leading words** you already say when you want the skill, draft, then prune and self-check the draft against the **failure modes** below. If the skill names anything in the codebase — files, symbols, flows, selectors, IDs — verify every reference against the live repo before shipping; a pointer to a target that doesn't exist is a silent variance bug that misfires the same way every run. Editing an existing skill, jump straight to the lever at issue.
 
 ## Invocation
 
 Two choices, trading different costs:
 
 - A **model-invoked** skill keeps a **description**, so the agent can fire it autonomously _and_ other skills can reach it (you can still type its name too). It contributes to **context load** — the description sits in the window every turn. Mechanics: omit `disable-model-invocation`, and write a model-facing description with rich trigger phrasing ("Use when the user wants…, mentions…").
-- A **user-invoked** skill strips the description from the agent's reach: only you, typing its name, can invoke it — and no other skill can. Zero context load, but it spends **cognitive load**: _you_ are the index that must remember it exists. Mechanics: set `disable-model-invocation: true`; the `description` becomes human-facing — a one-line summary, trigger lists stripped.
+- A **user-invoked** skill strips the description from the agent's reach: only you, typing its name, can invoke it — and no other skill can. Zero context load, but it spends **cognitive load**: _you_ are the index that must remember it exists. Mechanics: set `disable-model-invocation: true`; the `description` becomes human-facing — a single sentence with trigger lists stripped. The constraint is on triggers, not length: it may be richly descriptive, since it is the human's only cue for what the skill does.
 
 Pick model-invocation only when the agent must reach the skill on its own, or another skill must. If it only ever fires by hand, make it user-invoked and pay no context load.
 
@@ -43,7 +43,7 @@ A demanding completion criterion drives thorough **legwork** — the digging the
 
 Push too little down and the top bloats; push too much and you hide material the agent actually needs. That tension is the whole decision.
 
-**Progressive disclosure** is the move down the ladder — out of `SKILL.md` into a linked file — so the top stays legible. Mechanics: a linked `.md` file in the skill folder, named for what it holds (this skill discloses its full definitions to `GLOSSARY.md`). Some skills are used in more than one way, and each distinct way is a **branch** — different runs taking different paths through the skill. Branching is the cleanest disclosure test: inline what every branch needs, and push behind a pointer what only some branches reach. A **context pointer**'s _wording_, not its target, decides when and how reliably the agent reaches the material.
+**Progressive disclosure** is the move down the ladder — out of `SKILL.md` into a linked file — so the top stays legible. Mechanics: a linked `.md` file in the skill folder, named for what it holds (this skill discloses its full definitions to `GLOSSARY.md`). Some skills are used in more than one way, and each distinct way is a **branch** — different runs taking different paths through the skill. Branching is the cleanest disclosure test: inline what every branch needs, and push behind a pointer what only some branches reach. A **context pointer**'s _wording_, not its target, decides when and how reliably the agent reaches the material — but that presumes the target exists: confirm every pointer resolves to real, current material, since one aimed at a stale or absent target fails silently.
 
 Where the ladder decides _how far down_ a piece sits, **co-location** decides _what sits beside it_ once there: keep a concept's definition, rules, and caveats under one heading rather than scattered, so reading one part brings its neighbours with it.
 
@@ -53,6 +53,8 @@ Where the ladder decides _how far down_ a piece sits, **co-location** decides _w
 
 - **By invocation** — split off a **model-invoked** skill when you have a distinct **leading word** that should trigger it on its own, or another skill must reach it. You pay **context load** for the new always-loaded **description**, so that independent reach has to be worth it.
 - **By sequence** — split a run of **steps** when the steps still ahead (a step's **post-completion steps**) tempt the agent to rush the one in front of it (**premature completion**). Keeping them out of view encourages the agent to do more **legwork** on the current task.
+
+Writing a skill that deliberately parallels an existing one — a sibling in a family — mirror its section structure and vocabulary so a reader who knows one knows the other, sparing the human a fresh shape to learn per sibling (a **cognitive load** saving). Diverge only where the **leading word** or purpose genuinely differs; divergence for its own sake spends that saving for nothing.
 
 ## Pruning
 

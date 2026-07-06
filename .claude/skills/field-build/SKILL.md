@@ -23,7 +23,7 @@ Three roles, kept honest:
 - **Get the essence.** The user's world seed *is* the world's essence — the generating tension the world exists to explore (`05` Phase 1). If the invocation carried no seed, ask for one before anything else; a one-line premise is enough (e.g. "sentient humanoid animals; a skill-and-grit sport resolves the disputes war doesn't"). Never proposal-mode the essence — `20` reserves it to the steward and the app refuses proposal on the kernel World premise; you author it from the user's words.
 - **Read the frontier.** If a prior `reports/field-build-*.md` or its live log exists for this seed, read it: the world's name, which stages are walked, where to resume. No prior run ⇒ this is run `01`, a cold start.
 - **Baseline the worktree.** Run `git status --short` before the walk and record existing dirt in the live log, so you never later claim it.
-- **Start or reuse the app.** If no repo-root dev server answers, run `pnpm dev` in the background (builds `@worldloom/shared`, Hono API on `127.0.0.1:4173`, Vite UI on `127.0.0.1:5173` with `/api` proxied); `pnpm install --frozen-lockfile` first if deps are missing. Reuse a running server only after verifying UI and API answer, and record the reuse and observed URLs. If Vite drifts off `5173`, use and log the actual URL.
+- **Start or reuse the app.** If no repo-root dev server answers, run `pnpm dev` in the background (builds `@worldloom/shared`, Hono API on `127.0.0.1:4173`, Vite UI on `127.0.0.1:5173` with `/api` proxied); `pnpm install --frozen-lockfile` first if deps are missing. Reuse a running server only after verifying UI and API answer, and record the reuse and observed URLs. If Vite drifts off `5173`, use and log the actual URL. If the server prints healthy URLs but the browser or `curl` context cannot reach them, treat it as a local binding/sandbox-visibility blocker: log the printed and observed URLs, restart or reuse the server from a context visible to browser automation with approval as needed, then continue.
 - **Open browser automation** at the live Vite URL and screenshot the entry screen.
 - **Open a live log** at `/tmp/worldloom-field-build/build-log.md` (or the scratchpad): append-only, raw. It is the build's evidence trail and its resume point, not the deliverable — polish belongs in the report.
 - **Create or reopen the world.** There is no URL routing and no separate "world name" field — a world is a local SQLite file identified by its path. On the setup panel, type a stable path (e.g. `…/<world-slug>.worldloom.sqlite`) into **World file path** and click **Create world** (run 01) or **Open world** (resume); record the path — resumes must reopen the same file. On success the app switches to the Workflow-map home.
@@ -35,7 +35,7 @@ Three roles, kept honest:
 
 Follow the operating-card **new-world path** (crosswalk below) in order: kernel → seed decomposition → seed audit → admission → propagation → the specialized passes each admitted fact actually triggers → QA. Read the doctrine files (`01`, `03`) so you author faithfully; the reference files (`02`, `19`, `21`–`23`) are consulted, not walked.
 
-A **decision point** is one coherent block of material the method asks you to author — W-1's prompt grain and the app's `decision-point/v1` unit, not a single naked field. At each one, run this beat and log every line of it:
+A **decision point** is one coherent block of material the method asks you to author — W-1's prompt grain and the app's `decision-point/v1` unit, not a single naked field. For the kernel, treat the World premise as its own essence decision. The remaining kernel sections may be worked as one coherent kernel-authoring block unless the live app exposes section-specific decision-point packets; if it does, test those sections separately. If the app keeps a generic packet while a section is selected, one representative cold-LLM test is enough to log the binding gap instead of exploding the kernel into artificial single-field tests. At each decision point, run this beat and log every line of it:
 
 1. **Author (docs-first).** Read the governing protocol for this decision point. Author the material yourself from the essence and the current world state — your draft, *before* the app says anything. This is the steward judgment the whole loop serves.
 2. **Propose.** In the app, reach this decision point and find its prompt-out. Generate the **proposal** prompt (draft-candidate mode). *Confirm the preview renders* — the `Prompt-out preview` panel showing the packet text (anchor `pre.prompt-packet-text`, or the admin panel's textarea). **No visible preview is an app failure — log P.** Copy the packet verbatim, hand it to a **cold LLM** subagent (only the packet, no other context), and read the answer: fitting for *this* world's current state, or generic/off-tone? Then, as steward, select/edit/discard and author the surviving material into the real field — adoption is authorship; never paste a raw answer into a canon field. *(Essence exception: at the kernel World premise the app refuses proposal — that refusal is correct; log it a V and go to Pressure.)*
@@ -45,7 +45,7 @@ A **decision point** is one coherent block of material the method asks you to au
 6. **Log.** Write the decision point to the live log: your docs-first draft, the cold LLM's proposal answer, the cold LLM's pressure answer, the final field content you committed, each typed finding with its screenshot/DOM evidence, and the **obsolescence verdict** — could a steward with the docs *closed* have authored this decision as well from the app screens alone? If yes, the point is doc-obsolete (a V); if no, name exactly what the open docs supplied that the app didn't — that gap *is* the P/R/F finding.
 7. **Advance** to the next decision point.
 
-**Drive the UI; never infer a flow works from its code or tests.** Screenshot each screen; name shots `field-build-<NN>-<slug>` and record the names in the log. **Cold-LLM subagents get the packet and nothing else** — that isolation *is* the packet-context test; leaking world or doc context into them destroys the finding.
+**Drive the UI; never infer a flow works from its code or tests.** Screenshot each screen; name shots `field-build-<NN>-<slug>` and record the names in the log. **Cold-LLM subagents get the packet and nothing else** — that isolation *is* the packet-context test; leaking world or doc context into them destroys the finding. If a true fresh subagent/tool is unavailable, do not simulate the probe with the main agent's context; mark the prompt test blocked, log Q if the packet exists but the probe is unavailable, log P if the app failed to supply the packet, and carry that limitation into the report.
 
 ### The new-world-path crosswalk (verify against the live app + `docs/specs/workflow-map-and-navigation.md`)
 
@@ -84,6 +84,8 @@ Every P, R, and F marks a place the app still needs the docs open; every V marks
 
 When the walk ends (or the user halts it), consolidate the live log into `reports/field-build-<NN>-<world-slug>.md`. Carry **every** finding and **every** decision point — the log is the evidence a later `/to-prd` (app) or methodology-revision session lifts from without re-building.
 
+Preserve cold-LLM raw outputs verbatim in the live log or a named scratch evidence artifact. The report may inline short raw answers; for long answers, include a faithful excerpt or summary plus the artifact path. The report must expose the disposition and enough evidence to lift the finding later, but it does not need to paste every long token block inline.
+
 ```
 # Field Build <NN> — <world name>
 
@@ -105,8 +107,8 @@ For each `[P/R/M/F/V/Q]-NN` — one-line title. Severity: blocking | friction | 
 Per decision point, in walk order:
 - Stage / decision point:
 - Docs-first draft: <what you authored before the app>
-- Cold LLM (proposal): <raw answer, or "refused — essence">
-- Cold LLM (pressure): <raw challenge>
+- Cold LLM (proposal): <raw answer when short; otherwise faithful excerpt/summary + artifact path, or "refused — essence">
+- Cold LLM (pressure): <raw challenge when short; otherwise faithful excerpt/summary + artifact path>
 - Committed: <final field content>
 - Obsolescence verdict: <docs-obsolete (V) — app carried it | docs still needed: what the app failed to carry → finding IDs>
 
@@ -122,11 +124,13 @@ Cluster the M findings; name the doc file and the wording to revise. This is the
 - World state: …
 ```
 
-**Complete when:** report written under `reports/field-build-<NN>-<world-slug>.md`, every live-log finding and decision point carried in, the Frontier block set, and `git status --short` shows no newly introduced repo dirt except the report (the world SQLite file lives at its recorded path, uncommitted unless the user asks).
+At closeout, stop any dev server started solely for this build unless the user asked to keep it running; close or release cold-subagent sessions; and record any intentionally running server in the final note.
+
+**Complete when:** report written under `reports/field-build-<NN>-<world-slug>.md`, every live-log finding and decision point carried in, the Frontier block set, closeout cleanup handled, and `git status --short` shows no newly introduced repo dirt except the report (the world SQLite file lives at its recorded path, uncommitted unless the user asks).
 
 ## Guardrails
 
-- **The cold LLM stays cold.** Its only input is the app's generated packet. The moment world context, the docs, or this conversation leak in, the packet-context finding vanishes and the report lies.
+- **The cold LLM stays cold.** Its only input is the app's generated packet. The moment world context, the docs, or this conversation leak in, the packet-context finding vanishes and the report lies. If you cannot get a genuinely cold subagent, mark the probe blocked rather than answering it yourself.
 - **Adoption is authorship.** A cold-LLM answer is candidate material; keep only what you'd defend as your own and author it in your own wording into the real field. Never paste a raw answer into a canon field, and never let the essence be proposal-generated.
 - **Drive, don't infer.** Parity and prompt-out are settled in the running UI, never from source or tests.
 - **Build for real; drive toward doc-obsolescence.** The world is the vehicle; the report's job is to close the gap between the app today and an app that makes the docs unnecessary — and to keep the standard itself clean, since a flawed source can't be faithfully encoded. Log methodology-source friction (M) as seriously as app friction (F).
