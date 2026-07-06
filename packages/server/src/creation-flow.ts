@@ -29,6 +29,14 @@ export interface CreationBlocker {
   requires: string;
 }
 
+interface CreationReadinessItem {
+  key: string;
+  label: string;
+  status: "satisfied" | "blocked";
+  message: string;
+  remediation: string;
+}
+
 interface CreationDecisionPayload {
   methodCard: MethodCard;
   flow: {
@@ -59,6 +67,7 @@ interface CreationDecisionPayload {
     skippable: string[];
   };
   blockers: CreationBlocker[];
+  decompositionReadiness: CreationReadinessItem[];
   promptOut: {
     available: boolean;
     blocker: string | null;
@@ -170,6 +179,9 @@ const kernelMaterialPresent = (kernel: RecordRow | null, sections: SectionRow[])
 
 const isWorldPremiseStep = (currentStep: string): boolean => currentStep === "kernel:World premise";
 
+const selectedKernelHeading = (currentStep: string): string | null =>
+  currentStep.startsWith("kernel:") ? currentStep.slice("kernel:".length) : null;
+
 const sectionPrompts = (worldFile: WorldFile): CreationDecisionPayload["sectionPrompts"] =>
   worldFile.sectionHeadings("world_kernel").map((row) => {
     const heading = String((row as { heading: string }).heading);
@@ -180,9 +192,72 @@ const sectionPrompts = (worldFile: WorldFile): CreationDecisionPayload["sectionP
         ? "required"
         : OPTIONAL_KERNEL_SECTIONS.has(heading)
           ? "allowed-empty"
-          : "optional"
+      : "optional"
     };
   });
+
+const selectedSectionContext = (worldFile: WorldFile, sections: SectionRow[], currentStep: string) => {
+  const heading = selectedKernelHeading(currentStep);
+  if (!heading) return null;
+  const prompt = sectionPrompts(worldFile).find((item) => item.heading === heading);
+  if (!prompt) return null;
+  return {
+    ...prompt,
+    body: sections.find((section) => section.heading === heading)?.body.trim() ?? ""
+  };
+};
+
+const readiness = (
+  mode: string | null,
+  input?: { seeds?: AdmissionSeedInput[]; granularityRationale?: string }
+): CreationReadinessItem[] => {
+  const firstSeed = input?.seeds?.[0];
+  const granularitySatisfied = Boolean(input?.granularityRationale?.trim()) || Boolean(input?.seeds?.length && input.seeds.every((seed) => seed.granularityConfirmed));
+  const item = (key: string, label: string, satisfied: boolean, message: string, remediation: string): CreationReadinessItem => ({
+    key,
+    label,
+    status: satisfied ? "satisfied" : "blocked",
+    message: satisfied ? `${label} ready.` : message,
+    remediation
+  });
+  return [
+    item(
+      "consequence_mode",
+      "Consequence mode",
+      Boolean(mode),
+      "Seed decomposition is blocked until the steward explicitly selects consequence mode.",
+      "Select consequence mode in kernel authoring; the app must not infer it from prose."
+    ),
+    item(
+      "seed_title",
+      "Seed title",
+      hasText(firstSeed?.title),
+      "Seed parking is blocked until the steward enters a seed title.",
+      "Enter the smallest precise seed title before parking."
+    ),
+    item(
+      "seed_body",
+      "Seed body",
+      hasText(firstSeed?.body),
+      "Seed parking is blocked until the steward enters seed body material.",
+      "Enter the seed body in steward-authored wording."
+    ),
+    item(
+      "truth_layer",
+      "Truth layer",
+      hasText(firstSeed?.truthLayer),
+      "Seed parking is blocked until the steward chooses a truth layer.",
+      "Choose the seed truth layer as steward judgment; the app must not infer it from prose."
+    ),
+    item(
+      "granularity_confirmation",
+      "Granularity confirmation",
+      granularitySatisfied,
+      "Seed parking is blocked until the steward supplies granularity rationale or confirms the seed can stand independently.",
+      "Add granularity rationale or check the confirmation after applying the Phase 2 granularity rule."
+    )
+  ];
+};
 
 const trail = (kernel: RecordRow | null, report?: RecordRow, records: RecordRow[] = []): CreationDecisionPayload["readSideTrail"] => [
   { label: "Current Canon", href: "/api/canon-workbench/current" },
@@ -196,7 +271,8 @@ const trail = (kernel: RecordRow | null, report?: RecordRow, records: RecordRow[
 export const creationDecisionPoint = (
   worldFile: WorldFile,
   flowInput: FlowInstanceRow,
-  output: { report?: RecordRow; records?: RecordRow[] } = {}
+  output: { report?: RecordRow; records?: RecordRow[] } = {},
+  decompositionInput?: { seeds?: AdmissionSeedInput[]; granularityRationale?: string }
 ): CreationDecisionPayload => {
   const flow = flowRow(flowInput);
   const kernel = flow.kernel_record_id == null ? null : worldFile.getRecord(flow.kernel_record_id);
@@ -205,11 +281,14 @@ export const creationDecisionPoint = (
   const materialPresent = kernelMaterialPresent(kernel, sections);
   const currentStep = flow.current_step;
   const decompositionStep = currentStep.startsWith("decomposition");
+  const selectedSection = selectedSectionContext(worldFile, sections, currentStep);
   const handoff = creationHandoffContext(worldFile, kernel, output);
   const decompositionPromptReady = Boolean(handoff.seedDecompositionReport && handoff.parkedSeeds.length);
   const localDecision = decompositionStep
     ? "Split broad steward material into smaller seed facts that can be independently rejected."
-    : "Define the world's first governing kernel or pressure seed.";
+    : selectedSection
+      ? `Define the world's first governing kernel section: ${selectedSection.heading}.`
+      : "Define the world's first governing kernel or pressure seed.";
   const cardValue = methodCard(decompositionStep ? "creation.seed-decomposition" : "creation.kernel");
   const cardDoctrineSlots = methodCardDoctrineSlots(cardValue);
   const blockers: CreationBlocker[] = [];
@@ -249,7 +328,11 @@ export const creationDecisionPoint = (
         handoff.supportingKernel ? `Supporting kernel ${handoff.supportingKernel.shortId}: ${handoff.supportingKernel.title}` : ""
       ].filter(Boolean).join("\n\n")
     : [
-        kernel ? `${kernel.shortId} ${kernel.title}` : "No kernel record yet.",
+        selectedSection ? `Selected kernel section: ${selectedSection.heading}` : "",
+        selectedSection ? `Section obligation: ${selectedSection.obligation}` : "",
+        selectedSection ? `Section prompt: ${selectedSection.prompt}` : "",
+        selectedSection ? `Selected section material: ${selectedSection.body || "(empty)"}` : "",
+        kernel ? `Kernel record: ${kernel.shortId} ${kernel.title}` : "No kernel record yet.",
         kernelText(sections)
       ].filter(Boolean).join("\n");
   const sourceManifest = decompositionStep && decompositionPromptReady
@@ -261,6 +344,11 @@ export const creationDecisionPoint = (
         "Omissions: Frontloaded seed audit and Admission gate results do not exist inside Creation."
       ]
     : [
+        ...(selectedSection ? [
+          `Selected kernel section: ${selectedSection.heading}`,
+          `Section prompt: ${selectedSection.prompt}`,
+          `Section obligation: ${selectedSection.obligation}`
+        ] : []),
         ...(kernel ? [`Record ${kernel.shortId}: ${kernel.title}`] : []),
         ...methodCardSourceManifest(cardValue),
         "Omissions: no Admission gate results exist inside Creation."
@@ -484,6 +572,7 @@ export const creationDecisionPoint = (
       skippable: ["Prompt-out advisory pressure can be declined with a skip_record"]
     },
     blockers,
+    decompositionReadiness: readiness(mode, decompositionInput),
     promptOut: {
       available: promptAvailable,
       blocker: promptAvailable
@@ -595,7 +684,7 @@ export const decomposeSeeds = (
   input: { flowId: number; kernelRecordId: number; draftIds?: number[]; seeds: AdmissionSeedInput[]; granularityRationale?: string; admissionIntent?: string }
 ): unknown => {
   const flowBefore = flowRow(worldFile.getFlowInstance(input.flowId, "creation"));
-  const preflightDecision = creationDecisionPoint(worldFile, flowBefore);
+  const preflightDecision = creationDecisionPoint(worldFile, flowBefore, {}, input);
   if (flowBefore.kernel_record_id == null) {
     throw new CreationFlowBlockedError("seed decomposition requires the active Creation flow kernel", preflightDecision);
   }
@@ -609,13 +698,13 @@ export const decomposeSeeds = (
   if (!input.seeds.length) {
     throw new CreationFlowBlockedError("seed decomposition requires at least one seed", preflightDecision);
   }
-  if (!input.granularityRationale?.trim() && !input.seeds.every((seed) => seed.granularityConfirmed)) {
-    throw new CreationFlowBlockedError("seed decomposition requires granularity rationale or confirmation", preflightDecision);
-  }
   for (const seed of input.seeds) {
     if (!seed.title?.trim()) throw new CreationFlowBlockedError("seed decomposition requires seed title", preflightDecision);
     if (!seed.body?.trim()) throw new CreationFlowBlockedError("seed decomposition requires seed body", preflightDecision);
     if (!seed.truthLayer?.trim()) throw new CreationFlowBlockedError("seed decomposition requires truth layer", preflightDecision);
+  }
+  if (!input.granularityRationale?.trim() && !input.seeds.every((seed) => seed.granularityConfirmed)) {
+    throw new CreationFlowBlockedError("seed decomposition requires granularity rationale or confirmation", preflightDecision);
   }
   const kernel = worldFile.getRecord(flowBefore.kernel_record_id);
   const drafts = (input.draftIds ?? []).map((id) => worldFile.getDraft(id));

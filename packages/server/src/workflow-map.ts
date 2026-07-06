@@ -64,15 +64,30 @@ const queue = (
   summary: string
 ): WorkflowMapQueue => ({ key, label, count, destinationKey, href, summary });
 
-const destinations = (activeDestination: string | null, owedDestinations: Set<string>): WorkflowMapDestination[] => [
-  { key: "creation", label: "Creation", kind: "guided-flow", summary: "Kernel, seed decomposition, and the Minimal Viable World checkpoint.", state: owedDestinations.has("creation") ? "owed" : activeDestination === "creation" ? "active" : "available" },
-  { key: "admission", label: "Admission", kind: "guided-flow", summary: "Govern proposed facts into canon standing.", state: activeDestination === "admission" ? "active" : "available" },
-  { key: "propagation", label: "Propagation", kind: "guided-flow", summary: "Work shock cones and consequence dispositions.", state: owedDestinations.has("propagation") ? "owed" : activeDestination === "propagation" ? "active" : "available" },
-  { key: "constraint", label: "Constraint Composition", kind: "guided-flow", summary: "Compose constraints where facts apply.", state: activeDestination === "constraint" ? "active" : "available" },
-  { key: "temporal", label: "Temporal/Timeline", kind: "guided-flow", summary: "Conditional `09` pass for first appearance, discovery, institutional reaction, retcon, inheritance, war, migration, law, aging, or evidence implications.", state: owedDestinations.has("temporal") ? "owed" : activeDestination === "temporal" ? "active" : "available" },
-  { key: "stage12", label: "Institutional / Economic / Suppression", kind: "guided-flow", summary: "Run conditional institutional, economic, and suppression passes.", state: activeDestination === "stage12" ? "active" : "available" },
-  { key: "contradiction", label: "Contradiction/Retcon/Mystery", kind: "guided-flow", summary: "Repair conflicts and protect owed mystery boundaries.", state: owedDestinations.has("contradiction") ? "owed" : activeDestination === "contradiction" ? "active" : "available" },
-  { key: "qa", label: "QA", kind: "guided-flow", summary: "Score stability before calling the world stable.", state: activeDestination === "qa" ? "active" : "available" },
+const destinationState = (
+  key: string,
+  activeDestination: string | null,
+  owedDestinations: Set<string>,
+  stageStates: Map<string, WorkflowMapStage["state"]>
+): WorkflowMapDestination["state"] => {
+  if (owedDestinations.has(key)) return "owed";
+  if (activeDestination === key) return "active";
+  return stageStates.get(key) ?? "not_yet_earned";
+};
+
+const destinations = (
+  activeDestination: string | null,
+  owedDestinations: Set<string>,
+  stageStates: Map<string, WorkflowMapStage["state"]>
+): WorkflowMapDestination[] => [
+  { key: "creation", label: "Creation", kind: "guided-flow", summary: "Kernel, seed decomposition, and the Minimal Viable World checkpoint.", state: destinationState("creation", activeDestination, owedDestinations, stageStates) },
+  { key: "admission", label: "Admission", kind: "guided-flow", summary: "Govern proposed facts into canon standing.", state: destinationState("admission", activeDestination, owedDestinations, stageStates) },
+  { key: "propagation", label: "Propagation", kind: "guided-flow", summary: "Work shock cones and consequence dispositions.", state: destinationState("propagation", activeDestination, owedDestinations, stageStates) },
+  { key: "constraint", label: "Constraint Composition", kind: "guided-flow", summary: "Compose constraints where facts apply.", state: destinationState("constraint", activeDestination, owedDestinations, stageStates) },
+  { key: "temporal", label: "Temporal/Timeline", kind: "guided-flow", summary: "Conditional `09` pass for first appearance, discovery, institutional reaction, retcon, inheritance, war, migration, law, aging, or evidence implications.", state: destinationState("temporal", activeDestination, owedDestinations, stageStates) },
+  { key: "stage12", label: "Institutional / Economic / Suppression", kind: "guided-flow", summary: "Run conditional institutional, economic, and suppression passes.", state: destinationState("stage12", activeDestination, owedDestinations, stageStates) },
+  { key: "contradiction", label: "Contradiction/Retcon/Mystery", kind: "guided-flow", summary: "Repair conflicts and protect owed mystery boundaries.", state: destinationState("contradiction", activeDestination, owedDestinations, stageStates) },
+  { key: "qa", label: "QA", kind: "guided-flow", summary: "Score stability before calling the world stable.", state: destinationState("qa", activeDestination, owedDestinations, stageStates) },
   { key: "canon-workbench", label: "Canon Workbench", kind: "read-side", summary: "Read current canon and audit trail.", state: "available" },
   { key: "markdown-export", label: "Markdown export", kind: "read-side", summary: "Export record views without mutating the world.", state: "available" },
   { key: "substrate", label: "Substrate", kind: "substrate", summary: "Generic records, links, search, draft space, and Prompt-out admin.", state: "available" }
@@ -159,6 +174,19 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
       worldHasCanonMaterial ? "Run QA once enough world material exists to assess." : "World material must exist before QA can assess it."
     )
   ];
+  const stateForStage = (key: string): WorkflowMapStage["state"] =>
+    stages.find((item) => item.key === key)?.state ?? "not_yet_earned";
+  const conditionalState = stateForStage("conditional-passes");
+  const stageStates = new Map<string, WorkflowMapStage["state"]>([
+    ["creation", stateForStage("creation")],
+    ["admission", stateForStage("admission")],
+    ["propagation", stateForStage("propagation")],
+    ["constraint", conditionalState],
+    ["temporal", temporalDebt.length > 0 ? "owed" : conditionalState],
+    ["stage12", conditionalState],
+    ["contradiction", stateForStage("contradiction")],
+    ["qa", stateForStage("qa")]
+  ]);
 
   const queues = [
     queue("admission", "Admission queue", admissionQueue.length, "admission", "/api/admission/queue", "Proposed or under-review facts awaiting governance."),
@@ -189,7 +217,7 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
     stages,
     queues,
     nextDecision,
-    destinations: destinations(activeDestination, owedDestinations),
+    destinations: destinations(activeDestination, owedDestinations, stageStates),
     methodCards: workflowMapMethodCards()
   };
 };

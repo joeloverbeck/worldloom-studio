@@ -35,6 +35,7 @@ For each meaningful step, specify:
 - source records, dependencies, standing rulings, open debt, skips, and contradictions shown;
 - prompt packet role, preview, context sources, omissions, and advisory/canon warning;
 - blockers and substance validations;
+- action-failure recovery for guided-flow write actions: where a server-returned blocker or action failure appears in the browser, which entered inputs are preserved, and which remediation text or route is visible near the failed action;
 - skip rule, skip record, and reason threshold;
 - writes, links, queue entries, reports, or explicit non-mutations;
 - next step plus exit/resume behavior;
@@ -61,6 +62,7 @@ At least one representative scenario must show:
 - source doctrine at the decision point;
 - required/optional/severity-dependent obligations;
 - blocker or skip behavior when in scope;
+- server-returned action failure recovery when the slice includes a guided-flow write action: error near the action, entered input preserved, and remediation visible without console or network tooling;
 - prompt packet preview when prompt-out is in scope;
 - resulting record, link, queue item, report, audit item, or explicit non-mutation.
 
@@ -72,7 +74,8 @@ State the task a new steward is trying to complete, then answer:
 2. Can the steward see why the package asks for it?
 3. Can the steward distinguish required, optional, skippable, and severity-dependent work?
 4. Can the steward predict what the app will write or route?
-5. Can the steward recover after exit/resume?
+5. If the slice includes a write or action, can the steward recover after a failed action without losing entered material?
+6. Can the steward recover after exit/resume?
 
 ## Field Evidence and Untested Surfaces
 
@@ -91,3 +94,5 @@ State the task a new steward is trying to complete, then answer:
 ## Principles
 
 Name touched principle documents and affirm non-contradiction. Guided-flow specs normally touch `charter.md`, `canon-sovereignty.md`, `domain-fidelity.md`, `workflow-principles.md`, `guided-workflow-usability.md`, and `data-principles.md`.
+
+This template generalizes inline recovery as reviewer/spec guidance only. It does not add a test-framework requirement, a repo-wide browser/e2e hard gate, or the deferred composite/nested decision-point W-8 clarification.

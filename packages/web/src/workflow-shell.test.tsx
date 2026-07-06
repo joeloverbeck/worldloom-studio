@@ -44,6 +44,8 @@ describe("workflow map shell", () => {
     expect(html).toContain("No world kernel exists yet.");
     expect(html).toContain("Admission queue");
     expect(html).toContain("Owed boundaries");
+    expect(html).toContain("not yet earned");
+    expect(html).toContain("available");
     expect(html).toContain("Canon Workbench");
     expect(html).toContain("Substrate");
     expect(html).not.toContain("New record");

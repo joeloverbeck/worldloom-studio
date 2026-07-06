@@ -113,6 +113,7 @@ describe("Creation decision-point HTTP surface", () => {
           available: boolean;
           templateKey: string;
           stepKey: string;
+          modes: Array<{ mode: string; availability: string; blocker: string | null; stepRequest: unknown }>;
           stepRequest: { method: string; href: string; body: { flowKey: string; flowId: number; recordId: number; templateKey: string; stepKey: string } };
           preview: { currentDecision: string; contextPreview: string; sourceManifest: string[]; advisoryCanonWarning: string; omissions: string[] };
         };
@@ -163,6 +164,19 @@ describe("Creation decision-point HTTP surface", () => {
         omissions: expect.not.arrayContaining([expect.stringContaining("Selected record: none")])
       }
     });
+    expect(saved.decisionPoint.promptOut.modes).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        mode: "proposal",
+        availability: "blocked",
+        blocker: expect.stringContaining("World premise"),
+        stepRequest: null
+      }),
+      expect.objectContaining({
+        mode: "pressure",
+        availability: "available",
+        blocker: null
+      })
+    ]));
     expect(saved.decisionPoint.writeIntent).toMatchObject({
       willWrite: expect.arrayContaining(["section update on one living world_kernel record"]),
       willRouteOnward: expect.arrayContaining(["Seed decomposition once seed material, truth layer, consequence mode, and granularity confirmation are present"])
@@ -184,6 +198,104 @@ describe("Creation decision-point HTTP surface", () => {
     expect(generated.prompt).toContain("Package source: docs/worldbuilding-system/templates/world_kernel.md");
     expect(generated.prompt).toContain("Package source: docs/worldbuilding-system/20_ai_assisted_workflow.md");
     expect(generated.prompt).not.toContain("Selected record: none");
+  });
+
+  it("assembles selected-section kernel packets and input-specific decomposition readiness", async () => {
+    const app = await openWorld();
+    const start = await json<{ flow: { id: number } }>(await app.request("/api/flows/creation/start", { method: "POST" }));
+    const saved = await json<{
+      kernel: { id: number };
+      decisionPoint: {
+        currentStep: string;
+        decompositionReadiness: Array<{ key: string; status: string; remediation: string }>;
+        promptOut: {
+          modes: Array<{ mode: string; availability: string; blocker: string | null; stepRequest: { method: "POST"; href: string; body: Record<string, unknown> } | null }>;
+          preview: { currentDecision: string; contextPreview: string; sourceManifest: string[]; omissions: string[] };
+        };
+      };
+    }>(await app.request("/api/flows/creation/kernel-step", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        flowId: start.flow.id,
+        heading: "Starting scale",
+        body: "One river city and its drowned courthouse.",
+        consequenceMode: "weird"
+      })
+    }));
+
+    expect(saved.decisionPoint.currentStep).toBe("kernel:Starting scale");
+    expect(saved.decisionPoint.promptOut.preview).toMatchObject({
+      currentDecision: expect.stringContaining("Starting scale"),
+      contextPreview: expect.stringContaining("Selected kernel section: Starting scale"),
+      sourceManifest: expect.arrayContaining([
+        "Selected kernel section: Starting scale",
+        "Section prompt: Name where the world starts; scale expands only when a fact forces it."
+      ]),
+      omissions: expect.not.arrayContaining([expect.stringContaining("generic kernel")])
+    });
+    expect(saved.decisionPoint.decompositionReadiness).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "consequence_mode", status: "satisfied" }),
+      expect.objectContaining({ key: "seed_title", status: "blocked" }),
+      expect.objectContaining({ key: "seed_body", status: "blocked" }),
+      expect.objectContaining({ key: "truth_layer", status: "blocked" }),
+      expect.objectContaining({ key: "granularity_confirmation", status: "blocked" })
+    ]));
+
+    const proposalMode = saved.decisionPoint.promptOut.modes.find((mode) => mode.mode === "proposal");
+    expect(proposalMode).toMatchObject({ availability: "available", blocker: null });
+    const step = await json<{ step: { actions: { generate: { method: "POST"; href: string } } } }>(await app.request(proposalMode?.stepRequest?.href ?? "", {
+      method: proposalMode?.stepRequest?.method ?? "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(proposalMode?.stepRequest?.body)
+    }));
+    const generated = await json<{ prompt: string }>(await app.request(step.step.actions.generate.href, {
+      method: step.step.actions.generate.method
+    }));
+    expect(generated.prompt).toContain("Current kernel section: Starting scale");
+    expect(generated.prompt).toContain("Selected section prompt: Name where the world starts; scale expands only when a fact forces it.");
+    expect(generated.prompt).toContain("Selected section material: One river city and its drowned courthouse.");
+    expect(generated.prompt).toContain("Draft labeled candidate material");
+    expect(generated.prompt).not.toContain("Flow creation, step creation:kernel_prompt; selected record");
+
+    const pressureMode = saved.decisionPoint.promptOut.modes.find((mode) => mode.mode === "pressure");
+    expect(pressureMode).toMatchObject({ availability: "available", blocker: null });
+    const pressureStep = await json<{ step: { actions: { generate: { method: "POST"; href: string } } } }>(await app.request(pressureMode?.stepRequest?.href ?? "", {
+      method: pressureMode?.stepRequest?.method ?? "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(pressureMode?.stepRequest?.body)
+    }));
+    const generatedPressure = await json<{ prompt: string }>(await app.request(pressureStep.step.actions.generate.href, {
+      method: pressureStep.step.actions.generate.method
+    }));
+    expect(generatedPressure.prompt).toContain("Current kernel section: Starting scale");
+    expect(generatedPressure.prompt).toContain("Selected section material: One river city and its drowned courthouse.");
+    expect(generatedPressure.prompt).toContain("Provide pressure, risks, alternatives, and questions on the selected Starting scale section");
+    expect(generatedPressure.prompt).toContain("Structural skeleton example (pressure mode)");
+    expect(generatedPressure.prompt).not.toContain("Flow creation, step creation:kernel_prompt; selected record");
+
+    const blocked = await app.request("/api/flows/creation/decompose", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        flowId: start.flow.id,
+        kernelRecordId: saved.kernel.id,
+        granularityRationale: "",
+        seeds: [{ title: "Echo court testimony", body: "", truthLayer: "", granularityConfirmed: false }]
+      })
+    });
+    expect(blocked.status).toBe(400);
+    const blockedPayload = await json<{
+      error: string;
+      decisionPoint: { decompositionReadiness: Array<{ key: string; status: string; remediation: string }> };
+    }>(blocked);
+    expect(blockedPayload.error).toContain("seed body");
+    expect(blockedPayload.decisionPoint.decompositionReadiness).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "seed_title", status: "satisfied" }),
+      expect.objectContaining({ key: "seed_body", status: "blocked", remediation: expect.stringContaining("body") }),
+      expect.objectContaining({ key: "truth_layer", status: "blocked", remediation: expect.stringContaining("truth layer") }),
+      expect.objectContaining({ key: "granularity_confirmation", status: "blocked", remediation: expect.stringContaining("granularity") })
+    ]));
   });
 
   it("blocks decomposition until required steward choices are visible and parks seeds at proposed", async () => {

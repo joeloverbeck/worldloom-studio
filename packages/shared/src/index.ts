@@ -30,7 +30,7 @@ export interface HealthPayload {
 
 export type WorkflowMapStageState = "done" | "active" | "owed" | "blocked" | "not_yet_earned";
 export type WorkflowMapDestinationKind = "guided-flow" | "read-side" | "substrate";
-export type WorkflowMapDestinationState = "active" | "available" | "owed" | "blocked" | "not_yet_earned";
+export type WorkflowMapDestinationState = "done" | "active" | "available" | "owed" | "blocked" | "not_yet_earned";
 
 export interface WorkflowMapStage {
   key: string;

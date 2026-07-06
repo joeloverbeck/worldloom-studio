@@ -451,7 +451,8 @@ describe("shared decision-point contract", () => {
     expect(generated.prompt).toContain("Proposal mode");
     expect(generated.prompt).toContain("labeled candidate");
     expect(generated.prompt).toContain("forbid");
-    expect(generated.prompt).toContain("adopted with steward revision");
+    expect(generated.prompt).toContain("standing-ruling candidate");
+    expect(generated.prompt).toContain("off-section");
     expect(generated.prompt).toContain("Source manifest:");
     expect(generated.prompt).toContain("Advisory/canon warning");
 

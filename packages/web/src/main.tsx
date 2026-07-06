@@ -688,6 +688,13 @@ interface CreationDecisionPoint {
     skippable: string[];
   };
   blockers: Array<{ key: string; label: string; message: string; requires: string }>;
+  decompositionReadiness: Array<{
+    key: string;
+    label: string;
+    status: "satisfied" | "blocked";
+    message: string;
+    remediation: string;
+  }>;
   promptOut: {
     available: boolean;
     blocker: string | null;
@@ -1060,6 +1067,43 @@ const defaultCreationDecision: CreationDecisionPoint = {
     { key: "kernel_material", label: "Kernel material", message: "Creation Prompt-out and seed decomposition wait for steward-authored kernel material.", requires: "steward-authored kernel material" },
     { key: "consequence_mode", label: "Consequence mode", message: "Seed decomposition cannot proceed until the steward explicitly selects consequence mode.", requires: "explicit consequence mode" }
   ],
+  decompositionReadiness: [
+    {
+      key: "consequence_mode",
+      label: "Consequence mode",
+      status: "blocked",
+      message: "Seed decomposition is blocked until the steward explicitly selects consequence mode.",
+      remediation: "Select consequence mode in kernel authoring; the app must not infer it from prose."
+    },
+    {
+      key: "seed_title",
+      label: "Seed title",
+      status: "blocked",
+      message: "Seed parking is blocked until the steward enters a seed title.",
+      remediation: "Enter the smallest precise seed title before parking."
+    },
+    {
+      key: "seed_body",
+      label: "Seed body",
+      status: "blocked",
+      message: "Seed parking is blocked until the steward enters seed body material.",
+      remediation: "Enter the seed body in steward-authored wording."
+    },
+    {
+      key: "truth_layer",
+      label: "Truth layer",
+      status: "blocked",
+      message: "Seed parking is blocked until the steward chooses a truth layer.",
+      remediation: "Choose the seed truth layer as steward judgment; the app must not infer it from prose."
+    },
+    {
+      key: "granularity_confirmation",
+      label: "Granularity confirmation",
+      status: "blocked",
+      message: "Seed parking is blocked until the steward supplies granularity rationale or confirms the seed can stand independently.",
+      remediation: "Add granularity rationale or check the confirmation after applying the Phase 2 granularity rule."
+    }
+  ],
   promptOut: {
     available: false,
     blocker: "Creation Prompt-out requires steward-authored kernel material and a current kernel record.",
@@ -1295,6 +1339,7 @@ function App({
   const [admissionQueue, setAdmissionQueue] = useState<AdmissionQueueRow[]>(initialAdmissionQueue);
   const [admissionDecision, setAdmissionDecision] = useState<AdmissionDecisionPoint | null>(initialAdmissionDecision);
   const [creationDecision, setCreationDecision] = useState<CreationDecisionPoint | null>(initialCreationDecision);
+  const [decompositionError, setDecompositionError] = useState<string | null>(null);
   const [minimalViableWorld, setMinimalViableWorld] = useState<MinimalViableWorldState | null>(initialMinimalViableWorld);
   const [canonDebt, setCanonDebt] = useState<RecordRow[]>([]);
   const [propagationQueue, setPropagationQueue] = useState<PropagationQueueRow[]>([]);
@@ -1434,6 +1479,7 @@ function App({
   const [promptRecordId, setPromptRecordId] = useState("");
   const [promptTemplateKey, setPromptTemplateKey] = useState("kernel_pressure");
   const [promptFlowKey, setPromptFlowKey] = useState<PromptFlowKey>("creation");
+  const [creationPromptMode, setCreationPromptMode] = useState<"proposal" | "pressure">("proposal");
   const [promptStep, setPromptStep] = useState<PromptOutStep | null>(null);
   const [promptText, setPromptText] = useState("");
   const [templateEdit, setTemplateEdit] = useState("");
@@ -1525,6 +1571,13 @@ function App({
   const displayedCreationDecision = creationDecision ?? defaultCreationDecision;
   const creationDecisionHandoff = creationDecision ? creationDecision.handoff : displayedCreationDecision.handoff;
   const creationHandoffReady = displayedCreationDecision.handoff.parkedSeeds.length > 0;
+  const creationPromptModes = displayedCreationDecision.promptOut.modes ?? [];
+  const selectedCreationPromptMode = creationPromptModes.find((mode) => mode.mode === creationPromptMode)
+    ?? creationPromptModes[0]
+    ?? null;
+  const loadedCreationPromptMode = promptStep?.context.flowKey === "creation" && promptStep.context.stepKey === displayedCreationDecision.promptOut.stepKey
+    ? promptStep.mode ?? null
+    : null;
   const minimalSeedOptions = minimalViableWorld?.checkpoint.coverageSignals.admittedSeeds ?? [];
   const minimalDimensionOptions = minimalSeedOptions[0]?.dimensions ?? [];
   const displayedMinimalDecision = minimalViableWorld?.decisionPoint.sharedContract;
@@ -1961,9 +2014,16 @@ function App({
 
   const loadCreationPromptStep = async () => {
     if (!creationDecision?.promptOut.stepRequest && !creationDecision?.promptOut.modes?.some((mode) => mode.stepRequest)) return null;
-    const mode = creationDecision.promptOut.modes?.find((mode) => mode.available && mode.stepRequest) ?? null;
-    const request = mode?.stepRequest ?? creationDecision.promptOut.stepRequest;
-    if (!request) return null;
+    const selectedMode = creationDecision.promptOut.modes?.find((mode) => mode.mode === creationPromptMode) ?? null;
+    const request = selectedMode?.available && selectedMode.stepRequest
+      ? selectedMode.stepRequest
+      : selectedMode == null
+        ? creationDecision.promptOut.stepRequest
+        : null;
+    if (!request) {
+      setMessage(`${selectedMode?.label ?? "Creation Prompt-out"} is blocked: ${selectedMode?.blocker ?? "server returned no step request"}`);
+      return null;
+    }
     setPromptFlowKey("creation");
     setPromptTemplateKey(String(request.body.templateKey ?? creationDecision.promptOut.templateKey));
     setPromptRecordId(String(request.body.recordId ?? ""));
@@ -1972,8 +2032,8 @@ function App({
       body: JSON.stringify(request.body)
     });
     setPromptStep(payload.step);
-    setPromptText(creationDecision.promptOut.preview.promptText);
-    setMessage(`Loaded Creation Prompt-out step ${payload.step.label}`);
+    setPromptText(payload.step.currentState.promptText ?? creationDecision.promptOut.preview.promptText);
+    setMessage(`Loaded Creation Prompt-out step ${payload.step.label} (${payload.step.mode === "pressure" ? "Pressure mode" : "Proposal mode"})`);
     return payload.step;
   };
 
@@ -2057,23 +2117,35 @@ function App({
 
   const decompose = async () => {
     if (flowId == null || kernelRecordId == null) return;
-    const payload = await api<{ decisionPoint: CreationDecisionPoint }>("/api/flows/creation/decompose", {
-      method: "POST",
-      body: JSON.stringify({
-        flowId,
-        kernelRecordId,
-        granularityRationale,
-        admissionIntent,
-        seeds: [{ title: seedTitle, body: seedBody, truthLayer: seedTruthLayer, granularityConfirmed }]
-      })
-    });
-    setCreationDecision(payload.decisionPoint);
-    setSeedTitle("");
-    setSeedBody("");
-    setGranularityRationale("");
-    setGranularityConfirmed(false);
-    setAdmissionIntent("");
-    await loadWorldData();
+    try {
+      const payload = await api<{ decisionPoint: CreationDecisionPoint }>("/api/flows/creation/decompose", {
+        method: "POST",
+        body: JSON.stringify({
+          flowId,
+          kernelRecordId,
+          granularityRationale,
+          admissionIntent,
+          seeds: [{ title: seedTitle, body: seedBody, truthLayer: seedTruthLayer, granularityConfirmed }]
+        })
+      });
+      setCreationDecision(payload.decisionPoint);
+      setDecompositionError(null);
+      setSeedTitle("");
+      setSeedBody("");
+      setGranularityRationale("");
+      setGranularityConfirmed(false);
+      setAdmissionIntent("");
+      await loadWorldData();
+    } catch (error) {
+      if (error instanceof ApiError) {
+        const payload = error.payload as { error?: string; decisionPoint?: CreationDecisionPoint };
+        if (payload.decisionPoint) setCreationDecision(payload.decisionPoint);
+        setDecompositionError(payload.error ?? error.message);
+        setMessage(payload.error ?? error.message);
+        return;
+      }
+      throw error;
+    }
   };
 
   const loadMinimalViableWorld = async () => {
@@ -3525,12 +3597,13 @@ function App({
           </section>
           <section className="subpanel">
             <h3>Kernel authoring</h3>
-            <p>Consequence mode is steward judgment.</p>
+            <p>Consequence mode is steward judgment; the app does not infer, default, or silently reuse it.</p>
             <div className="grid compact-grid">
               <label>Kernel step<select value={kernelHeading} onChange={(event) => setKernelHeading(event.target.value)}>{displayedCreationDecision.sectionPrompts.map((prompt) => <option key={prompt.heading}>{prompt.heading}</option>)}</select></label>
+              <label>Consequence mode<select value={consequenceMode} onChange={(event) => setConsequenceMode(event.target.value)}><option></option>{consequenceModes.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
               <label>Kernel section<textarea rows={4} value={kernelBody} onChange={(event) => setKernelBody(event.target.value)} placeholder={displayedCreationDecision.sectionPrompts.find((prompt) => prompt.heading === kernelHeading)?.prompt} /></label>
-              {displayedCreationDecision.sectionPrompts.map((prompt) => (
-                <p key={prompt.heading} className="meta">{prompt.heading} · {prompt.obligation}</p>
+              {displayedCreationDecision.sectionPrompts.map((section) => (
+                <p key={section.heading} className="meta">{section.heading} · {section.obligation} · {section.prompt}</p>
               ))}
             </div>
             <button onClick={saveKernelStep} disabled={flowId == null}>Save kernel step</button>
@@ -3541,14 +3614,45 @@ function App({
             modes={displayedCreationDecision.promptOut.modes}
             preview={displayedCreationDecision.promptOut.preview}
             advisoryNote="Pasted responses remain advisory artifacts and do not mutate kernel sections, seed records, reports, or proposals without explicit steward use."
-            action={<button onClick={loadCreationPromptStep} disabled={!openWorld || (!creationDecision?.promptOut.stepRequest && !creationDecision?.promptOut.modes?.some((mode) => mode.stepRequest))}>Load Creation Prompt-out Step</button>}
+            action={
+              <div className="grid compact-grid">
+                <label>Prompt mode<select value={creationPromptMode} onChange={(event) => setCreationPromptMode(event.target.value as "proposal" | "pressure")}>
+                  {creationPromptModes.map((mode) => <option key={mode.mode} value={mode.mode}>{mode.label}</option>)}
+                </select></label>
+                <p className="status">{selectedCreationPromptMode
+                  ? `Selected mode: ${selectedCreationPromptMode.label} - ${selectedCreationPromptMode.available ? "available" : selectedCreationPromptMode.blocker ?? "blocked"}`
+                  : "Selected mode: loads from the server packet."}</p>
+                <p className="status">{loadedCreationPromptMode
+                  ? `Loaded mode: ${loadedCreationPromptMode === "pressure" ? "Pressure mode" : "Proposal mode"}`
+                  : "Loaded mode: none yet"}</p>
+                <button onClick={loadCreationPromptStep} disabled={!openWorld || !selectedCreationPromptMode?.stepRequest}>Load Creation Prompt-out Step</button>
+              </div>
+            }
           />
           <section className="subpanel">
             <h3>Seed decomposition decision</h3>
+            <p>Truth layer is steward-supplied judgment; the app stores the selected layer and does not infer it from prose.</p>
             <p>Actual current status: proposed</p>
+            <section className="subpanel">
+              <h4>Pre-submit readiness</h4>
+              <div className="grid compact-grid">
+                {(displayedCreationDecision.decompositionReadiness ?? defaultCreationDecision.decompositionReadiness).map((item) => (
+                  <article key={item.key} className={`subpanel readiness ${item.status}`}>
+                    <h3>{item.label}</h3>
+                    <p>{item.message}</p>
+                    <p className="meta">{item.remediation}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+            <section className="subpanel inline-recovery">
+              <h4>Inline recovery</h4>
+              <p>{decompositionError ?? "Server-returned decomposition blockers render here near the action; entered title, body, truth layer, and granularity inputs stay in place."}</p>
+            </section>
             <div className="grid compact-grid">
               <label>Seed title<input value={seedTitle} onChange={(event) => setSeedTitle(event.target.value)} /></label>
               <label>Seed body<textarea rows={3} value={seedBody} onChange={(event) => setSeedBody(event.target.value)} /></label>
+              <label>Truth layer<select value={seedTruthLayer} onChange={(event) => setSeedTruthLayer(event.target.value)}><option></option>{truthLayers.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
               <label>Admission intent<input value={admissionIntent} onChange={(event) => setAdmissionIntent(event.target.value)} /></label>
             </div>
             <label>Granularity rationale<textarea rows={3} value={granularityRationale} onChange={(event) => setGranularityRationale(event.target.value)} /></label>
@@ -5139,12 +5243,42 @@ function App({
               modes={displayedCreationDecision.promptOut.modes}
               preview={displayedCreationDecision.promptOut.preview}
               advisoryNote="Pasted responses remain advisory artifacts and do not mutate kernel sections, seed records, reports, or proposals without explicit steward use."
-              action={<button onClick={loadCreationPromptStep} disabled={!openWorld || (!creationDecision?.promptOut.stepRequest && !creationDecision?.promptOut.modes?.some((mode) => mode.stepRequest))}>Load Creation Prompt-out Step</button>}
+              action={
+                <div className="grid compact-grid">
+                  <label>Prompt mode<select value={creationPromptMode} onChange={(event) => setCreationPromptMode(event.target.value as "proposal" | "pressure")}>
+                    {creationPromptModes.map((mode) => <option key={mode.mode} value={mode.mode}>{mode.label}</option>)}
+                  </select></label>
+                  <p className="status">{selectedCreationPromptMode
+                    ? `Selected mode: ${selectedCreationPromptMode.label} - ${selectedCreationPromptMode.available ? "available" : selectedCreationPromptMode.blocker ?? "blocked"}`
+                    : "Selected mode: loads from the server packet."}</p>
+                  <p className="status">{loadedCreationPromptMode
+                    ? `Loaded mode: ${loadedCreationPromptMode === "pressure" ? "Pressure mode" : "Proposal mode"}`
+                    : "Loaded mode: none yet"}</p>
+                  <button onClick={loadCreationPromptStep} disabled={!openWorld || !selectedCreationPromptMode?.stepRequest}>Load Creation Prompt-out Step</button>
+                </div>
+              }
             />
             <section className="subpanel">
               <h3>Seed decomposition decision</h3>
               <p>Split broad steward material into smaller seed facts that can be independently rejected.</p>
+              <p>Truth layer is steward-supplied judgment; the app stores the selected layer and does not infer it from prose.</p>
               <p>Actual current status: proposed</p>
+              <section className="subpanel">
+                <h4>Pre-submit readiness</h4>
+                <div className="grid compact-grid">
+                  {(displayedCreationDecision.decompositionReadiness ?? defaultCreationDecision.decompositionReadiness).map((item) => (
+                    <article key={item.key} className={`subpanel readiness ${item.status}`}>
+                      <h3>{item.label}</h3>
+                      <p>{item.message}</p>
+                      <p className="meta">{item.remediation}</p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+              <section className="subpanel inline-recovery">
+                <h4>Inline recovery</h4>
+                <p>{decompositionError ?? "Server-returned decomposition blockers render here near the action; entered title, body, truth layer, and granularity inputs stay in place."}</p>
+              </section>
               <div className="grid">
                 <label>Seed title<input value={seedTitle} onChange={(event) => setSeedTitle(event.target.value)} /></label>
                 <label>Seed body<input value={seedBody} onChange={(event) => setSeedBody(event.target.value)} /></label>

@@ -144,8 +144,14 @@ describe("Prompt-out lifecycle web surface", () => {
     expect(html).toContain("world&#x27;s essence");
     expect(html).toContain("Pasted responses remain advisory artifacts");
     expect(creationPromptPanel).toContain("promptOut.modes");
-    expect(creationPromptButton).toContain("promptOut.modes?.some((mode) => mode.stepRequest)");
+    expect(html).toContain("Prompt mode");
+    expect(html).toContain("Selected mode: Proposal mode - available");
+    expect(creationPromptButton).toContain("selectedCreationPromptMode?.stepRequest");
+    expect(source).toContain("value={creationPromptMode}");
+    expect(source).toContain("setCreationPromptMode");
     expect(promptLoader).toContain("mode.stepRequest");
+    expect(promptLoader).toContain("mode.mode === creationPromptMode");
+    expect(promptLoader).toContain("selectedMode?.available");
     expect(promptLoader.indexOf("setPromptFlowKey(\"creation\")")).toBeLessThan(promptLoader.indexOf("setPromptStep(payload.step)"));
     expect(promptLoader.indexOf("setPromptRecordId(String(request.body.recordId ?? \"\"))")).toBeLessThan(promptLoader.indexOf("setPromptStep(payload.step)"));
     expect(promptLoader).not.toContain('mode.mode === "proposal"');

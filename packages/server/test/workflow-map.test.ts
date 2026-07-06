@@ -65,11 +65,17 @@ describe("workflow map HTTP payload", () => {
       reason: expect.stringContaining("world kernel")
     });
     expect(payload.destinations).toEqual(expect.arrayContaining([
-      expect.objectContaining({ key: "creation", kind: "guided-flow" }),
-      expect.objectContaining({ key: "admission", kind: "guided-flow" }),
-      expect.objectContaining({ key: "canon-workbench", kind: "read-side" }),
-      expect.objectContaining({ key: "markdown-export", kind: "read-side" }),
-      expect.objectContaining({ key: "substrate", kind: "substrate" })
+      expect.objectContaining({ key: "creation", kind: "guided-flow", state: "active" }),
+      expect.objectContaining({ key: "admission", kind: "guided-flow", state: "not_yet_earned" }),
+      expect.objectContaining({ key: "propagation", kind: "guided-flow", state: "not_yet_earned" }),
+      expect.objectContaining({ key: "constraint", kind: "guided-flow", state: "not_yet_earned" }),
+      expect.objectContaining({ key: "temporal", kind: "guided-flow", state: "not_yet_earned" }),
+      expect.objectContaining({ key: "stage12", kind: "guided-flow", state: "not_yet_earned" }),
+      expect.objectContaining({ key: "contradiction", kind: "guided-flow", state: "not_yet_earned" }),
+      expect.objectContaining({ key: "qa", kind: "guided-flow", state: "not_yet_earned" }),
+      expect.objectContaining({ key: "canon-workbench", kind: "read-side", state: "available" }),
+      expect.objectContaining({ key: "markdown-export", kind: "read-side", state: "available" }),
+      expect.objectContaining({ key: "substrate", kind: "substrate", state: "available" })
     ]));
 
     expect(await json(await app.request("/api/records"))).toEqual(before);

@@ -256,4 +256,45 @@ describe("Creation decision-point web surface", () => {
     expect(source).toContain("creationDecision.handoff");
     expect(source).toContain("displayedCreationDecision.handoff.parkedSeeds");
   });
+
+  it("renders routed Creation controls for selected-section guidance, readiness, and inline recovery", () => {
+    const workflowMap = {
+      readOnly: true,
+      world: { path: "/tmp/creation.sqlite" },
+      stages: [
+        { key: "creation", label: "Creation", state: "active", summary: "Start with the world kernel.", destinationKey: "creation" },
+        { key: "admission", label: "Admission", state: "not_yet_earned", summary: "Admission waits for proposed seeds.", unlockReason: "Park proposed seeds.", destinationKey: "admission" }
+      ],
+      queues: [],
+      nextDecision: { destinationKey: "creation", label: "Start Creation", reason: "No world kernel exists yet.", href: "/api/flows/creation/start" },
+      destinations: [
+        { key: "creation", label: "Creation", kind: "guided-flow", summary: "Create the world kernel.", state: "active" },
+        { key: "substrate", label: "Substrate", kind: "substrate", summary: "Generic record, link, search, draft, and Prompt-out admin tools.", state: "available" }
+      ]
+    };
+    const html = renderToString(<App
+      initialOpenWorld="/tmp/creation.sqlite"
+      initialWorkflowMap={workflowMap as any}
+      initialDestination="creation"
+    />);
+    const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
+    const routedCreation = snippetBetween(source, '<h2>{"Creation decision point"}</h2>', "      admission:");
+
+    expect(html).toContain("Pre-submit readiness");
+    expect(html).toContain("Inline recovery");
+    expect(html).toContain("Truth layer is steward-supplied judgment");
+    expect(html).toContain("Consequence mode is steward judgment; the app does not infer, default, or silently reuse it.");
+    expect(html).toContain("Prompt mode");
+    expect(html).toContain("Selected mode:");
+    expect(html).toContain("Loaded mode:");
+    expect(routedCreation).toContain("value={consequenceMode}");
+    expect(routedCreation).toContain("value={creationPromptMode}");
+    expect(routedCreation).toContain("setCreationPromptMode");
+    expect(routedCreation).toContain("selectedCreationPromptMode?.stepRequest");
+    expect(source).toContain("payload.step.mode");
+    expect(routedCreation).toContain("value={seedTruthLayer}");
+    expect(routedCreation).toContain("decompositionError");
+    expect(routedCreation).toContain("decompositionReadiness");
+    expect(routedCreation).toContain("section.prompt");
+  });
 });

@@ -12,6 +12,7 @@ For a guided-flow browser slice, acceptance should include the smallest useful s
 - source doctrine visible at the decision point as app-owned rule text, checklist text, template expectation, or operating-card excerpt, with file paths kept as provenance/detail rather than the only guidance;
 - required/optional/skippable fields visible in the same step context;
 - blocker example showing substance validation, not checkbox completion;
+- action-failure/server-blocker example for any browser slice that can submit a guided-flow action: the server-returned error appears at or near the action, the entered fields/selections are preserved, remediation text or route is visible, and the steward does not need console or network tooling to recover;
 - skip example showing recorded skip behavior and reason threshold when offered;
 - prompt packet preview with source manifest and advisory/canon warning when prompt-out is in scope;
 - resulting record, report, link, queue entry, advisory artifact, debt item, or explicit non-mutation;
@@ -38,10 +39,13 @@ For learnability-sensitive changes, run a lightweight naive-steward walkthrough:
 5. The steward can predict what the app will write, link, route, or leave untouched.
 6. The steward can exit and resume without losing orientation.
 7. The steward can tell which file paths are provenance and which visible text is the operating instruction.
+8. When the slice includes a guided-flow write action, the steward can recover after one failed action with their entered material still present.
 
 Record failures as follow-up work unless they block the issue's own acceptance criteria.
 
 For setup/open-world changes, also record that the steward can start without copying a token, distinguish server/catalog readiness from world-file failures, recover from one create/open failure without retyping the path, and arrive at Creation as the first empty-world guided path.
+
+This action-failure pattern is reviewer guidance, not a test-framework policy. It does not create a repo-wide browser/e2e hard gate; browser-visible proof can be a targeted component render, Playwright smoke, screenshot, or concise manual observation appropriate to the slice.
 
 ## Principles
 

@@ -300,6 +300,30 @@ const promptRecordContext = (world: WorldFile, recordId: number): string => {
   ].filter(Boolean).join("\n");
 };
 
+const CREATION_SECTION_PROMPTS: Record<string, string> = {
+  "World premise": "What is the world, in one or two sentences?",
+  "Core promise": "What experience should the world reliably create?",
+  "Starting scale": "Name where the world starts; scale expands only when a fact forces it.",
+  "Genre, tone, and consequence-mode commitments": "Name genre, tone, primary consequence mode, secondary modes, tonal boundaries, and what the world must never become by accident.",
+  "Foundational facts": "List the few seed facts everything else must answer to.",
+  "Foundational constraints": "Name limits that keep the premise from becoming shapeless.",
+  "Initial mysteries and protected effects": "Name what is intentionally unknown, sacred, terrifying, or protected from flattening.",
+  "Primary pressures and initial domains": "Name three to seven forces that drive adaptation and the domains they touch first.",
+  "Ordinary-life promise": "Name everyday residue and one ordinary-life anchor touched by the core pressures."
+};
+
+const creationSelectedKernelSection = (world: WorldFile, input: PromptGenerationInput, record: RecordRow): { heading: string; prompt: string; body: string } => {
+  const flow = input.flowId == null ? null : world.getFlowInstance(input.flowId, "creation");
+  const currentStep = typeof flow?.current_step === "string" ? flow.current_step : "";
+  const heading = currentStep.startsWith("kernel:") ? currentStep.slice("kernel:".length) : "World premise";
+  const body = world.listSections(record.id).find((section) => section.heading === heading)?.body.trim() ?? "";
+  return {
+    heading,
+    prompt: CREATION_SECTION_PROMPTS[heading] ?? "Use the world-kernel template and keep prose steward-authored.",
+    body
+  };
+};
+
 const standingRulingRows = (world: WorldFile): Array<{ disposition: string; note: string }> =>
   world.db.prepare("SELECT disposition, note FROM advisory_dispositions WHERE standing_ruling = 1 ORDER BY id")
     .all()
@@ -466,6 +490,95 @@ const creationDecompositionPrompt = (
   };
 };
 
+const creationKernelPrompt = (
+  world: WorldFile,
+  input: PromptGenerationInput,
+  template: PromptTemplateRow,
+  stepKey: string,
+  mode: PromptMode,
+  selectedRecord: RecordRow
+): PromptGenerationResult => {
+  const cardValue = methodCard("creation.kernel");
+  const rulings = standingRulingRows(world);
+  const section = creationSelectedKernelSection(world, input, selectedRecord);
+  const sections = world.listSections(selectedRecord.id);
+  const fullKernelContext = [
+    `${selectedRecord.shortId} ${selectedRecord.title}`,
+    selectedRecord.body,
+    ...sections.map((row) => `${row.heading}: ${row.body || "(empty)"}`)
+  ].filter(Boolean).join("\n");
+  const selectedMaterial = [
+    `Current kernel section: ${section.heading}`,
+    `Selected section prompt: ${section.prompt}`,
+    `Selected section material: ${section.body || "(empty)"}`
+  ];
+  const omissions = [
+    "Frontloaded seed audit and first canon standing are omitted because Admission owns them.",
+    "No silent kernel-only fallback: selected section context is carried when a kernel section is selected.",
+    "Open canon debt omitted unless it affects this kernel decision."
+  ];
+  const sourceManifest = [
+    `Selected kernel section: ${section.heading}`,
+    `Section prompt: ${section.prompt}`,
+    `Source record: world kernel ${selectedRecord.shortId} ${selectedRecord.title}`,
+    `Prompt template: ${template.key} (${template.package_source})`,
+    ...methodCardSourceManifest(cardValue),
+    ...omissions.map((omission) => `Omission: ${omission}`)
+  ];
+
+  return {
+    prompt: renderPromptPacket({
+      mode,
+      roleName: mode === "proposal" ? "Decision proposal" : template.role_name,
+      templateText: template.current_text,
+      currentDecision: `Flow ${input.flowKey ?? "creation"}, selected kernel section ${section.heading}: work only on this local kernel decision.`,
+      modeRequest: mode === "proposal"
+        ? `Draft labeled candidate material for the selected ${section.heading} section. Recommend alternatives with assumptions; do not assign truth layer, canon status, consequence mode, or any separated label.`
+        : `Provide pressure, risks, alternatives, and questions on the selected ${section.heading} section's steward-authored material.`,
+      bearingContext: [
+        ...modeLine(mode),
+        ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey }),
+        "Kernel authoring is a composite decision point; the active local unit is the selected section."
+      ],
+      packageDoctrine: [
+        ...methodCardDoctrineSlots(cardValue),
+        `Selected section obligation: ${section.prompt}`,
+        "World premise essence exception: proposal mode is refused only for the World premise section; other sections may request proposal candidates.",
+        "Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories."
+      ],
+      decisionMaterial: [
+        ...selectedMaterial,
+        "",
+        "Full kernel context for orientation only:",
+        fullKernelContext
+      ],
+      sourceDocuments: [
+        {
+          source: `selected_kernel_section:${section.heading}`,
+          content: selectedMaterial.join("\n")
+        },
+        {
+          source: `world_kernel:${selectedRecord.shortId}`,
+          content: fullKernelContext
+        }
+      ],
+      standingRulings: rulings.map((row) => `${row.disposition}: ${row.note}`),
+      omissions,
+      sourceManifest,
+      advisoryWarning: "This prompt is optional advisory support. Pasted responses stay advisory artifacts until the steward authors and admits canon through the governed flow.",
+      outputLabels: ["candidate", "assumption", "risk", "alternative", "question", "standing-ruling candidate", "off-section"]
+    }),
+    promptOut: {
+      flowKey: input.flowKey ?? null,
+      flowId: input.flowId ?? null,
+      stepKey,
+      mode,
+      templateKey: input.templateKey,
+      recordId: selectedRecord.id
+    }
+  };
+};
+
 const insertAdvisoryDisposition = (
   world: WorldFile,
   advisoryRecordId: number,
@@ -499,6 +612,9 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
     return creationDecompositionPrompt(world, input, template, stepKey);
   }
   const selectedRecord = input.recordId == null ? null : world.getRecord(input.recordId);
+  if (input.flowKey === "creation" && input.templateKey === "kernel_pressure" && selectedRecord?.recordTypeKey === "world_kernel") {
+    return creationKernelPrompt(world, input, template, stepKey, mode, selectedRecord);
+  }
   const recordContext = selectedRecord == null ? "No record context selected." : promptRecordContext(world, selectedRecord.id);
   const rulings = standingRulingRows(world);
   const cardValue = promptMethodCard(input);
