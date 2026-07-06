@@ -3446,11 +3446,27 @@ function App({
                 <option value="protected_mystery">protected mystery</option>
               </select></label>
               <label>Evidence ids<input value={minimalEvidenceRecordIds} onChange={(event) => setMinimalEvidenceRecordIds(event.target.value)} /></label>
+              <label>Protected record id<input value={minimalProtectedRecordId} onChange={(event) => setMinimalProtectedRecordId(event.target.value)} /></label>
+              <label>Deferral<select value={minimalDeferralKind} onChange={(event) => setMinimalDeferralKind(event.target.value as "none" | "skip" | "canon_debt")}>
+                <option value="none">none</option>
+                <option value="skip">skip</option>
+                <option value="canon_debt">canon debt</option>
+              </select></label>
+              <label>Deferral step<input value={minimalDeferralStep} onChange={(event) => setMinimalDeferralStep(event.target.value)} /></label>
+              <label>Debt name<input value={minimalDebtName} onChange={(event) => setMinimalDebtName(event.target.value)} /></label>
             </div>
             <label>Disposition substance<textarea rows={3} value={minimalDispositionSubstance} onChange={(event) => setMinimalDispositionSubstance(event.target.value)} /></label>
             <button onClick={recordMinimalViableWorldDisposition} disabled={!openWorld || !minimalSeedRecordId || !minimalDimensionKey || !minimalDispositionSubstance.trim()}>Record Checkpoint Disposition</button>
             <div className="grid">
+              <label>Proposal seed<select value={minimalProposalSeedRecordId} onChange={(event) => setMinimalProposalSeedRecordId(event.target.value)}>
+                <option></option>
+                {minimalSeedOptions.map((seed) => <option key={seed.id} value={seed.id}>{seed.shortId}: {seed.title}</option>)}
+              </select></label>
               <label>Proposal title<input value={minimalProposalTitle} onChange={(event) => setMinimalProposalTitle(event.target.value)} /></label>
+              <label>Truth layer<select value={minimalProposalTruthLayer} onChange={(event) => setMinimalProposalTruthLayer(event.target.value)}>
+                <option value="Objective canon">Objective canon</option>
+                {truthLayers.map((term) => <option key={term.term}>{term.term}</option>)}
+              </select></label>
               <label>Proposal body<textarea rows={3} value={minimalProposalBody} onChange={(event) => setMinimalProposalBody(event.target.value)} /></label>
             </div>
             <button onClick={routeMinimalViableWorldProposal} disabled={!openWorld || minimalViableWorld?.checkpoint.report == null || !minimalProposalTitle.trim() || !minimalProposalBody.trim()}>Route Checkpoint Proposal</button>

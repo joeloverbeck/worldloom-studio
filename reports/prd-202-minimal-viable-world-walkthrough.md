@@ -15,16 +15,20 @@ This is browser walkthrough evidence, not app field validation.
 Artifacts:
 
 - `output/playwright/prd-202-minimal-viable-world-qa-echo.png`
+- `output/playwright/prd-202-minimal-viable-world-creation-deferral-proposal.png`
 
 Observed flow:
 
 1. A smoke world was seeded through the local API with accepted seed facts linked back to the world kernel plus supporting evidence records.
 2. The workflow map showed `Minimal Viable World checkpoint` as the next Creation decision and surfaced one owed Creation checkpoint queue item.
 3. The Creation checkpoint surface showed the server-owned decision contract, whole-world coverage signals, per-seed dimension matrix, source manifest, proposal routing, pressure availability, and read-side pass-report trail.
-4. Recording one ordinary-life disposition created append-only report snapshot `PAS-1` with the checkpoint disposition and evidence links.
-5. The checkpoint remained non-generative: pressure mode became available only after a saved disposition, and unresolved gaps stayed visible as steward obligations.
-6. Loading the checkpoint Prompt-out step returned `Minimal Viable World proposal` with the checkpoint source manifest and advisory boundary.
-7. Starting a whole-world QA pass showed the Minimal Viable World echo as read-only, including checkpoint presence, report id, deferral/debt/proposal counts, source manifest, and whole-world coverage signals.
+4. Recording an ordinary-life disposition created append-only report snapshot `PAS-1` with the checkpoint disposition and evidence links.
+5. Final-tree browser review found and fixed a routed-surface gap: the active Creation checkpoint now shows protected-record, deferral, canon-debt, proposal seed, and truth-layer controls instead of hiding those controls in the legacy full workspace.
+6. Recording a deferred disposition for `FAC-2` through the active Creation checkpoint wrote checkpoint canon debt and refreshed the report/read-side state.
+7. Routing a fact-shaped follow-up through the active checkpoint created `FAC-4 Bell ration queue proposal` as `proposed` in the Admission queue and advanced the latest checkpoint report to `PAS-2`.
+8. The checkpoint remained non-generative: pressure mode became available only after saved steward material, unresolved gaps stayed visible as steward obligations, and the app still showed `automatic pass/fail verdict: not_applicable`.
+9. Loading the checkpoint Prompt-out step returned `Minimal Viable World proposal` with the checkpoint source manifest and advisory boundary.
+10. Starting a whole-world QA pass showed the Minimal Viable World echo as read-only, including checkpoint presence, report id, deferral/debt/proposal counts, source manifest, and whole-world coverage signals.
 
 Focused API lifecycle evidence covered the branches not fully expanded in the browser smoke: covered disposition, deferred-to-skip disposition, deferred-to-canon-debt disposition, protected-mystery disposition with linked boundary evidence, proposal and pressure packet generation, advisory artifact storage and disposition, checkpoint Prompt-out skip with open debt, explicit advisory-use links, successor checkpoint report snapshots, Admission proposal routing as `proposed`, and QA echo of the final linked report/advisory/proposal/debt state.
 
@@ -41,6 +45,12 @@ Network evidence included:
 - `POST /api/prompt-out/steps/actions/disposition => 201`
 - `POST /api/prompt-out/steps/actions/skip => 201`
 - `GET /api/flows/qa/scorecard => 200`
+
+Final-tree readback after the browser review fix:
+
+- Latest checkpoint report: `PAS-2`
+- Checkpoint debt: `Bell scarcity ordinary-life debt`
+- Admission proposal: `FAC-4 Bell ration queue proposal`, status `proposed`
 
 Console evidence: no blocking browser console error was observed during the walkthrough.
 
