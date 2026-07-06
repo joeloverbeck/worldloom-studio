@@ -1,4 +1,5 @@
 import { intakeProposedFact } from "./admission-flow.js";
+import { methodCard, methodCardsForFlow } from "./method-cards.js";
 import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, RecordRow, WorldFile } from "./world-file.js";
 
@@ -255,6 +256,15 @@ const findExistingRun = (
   return row?.flow_id ?? null;
 };
 
+const stage12MethodCardForStep = (stepKey: string) => {
+  if (stepKey.includes("entry")) return methodCard("stage12.entry");
+  if (stepKey.includes("close") || stepKey.includes("complete")) return methodCard("stage12.close-readiness");
+  if (stepKey.includes("proposal") || stepKey.includes("debt") || stepKey.includes("card") || stepKey.includes("skip") || stepKey.includes("advisory")) {
+    return methodCard("stage12.outcomes");
+  }
+  return methodCard("stage12.lens");
+};
+
 export type StartStage12RunInput =
   | { sourceType: "fact" | "under_review_fact" | "canon_debt"; recordId: number }
   | { sourceType: "record_section"; recordId: number; sectionHeading: string }
@@ -269,6 +279,8 @@ export const getStage12Run = (world: WorldFile, flowId: number) => {
     report: world.getRecord(source.passReportRecordId),
     source,
     doctrine: DOCTRINE,
+    methodCard: stage12MethodCardForStep(String(flow.current_step ?? "stage12:entry")),
+    methodCards: methodCardsForFlow(FLOW_KEY),
     coverage: coverageRows(world, flowId),
     linkedCards: linkedCardRows(world, flowId),
     proposals: proposalRows(world, flowId),

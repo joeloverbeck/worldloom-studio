@@ -1,5 +1,6 @@
 import { isFoundationalSeverity, isMajorOrHigher, type DeclaredSeverity } from "./severity-policy.js";
 import { intakeProposedFact } from "./admission-flow.js";
+import { methodCard, methodCardsForFlow } from "./method-cards.js";
 import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, FacetRow, RecordRow, WorldFile } from "./world-file.js";
 
@@ -142,6 +143,17 @@ const propagationCoveragePolicy = (severity: DeclaredSeverity): PropagationCover
   };
 };
 
+const propagationMethodCardForStep = (stepKey: string) => {
+  if (stepKey.includes("domain")) return methodCard("propagation.domain-atlas");
+  if (stepKey.includes("disposition")) return methodCard("propagation.disposition");
+  if (stepKey.includes("proposal")) return methodCard("propagation.proposals");
+  if (stepKey.includes("close") || stepKey.includes("complete")) return methodCard("propagation.close");
+  if (["zeroth", "first", "second", "third", "fourth", "fifth"].some((order) => stepKey.includes(order))) {
+    return methodCard("propagation.shock-cone-orders");
+  }
+  return methodCard("propagation.entry");
+};
+
 const readPropagationFlow = (store: WorldFile, flowId: number): PropagationFlowRow => {
   const flow = store.getFlowInstance(flowId, "propagation");
   if (flow.propagation_fact_record_id == null) throw new Error(`Propagation flow has no fact: ${flowId}`);
@@ -186,6 +198,8 @@ export const propagationPlan = (store: WorldFile, recordId: number): unknown => 
     requiredDomainCount: coverage.requiredDomainCount === "all" ? DOMAIN_ATLAS.length : coverage.requiredDomainCount,
     orders: PROPAGATION_ORDERS.map(([key, label]) => ({ key, label })),
     domains: DOMAIN_ATLAS,
+    methodCard: methodCard("propagation.entry"),
+    methodCards: methodCardsForFlow("propagation"),
     doctrine: {
       mechanisms: "docs/worldbuilding-system/07_propagation_engine.md#propagation-mechanisms",
       signatureTests: ["why not everywhere?", "why not used by enemies?", "where are the fossils?"],
@@ -209,9 +223,12 @@ export const startPropagationRun = (store: WorldFile, input: { factRecordId: num
 
 export const getPropagationRun = (store: WorldFile, flowId: number): unknown => {
   const flow = readPropagationFlow(store, flowId);
+  const stepKey = String(flow.current_step ?? "propagation:entry");
   return {
     flow,
     plan: propagationPlan(store, flow.propagation_fact_record_id),
+    methodCard: propagationMethodCardForStep(stepKey),
+    methodCards: methodCardsForFlow("propagation"),
     consequences: propagationConsequences(store, flowId),
     domainSweeps: propagationDomainSweeps(store, flowId),
     dispositions: propagationDispositions(store, flowId),

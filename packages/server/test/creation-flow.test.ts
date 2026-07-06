@@ -154,9 +154,10 @@ describe("Creation decision-point HTTP surface", () => {
         contextPreview: expect.stringContaining("Mourningweather turns public grief"),
         sourceManifest: expect.arrayContaining([
           expect.stringContaining(saved.kernel.shortId),
-          "Doctrine: docs/worldbuilding-system/05_creation_protocol.md Phase 1",
-          "Doctrine: docs/worldbuilding-system/templates/world_kernel.md",
-          "Doctrine: docs/worldbuilding-system/20_ai_assisted_workflow.md"
+          "Method card: creation.kernel (method-card/v1)",
+          "Package source: docs/worldbuilding-system/05_creation_protocol.md",
+          "Package source: docs/worldbuilding-system/templates/world_kernel.md",
+          "Package source: docs/worldbuilding-system/20_ai_assisted_workflow.md"
         ]),
         advisoryCanonWarning: expect.stringContaining("advisory artifacts"),
         omissions: expect.not.arrayContaining([expect.stringContaining("Selected record: none")])
@@ -177,9 +178,11 @@ describe("Creation decision-point HTTP surface", () => {
     }));
     expect(generated.promptOut).toMatchObject({ flowKey: "creation", recordId: saved.kernel.id });
     expect(generated.prompt).toContain("Mourningweather turns public grief");
-    expect(generated.prompt).toContain("docs/worldbuilding-system/05_creation_protocol.md Phase 1");
-    expect(generated.prompt).toContain("docs/worldbuilding-system/templates/world_kernel.md");
-    expect(generated.prompt).toContain("docs/worldbuilding-system/20_ai_assisted_workflow.md");
+    expect(generated.prompt).toContain("Operative rule: Start lean");
+    expect(generated.prompt).toContain("Method card: creation.kernel (method-card/v1)");
+    expect(generated.prompt).toContain("Package source: docs/worldbuilding-system/05_creation_protocol.md");
+    expect(generated.prompt).toContain("Package source: docs/worldbuilding-system/templates/world_kernel.md");
+    expect(generated.prompt).toContain("Package source: docs/worldbuilding-system/20_ai_assisted_workflow.md");
     expect(generated.prompt).not.toContain("Selected record: none");
   });
 
@@ -332,7 +335,7 @@ describe("Creation decision-point HTTP surface", () => {
           ]),
           doctrineAtPointOfUse: expect.arrayContaining([
             expect.stringContaining("independently rejected"),
-            expect.stringContaining("Creation parks proposed seeds"),
+            expect.stringContaining("proposed for Admission"),
             expect.stringContaining("Admission owns first canon standing")
           ])
         },
@@ -353,7 +356,10 @@ describe("Creation decision-point HTTP surface", () => {
             sourceManifest: expect.arrayContaining([
               expect.stringContaining("Seed decomposition report"),
               expect.stringContaining("Parked seed"),
-              expect.stringContaining("Doctrine excerpt")
+              "Method card: creation.seed-decomposition (method-card/v1)",
+              "Package source: docs/worldbuilding-system/05_creation_protocol.md",
+              "Package source: docs/worldbuilding-system/06_canon_fact_admission_protocol.md",
+              "Package source: docs/worldbuilding-system/20_ai_assisted_workflow.md"
             ]),
             omissions: expect.arrayContaining([
               expect.stringContaining("Frontloaded seed audit"),
@@ -399,7 +405,8 @@ describe("Creation decision-point HTTP surface", () => {
     expect(generated.prompt).toContain("Granularity rationale: Each seed can be rejected without rewriting its siblings.");
     expect(generated.prompt).toContain("Admission intent: Audit during Admission for institutional cost.");
     expect(generated.prompt).toContain("Supporting kernel context");
-    expect(generated.prompt).toContain("Creation parks proposed seeds; Admission owns first canon standing.");
+    expect(generated.prompt).toContain("Operative rule: Decompose until each seed can be rejected without destroying its siblings, then park it as proposed for Admission.");
+    expect(generated.prompt).toContain("Why the method asks: Creation finds workable pressure seeds; Admission owns first canon standing.");
     expect(generated.prompt).toContain("Frontloaded seed audit results omitted: Admission owns that instrument and no result exists yet.");
     expect(generated.prompt).toContain("Provide pressure, risks, alternatives, and questions");
     expect(generated.prompt).not.toContain("Record context:\nKER-");

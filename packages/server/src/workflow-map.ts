@@ -2,6 +2,7 @@ import type { WorkflowMapDestination, WorkflowMapPayload, WorkflowMapQueue, Work
 import * as AdmissionFlow from "./admission-flow.js";
 import * as CanonDebt from "./canon-debt.js";
 import * as ContradictionFlow from "./contradiction-flow.js";
+import { workflowMapMethodCards } from "./method-cards.js";
 import * as PropagationFlow from "./propagation-flow.js";
 import type { FlowInstanceRow, RecordRow, WorldFile } from "./world-file.js";
 
@@ -167,6 +168,7 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
     stages,
     queues,
     nextDecision,
-    destinations: destinations(activeDestination, owedDestinations)
+    destinations: destinations(activeDestination, owedDestinations),
+    methodCards: workflowMapMethodCards()
   };
 };

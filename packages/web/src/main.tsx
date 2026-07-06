@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { HealthPayload, LinkTypeDefinition, RecordTypeDefinition, WorkflowMapPayload } from "@worldloom/shared";
+import type { HealthPayload, LinkTypeDefinition, MethodCard, RecordTypeDefinition, WorkflowMapPayload } from "@worldloom/shared";
 import { WorkflowShell } from "./workflow-shell.js";
 import "./styles.css";
 
@@ -116,6 +116,8 @@ interface PropagationPlan {
   requiredDomainCount: number;
   orders: Array<{ key: string; label: string }>;
   domains: string[];
+  methodCard?: MethodCard;
+  methodCards?: MethodCard[];
   doctrine: { signatureTests: string[]; stoppingRules: string[] };
 }
 
@@ -152,6 +154,8 @@ interface QaBand {
 interface QaScorecard {
   tests: QaTest[];
   subjectMode: string | null;
+  methodCard?: MethodCard;
+  methodCards?: MethodCard[];
   doctrine: {
     redFlags: string[];
     modeBenchmarks: string[];
@@ -215,6 +219,8 @@ interface Stage12Run {
     completionRule: string;
     browserPolicy: string;
   };
+  methodCard?: MethodCard;
+  methodCards?: MethodCard[];
   coverage: Array<{ id: number; lensKey: string; lensLabel: string; body: string }>;
   linkedCards: Array<{ id: number; cardTypeKey: string; lensKey: string | null; card: RecordRow }>;
   proposals: Array<{ id: number; lensKey: string | null; record: RecordRow }>;
@@ -252,6 +258,7 @@ interface ConstraintRun {
     completionRule: string;
     browserPolicy: string;
   };
+  methodCards?: MethodCard[];
   inventory: Array<{ id: number; constrainedFact: string; constraintStatement: string; constraintType: string; prevents: string; allows: string; enforcement: string; residue: string }>;
   composition: Array<{ id: number; analysisType: string; body: string }>;
   leakage: { loopholes: string; countermeasures: string } | null;
@@ -265,6 +272,7 @@ interface ConstraintRun {
   closePreview: { state: string; outcomeState: string; beforeCompletion: string[]; afterCompletion: string[] };
   promptOut: { available: boolean; templateKey: string; stepKey: string; coldUseEvidence: string; sourceRecordId: number | null };
   readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
+  decisionPoint?: { sharedContract: { methodCard?: MethodCard } };
 }
 
 interface Stage13Run {
@@ -275,6 +283,8 @@ interface Stage13Run {
     contradiction_source_record_id: number | null;
     contradiction_report_record_id: number | null;
   };
+  methodCard?: MethodCard;
+  methodCards?: MethodCard[];
   implicatedRecords: RecordRow[];
   triage: Array<{ step_key: string; body: string }>;
   workScale: string | null;
@@ -403,6 +413,7 @@ interface CanonWorkbenchDetail {
 }
 
 interface AdmissionDecisionPoint {
+  methodCard?: MethodCard;
   flow: {
     key: "admission";
     runState: string;
@@ -495,6 +506,7 @@ interface AdmissionDecisionPoint {
 }
 
 interface CreationDecisionPoint {
+  methodCard?: MethodCard;
   flow: {
     key: "creation";
     runState: string;
@@ -728,6 +740,26 @@ const emptyRecordForm = {
   canonStatus: ""
 };
 
+function MethodCardPanel({ card, title = "Method card" }: { card?: MethodCard | null; title?: string }) {
+  if (!card) return null;
+  return (
+    <section className="subpanel method-card">
+      <h3>{title}: {card.decisionPoint}</h3>
+      <p><strong>Decision</strong>: {card.decision}</p>
+      <p><strong>Operative rule</strong>: {card.operativeRule}</p>
+      <p><strong>Why the method asks</strong>: {card.why}</p>
+      <p><strong>What good material looks like</strong>: {card.goodMaterial}</p>
+      <details>
+        <summary>Provenance</summary>
+        <div className="chips">
+          <span>{card.derivationVersion}</span>
+          {card.packageSources.map((source) => <span key={source}>{source}</span>)}
+        </div>
+      </details>
+    </section>
+  );
+}
+
 const defaultCreationDecision: CreationDecisionPoint = {
   flow: {
     key: "creation",
@@ -736,14 +768,9 @@ const defaultCreationDecision: CreationDecisionPoint = {
   currentStep: "kernel:World premise",
   localDecision: "Define the world's first governing kernel or pressure seed.",
   packageAuthority: {
-    primary: "docs/worldbuilding-system/05_creation_protocol.md",
-    why: "Phase 1 owns the world kernel as a pressure seed, not an encyclopedia.",
-    citations: [
-      "docs/worldbuilding-system/05_creation_protocol.md",
-      "docs/worldbuilding-system/templates/world_kernel.md",
-      "docs/worldbuilding-system/20_ai_assisted_workflow.md",
-      "docs/specs/creation-flow.md"
-    ]
+    primary: "Server-returned method-card provenance loads after the Creation flow starts.",
+    why: "The app shows the current decision and waits for server-owned method-card guidance before treating doctrine as loaded.",
+    citations: []
   },
   currentKernel: null,
   sectionPrompts: [
@@ -783,9 +810,7 @@ const defaultCreationDecision: CreationDecisionPoint = {
       promptText: "Role framing: ask for pressure, not answers.",
       contextPreview: "No kernel material has been saved yet.",
       sourceManifest: [
-        "Doctrine: docs/worldbuilding-system/05_creation_protocol.md Phase 1",
-        "Doctrine: docs/worldbuilding-system/templates/world_kernel.md",
-        "Doctrine: docs/worldbuilding-system/20_ai_assisted_workflow.md"
+        "Server-returned source manifest loads after Creation starts."
       ],
       omissions: ["Current kernel material is absent until the steward writes it."],
       advisoryCanonWarning: "Pasted responses remain advisory artifacts and are not admitted canon."
@@ -2595,6 +2620,16 @@ function App({
   const setupPanel = (secondary = false) => (
     <section className={secondary ? "setup-panel compact-setup" : "setup-panel"}>
       <h2>{secondary ? "Setup controls" : "Setup/open world"}</h2>
+      {workflowMap?.methodCards?.setup ? (
+        <MethodCardPanel card={workflowMap.methodCards.setup} title="Setup method card" />
+      ) : (
+        <section className="subpanel method-card">
+          <h3>Setup method card: Open world</h3>
+          <p><strong>Create or open the visible world file that owns the canon store.</strong></p>
+          <p>One local world file is the working surface; browser storage is not the source of truth.</p>
+          <p>The app will load server-owned setup provenance after a world is open.</p>
+        </section>
+      )}
       <div className="grid compact-grid">
         <section className="subpanel">
           <h3>Server status</h3>
@@ -2674,23 +2709,29 @@ function App({
     }
 
     const displayedWorkflowMap = workflowMap;
+    const operatingCard = displayedWorkflowMap.methodCards?.operatingCard;
     const shellSurfaces = {
       creation: (
         <section className="panel creation-decision">
           <div className="operating-card">
             <strong>Operating Card</strong>
-            <span>Source: docs/worldbuilding-system/operating_card.md</span>
-            <span>Fill a lean world kernel, decompose seeds until each can be independently rejected, then admit later through `06`.</span>
+            <span>{operatingCard?.operativeRule ?? "Server-owned operating-card content loads with the workflow map."}</span>
+            {operatingCard && <span>Provenance: {operatingCard.packageSources.join(" · ")}</span>}
           </div>
+          <MethodCardPanel card={displayedCreationDecision.methodCard} />
           <h2>{"Creation decision point"}</h2>
           <p className="status">Primary active path for a new world</p>
+          <div className="row">
+            <button onClick={startFlow} disabled={!openWorld}>Start or Resume Creation</button>
+            <span className="status">{flowId ? `Flow ${flowId}${kernelRecordId ? ` · kernel ${kernelRecordId}` : ""}` : "No Creation flow loaded"}</span>
+          </div>
           <section className="subpanel">
             <h3>{displayedCreationDecision.currentStep}</h3>
             <p>{displayedCreationDecision.localDecision}</p>
-            <p>{displayedCreationDecision.packageAuthority.primary}</p>
-            <p>{displayedCreationDecision.packageAuthority.why}</p>
+            <p>{displayedCreationDecision.methodCard?.why ?? displayedCreationDecision.packageAuthority.why}</p>
+            <p className="meta">Provenance</p>
             <div className="chips">
-              {displayedCreationDecision.packageAuthority.citations.map((citation) => <span key={citation}>{citation}</span>)}
+              {(displayedCreationDecision.methodCard?.packageSources ?? displayedCreationDecision.packageAuthority.citations).map((citation) => <span key={citation}>{citation}</span>)}
             </div>
           </section>
           {creationHandoffReady && (
@@ -2783,6 +2824,7 @@ function App({
         <section className="panel">
           <h2>Admission flow</h2>
           <p>Admission is the only flow that changes canon standing.</p>
+          <MethodCardPanel card={admissionDecision?.methodCard} />
           <section className="subpanel">
             <h3>Queue</h3>
             {admissionQueue.length === 0 ? <p className="status">No Admission work is queued.</p> : admissionQueue.map((record) => <p key={record.id}>{record.shortId} · {record.title}</p>)}
@@ -2791,7 +2833,10 @@ function App({
             <section className="subpanel">
               <h3>{admissionDecision.currentStep}</h3>
               <p>{admissionDecision.localDecision}</p>
-              <p>{admissionDecision.packageAuthority.primary}</p>
+              <details>
+                <summary>Provenance</summary>
+                <p>{admissionDecision.packageAuthority.primary}</p>
+              </details>
             </section>
           )}
         </section>
@@ -2800,6 +2845,7 @@ function App({
         <section className="panel">
           <h2>Propagation flow</h2>
           <p>Work shock cones, consequence domains, and stopping-rule dispositions.</p>
+          <MethodCardPanel card={propagationPlan?.methodCard} />
           {propagationQueue.map((record) => <p key={record.id}>{record.shortId} · {record.title}</p>)}
         </section>
       ),
@@ -2807,18 +2853,21 @@ function App({
         <section className="panel">
           <h2>Constraint composition flow</h2>
           <p>Compose constraints where facts apply.</p>
+          <MethodCardPanel card={constraintRun?.decisionPoint?.sharedContract.methodCard} />
         </section>
       ),
       stage12: (
         <section className="panel">
           <h2>Institutional / Economic / Suppression flow</h2>
           <p>Run conditional institutional, economic, and suppression passes.</p>
+          <MethodCardPanel card={stage12Run?.methodCard} />
         </section>
       ),
       contradiction: (
         <section className="panel">
           <h2>Contradiction/Retcon/Mystery flow</h2>
           <p>Repair contradictions and preserve protected effects.</p>
+          <MethodCardPanel card={stage13Run?.methodCard} />
           {stage13OwedBoundaries.map((row) => <p key={row.propagationDispositionId}>Boundary #{row.propagationDispositionId} · protected record {row.protectedRecordId}</p>)}
         </section>
       ),
@@ -2826,6 +2875,7 @@ function App({
         <section className="panel">
           <h2>QA</h2>
           <p>Score stability before calling the world stable.</p>
+          <MethodCardPanel card={qaScorecard?.methodCard} />
         </section>
       ),
       "canon-workbench": (
@@ -2933,8 +2983,8 @@ function App({
         <section className="editor">
           <div className="operating-card">
             <strong>Operating Card</strong>
-            <span>Source: docs/worldbuilding-system/operating_card.md</span>
-            <span>Fill a lean world kernel, decompose seeds until each can be independently rejected, then admit later through `06`.</span>
+            <span>{workflowMap?.methodCards?.operatingCard.operativeRule ?? "Server-owned operating-card content loads with the workflow map."}</span>
+            {workflowMap?.methodCards?.operatingCard && <span>Provenance: {workflowMap.methodCards.operatingCard.packageSources.join(" · ")}</span>}
           </div>
 
           {creationHandoffReady && (
@@ -3168,7 +3218,7 @@ function App({
               {selectedTemplate && (
                 <div className="doctrine">
                   <strong>{selectedTemplate.role_name}</strong>
-                  <span>Source: docs/worldbuilding-system/20_ai_assisted_workflow.md</span>
+                  <span>Provenance: docs/worldbuilding-system/20_ai_assisted_workflow.md</span>
                   <span>Original: {selectedTemplate.original_text}</span>
                 </div>
               )}
@@ -3201,10 +3251,11 @@ function App({
 
           <div className="panel">
             <h2>Admission flow</h2>
+            <MethodCardPanel card={admissionDecision?.methodCard} />
             <div className="doctrine">
-              <strong>Doctrine at point of use</strong>
-              <span>Queue and gate derive from docs/worldbuilding-system/06_canon_fact_admission_protocol.md, checklists/canon_fact_gate.md, checklists/frontloaded_seed_audit.md, and templates/admission_ledger.md.</span>
-              <span>Severity is steward-declared; sweeps propose and only admission admits.</span>
+              <strong>Admission method guidance</strong>
+              <span>{admissionDecision?.methodCard?.operativeRule ?? "Select a proposed fact and load server-returned Admission guidance before treating doctrine as loaded."}</span>
+              <span>{admissionDecision?.methodCard?.why ?? "Severity is steward-declared; sweeps propose and only Admission admits."}</span>
             </div>
             <section className="decision-point">
               <h3>Decision point</h3>
@@ -3274,11 +3325,10 @@ function App({
                 <p>{admissionDecision?.seedAudit.runWrites ?? "Running seed audit writes a gate_result when offered."}</p>
                 <p>{admissionDecision?.seedAudit.declineWrites ?? "Declining an offered instrument writes a governed skip_record."}</p>
                 <p>{admissionDecision?.seedAudit.nonMutation ?? "Seed audit does not mutate seed truth layer, canon status, tags, severity, or operations."}</p>
-                {(admissionDecision?.seedAudit.doctrine ?? [
-                  "docs/worldbuilding-system/05_creation_protocol.md",
-                  "docs/worldbuilding-system/06_canon_fact_admission_protocol.md",
-                  "docs/worldbuilding-system/checklists/frontloaded_seed_audit.md"
-                ]).map((citation) => <p key={citation}>Doctrine: {citation}</p>)}
+                <details>
+                  <summary>Seed audit provenance</summary>
+                  {(admissionDecision?.seedAudit.doctrine ?? []).map((citation) => <p key={citation}>Provenance: {citation}</p>)}
+                </details>
                 <p>{`Reason required: ${admissionDecision?.skipRule.reasonRequired ? "yes" : "no"} · ${admissionDecision?.skipRule.reasonThreshold ?? "major-or-higher Admission work"} · ${admissionDecision?.skipRule.belowThresholdNote ?? "Reason not collected below major-fact threshold."}`}</p>
                 <p>Open canon debt warnings are non-blocking and remain steward judgment context.</p>
               </section>
@@ -3387,9 +3437,10 @@ function App({
 
           <div className="panel">
             <h2>Institutional, Economic, and Suppression flow</h2>
+            <MethodCardPanel card={stage12Run?.methodCard} />
             <div className="doctrine">
-              <strong>Doctrine and checklist</strong>
-              <span>{stage12Run ? `${stage12Run.doctrine.protocol} · ${stage12Run.doctrine.checklist}` : "Start or resume a stage-12 run to load server-returned doctrine."}</span>
+              <strong>Method guidance</strong>
+              <span>{stage12Run?.methodCard?.operativeRule ?? "Start or resume a stage-12 run to load server-returned method guidance."}</span>
               <span>{stage12Run?.doctrine.completionRule ?? "The server owns close readiness and coverage policy."}</span>
             </div>
             <div className="grid">
@@ -3510,11 +3561,12 @@ function App({
 
           <div className="panel">
             <h2>Constraint Composition flow</h2>
+            <MethodCardPanel card={constraintRun?.decisionPoint?.sharedContract.methodCard} />
             <section className="subpanel">
               <h3>Start or Resume Constraint Composition</h3>
               <div className="doctrine">
-                <strong>Doctrine, checklist, and template</strong>
-                <span>{constraintRun ? `${constraintRun.doctrine.protocol} · ${constraintRun.doctrine.checklist} · ${constraintRun.doctrine.template}` : "Start or resume a run to load server-returned doctrine."}</span>
+                <strong>Method guidance</strong>
+                <span>{constraintRun?.decisionPoint?.sharedContract.methodCard?.operativeRule ?? "Start or resume a run to load server-returned method guidance."}</span>
                 <span>{constraintRun?.doctrine.completionRule ?? "The server owns constraint budget, loopholes, enforcement, residue, and close readiness."}</span>
               </div>
               <div className="grid">
@@ -3704,9 +3756,10 @@ function App({
 
           <div className="panel">
             <h2>Contradiction/Retcon/Mystery flow</h2>
+            <MethodCardPanel card={stage13Run?.methodCard} />
             <div className="doctrine">
               <strong>Stage 13</strong>
-              <span>Source: docs/worldbuilding-system/13_contradiction_retcon_and_mystery.md and docs/specs/contradiction-retcon-mystery-flow.md.</span>
+              <span>{stage13Run?.methodCard?.operativeRule ?? "Start or refresh a Stage 13 run to load server-returned contradiction guidance."}</span>
               <span>Prompt-out templates: repair_challenge · boundary_guard</span>
               <span>{stage13Run ? `Run ${stage13Run.flow.id} · ${stage13Run.flow.state} · ${stage13Run.flow.current_step}` : "Start or refresh a Stage 13 run to load server-returned state."}</span>
             </div>
@@ -3868,9 +3921,10 @@ function App({
 
           <div className="panel">
             <h2>Propagation flow</h2>
+            <MethodCardPanel card={propagationPlan?.methodCard} />
             <div className="doctrine">
               <strong>Shock cone</strong>
-              <span>Source: docs/worldbuilding-system/07_propagation_engine.md and docs/worldbuilding-system/04_domain_atlas.md.</span>
+              <span>{propagationPlan?.methodCard?.operativeRule ?? "Load a fact plan to see server-returned propagation guidance."}</span>
               <span>{propagationPlan?.requiredCoverage ?? "Load a fact plan to see severity-scaled coverage."}</span>
             </div>
             <div className="grid">
@@ -3937,9 +3991,10 @@ function App({
 
           <div className="panel">
             <h2>QA flow</h2>
+            <MethodCardPanel card={qaScorecard?.methodCard} />
             <div className="doctrine">
               <strong>Scorecard</strong>
-              <span>Source: docs/worldbuilding-system/18_quality_assurance_tests.md.</span>
+              <span>{qaScorecard?.methodCard?.operativeRule ?? "Start or refresh a QA pass to load server-returned scorecard guidance."}</span>
               <span>{qaBand ? `Band: ${qaBand.color} - ${qaBand.reason}` : "Start or refresh a QA pass to load scorecard policy."}</span>
               {qaScorecard?.subjectMode && <span>Consequence mode: {qaScorecard.subjectMode}</span>}
             </div>
@@ -4049,6 +4104,7 @@ function App({
           <div className="panel creation-decision">
             <h2>Creation decision point</h2>
             <p className="status">Primary active path for a new world</p>
+            <MethodCardPanel card={displayedCreationDecision.methodCard} />
             <div className="row">
               <button onClick={startFlow} disabled={!openWorld}>Start or Resume Creation</button>
               <span className="status">{flowId ? `Flow ${flowId}${kernelRecordId ? ` · kernel ${kernelRecordId}` : ""}` : "No Creation flow loaded"}</span>
@@ -4063,7 +4119,7 @@ function App({
                 <span>Safe exit/resume</span>
               </div>
               <div className="doctrine">
-                <strong>Package authority</strong>
+                <strong>Provenance</strong>
                 <span>{displayedCreationDecision.packageAuthority.primary}</span>
                 <span>{displayedCreationDecision.packageAuthority.why}</span>
                 {displayedCreationDecision.packageAuthority.citations.map((citation) => <span key={citation}>{citation}</span>)}

@@ -6,7 +6,9 @@ import {
   type DeclaredSeverity
 } from "./severity-policy.js";
 import { ADVISORY_OUTPUT_LABELS, promptMode, splitDisplayedContext, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
+import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest } from "./method-cards.js";
 import * as PromptOut from "./prompt-out.js";
+import type { MethodCard } from "@worldloom/shared";
 import type { AdmissionQueueRow, FacetRow, LinkRow, RecordRow, WorldFile } from "./world-file.js";
 
 export type AdmissionGatePath = "minor_ledger" | "full_gate";
@@ -44,6 +46,7 @@ export interface AdmissionDecisionWork {
 }
 
 export interface AdmissionDecisionPayload {
+  methodCard: MethodCard;
   flow: {
     key: "admission";
     runState: string;
@@ -588,7 +591,8 @@ const promptOutFor = (
   localDecision: string,
   gate: AdmissionGatePolicy | null,
   sourceLinks: AdmissionDecisionPayload["selectedRecord"]["sourceLinks"],
-  doctrineCitations: string[]
+  doctrineCitations: string[],
+  cardValue: MethodCard
 ): AdmissionDecisionPayload["promptOut"] => {
   const fullGate = gate?.path === "full_gate";
   const templateKey = fullGate ? "admission_constraint_challenge" : "admission_prerequisite_audit";
@@ -604,7 +608,8 @@ const promptOutFor = (
   const sourceManifest = [
     `Record ${record.shortId}: ${record.title}`,
     ...sourceLinks.map((link) => `Source link ${link.linkTypeKey}: ${link.target ? `${link.target.shortId} ${link.target.title}` : `record ${link.toRecordId}`} (${link.note || "no note"})`),
-    ...doctrineCitations.map((citation) => `Doctrine: ${citation}`)
+    ...methodCardSourceManifest(cardValue),
+    ...doctrineCitations.filter((citation) => !cardValue.packageSources.includes(citation)).map((citation) => `Related provenance: ${citation}`)
   ];
   const pressureStepRequest = {
     method: "POST" as const,
@@ -688,9 +693,17 @@ export const admissionDecisionPoint = (worldFile: WorldFile, recordId: number): 
   const { runState, currentStep } = currentAdmissionStep(worldFile, record, severityDeclared);
   const localDecision = localDecisionFor(severityDeclared, gate?.path ?? null);
   const doctrineCitations = doctrineFor(gate, seedAuditOffered);
+  const cardValue = methodCard(
+    !severityDeclared
+      ? "admission.queue-severity"
+      : gate?.path === "minor_ledger"
+        ? "admission.minor-ledger"
+        : "admission.full-gate"
+  );
+  const cardDoctrineSlots = methodCardDoctrineSlots(cardValue);
   const reasonRequired = requiresSkipReason(severity);
   const work = workFor(severityDeclared, gate, seedAuditOffered);
-  const promptOut = promptOutFor(worldFile, record, localDecision, gate, sourceLinks, doctrineCitations);
+  const promptOut = promptOutFor(worldFile, record, localDecision, gate, sourceLinks, doctrineCitations, cardValue);
   const writeIntent = {
     willWrite: severityDeclared
       ? [
@@ -722,6 +735,7 @@ export const admissionDecisionPoint = (worldFile: WorldFile, recordId: number): 
   const readSideTrail = readSideTrailFor(recordId);
   const sharedContract: DecisionPointSharedContract = {
     contractVersion: "decision-point/v1",
+    methodCard: cardValue,
     flow: { key: "admission", runState },
     step: {
       key: currentStep,
@@ -742,7 +756,7 @@ export const admissionDecisionPoint = (worldFile: WorldFile, recordId: number): 
       recordType: "skip_record"
     },
     doctrine: {
-      slots: doctrineCitations,
+      slots: cardDoctrineSlots,
       packageSources: doctrineCitations
     },
     bearingContext: {
@@ -766,6 +780,7 @@ export const admissionDecisionPoint = (worldFile: WorldFile, recordId: number): 
   };
 
   return {
+    methodCard: cardValue,
     flow: { key: "admission", runState },
     currentStep,
     nextOrResumeState,

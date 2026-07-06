@@ -1,5 +1,6 @@
 import { intakeProposedFact } from "./admission-flow.js";
 import { ADVISORY_OUTPUT_LABELS, promptMode, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
+import { methodCard, methodCardDoctrineSlots, methodCardsForFlow, methodCardSourceManifest } from "./method-cards.js";
 import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, RecordRow, WorldFile } from "./world-file.js";
 
@@ -48,6 +49,18 @@ const DOCTRINE = {
     severityDependent: ["Major-or-higher skipped constraint work requires a reason and can preserve or create canon debt"]
   }
 } as const;
+
+const constraintMethodCardForStep = (stepKey: string) => {
+  if (stepKey.includes("constrained")) return methodCard("constraint.constrained-fact");
+  if (stepKey.includes("inventory")) return methodCard("constraint.inventory");
+  if (stepKey.includes("composition")) return methodCard("constraint.composition");
+  if (stepKey.includes("leakage") || stepKey.includes("residue")) return methodCard("constraint.leakage-residue");
+  if (stepKey.includes("advisory") || stepKey.includes("prompt") || stepKey.includes("skip")) return methodCard("constraint.prompt-out-skips");
+  if (stepKey.includes("close") || stepKey.includes("complete")) return methodCard("constraint.close-preview");
+  if (stepKey.includes("trail") || stepKey.includes("read")) return methodCard("constraint.read-side-trail");
+  if (stepKey.includes("card") || stepKey.includes("proposal") || stepKey.includes("debt")) return methodCard("constraint.outcomes");
+  return methodCard("constraint.source-selection");
+};
 
 const stringValue = (row: DbRow, key: string): string => String(row[key] ?? "");
 const numberValue = (row: DbRow, key: string): number => Number(row[key]);
@@ -419,6 +432,7 @@ const constraintDecisionPoint = (world: WorldFile, flowId: number): { sharedCont
   const readiness = closeReadiness(world, flowId);
   const promptOut = promptOutState(world, flowId);
   const trail = readSideTrail(world, flowId);
+  const cardValue = constraintMethodCardForStep(String(flow.current_step ?? "constraint:entry"));
   const displayed = [
     `Source: ${source.sourceSummary}`,
     `Constrained subject: ${source.constrainedSubject}`,
@@ -430,6 +444,7 @@ const constraintDecisionPoint = (world: WorldFile, flowId: number): { sharedCont
   return {
     sharedContract: {
       contractVersion: "decision-point/v1",
+      methodCard: cardValue,
       flow: { key: FLOW_KEY, runState: String(flow.state ?? "in_progress") },
       step: {
         key: String(flow.current_step ?? "constraint:entry"),
@@ -444,7 +459,7 @@ const constraintDecisionPoint = (world: WorldFile, flowId: number): { sharedCont
         severityDependent: [...DOCTRINE.work.severityDependent]
       },
       doctrine: {
-        slots: [DOCTRINE.completionRule, DOCTRINE.browserPolicy],
+        slots: methodCardDoctrineSlots(cardValue),
         packageSources: [DOCTRINE.protocol, DOCTRINE.checklist, DOCTRINE.template, DOCTRINE.aiWorkflow]
       },
       bearingContext: {
@@ -452,8 +467,7 @@ const constraintDecisionPoint = (world: WorldFile, flowId: number): { sharedCont
         sourceManifest: [
           `Pass report: ${source.passReportRecordId}`,
           ...(source.sourceRecordId == null ? [] : [`Source record id: ${source.sourceRecordId}`]),
-          `Doctrine: ${DOCTRINE.protocol}`,
-          `Checklist: ${DOCTRINE.checklist}`
+          ...methodCardSourceManifest(cardValue)
         ],
         omissions: ["Temporal/Timeline is out of scope for this Constraint Composition pass unless routed as follow-up debt."]
       },
@@ -606,6 +620,7 @@ export const getConstraintRun = (world: WorldFile, flowId: number) => {
     report: world.getRecord(source.passReportRecordId),
     source,
     doctrine: DOCTRINE,
+    methodCards: methodCardsForFlow(FLOW_KEY),
     inventory: inventoryRows(world, flowId),
     composition: compositionRows(world, flowId),
     leakage: leakageRow(world, flowId),

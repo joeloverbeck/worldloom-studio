@@ -22,8 +22,8 @@ describe("Creation decision-point web surface", () => {
     expect(html).toContain("Creation decision point");
     expect(html).toContain("Primary active path for a new world");
     expect(html).toContain("governing kernel or pressure seed");
-    expect(html).toContain("docs/worldbuilding-system/05_creation_protocol.md");
-    expect(html).toContain("docs/worldbuilding-system/templates/world_kernel.md");
+    expect(html).toContain("Provenance");
+    expect(html).toContain("Server-returned method-card provenance loads after the Creation flow starts.");
     expect(html).toContain("Required");
     expect(html).toContain("Allowed-empty");
     expect(html).toContain("Consequence mode is steward judgment");

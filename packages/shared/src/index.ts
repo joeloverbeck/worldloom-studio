@@ -58,6 +58,21 @@ export interface WorkflowMapDestination {
   state: WorkflowMapDestinationState;
 }
 
+export type MethodCardGuidanceDepth = "lean" | "standard" | "full";
+
+export interface MethodCard {
+  key: string;
+  flowKey: string;
+  decisionPoint: string;
+  decision: string;
+  operativeRule: string;
+  why: string;
+  goodMaterial: string;
+  guidanceDepth: MethodCardGuidanceDepth;
+  derivationVersion: string;
+  packageSources: string[];
+}
+
 export interface WorkflowMapPayload {
   readOnly: true;
   world: { path: string };
@@ -70,6 +85,11 @@ export interface WorkflowMapPayload {
     href: string;
   };
   destinations: WorkflowMapDestination[];
+  methodCards?: {
+    operatingCard: MethodCard;
+    setup: MethodCard;
+    workflowMap: MethodCard;
+  };
 }
 
 export const APP_VERSION = "0.0.0";

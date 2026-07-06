@@ -40,7 +40,7 @@ For a PR, the same states read against the attached code: `ready-for-agent` mean
 
 Every triaged issue should carry exactly one category role and one state role. If state roles conflict, flag it and ask the maintainer before doing anything else.
 
-These are canonical role names — the actual label strings used in the issue tracker may differ. The mapping should have been provided to you - run `/setup-matt-pocock-skills` if not.
+These are canonical role names — the actual label strings used in the issue tracker may differ. The mapping lives in the repo's label-mapping doc — `docs/agents/triage-labels.md` here; more generally, the issue-tracker config named in the project `CLAUDE.md`. If no mapping doc exists, run `/setup-matt-pocock-skills`.
 
 State transitions: an unlabeled issue normally goes to `needs-triage` first; from there it moves to `needs-info`, `ready-for-agent`, `ready-for-human`, or `wontfix`. `needs-info` returns to `needs-triage` once the reporter replies. The maintainer can override at any time — flag transitions that look unusual and ask before proceeding.
 
@@ -79,18 +79,20 @@ When the maintainer asks what should be addressed next, query all open issues an
 - Keep `needs-triage` as grooming work unless the issue is already specific enough to move after a quick recommendation.
 - Surface label hygiene and dependency cleanup separately from the recommended work item.
 
+**Gate-closure sweep** — whenever triage confirms a blocking issue has closed (here or during a specific-issue triage), search open issues' comments for references to that gate and surface any now-unblocked candidates.
+
 ## Triage a specific issue or PR
 
 1. **Gather context.** Read the full issue or PR (body, comments, labels, author, dates; for a PR, the diff too). Parse any prior triage notes so you don't re-ask resolved questions. Explore the codebase using the project's domain glossary, respecting ADRs in the area. Run two checks against the codebase: (a) **redundancy** — search for an existing implementation of the requested behavior by domain concept (not just the request's wording), and report where you looked. If found, it's an already-implemented `wontfix` (step 5). (b) **prior rejection** — read `.out-of-scope/*.md` and surface any that resembles this request.
 
 2. **Recommend.** Tell the maintainer your category and state recommendation with reasoning, plus a brief codebase summary relevant to the request — including whether it's already implemented. Wait for direction.
 
-3. **Verify the claim.** Before any grilling, check that the claim holds up. For a bug, reproduce it from the reporter's steps. For a PR, confirm the diff does what it claims — check it out, run the relevant tests or commands. Report what happened: confirmed (with code path), failed, or insufficient detail (a strong `needs-info` signal). A confirmed verification makes a much stronger agent brief.
+3. **Verify the claim.** Before any grilling, check that the claim holds up. For a bug, reproduce it from the reporter's steps. For a PR, confirm the diff does what it claims — check it out, run the relevant tests or commands. For an enhancement or PRD, verify its readiness claims: any dependency gate has closed as *completed* (check the state reason — not-planned doesn't count), prerequisite artifacts the issue's own notes name are actually committed, and the integration seam the work mounts onto exists in the codebase. Report what happened: confirmed (with code path), failed, or insufficient detail (a strong `needs-info` signal). A confirmed verification makes a much stronger agent brief.
 
 4. **Grill (if needed).** If the request needs fleshing out, run the `/grilling` and `/domain-modeling` skills together — grill it into shape one question at a time, sharpening domain terms and updating `CONTEXT.md`/ADRs inline as decisions land.
 
 5. **Apply the outcome:**
-   - `ready-for-agent` — post an agent brief comment ([AGENT-BRIEF.md](AGENT-BRIEF.md)).
+   - `ready-for-agent` — post an agent brief comment ([AGENT-BRIEF.md](AGENT-BRIEF.md)). When readiness rests on work referenced by commit, check remote reachability (`git branch -r --contains <sha>`); flag local-only prerequisites in the brief or flip comment, naming the branch implementation must start from.
    - `ready-for-human` — same structure as an agent brief, but note why it can't be delegated (judgment calls, external access, design decisions, manual testing).
    - `needs-info` — post triage notes (template below).
    - **Decision issue resolved** — if the issue exists only to capture a maintainer/steward decision and that decision has now been ratified, post a decision-record comment with the required AI disclaimer, summarize the chosen option and follow-up work, then close the issue as resolved. Do not treat this as `wontfix` unless the decision rejects the request; do not write `.out-of-scope/` for an accepted decision.
@@ -103,6 +105,8 @@ When the maintainer asks what should be addressed next, query all open issues an
 ## Quick state override
 
 If the maintainer says "move #42 to ready-for-agent", trust them and apply the role directly. Confirm what you're about to do (role changes, comment, close), then act. Skip grilling. If moving to `ready-for-agent` without a grilling session, ask whether they want to write an agent brief.
+
+A maintainer comment recorded on the issue that names a conditional transition ("flip to X when #Y closes/lands") counts as a standing override once the condition verifiably holds. Before applying it, verify the gate event's state reason (closed as completed, not not-planned) and any prerequisites the issue's own notes name, then document that verification in the flip comment.
 
 ## Needs-info template
 

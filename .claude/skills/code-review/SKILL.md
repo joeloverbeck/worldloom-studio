@@ -20,6 +20,8 @@ Whatever the user said is the fixed point — a commit SHA, branch name, tag, `m
 
 Exception: when invoked as part of implementation closeout after the implementation has already been committed locally, default to `HEAD~1` unless the user or calling skill supplied a different fixed point.
 
+If review findings are fixed in one or more follow-up commits, keep the original fixed point for any final or residual implementation-closeout review. Use the new `HEAD~1` only when explicitly reviewing just the follow-up fix commit; otherwise it drops the original implementation diff from the review frame.
+
 Capture the diff command once: `git diff <fixed-point>...HEAD` (three-dot, so the comparison is against the merge-base). Also note the list of commits via `git log <fixed-point>..HEAD --oneline`.
 
 Run `git status --short` before fixing the review inputs. If the worktree is dirty, state whether the review covers only the committed diff or also staged/unstaged work. The default implementation-closeout review covers committed changes only; label dirty files as excluded unless the user asked for a work-in-progress review. For work-in-progress review, add `git diff --cached` and `git diff` as explicit inputs to both axes, alongside the committed diff when relevant.
@@ -74,6 +76,7 @@ Use the available sub-agent mechanism, if permitted, with two independent read-o
 - Reuse the same Standards and Spec inputs below, including standards-source files, spec sources, principle/ADR material, the diff command or WIP diff inputs, commit list, and the smell baseline.
 - Keep the outputs separated under `## Standards` and `## Spec`.
 - For PRD child issue families, include the compact per-child coverage table `Issue | Acceptance source | Evidence reviewed | Findings/residuals` before reporting zero residual Spec findings.
+- When a child issue, PRD criterion, or acceptance source contains a named list of required items, enumerate those items in the `Acceptance source` cell or split them into multiple rows before reporting zero residual Spec findings. A single child row is not enough if it hides partial list coverage.
 - Cite the concrete standards/spec sources used for each axis.
 - Source lists must name exact files, issue numbers, or other concrete authorities. Do not use generic placeholders such as `relevant principles/ADRs` or `named principle/ADR sources`; put Principles/ADRs on the Standards axis only when the named source states a coding, review, tracker, or verification convention.
 - Apply the smell baseline as judgement-call heuristics, not hard violations, and let documented repo standards override it.
@@ -102,7 +105,7 @@ Sources reviewed: <exact issue/PRD/spec files, named Principles/ADRs when applic
 
 | Issue | Acceptance source | Evidence reviewed | Findings/residuals |
 |---|---|---|---|
-| #N | <issue/spec/criterion> | <diff/tests/docs reviewed> | <none / finding> |
+| #N | <issue/spec/criterion; enumerate named list items when present> | <diff/tests/docs reviewed> | <none / finding> |
 
 Findings: <none / bullets with quoted spec line>.
 
@@ -134,6 +137,7 @@ If review reports no findings and no files change after review, `verification re
 - Any staged/unstaged WIP diff inputs captured in step 1.
 - The path(s), issue number(s), or fetched contents for every spec source.
 - If the spec source is a PRD child issue family, require a compact per-child coverage table: `Issue | Acceptance source | Evidence reviewed | Findings/residuals`. Every child issue under review should have a row before reporting zero residual Spec findings.
+- If a child issue, PRD criterion, or acceptance source contains a named list of required items, require the `Acceptance source` cell to enumerate those items or split them into multiple rows before reporting zero residual Spec findings.
 - Any `## Principles` section from the spec source, plus `docs/principles/README.md` and named principle/ADR docs read in step 2.
 - The brief: "Report: (a) requirements the spec asked for that are missing or partial; (b) behaviour in the diff that wasn't asked for (scope creep); (c) requirements that look implemented but where the implementation looks wrong. Quote the spec line for each finding. Under 400 words."
 
