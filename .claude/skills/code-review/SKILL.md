@@ -71,7 +71,8 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 Non-bypassable review fallback gate:
 
 - When local fallback is used during repo `implement` closeout, the full mandatory fallback block below must be present in the durable closeout sink, or in an explicitly linked adjacent durable sink, before the implementation pre-close audit or any tracker closeout.
-- The one-line `Review fallback:` evidence line is not enough by itself. The durable sink must also include the review frame, `## Standards`, `## Spec`, `Smell baseline applied:`, the PRD child coverage table when applicable, the axis summary, and the literal `Review fallback gate passed:` line.
+- The one-line `Review fallback:` evidence line is not enough by itself. The durable sink must also include the review frame, `## Standards`, `## Spec`, `Smell baseline applied:`, the PRD child coverage table when applicable, the immediate-fix block when findings were fixed before closeout, the axis summary, and the literal `Review fallback gate passed:` line.
+- If a behavior-changing review fix invokes the repo `tdd` skill, the same durable sink must also include or explicitly link the `TDD closeout preflight` block and the full fielded `TDD evidence gate passed: durable sink ...` line, including `compact table/header`, `seams accounted for`, `context/doctrine read status`, `partial-red / red-first skip reasons`, and `evidence-only rows` fields. The `TDD/review-fix evidence` row records the review fix; it is not a substitute for the TDD closeout gate.
 - If any fallback field is missing or only implied, stop and fill it before handing back to `implement` closeout.
 
 Use the available sub-agent mechanism, if permitted, with two independent read-only review tasks. Prefer running the axes in parallel; if the tool surface uses different role names, choose the closest general read-only reviewer role. If sub-agent tools may be deferred or lazy-loaded, perform the minimal tool-discovery check needed to inspect the surfaced sub-agent policy before deciding. If the discovered policy requires explicit user authorization to spawn agents and the user did not grant it, record `policy-blocked` and do not spawn. If the discovered policy says spawning agents requires explicit user authorization and the user did not explicitly ask for sub-agents, delegation, parallel agents, or parallel agent work, the discovery check is complete: record `policy-blocked`, skip sub-agent prompt inspection/preparation, and proceed directly to local fallback. If sub-agents are unavailable or policy-blocked, run both axes locally against the same fixed point, keep the analysis separated under the same headings, and state that the fallback path was used.
@@ -83,14 +84,15 @@ Use the available sub-agent mechanism, if permitted, with two independent read-o
 - Keep the outputs separated under `## Standards` and `## Spec`.
 - For PRD child issue families, include the compact per-child coverage table `Issue | Acceptance source | Evidence reviewed | Findings/residuals` before reporting zero residual Spec findings.
 - When a child issue, PRD criterion, or acceptance source contains a named list of required items, enumerate those items in the `Acceptance source` cell or split them into multiple rows before reporting zero residual Spec findings. A single child row is not enough if it hides partial list coverage.
+- For routed, guided-flow, or multi-surface UI acceptance, verify the requirement on the production route and action path the user actually reaches. Do not count legacy, adjacent, inactive, or full-workspace-only surfaces as satisfying a routed active-surface requirement.
 - Cite the concrete standards/spec sources used for each axis.
 - Source lists must name exact files, issue numbers, or other concrete authorities. Do not use generic placeholders such as `relevant principles/ADRs` or `named principle/ADR sources`; put Principles/ADRs on the Standards axis only when the named source states a coding, review, tracker, or verification convention.
 - Apply the smell baseline as judgement-call heuristics, not hard violations, and let documented repo standards override it.
 - In the Standards output, include a dedicated `Smell baseline applied: <yes / skipped because ...>.` line before findings, so a zero-finding fallback still proves the baseline was considered.
 - End with the required axis summary: `Standards <count/worst>, Spec <count/worst>`.
 - If any finding is fixed before closeout, distinguish `Findings found` from `Residual findings` in the fallback report or immediate-fix block. The final axis count may be zero residual, but the found-and-fixed item must remain visible.
-- Before leaving local fallback, perform a fallback shape hard stop: confirm the output contains the review frame, `## Standards`, `## Spec`, `Smell baseline applied:`, the PRD child coverage table when reviewing a child-issue family, the axis summary, and the exact `Review fallback:` closeout-ready line when invoked by `implement`. If any required piece is missing, stop and fill it before moving to the implementation pre-close audit or issue closeout.
-- Emit this literal gate line after the hard stop: `Review fallback gate passed: frame <yes/no>; Standards <yes/no>; Spec <yes/no>; child table <yes/N/A>; smell baseline <yes/no>; found-vs-residual <yes/N/A>; closeout line <yes/N/A>; verification/browser freshness <yes/N/A>.`
+- Before leaving local fallback, perform a fallback shape hard stop: confirm the output contains the review frame, `## Standards`, `## Spec`, `Smell baseline applied:`, the PRD child coverage table when reviewing a child-issue family, the axis summary, the immediate-fix block when findings were fixed before closeout, the full fielded TDD closeout gate line or link when the repo `tdd` skill was invoked, and the exact `Review fallback:` closeout-ready line when invoked by `implement`. If any required piece is missing, stop and fill it before moving to the implementation pre-close audit or issue closeout.
+- Emit this literal gate line after the hard stop: `Review fallback gate passed: frame <yes/no>; Standards <yes/no>; Spec <yes/no>; child table <yes/N/A>; smell baseline <yes/no>; found-vs-residual <yes/N/A>; closeout line <yes/N/A>; immediate-fix block <yes/N/A>; tdd fielded closeout gate <yes/N/A>; verification/browser freshness <yes/N/A>.`
 - When invoked by `implement`, the full mandatory fallback block must be embedded in the durable closeout artifact, or placed in an adjacent durable sink with an explicit link from the closeout artifact. The one-line `Review fallback:` closeout-ready evidence line is still required, but it does not substitute for the full fallback block.
 
 Mandatory local fallback output — paste this shape even when both axes have zero findings:
@@ -115,9 +117,20 @@ Sources reviewed: <exact issue/PRD/spec files, named Principles/ADRs when applic
 
 Findings: <none / bullets with quoted spec line>.
 
+If findings were fixed before closeout, include this block before the axis summary:
+
+- **Findings found**: `<count and short titles>`
+- **Fixes made**: `<files/behavior changed, proof/coverage added>`
+- **TDD/review-fix evidence**: `<red command/failure per behavior-changing fix, partial red - wrong reason: <reason> plus follow-up intended red if applicable, coverage-only review fix reason, or explicit red-first skipped because ...>`
+- **TDD closeout gate**: `<TDD closeout preflight plus full fielded TDD evidence gate passed: durable sink ... line present or explicitly linked, including compact table/header, seams accounted for, context/doctrine read status, partial-red / red-first skip reasons, and evidence-only rows / N/A because no tdd skill was invoked>`
+- **Verification rerun**: `<commands and browser/manual checks>`
+- **Browser/manual evidence freshness**: `<rerun evidence on final tree, not affected, or explicit blocked/stale reason>`
+- **Commit handling**: `<unchanged implementation commit SHA / amended commit SHA / follow-up commit SHA / no commit yet>`
+- **Residual findings**: `<remaining Standards and Spec findings, or none>`
+
 Axis summary: Standards <count/worst>, Spec <count/worst>
 
-Review fallback gate passed: frame <yes/no>; Standards <yes/no>; Spec <yes/no>; child table <yes/N/A>; smell baseline <yes/no>; found-vs-residual <yes/N/A>; closeout line <yes/N/A>; verification/browser freshness <yes/N/A>.
+Review fallback gate passed: frame <yes/no>; Standards <yes/no>; Spec <yes/no>; child table <yes/N/A>; smell baseline <yes/no>; found-vs-residual <yes/N/A>; closeout line <yes/N/A>; immediate-fix block <yes/N/A>; tdd fielded closeout gate <yes/N/A>; verification/browser freshness <yes/N/A>.
 Review fallback: <required when invoked by implement: why code-review could not run; standards/spec result <...>; fixes <none / SHA ...>; verification rerun <commands> / N/A when not invoked by implement>.
 ```
 
@@ -144,6 +157,7 @@ If review reports no findings and no files change after review, `verification re
 - The path(s), issue number(s), or fetched contents for every spec source.
 - If the spec source is a PRD child issue family, require a compact per-child coverage table: `Issue | Acceptance source | Evidence reviewed | Findings/residuals`. Every child issue under review should have a row before reporting zero residual Spec findings.
 - If a child issue, PRD criterion, or acceptance source contains a named list of required items, require the `Acceptance source` cell to enumerate those items or split them into multiple rows before reporting zero residual Spec findings.
+- For routed, guided-flow, or multi-surface UI work, require the reviewer to verify acceptance on the production route and action path the user actually reaches, and to reject legacy, adjacent, inactive, or full-workspace-only surfaces as proof for active routed requirements.
 - Any `## Principles` section from the spec source, plus `docs/principles/README.md` and named principle/ADR docs read in step 2.
 - The brief: "Report: (a) requirements the spec asked for that are missing or partial; (b) behaviour in the diff that wasn't asked for (scope creep); (c) requirements that look implemented but where the implementation looks wrong. Quote the spec line for each finding. Under 400 words."
 
@@ -159,13 +173,14 @@ If the review resumes, compacts, or is interrupted before final reporting, reval
 
 End with a one-line summary: total findings per axis, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes — that's the reranking the separation exists to prevent.
 
-When this review is part of implementation closeout, report findings first. If fixes are made immediately, rerun the relevant verification, state whether the commit was amended or followed by a new commit, and include the review outcome in the implementation closeout evidence. When a finding requires a behavior change, invoke the repo `tdd` skill where possible: add or adjust the smallest assertion first and run it red before fixing. If the code was already fixed to protect the tree or unblock verification, record that red-first was skipped and why. For behavior-changing review fixes, generic wording such as `fixed and covered` is not enough; the closeout must include the red command/failure or an explicit `red-first skipped because ...` reason. If a review finding is missing proof or coverage only, add the smallest assertion and run it; if it passes without code changes, record `coverage-only review fix; red-first N/A because behavior already existed and no code changed`; if it fails, treat the finding as missing behavior and use the normal TDD red-green path. If a review fix touches UI, route handlers, browser-consumed API shapes, fixtures, or an action path covered by earlier browser/manual evidence, rerun that evidence on the final tree or record an explicit blocked/stale reason.
+When this review is part of implementation closeout, report findings first. If fixes are made immediately, rerun the relevant verification, state whether the commit was amended or followed by a new commit, and include the review outcome in the implementation closeout evidence. When a finding requires a behavior change, invoke the repo `tdd` skill where possible: add or adjust the smallest assertion first and run it red before fixing. If the red command fails for the wrong reason (missing file, generic invariant, unrelated assertion, or any failure that does not prove the intended behavior), record `partial red - wrong reason: <reason>`, then add or adjust the smallest assertion that fails for the intended behavior before patching; if impossible, record an explicit red-first skipped reason. If the code was already fixed to protect the tree or unblock verification, record that red-first was skipped and why. For behavior-changing review fixes, generic wording such as `fixed and covered` is not enough; the closeout must include the red command/failure or an explicit `red-first skipped because ...` reason. If a review finding is missing proof or coverage only, add the smallest assertion and run it; if it passes without code changes, record `coverage-only review fix; red-first N/A because behavior already existed and no code changed`; if it fails, treat the finding as missing behavior and use the normal TDD red-green path. If a review fix touches UI, route handlers, browser-consumed API shapes, fixtures, or an action path covered by earlier browser/manual evidence, rerun that evidence on the final tree or record an explicit blocked/stale reason.
 
 For immediate-fix closeout, use this compact shape after the two axis reports:
 
 - **Findings found**: `<count and short titles, or none>`
 - **Fixes made**: `<files/behavior changed, proof/coverage added, or none>`
-- **TDD/review-fix evidence**: `<red command/failure per behavior-changing fix, coverage-only review fix reason, or explicit red-first skipped because ...>`
+- **TDD/review-fix evidence**: `<red command/failure per behavior-changing fix, partial red - wrong reason: <reason> plus follow-up intended red if applicable, coverage-only review fix reason, or explicit red-first skipped because ...>`
+- **TDD closeout gate**: `<TDD closeout preflight plus full fielded TDD evidence gate passed: durable sink ... line present or explicitly linked, including compact table/header, seams accounted for, context/doctrine read status, partial-red / red-first skip reasons, and evidence-only rows / N/A because no tdd skill was invoked>`
 - **Verification rerun**: `<commands and browser/manual checks>`
 - **Browser/manual evidence freshness**: `<rerun evidence on final tree, not affected, or explicit blocked/stale reason>`
 - **Commit handling**: `<unchanged implementation commit SHA / amended commit SHA / follow-up commit SHA / no commit yet>`

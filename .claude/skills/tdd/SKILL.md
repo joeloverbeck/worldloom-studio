@@ -22,13 +22,22 @@ TDD preflight:
 - User confirmation needed: <yes/no, and why>
 ```
 
-For shared-boundary issue families, instantiate the compact evidence table as the row plan before the first red test. The red and green cells can be `TBD` while work is still in progress, but every in-scope issue and agreed seam must already have a row with a `red-first`, `no-runnable`, or `evidence-only` classification.
+For shared-boundary issue families, paste this compact evidence table stub before the first red test; do not substitute a prose-only row plan. The red and green cells can be `TBD` while work is still in progress, but every in-scope issue and agreed seam must already have a row with a `red-first`, `no-runnable`, or `evidence-only` classification.
+
+```markdown
+| Issue | Context / doctrine read | Seam | Red command/failure | Green command or evidence | Acceptance covered | Review fix / red-first skip reason |
+|---|---|---|---|---|---|---|
+| #N | <CONTEXT.md / ADRs / principles read or N/A> | <red-first / no-runnable / evidence-only seam> | <command plus expected failure / partial red - wrong reason / N/A / explicit skip reason / TBD> | <passing command / browser route-action-result / artifact path / N/A / TBD> | <criterion or checkbox> | <N/A / review-fix evidence / partial-red follow-up / red-first skip reason> |
+```
 
 Non-bypassable TDD closeout gate:
 
 - Before handing work to review, a pre-close audit, issue closure, parent PRD closeout, or the repo `implement` skill's closeout gate, inspect the durable audit sink that will carry TDD evidence.
 - The durable sink must contain the compact table below or equivalent explicit fields: issue(s), context/doctrine read status, seam, red command/failure or skip reason, green command/evidence, and acceptance covered.
 - Make the literal `TDD evidence gate passed:` line visible in the conversation, implementation ledger, or durable audit sink. If any field is missing or only implied, stop and add it before leaving the TDD loop.
+- Do not write or accept the shorthand `TDD evidence gate passed: yes`. The gate line must be the full fielded sentence shown below, including `durable sink`, `compact table/header`, `seams accounted for`, `context/doctrine read status`, partial-red or skip-reason status, and evidence-only row status.
+- Body-check token sweep: before declaring the gate satisfied, grep or visually verify that the durable sink contains `TDD closeout preflight`, `TDD evidence gate passed: durable sink`, `compact table/header`, `seams accounted for`, `context/doctrine read status`, `partial-red / red-first skip reasons`, and `evidence-only rows`.
+- When `implement` owns the surrounding workflow, the same parent rollup, issue comment, or body file that carries implementation closeout evidence must also carry the `TDD closeout preflight` block and the literal `TDD evidence gate passed:` line before review, pre-close audit, issue closure, or parent PRD closeout. A verification section that lists red/green commands is not equivalent unless it also names the issue/seam rows, context/doctrine status, skip or partial-red reasons, and evidence-only freshness.
 
 ## What a good test is
 
@@ -58,11 +67,15 @@ When writing a static contract check, target the smallest source construct that 
 - **Tautological** — the assertion recomputes the expected value the way the code does (`expect(add(a, b)).toBe(a + b)`, a snapshot derived by hand the same way, a constant asserted equal to itself), so it passes by construction and can never disagree with the code. Expected values must come from an independent source of truth — a known-good literal, a worked example, the spec.
 - **Horizontal slicing** — writing all tests first, then all implementation. Bulk tests verify _imagined_ behavior: you test the _shape_ of things rather than user-facing behavior, the tests go insensitive to real changes, and you commit to test structure before understanding the implementation. Work in **vertical slices** instead — one test → one implementation → repeat, each test a **tracer bullet** that responds to what the last cycle taught you.
 
+Shared-boundary red-command hard stop: for shared-boundary issue families, do not run the first broad or shared-boundary red command until the compact evidence table stub is visible in the conversation, implementation ledger, or durable scratchpad. The stub must have one row per in-scope issue and agreed seam, or an explicit exception/clarification for each missing seam. A prose-only row plan is not enough.
+
 ## Rules of the loop
 
 - **Red before green.** Write the failing test first, then only enough code to pass it. Don't anticipate future tests or add speculative features.
 - **Bootstrap red is not behavior red.** A focused command that fails only because the intended test file does not exist (for example, `no test files found`) can seed the loop only as `bootstrap red`. Before implementing behavior, follow it with the smallest failing assertion for the agreed seam, or record an explicit red-first skip reason if a true assertion red is impossible. Do not report a missing-test-file failure as proof that the behavior contract went red.
 - **Review findings restart the loop.** If review reveals missing behavior after the implementation is already green, add or adjust the smallest assertion first and run it red before fixing. If the code was already fixed to protect the tree or unblock verification, record that red-first was skipped and why. A review-fix evidence row that says only `fixed and covered` is not enough; it must include the red command/failure or an explicit `red-first skipped because ...` reason.
+- **Wrong-reason red is only partial red.** If a red command for a review fix fails because of a missing file, a generic invariant, an unrelated assertion, or any reason that does not prove the intended behavior is wrong, record `partial red - wrong reason: <reason>`, then add or adjust the smallest assertion that fails for the intended behavior before patching. If no intended-behavior red is possible, record an explicit `red-first skipped because ...` reason.
+- **Unexpected green can be wrong-surface coverage.** If a new or adjusted assertion passes before the intended behavior fix, pause before counting it as proof. Verify the assertion observes the intended public route, panel, action, or source construct, not a legacy surface, nearby component, broad HTML/source span, or incidental text. If the assertion was too broad, tighten it and run again until it fails for the intended missing behavior; record `coverage-only review fix` only after confirming the behavior already truly exists.
 - **Coverage-only review fixes are different from behavior fixes.** If review reveals missing proof or coverage, but the behavior already exists, add the smallest assertion and run it. If it passes without a code change, record `coverage-only review fix; red-first N/A because behavior already existed and no code changed`. If it fails, treat the finding as missing behavior and restart the red → green loop.
 - **Evidence freshness after review fixes.** After review fixes or any later edit, compare the final changed files against evidence-only browser/manual rows before closeout. If a changed file touches a route, UI action, browser-consumed API shape, fixture, or data setup covered by one of those rows, rerun that evidence on the final tree. Record `Evidence freshness: <rerun command/artifact/result>` or `Evidence freshness: N/A because ...`; stale or blocked evidence must be explicit.
 - **Record the loop.** For each slice, keep lightweight evidence of the red command and expected failure, then the green command. If red-first is skipped, say why. For focused commands, check the output confirms the intended file, seam, or assertion actually ran; if a package script does not forward file arguments cleanly, invoke the underlying runner directly.
@@ -83,13 +96,13 @@ When writing a static contract check, target the smallest source construct that 
   - Compact table/header: <present/equivalent fields present/missing>
   - Rows accounted for: <all in-scope issues and seams listed / exceptions named>
   - Context/doctrine read status: <present/N/A>
-  - Red-first skip reasons: <none/listed>
+  - Partial-red / red-first skip reasons: <none/listed>
   - Evidence-only rows freshness: <none/listed with Evidence freshness result>
   ```
 
 - **TDD evidence gate line.** After inspecting the durable closeout body and before leaving the TDD loop for review or closeout, write this literal line in the conversation, implementation ledger, or closeout audit:
 
-  `TDD evidence gate passed: durable sink <conversation/comment URL/issue reference>; compact table/header <present/equivalent fields present>; seams accounted for <all listed / exceptions named>; context/doctrine read status <present/N/A>; red-first skip reasons <none/listed>; evidence-only rows <none/listed>.`
+  `TDD evidence gate passed: durable sink <conversation/comment URL/issue reference>; compact table/header <present/equivalent fields present>; seams accounted for <all listed / exceptions named>; context/doctrine read status <present/N/A>; partial-red / red-first skip reasons <none/listed>; evidence-only rows <none/listed>.`
 
 - **Refactoring is not part of the loop.** Incidental cleanup belongs to the review stage (see the `code-review` skill), not the red → green implementation cycle. When the requested work is itself a behavior-preserving refactor with observable or static acceptance criteria, the loop can use a red tracer for the required contract plus behavior-preservation tests at the agreed seams.
 
@@ -97,4 +110,4 @@ For shared-boundary issue families, this compact evidence shape is enough unless
 
 | Issue | Context / doctrine read | Seam | Red command/failure | Green command or evidence | Acceptance covered | Review fix / red-first skip reason |
 |---|---|---|---|---|---|---|
-| #N | `CONTEXT.md` / ADRs / principles read or N/A | public interface under test, no-runnable reason, or evidence-only browser/manual seam | command plus expected failure, `N/A`, or explicit skip reason | command that passed, browser route/action/result, artifact path, walkthrough result, or `N/A` | criterion or checkbox | finding fixed with red-first evidence, coverage-only review fix reason, or why red-first was skipped |
+| #N | `CONTEXT.md` / ADRs / principles read or N/A | public interface under test, no-runnable reason, or evidence-only browser/manual seam | command plus expected failure, `partial red - wrong reason: <reason>`, `N/A`, or explicit skip reason | command that passed, browser route/action/result, artifact path, walkthrough result, or `N/A` | criterion or checkbox | finding fixed with red-first evidence, partial-red follow-up assertion, coverage-only review fix reason, or why red-first was skipped |
