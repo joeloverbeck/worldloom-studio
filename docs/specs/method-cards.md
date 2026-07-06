@@ -28,7 +28,7 @@ Guidance depth follows `docs/principles/workflow-principles.md` W-2: minor work 
 
 Cards are owed for these guided surfaces:
 
-- Creation: world kernel and seed decomposition.
+- Creation: world kernel, seed decomposition, and the Minimal Viable World checkpoint.
 - Admission: queue/severity selection, minor ledger, full gate, and frontloaded seed audit.
 - Constraint Composition: source selection, constrained-fact framing, inventory, composition testing, leakage/residue, outcomes, Prompt-out/skips, close preview, and read-side trail.
 - Temporal/Timeline: run entry, temporal questions, date type and granularity, latency/residue, sequence integrity and retrospective insertion, mystery boundaries, outcomes, Prompt-out/skips, close preview, and read-side trail.

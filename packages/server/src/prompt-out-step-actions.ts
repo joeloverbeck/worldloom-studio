@@ -3,6 +3,7 @@ import * as ConstraintFlow from "./constraint-composition-flow.js";
 import * as ContradictionFlow from "./contradiction-flow.js";
 import * as CreationFlow from "./creation-flow.js";
 import * as InstitutionalFlow from "./institutional-flow.js";
+import * as MinimalViableWorld from "./minimal-viable-world.js";
 import * as PromptOut from "./prompt-out.js";
 import * as PropagationFlow from "./propagation-flow.js";
 import * as QaFlow from "./qa-flow.js";
@@ -258,7 +259,9 @@ type SkipHandler = (world: WorldFile, input: PromptOutStepActionContext, payload
 
 const skipHandlers: Record<string, SkipHandler> = {
   creation: (world, input, payload) => ({
-    record: CreationFlow.recordCreationSkip(world, { ...input, ...payload, stepKey: input.stepKey })
+    ...(input.stepKey.startsWith("minimal_viable_world:")
+      ? MinimalViableWorld.skipPromptOut(world, { ...input, ...payload, stepKey: input.stepKey })
+      : { record: CreationFlow.recordCreationSkip(world, { ...input, ...payload, stepKey: input.stepKey }) })
   }),
   admission: (world, input, payload) => ({
     record: AdmissionFlow.declineAdmissionInstrument(world, { ...input, ...payload, stepKey: input.stepKey })

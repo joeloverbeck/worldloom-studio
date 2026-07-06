@@ -32,6 +32,7 @@ QA asks whether a record or world section is coherent under pressure. It renders
 24. **Browser policy boundary.** The browser consumes server-returned pass, scorecard, profile, floor, repair, prompt-out, debt, and queue shapes. It does not duplicate scoring, band, floor, finalize, admission-routing, or debt-warning policy.
 25. **Terminology.** "QA pass", "pass report", "regression profile", "scorecard", and "consequence mode" are package terms from `18` and `22_glossary.md`. No new app-layer term is owed to `CONTEXT.md`.
 26. **Standalone ADR deferral.** The QA module boundary is declared here instead of a standalone ADR. QA reads across reports and ledgers, writes only its pass reports and follow-up canon debt, and routes canon proposals through Admission intake under W-3 and ADR 0006. A dedicated ADR is deferred until QA logic leaks across modules.
+27. **Minimal Viable World echo.** Whole-world QA passes include a read-only echo of the latest Minimal Viable World checkpoint when present. The echo names the checkpoint report, whole-world coverage signals, unresolved deferrals, protected mystery evidence, open checkpoint debt, checkpoint Admission proposals, advisory artifacts, and read-side trail. QA never recomputes checkpoint coverage and exposes no route that writes checkpoint dispositions or changes checkpoint reports.
 
 ## Step Map
 
@@ -42,6 +43,7 @@ QA asks whether a record or world section is coherent under pressure. It renders
 | Regression profile | `18_quality_assurance_tests.md` | Record strongest/weakest domains, fragile mysteries, contradictions, overloaded constraints, absent institutions, and blocking debt. | yes | Profile fields remain steward-authored prose; typed links carry named records/debt. | Proposal and pressure modes use `qa_red_team`; pressure tests missing relationships and over-explained repairs. |
 | Pass/fail floor | `18_quality_assurance_tests.md` | Surface the repeatable high-impact capability floor as an advisory warning, not a blocker. | yes | Major-or-higher overrides require a reason; below threshold no reason is collected. | Proposal mode can suggest floor evidence; pressure mode challenges missing limits, costs, distribution, adaptation, and institution response. |
 | Repair routing | `18_quality_assurance_tests.md`, `06`, and `13` | Route fact-shaped repairs to Admission at `proposed` or contradiction/mystery/deferred findings to canon debt. | yes | Receiving flows own their own severity and repair obligations. | Proposal and pressure modes remain advisory; QA never changes canon standing directly. |
+| First whole-world coherence echo | `05_creation_protocol.md` Phases 4-8 and `18_quality_assurance_tests.md` | Show the Minimal Viable World checkpoint state as context before scoring whole-world coherence. | no; read-only context | No severity path; the checkpoint's own deferrals/debt remain in their owning flows. | QA prompt packets may cite the echo as source context; Prompt-out remains advisory and cannot write checkpoint records. |
 | Finalize/result | `18_quality_assurance_tests.md` and `21_templates_index.md` | Finalize the append-only QA scorecard/pass after substance blockers clear. | yes | Close blockers mirror unexplained n/a and missing required repair substance. | Prompt-out can be skipped with `skip_record`; advisory responses require disposition and explicit-use links before influence. |
 
 ## Decision-Point UI Contract
@@ -52,6 +54,7 @@ This flow must satisfy `guided-workflow-usability.md` W-8 and `guided-flow-spec-
 - **Score rows:** each rendered test shows the failure smell, anchors, score meaning, n/a rule, required repair field, prompt role where relevant, and blockers for unexplained n/a or routed low-score rows without repair prose.
 - **Regression profile and floor:** the browser shows the profile fields as steward-authored judgments, typed-link affordances, floor advisory conditions, override reason threshold, and the warning/non-blocking distinction.
 - **Repair routing:** proposed fixes show whether they become Admission proposals, canon debt, or no mutation; they never repair canon in place.
+- **Minimal Viable World echo:** whole-world QA shows the latest checkpoint report, coverage summary, unresolved deferrals, protected mystery evidence, open debt, Admission proposals, advisory artifacts, and read-side trail as read-only context. The browser does not offer checkpoint write controls inside QA.
 - **Finalize/result:** the browser previews the append-only QA pass, score rows, debt, Admission proposals, advisory-use links, skip records, and read-side trail.
 
 ## Core Test Catalog
@@ -95,7 +98,7 @@ Primary seam: the localhost HTTP API against temp-file world databases for pass 
 
 Secondary seam: direct store/SQL assertions for forward migration with pre-migration backup, report-regime append-only enforcement, `qa_test_scores` enum and n/a-reason checks, seeded 28-row catalog, `assesses` link integrity, advisory immutability, skip records, and absence of QA jurisdiction events.
 
-Browser seam: React tests for scorecard rendering and score/n/a interactions, plus a real browser smoke that starts a pass, scores a test, observes server refusal for unexplained n/a, sees the derived band/floor shapes, and confirms the created pass/scores/links/debt/queue entries match route behavior.
+Browser seam: React tests for scorecard rendering and score/n/a interactions, plus a real browser smoke that starts a pass, scores a test, observes server refusal for unexplained n/a, sees the derived band/floor shapes, and confirms the created pass/scores/links/debt/queue entries match route behavior. PRD #202 evidence must also show the Minimal Viable World echo on a whole-world QA pass and confirm the echo is read-only in QA.
 
 ## Principles
 
@@ -111,5 +114,6 @@ Touches `docs/principles/README.md` and affirms non-contradiction with:
 - ADR 0006: all QA fact repairs use Admission intake.
 - ADR 0007: QA consumes Prompt-out lifecycle mechanics instead of reimplementing generate/store/dispose/skip.
 - ADR 0009: QA presents server-owned policy as guided decision points in the browser.
+- PRD #202: whole-world QA echoes the Minimal Viable World checkpoint read-only; Creation remains the owner of checkpoint dispositions and Admission proposal routing.
 
 No deliberate exceptions.

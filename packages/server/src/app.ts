@@ -7,6 +7,7 @@ import { registerCanonWorkbenchRoutes } from "./http/canon-workbench-routes.js";
 import { registerConstraintCompositionRoutes } from "./http/constraint-composition-routes.js";
 import { registerContradictionRoutes } from "./http/contradiction-routes.js";
 import { registerCreationRoutes } from "./http/creation-routes.js";
+import { registerMinimalViableWorldRoutes } from "./http/minimal-viable-world-routes.js";
 import { registerPromptOutRoutes } from "./http/prompt-out-routes.js";
 import { registerPropagationRoutes } from "./http/propagation-routes.js";
 import { registerQaRoutes } from "./http/qa-routes.js";
@@ -38,6 +39,7 @@ export const createApp = (_options: AppOptions = {}) => {
   registerWorkflowMapRoutes(app, dependencies);
   registerPromptOutRoutes(app, dependencies);
   registerCreationRoutes(app, dependencies);
+  registerMinimalViableWorldRoutes(app, dependencies);
   registerAdmissionRoutes(app, dependencies);
   registerCanonDebtRoutes(app, dependencies);
   registerCanonWorkbenchRoutes(app, dependencies);

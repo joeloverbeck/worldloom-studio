@@ -8,13 +8,14 @@ The workflow map is not a gamified dashboard and not a project-management layer.
 
 The map renders the operating card's method journey, not a loose list of app features.
 
-1. **Creation**: start with a lean `world_kernel`, then decompose seeds until each can be independently rejected without destroying its siblings.
+1. **Creation**: start with a lean `world_kernel`, decompose seeds until each can be independently rejected without destroying its siblings, then, after Admission has admitted seed evidence, work the non-generative Minimal Viable World checkpoint.
 2. **Frontloaded seed audit and Admission**: after Creation parks proposed seeds, the frontloaded seed audit and Canon Fact Admission govern first canon standing. Admission is the only path from proposed fact to canon standing.
 3. **Propagation**: major facts owe shock-cone work, consequence dispositions, and stopping-rule judgments.
 4. **Conditional passes**: constraint composition, Temporal/Timeline, and the institutional/economic/suppression pass appear as "when facts apply" work, never as false universal prerequisites.
 5. **Contradiction/retcon/mystery**: contradiction pressure, repair work, and mystery-preservation duties are worked after propagation or canon pressure exposes them. Owed-boundary work is filled by propagation dispositions that protect mysteries.
-6. **QA**: stability checks run before calling a world version stable.
-7. **Steady-state maintenance loop**: after the first stable path, new material re-enters at the lightest valid instrument: propose/admit, propagate when owed, run conditional passes when facts apply, repair contradictions or protected boundaries, and re-check QA when the version's load-bearing material changes.
+6. **Minimal Viable World checkpoint**: when admitted seeds exist and no earlier owed queue is foregrounded, Creation checks phases 4-8 coverage through steward dispositions, governed deferrals, protected-mystery routing, and Admission proposals. It does not score or admit facts.
+7. **QA**: stability checks run before calling a world version stable; whole-world QA echoes the Minimal Viable World checkpoint read-only when one exists.
+8. **Steady-state maintenance loop**: after the first stable path, new material re-enters at the lightest valid instrument: propose/admit, propagate when owed, run conditional passes when facts apply, repair contradictions or protected boundaries, re-work the checkpoint when admitted seeds change, and re-check QA when the version's load-bearing material changes.
 
 The browser may use friendlier labels, but the state grammar and destination list stay aligned to this journey.
 
@@ -55,6 +56,7 @@ The map foregrounds state in this order unless a future spec narrows the order f
 - propagation-scoped debt foregrounds **Owed propagation**;
 - temporal/timeline debt foregrounds the **Temporal/Timeline** destination when sequence, latency, residue, or timing-boundary work is owed;
 - propagation dispositions that protect mysteries foreground **Owed boundaries** for contradiction/retcon/mystery work;
+- admitted seed evidence with unresolved checkpoint dispositions foregrounds **Minimal Viable World checkpoint** in Creation after earlier owed queues;
 - when no owed queue is foregrounded, the next decision may point to QA or another stability check if enough world material exists.
 
 The map displays queue signals with counts for:
@@ -62,6 +64,7 @@ The map displays queue signals with counts for:
 - Admission queue;
 - owed propagation;
 - owed boundaries;
+- Minimal Viable World checkpoint;
 - open canon debt;
 - skips.
 
@@ -117,6 +120,7 @@ Every guided flow browser surface exposes:
 - A new world with no `world_kernel` foregrounds Creation start/resume as the primary active guided path; unrelated flows show prerequisites or not-yet-ready states until the kernel prerequisite exists.
 - Creation parks seeds at `proposed`; Admission owns first canon standing.
 - After seed parking, the active handoff names the seed-decomposition report, derived-from links, current/next/resume state, prompt-out state or governed skip, and read-side trail before steering the steward to Admission.
+- After Admission admits seed facts, the Creation destination can become owed for the Minimal Viable World checkpoint. The map links to `/api/flows/creation/minimal-viable-world`; the checkpoint can create skip records, canon debt, and Admission proposals, but it does not admit facts or compute a verdict.
 - Sweeps and specialized passes, including Temporal/Timeline, propose facts; Admission admits.
 - Propagation, contradiction, institutional/economic/suppression, and QA may mint canon debt; debt appears in the relevant queue without changing canon standing.
 - Read-side workbench views link back to flow artifacts but do not mutate them.

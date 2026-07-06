@@ -16,6 +16,17 @@ export interface PromptTemplateRow {
   current_text: string;
 }
 
+const BUILT_IN_PROMPT_TEMPLATES: PromptTemplateRow[] = [
+  {
+    key: "minimal_viable_world_checkpoint",
+    role_name: "Minimal Viable World checkpoint analyst",
+    original_text: "Work from admitted seed facts and checkpoint dispositions. In proposal mode, offer labeled candidate ordinary-life residues, adapted institutions or customs, factional disagreements or mode-equivalent pressures, path-dependence residues, mystery-boundary wording, aesthetic residue, pressure lines, and follow-up debt phrasing. In pressure mode, challenge existing evidence for backdrop-shaped gaps. Do not assign canon standing, truth layer, status, or final viability.",
+    package_source: "docs/worldbuilding-system/20_ai_assisted_workflow.md",
+    current_version: 1,
+    current_text: "Work from admitted seed facts and checkpoint dispositions. In proposal mode, offer labeled candidate ordinary-life residues, adapted institutions or customs, factional disagreements or mode-equivalent pressures, path-dependence residues, mystery-boundary wording, aesthetic residue, pressure lines, and follow-up debt phrasing. In pressure mode, challenge existing evidence for backdrop-shaped gaps. Do not assign canon standing, truth layer, status, or final viability."
+  }
+];
+
 export interface AdvisoryDispositionRow {
   id: number;
   advisory_record_id: number;
@@ -91,13 +102,16 @@ const rowToAdvisoryDisposition = (row: Record<string, unknown>): AdvisoryDisposi
   created_at: String(row.created_at)
 });
 
-const promptTemplateRows = (world: WorldFile): PromptTemplateRow[] =>
-  world.db.prepare(`
+const promptTemplateRows = (world: WorldFile): PromptTemplateRow[] => {
+  const rows = world.db.prepare(`
     SELECT pt.*, ptv.text AS current_text
     FROM prompt_templates pt
     JOIN prompt_template_versions ptv ON ptv.template_key = pt.key AND ptv.version = pt.current_version
     ORDER BY pt.key
   `).all().map((row) => rowToPromptTemplate(row as Record<string, unknown>));
+  const existing = new Set(rows.map((row) => row.key));
+  return [...rows, ...BUILT_IN_PROMPT_TEMPLATES.filter((row) => !existing.has(row.key))];
+};
 
 const promptTemplateRow = (world: WorldFile, key: string): PromptTemplateRow => {
   const row = world.db.prepare(`
@@ -106,7 +120,11 @@ const promptTemplateRow = (world: WorldFile, key: string): PromptTemplateRow => 
     JOIN prompt_template_versions ptv ON ptv.template_key = pt.key AND ptv.version = pt.current_version
     WHERE pt.key = ?
   `).get(key) as Record<string, unknown> | undefined;
-  if (!row) throw new Error(`Prompt template not found: ${key}`);
+  if (!row) {
+    const builtIn = BUILT_IN_PROMPT_TEMPLATES.find((template) => template.key === key);
+    if (builtIn) return builtIn;
+    throw new Error(`Prompt template not found: ${key}`);
+  }
   return rowToPromptTemplate(row);
 };
 
@@ -144,6 +162,7 @@ const standingRulingRows = (world: WorldFile): Array<{ disposition: string; note
 
 const promptMethodCard = (input: PromptGenerationInput): MethodCard | null => {
   if (input.flowKey === "creation") {
+    if (input.templateKey === "minimal_viable_world_checkpoint") return methodCard("creation.minimal-viable-world");
     return methodCard(input.templateKey === "decomposition_pressure" ? "creation.seed-decomposition" : "creation.kernel");
   }
   if (input.flowKey === "admission") {

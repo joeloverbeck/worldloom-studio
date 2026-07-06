@@ -1,6 +1,7 @@
 import { intakeProposedFact } from "./admission-flow.js";
 import { ADVISORY_OUTPUT_LABELS, promptMode, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
 import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest, methodCardsForFlow } from "./method-cards.js";
+import * as MinimalViableWorld from "./minimal-viable-world.js";
 import * as PromptOut from "./prompt-out.js";
 import { requiresSkipReason } from "./severity-policy.js";
 import {
@@ -179,7 +180,7 @@ const qaPromptModes = (
 
 const qaDecisionPoint = (
   store: WorldFile,
-  input: { flowId?: number; subjectRecordId: number | null; passRecordId?: number; stepKey: string; runState?: string }
+  input: { flowId?: number; subjectRecordId: number | null; passRecordId?: number; stepKey: string; runState?: string; minimalViableWorldEcho?: ReturnType<typeof MinimalViableWorld.qaEcho> | null }
 ): { sharedContract: DecisionPointSharedContract } => {
   const subject = input.subjectRecordId == null ? null : store.getRecord(input.subjectRecordId);
   const pass = input.passRecordId == null ? null : store.getRecord(input.passRecordId);
@@ -218,14 +219,21 @@ const qaDecisionPoint = (
           subject?.body ?? "",
           pass ? `QA scorecard: ${pass.shortId} ${pass.title}` : "",
           `Current step: ${input.stepKey}`,
+          input.minimalViableWorldEcho
+            ? `Minimal Viable World checkpoint: ${input.minimalViableWorldEcho.status}${input.minimalViableWorldEcho.report ? ` (${input.minimalViableWorldEcho.report.shortId})` : ""}`
+            : "",
           `Subject mode: ${subjectMode(store, input.subjectRecordId) ?? "unset"}`
         ].filter(Boolean),
         sourceManifest: [
           ...(subject == null ? [] : [`Subject record: ${subject.shortId} ${subject.title}`]),
           ...(pass == null ? [] : [`QA scorecard: ${pass.shortId} ${pass.title}`]),
+          ...(input.minimalViableWorldEcho?.report ? [`Minimal Viable World checkpoint report: ${input.minimalViableWorldEcho.report.shortId} ${input.minimalViableWorldEcho.report.title}`] : []),
           ...methodCardSourceManifest(cardValue)
         ],
-        omissions: ["QA repair candidates remain routed outcomes until the steward admits or resolves them in the receiving flow."]
+        omissions: [
+          "QA repair candidates remain routed outcomes until the steward admits or resolves them in the receiving flow.",
+          "QA echoes Minimal Viable World state read-only and does not recompute checkpoint coverage."
+        ]
       },
       promptOut: { serverOwned: true, modes: qaPromptModes(store, input) },
       blockers,
@@ -238,7 +246,11 @@ const qaDecisionPoint = (
         willLink: ["assesses links, repair/debt links, and advisory links only after explicit steward use"],
         willQueue: ["fact-shaped QA repairs and canon debt only when explicitly routed"],
         willRouteOnward: ["fact-shaped repairs route to Admission as proposed", "canon-debt repairs route to open canon debt"],
-        willLeaveUntouched: ["QA never changes canon standing directly", "subject records remain unchanged unless a later governed repair flow changes them"]
+        willLeaveUntouched: [
+          "QA never changes canon standing directly",
+          "subject records remain unchanged unless a later governed repair flow changes them",
+          "QA echoes Minimal Viable World state read-only and does not write checkpoint records"
+        ]
       },
       nextOrResumeState: {
         currentStep: input.stepKey,
@@ -260,31 +272,36 @@ const scorecard = (
   subjectRecordId: number | null,
   stepKey = "qa:scorecard",
   context: { flowId?: number; passRecordId?: number; runState?: string } = {}
-) => ({
-  tests: store.qaTestCatalog(),
-  subjectMode: subjectMode(store, subjectRecordId),
-  methodCard: qaMethodCardForStep(stepKey),
-  methodCards: methodCardsForFlow(FLOW_KEY),
-  doctrine: {
-    scoreGuidance: QA_SCORE_GUIDANCE,
-    interpretation: {
-      green: "mostly 2-3, no catastrophic 0 in a load-bearing area",
-      yellow: "several 1s or one serious 0; usable with caution",
-      red: "multiple load-bearing 0s or contradictions hidden by style"
+) => {
+  const minimalViableWorldEcho = subjectRecordId == null ? MinimalViableWorld.qaEcho(store) : null;
+  return {
+    tests: store.qaTestCatalog(),
+    subjectMode: subjectMode(store, subjectRecordId),
+    methodCard: qaMethodCardForStep(stepKey),
+    methodCards: methodCardsForFlow(FLOW_KEY),
+    minimalViableWorldEcho,
+    doctrine: {
+      scoreGuidance: QA_SCORE_GUIDANCE,
+      interpretation: {
+        green: "mostly 2-3, no catastrophic 0 in a load-bearing area",
+        yellow: "several 1s or one serious 0; usable with caution",
+        red: "multiple load-bearing 0s or contradictions hidden by style"
+      },
+      modeBenchmarks: QA_MODE_BENCHMARKS,
+      redFlags: QA_RED_FLAGS,
+      repairLoop: QA_REPAIR_LOOP,
+      source: QA_PROTOCOL
     },
-    modeBenchmarks: QA_MODE_BENCHMARKS,
-    redFlags: QA_RED_FLAGS,
-    repairLoop: QA_REPAIR_LOOP,
-    source: QA_PROTOCOL
-  },
-  decisionPoint: qaDecisionPoint(store, {
-    flowId: context.flowId,
-    passRecordId: context.passRecordId,
-    runState: context.runState,
-    subjectRecordId,
-    stepKey
-  })
-});
+    decisionPoint: qaDecisionPoint(store, {
+      flowId: context.flowId,
+      passRecordId: context.passRecordId,
+      runState: context.runState,
+      subjectRecordId,
+      stepKey,
+      minimalViableWorldEcho
+    })
+  };
+};
 
 export const derivedBand = (scores: QaScoreRow[]): QaBand => {
   const numeric = scores.filter((score) => score.score !== "na");

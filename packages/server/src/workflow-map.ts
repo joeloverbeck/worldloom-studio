@@ -2,6 +2,7 @@ import type { WorkflowMapDestination, WorkflowMapPayload, WorkflowMapQueue, Work
 import * as AdmissionFlow from "./admission-flow.js";
 import * as CanonDebt from "./canon-debt.js";
 import * as ContradictionFlow from "./contradiction-flow.js";
+import * as MinimalViableWorld from "./minimal-viable-world.js";
 import { workflowMapMethodCards } from "./method-cards.js";
 import * as PropagationFlow from "./propagation-flow.js";
 import type { FlowInstanceRow, RecordRow, WorldFile } from "./world-file.js";
@@ -64,7 +65,7 @@ const queue = (
 ): WorkflowMapQueue => ({ key, label, count, destinationKey, href, summary });
 
 const destinations = (activeDestination: string | null, owedDestinations: Set<string>): WorkflowMapDestination[] => [
-  { key: "creation", label: "Creation", kind: "guided-flow", summary: "Kernel and seed decomposition.", state: activeDestination === "creation" ? "active" : "available" },
+  { key: "creation", label: "Creation", kind: "guided-flow", summary: "Kernel, seed decomposition, and the Minimal Viable World checkpoint.", state: owedDestinations.has("creation") ? "owed" : activeDestination === "creation" ? "active" : "available" },
   { key: "admission", label: "Admission", kind: "guided-flow", summary: "Govern proposed facts into canon standing.", state: activeDestination === "admission" ? "active" : "available" },
   { key: "propagation", label: "Propagation", kind: "guided-flow", summary: "Work shock cones and consequence dispositions.", state: owedDestinations.has("propagation") ? "owed" : activeDestination === "propagation" ? "active" : "available" },
   { key: "constraint", label: "Constraint Composition", kind: "guided-flow", summary: "Compose constraints where facts apply.", state: activeDestination === "constraint" ? "active" : "available" },
@@ -88,6 +89,7 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
   const openCanonDebt = CanonDebt.listCanonDebt(world, true);
   const skipCount = records.filter((record) => record.recordTypeKey === "skip_record").length;
   const temporalDebt = openCanonDebt.filter((debt) => /\btemporal\b|\btimeline\b/i.test(`${debt.title}\n${debt.body}`));
+  const minimalViableWorldOwed = MinimalViableWorld.owedQueueCount(world);
 
   const activeDestination =
     admissionQueue.length > 0 ? "admission"
@@ -96,7 +98,8 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
   const owedDestinations = new Set<string>([
     ...(propagationQueue.length > 0 ? ["propagation"] : []),
     ...(owedBoundaries.length > 0 ? ["contradiction"] : []),
-    ...(temporalDebt.length > 0 ? ["temporal"] : [])
+    ...(temporalDebt.length > 0 ? ["temporal"] : []),
+    ...(minimalViableWorldOwed > 0 ? ["creation"] : [])
   ]);
 
   const stages: WorkflowMapStage[] = [
@@ -140,6 +143,14 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
       worldHasCanonMaterial ? "Contradiction pressure or protected propagation boundaries create this work." : "Propagation or canon pressure must expose a repair or boundary."
     ),
     stage(
+      "minimal-viable-world",
+      "Minimal Viable World",
+      minimalViableWorldOwed > 0 ? "owed" : worldHasCanonMaterial ? "blocked" : "not_yet_earned",
+      "Minimal Viable World checks whether admitted seeds form a pressure field with ordinary life, institutions, factional answers, path dependence, mystery, aesthetic residue, and pressure lines.",
+      "creation",
+      worldHasCanonMaterial ? "Work this checkpoint when Creation is otherwise ready to close around admitted seed evidence." : "Admitted seed evidence must exist before the checkpoint is earned."
+    ),
+    stage(
       "qa",
       "QA",
       hasInProgressFlow(flows, "qa") ? "active" : worldHasCanonMaterial ? "blocked" : "not_yet_earned",
@@ -153,6 +164,7 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
     queue("admission", "Admission queue", admissionQueue.length, "admission", "/api/admission/queue", "Proposed or under-review facts awaiting governance."),
     queue("owed-propagation", "Owed propagation", propagationQueue.length, "propagation", "/api/propagation/queue", "Propagation-scoped debt and owed shock cones."),
     queue("owed-boundaries", "Owed boundaries", owedBoundaries.length, "contradiction", "/api/contradiction/owed-boundaries", "Protected consequences that still need mystery-ledger governance."),
+    queue("minimal-viable-world", "Minimal Viable World checkpoint", minimalViableWorldOwed, "creation", "/api/flows/creation/minimal-viable-world", "Creation phases 4-8 checkpoint owed after admitted seed evidence exists."),
     queue("canon-debt", "Canon debt", openCanonDebt.length, "substrate", "/api/canon-debt?open=true", "Open canon debt across flows."),
     queue("skips", "Skips", skipCount, "substrate", "/api/search?q=skip_record", "Recorded skipped instruments and their reason duties.")
   ];
@@ -165,6 +177,8 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
         ? { destinationKey: "propagation", label: "Work owed propagation", reason: "Propagation-scoped canon debt is open.", href: "/api/propagation/queue" }
         : temporalDebt.length > 0
           ? { destinationKey: "temporal", label: "Work Temporal/Timeline debt", reason: "Open Temporal/Timeline canon debt needs sequence, latency, residue, or boundary work.", href: "/api/temporal/runs/start" }
+          : minimalViableWorldOwed > 0
+            ? { destinationKey: "creation", label: "Work Minimal Viable World checkpoint", reason: "Admitted seed evidence exists and no earlier owed queue is foregrounded.", href: "/api/flows/creation/minimal-viable-world" }
           : !hasKernel
             ? { destinationKey: "creation", label: "Start Creation", reason: "No world kernel exists yet; create the world kernel first.", href: "/api/flows/creation/start" }
             : { destinationKey: "qa", label: "Review stability", reason: "No owed queue is currently foregrounded; QA is the next stability check when enough material exists.", href: "/api/qa/passes/start" };

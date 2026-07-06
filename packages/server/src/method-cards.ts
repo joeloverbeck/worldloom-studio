@@ -43,6 +43,22 @@ export const METHOD_CARDS: MethodCard[] = [
     ]
   }),
   card({
+    key: "creation.minimal-viable-world",
+    flowKey: "creation",
+    decisionPoint: "Minimal Viable World checkpoint",
+    decision: "Judge whether admitted seeds form a world-shaped pressure field rather than a backdrop.",
+    operativeRule: "The app counts and links existing evidence for phases 4-8; the steward records covered, deferred, or protected-mystery dispositions.",
+    why: "Phase 4 requires ordinary life, institutions, factional answers, path dependence, mystery, aesthetic residue, and pressure lines before the world is called viable.",
+    goodMaterial: "Good checkpoint material names the existing seed/evidence record, states why it covers or defers the dimension, and routes gaps to skip records, canon debt, or Admission proposals.",
+    guidanceDepth: "full",
+    packageSources: [
+      "docs/worldbuilding-system/05_creation_protocol.md",
+      "docs/worldbuilding-system/20_ai_assisted_workflow.md",
+      "docs/worldbuilding-system/21_templates_index.md",
+      "docs/worldbuilding-system/22_glossary.md"
+    ]
+  }),
+  card({
     key: "admission.queue-severity",
     flowKey: "admission",
     decisionPoint: "Admission queue and severity",

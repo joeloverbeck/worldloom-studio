@@ -49,6 +49,68 @@ describe("Creation decision-point web surface", () => {
     expect(creationPanel).not.toContain("recordForm.canonStatus");
   });
 
+  it("renders Minimal Viable World checkpoint coverage, dispositions, proposals, and Prompt-out wiring", () => {
+    const minimalViableWorld = {
+      checkpoint: {
+        owed: true,
+        report: { id: 12, shortId: "PAS-1", title: "Minimal Viable World checkpoint", recordTypeKey: "pass_report", body: "Minimal Viable World checkpoint", truthLayer: "Objective canon", canonStatus: "accepted", updatedAt: "now" },
+        route: "/api/flows/creation/minimal-viable-world",
+        blockers: [],
+        coverageSignals: {
+          admittedSeeds: [{
+            id: 2,
+            shortId: "FAC-1",
+            title: "Bell testimony is accepted",
+            recordTypeKey: "canon_fact",
+            canonStatus: "accepted",
+            dimensions: [
+              { key: "ordinary_life", label: "ordinary-life residue", status: "present", evidence: [{ id: 4, shortId: "FAC-2", title: "Morning bell routine", recordTypeKey: "canon_fact", canonStatus: "accepted" }], reason: "linked evidence" },
+              { key: "mystery_boundary", label: "governed contradiction or mystery boundary", status: "protected", evidence: [], reason: "protected" }
+            ]
+          }],
+          wholeWorld: [
+            { key: "core_promise", label: "core promise", status: "present", evidence: [], reason: "kernel" },
+            { key: "automatic_verdict", label: "automatic pass/fail verdict", status: "not_applicable", evidence: [], reason: "no verdict" }
+          ]
+        },
+        dispositions: [],
+        closeReadiness: { status: "blocked", blockers: [{ key: "2:ordinary_life", label: "FAC-1 ordinary-life residue", message: "Disposition required." }] },
+        unresolvedDeferrals: [],
+        openCanonDebt: [],
+        admissionProposals: [],
+        advisoryArtifacts: []
+      },
+      decisionPoint: {
+        sharedContract: {
+          flow: { key: "creation", runState: "checkpoint_owed" },
+          step: { key: "minimal_viable_world:coverage_review", localDecision: "Judge Minimal Viable World coverage.", packageSource: "docs/worldbuilding-system/05_creation_protocol.md", why: "phases 4-8" },
+          obligations: { required: [], optional: [], skippable: [], severityDependent: [] },
+          bearingContext: { displayed: ["Minimal Viable World checkpoint"], sourceManifest: ["Admitted seed: FAC-1"], omissions: ["No verdict"] },
+          promptOut: { serverOwned: true, modes: [{ mode: "proposal", label: "Proposal mode", availability: "available", blocker: null, framing: "candidate residue", stepRequest: { method: "POST", href: "/api/prompt-out/steps", body: { flowKey: "creation", templateKey: "minimal_viable_world_checkpoint", stepKey: "minimal_viable_world:coverage_review", recordId: 12, mode: "proposal" } } }] },
+          blockers: [],
+          writeIntent: { willWrite: ["pass_report disposition sections"], willLink: ["evidence links"], willQueue: ["Admission proposals"], willRouteOnward: ["QA echo"], willLeaveUntouched: ["the checkpoint does not admit facts"] },
+          nextOrResumeState: { currentStep: "minimal_viable_world:coverage_review", nextStep: "record first checkpoint dispositions", safeExit: "Return to the workflow map." },
+          readSideTrail: [{ label: "checkpoint report PAS-1", href: "/api/canon-workbench/records/12", recordId: 12 }]
+        }
+      }
+    };
+    const html = renderToString(<App initialOpenWorld="/tmp/creation.sqlite" initialMinimalViableWorld={minimalViableWorld as any} />);
+    const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
+
+    expect(html).toContain("Minimal Viable World checkpoint");
+    expect(html).toContain("Minimal Viable World decision contract");
+    expect(html).toContain("ordinary-life residue");
+    expect(html).toContain("automatic pass/fail verdict");
+    expect(html).toContain("Record Checkpoint Disposition");
+    expect(html).toContain("Route Checkpoint Proposal");
+    expect(html).toContain("Load Checkpoint Prompt-out Step");
+    expect(source).toContain("/api/flows/creation/minimal-viable-world/dispositions");
+    expect(source).toContain("/api/flows/creation/minimal-viable-world/admission-proposals");
+    expect(source).toContain("minimal_viable_world_checkpoint");
+    expect(source).toContain("recordMinimalViableWorldDisposition");
+    expect(source).toContain("routeMinimalViableWorldProposal");
+  });
+
   it("renders the post-decomposition handoff from server-owned policy without turning source paths into guidance", () => {
     const handoffDecision = {
       flow: { key: "creation", runState: "complete" },

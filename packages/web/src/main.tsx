@@ -190,11 +190,71 @@ interface QaScorecard {
   methodCard?: MethodCard;
   methodCards?: MethodCard[];
   decisionPoint?: DecisionPointEnvelope;
+  minimalViableWorldEcho?: MinimalViableWorldEcho | null;
   doctrine: {
     redFlags: string[];
     modeBenchmarks: string[];
     repairLoop: string[];
   };
+}
+
+interface MinimalViableWorldEvidenceRef {
+  id: number;
+  shortId: string;
+  title: string;
+  recordTypeKey: string;
+  canonStatus: string | null;
+}
+
+interface MinimalViableWorldSignal {
+  key: string;
+  label: string;
+  status: string;
+  evidence: MinimalViableWorldEvidenceRef[];
+  reason: string;
+}
+
+interface MinimalViableWorldDisposition {
+  seedRecordId: number;
+  dimensionKey: string;
+  disposition: "covered" | "deferred" | "protected_mystery";
+  substance: string;
+  evidenceRecordIds: number[];
+  protectedRecordId?: number | null;
+}
+
+interface MinimalViableWorldState {
+  checkpoint: {
+    owed: boolean;
+    report: RecordRow | null;
+    route: string;
+    blockers: Array<{ key: string; label?: string; message: string; requires?: string }>;
+    coverageSignals: {
+      admittedSeeds: Array<MinimalViableWorldEvidenceRef & { dimensions: MinimalViableWorldSignal[] }>;
+      wholeWorld: MinimalViableWorldSignal[];
+    };
+    dispositions: MinimalViableWorldDisposition[];
+    closeReadiness: { status: string; blockers: Array<{ key: string; label: string; message: string }> };
+    unresolvedDeferrals: MinimalViableWorldDisposition[];
+    openCanonDebt: RecordRow[];
+    admissionProposals: RecordRow[];
+    advisoryArtifacts: RecordRow[];
+  };
+  decisionPoint: DecisionPointEnvelope;
+}
+
+interface MinimalViableWorldEcho {
+  status: string;
+  route: string;
+  report: RecordRow | null;
+  dispositions: MinimalViableWorldDisposition[];
+  coverageSignalSummary: MinimalViableWorldSignal[];
+  unresolvedDeferrals: MinimalViableWorldDisposition[];
+  protectedMysteryEvidence: MinimalViableWorldSignal[];
+  openCanonDebt: RecordRow[];
+  admissionProposals: RecordRow[];
+  advisoryArtifacts: RecordRow[];
+  readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
 }
 
 interface QaProfileFields {
@@ -743,6 +803,8 @@ interface AppProps {
   initialAdmissionQueue?: AdmissionQueueRow[];
   initialAdmissionDecision?: AdmissionDecisionPoint | null;
   initialCreationDecision?: CreationDecisionPoint | null;
+  initialMinimalViableWorld?: MinimalViableWorldState | null;
+  initialQaScorecard?: QaScorecard | null;
 }
 
 type PromptFlowKey = "creation" | "admission" | "propagation" | "contradiction" | "qa" | "institutional_economic_suppression" | "constraint_composition" | "temporal_timeline";
@@ -1154,7 +1216,9 @@ function App({
   initialCanonDetail = null,
   initialAdmissionQueue = [],
   initialAdmissionDecision = null,
-  initialCreationDecision = null
+  initialCreationDecision = null,
+  initialMinimalViableWorld = null,
+  initialQaScorecard = null
 }: AppProps = {}) {
   const [worldPath, setWorldPath] = useState("");
   const [openWorld, setOpenWorld] = useState<string | null>(initialOpenWorld);
@@ -1179,6 +1243,7 @@ function App({
   const [admissionQueue, setAdmissionQueue] = useState<AdmissionQueueRow[]>(initialAdmissionQueue);
   const [admissionDecision, setAdmissionDecision] = useState<AdmissionDecisionPoint | null>(initialAdmissionDecision);
   const [creationDecision, setCreationDecision] = useState<CreationDecisionPoint | null>(initialCreationDecision);
+  const [minimalViableWorld, setMinimalViableWorld] = useState<MinimalViableWorldState | null>(initialMinimalViableWorld);
   const [canonDebt, setCanonDebt] = useState<RecordRow[]>([]);
   const [propagationQueue, setPropagationQueue] = useState<PropagationQueueRow[]>([]);
   const [propagationPlan, setPropagationPlan] = useState<PropagationPlan | null>(null);
@@ -1283,7 +1348,7 @@ function App({
   const [qaPassId, setQaPassId] = useState<number | null>(null);
   const [qaSubjectType, setQaSubjectType] = useState<"record" | "world">("record");
   const [qaSubjectRecordId, setQaSubjectRecordId] = useState("");
-  const [qaScorecard, setQaScorecard] = useState<QaScorecard | null>(null);
+  const [qaScorecard, setQaScorecard] = useState<QaScorecard | null>(initialQaScorecard);
   const [qaScores, setQaScores] = useState<QaScore[]>([]);
   const [qaBand, setQaBand] = useState<QaBand | null>(null);
   const [qaTestNumber, setQaTestNumber] = useState("1");
@@ -1332,6 +1397,19 @@ function App({
   const [seedTruthLayer, setSeedTruthLayer] = useState("");
   const [granularityRationale, setGranularityRationale] = useState("");
   const [granularityConfirmed, setGranularityConfirmed] = useState(false);
+  const [minimalSeedRecordId, setMinimalSeedRecordId] = useState("");
+  const [minimalDimensionKey, setMinimalDimensionKey] = useState("");
+  const [minimalDisposition, setMinimalDisposition] = useState<"covered" | "deferred" | "protected_mystery">("covered");
+  const [minimalDispositionSubstance, setMinimalDispositionSubstance] = useState("");
+  const [minimalEvidenceRecordIds, setMinimalEvidenceRecordIds] = useState("");
+  const [minimalProtectedRecordId, setMinimalProtectedRecordId] = useState("");
+  const [minimalDeferralKind, setMinimalDeferralKind] = useState<"none" | "skip" | "canon_debt">("none");
+  const [minimalDeferralStep, setMinimalDeferralStep] = useState("minimal_viable_world:coverage_review");
+  const [minimalDebtName, setMinimalDebtName] = useState("");
+  const [minimalProposalSeedRecordId, setMinimalProposalSeedRecordId] = useState("");
+  const [minimalProposalTitle, setMinimalProposalTitle] = useState("");
+  const [minimalProposalBody, setMinimalProposalBody] = useState("");
+  const [minimalProposalTruthLayer, setMinimalProposalTruthLayer] = useState("Objective canon");
   const [admissionIntent, setAdmissionIntent] = useState("");
   const [admissionRecordId, setAdmissionRecordId] = useState("");
   const [admissionLevel, setAdmissionLevel] = useState("");
@@ -1395,6 +1473,9 @@ function App({
   const displayedCreationDecision = creationDecision ?? defaultCreationDecision;
   const creationDecisionHandoff = creationDecision ? creationDecision.handoff : displayedCreationDecision.handoff;
   const creationHandoffReady = displayedCreationDecision.handoff.parkedSeeds.length > 0;
+  const minimalSeedOptions = minimalViableWorld?.checkpoint.coverageSignals.admittedSeeds ?? [];
+  const minimalDimensionOptions = minimalSeedOptions[0]?.dimensions ?? [];
+  const displayedMinimalDecision = minimalViableWorld?.decisionPoint.sharedContract;
   const relatedAuditItems = useMemo(() => selectedCanonRecordId == null
     ? []
     : canonAuditTrail.filter((item) => item.affectedCurrentRecords.some((record) => record.id === selectedCanonRecordId)),
@@ -1489,13 +1570,21 @@ function App({
     workScale
   ]);
 
+  useEffect(() => {
+    const firstSeed = minimalViableWorld?.checkpoint.coverageSignals.admittedSeeds[0];
+    if (firstSeed && !minimalSeedRecordId) setMinimalSeedRecordId(String(firstSeed.id));
+    if (firstSeed && !minimalProposalSeedRecordId) setMinimalProposalSeedRecordId(String(firstSeed.id));
+    const firstDimension = firstSeed?.dimensions[0];
+    if (firstDimension && !minimalDimensionKey) setMinimalDimensionKey(firstDimension.key);
+  }, [minimalDimensionKey, minimalProposalSeedRecordId, minimalSeedRecordId, minimalViableWorld]);
+
   const loadRecentWorlds = async () => {
     const payload = await api<{ recentWorlds: RecentWorld[] }>("/api/recent-worlds");
     setRecentWorlds(payload.recentWorlds);
   };
 
   const loadWorldData = async () => {
-    const [workflowMapPayload, recordPayload, linkPayload, vocabularyPayload, headingPayload, draftPayload, templatePayload, queuePayload, debtPayload, propagationQueuePayload, stage13OwedPayload, canonCurrentPayload, canonAuditPayload] = await Promise.all([
+    const [workflowMapPayload, recordPayload, linkPayload, vocabularyPayload, headingPayload, draftPayload, templatePayload, queuePayload, debtPayload, propagationQueuePayload, stage13OwedPayload, minimalViableWorldPayload, canonCurrentPayload, canonAuditPayload] = await Promise.all([
       api<WorkflowMapPayload>("/api/workflow-map"),
       api<{ records: RecordRow[] }>("/api/records"),
       api<{ links: LinkRow[] }>("/api/links"),
@@ -1507,6 +1596,7 @@ function App({
       api<{ debt: RecordRow[] }>("/api/canon-debt?open=true"),
       api<{ queue: PropagationQueueRow[] }>("/api/propagation/queue"),
       api<{ queue: OwedBoundaryRow[] }>("/api/contradiction/owed-boundaries"),
+      api<MinimalViableWorldState>("/api/flows/creation/minimal-viable-world"),
       api<{ rows: CanonWorkbenchCurrentRow[] }>("/api/canon-workbench/current"),
       api<{ spine: CanonWorkbenchAuditItem[] }>("/api/canon-workbench/audit")
     ]);
@@ -1521,6 +1611,7 @@ function App({
     setCanonDebt(debtPayload.debt);
     setPropagationQueue(propagationQueuePayload.queue);
     setStage13OwedBoundaries(stage13OwedPayload.queue);
+    setMinimalViableWorld(minimalViableWorldPayload);
     setCanonCurrentRows(canonCurrentPayload.rows);
     setCanonAuditTrail(canonAuditPayload.spine);
   };
@@ -1930,6 +2021,78 @@ function App({
     setGranularityRationale("");
     setGranularityConfirmed(false);
     setAdmissionIntent("");
+    await loadWorldData();
+  };
+
+  const loadMinimalViableWorld = async () => {
+    const payload = await api<MinimalViableWorldState>("/api/flows/creation/minimal-viable-world");
+    setMinimalViableWorld(payload);
+    return payload;
+  };
+
+  const loadMinimalViableWorldPromptStep = async () => {
+    const checkpointState = minimalViableWorld;
+    const mode = checkpointState?.decisionPoint.sharedContract.promptOut.modes.find((mode) => mode.availability === "available" && mode.stepRequest);
+    const request = mode?.stepRequest;
+    if (!checkpointState || !request) return null;
+    setPromptFlowKey("creation");
+    setPromptTemplateKey(String(request.body.templateKey ?? "minimal_viable_world_checkpoint"));
+    setPromptRecordId(String(request.body.recordId ?? ""));
+    const payload = await api<{ step: PromptOutStep }>(request.href, {
+      method: request.method,
+      body: JSON.stringify(request.body)
+    });
+    setPromptStep(payload.step);
+    setPromptText(checkpointState.decisionPoint.sharedContract.bearingContext.displayed.join("\n"));
+    setMessage(`Loaded Minimal Viable World Prompt-out step ${payload.step.label}`);
+    return payload.step;
+  };
+
+  const recordMinimalViableWorldDisposition = async () => {
+    if (!minimalSeedRecordId || !minimalDimensionKey || !minimalDispositionSubstance.trim()) return;
+    await api("/api/flows/creation/minimal-viable-world/dispositions", {
+      method: "POST",
+      body: JSON.stringify({
+        reportId: minimalViableWorld?.checkpoint.report?.id,
+        dispositions: [{
+          seedRecordId: Number(minimalSeedRecordId),
+          dimensionKey: minimalDimensionKey,
+          disposition: minimalDisposition,
+          substance: minimalDispositionSubstance,
+          evidenceRecordIds: parseNumberList(minimalEvidenceRecordIds),
+          protectedRecordId: optionalNumber(minimalProtectedRecordId),
+          deferral: minimalDeferralKind === "skip"
+            ? { kind: "skip", stepKey: minimalDeferralStep || undefined }
+            : minimalDeferralKind === "canon_debt"
+              ? { kind: "canon_debt", debtName: minimalDebtName || "Minimal Viable World checkpoint debt" }
+              : undefined
+        }]
+      })
+    });
+    setMinimalDispositionSubstance("");
+    setMinimalEvidenceRecordIds("");
+    setMinimalProtectedRecordId("");
+    setMinimalDebtName("");
+    await loadMinimalViableWorld();
+    await loadWorldData();
+  };
+
+  const routeMinimalViableWorldProposal = async () => {
+    const reportId = minimalViableWorld?.checkpoint.report?.id;
+    if (reportId == null || !minimalProposalTitle.trim() || !minimalProposalBody.trim()) return;
+    await api("/api/flows/creation/minimal-viable-world/admission-proposals", {
+      method: "POST",
+      body: JSON.stringify({
+        reportId,
+        seedRecordId: optionalNumber(minimalProposalSeedRecordId),
+        title: minimalProposalTitle,
+        body: minimalProposalBody,
+        truthLayer: minimalProposalTruthLayer || "Objective canon"
+      })
+    });
+    setMinimalProposalTitle("");
+    setMinimalProposalBody("");
+    await loadMinimalViableWorld();
     await loadWorldData();
   };
 
@@ -3250,6 +3413,48 @@ function App({
               ))}
             </div>
           </section>
+          <section className="subpanel minimal-viable-world-checkpoint">
+            <h3>Minimal Viable World checkpoint</h3>
+            <div className="row">
+              <button onClick={loadMinimalViableWorld} disabled={!openWorld}>Refresh Checkpoint</button>
+              <button onClick={loadMinimalViableWorldPromptStep} disabled={!openWorld || !displayedMinimalDecision?.promptOut.modes.some((mode) => mode.availability === "available" && mode.stepRequest)}>Load Checkpoint Prompt-out Step</button>
+              <span className="status">{minimalViableWorld ? `${minimalViableWorld.checkpoint.owed ? "owed" : "not owed"} · close ${minimalViableWorld.checkpoint.closeReadiness.status}` : "No checkpoint state loaded"}</span>
+            </div>
+            <DecisionContractPanel title="Minimal Viable World decision contract" contract={displayedMinimalDecision} />
+            <div className="grid compact-grid">
+              <section>
+                <h4>Whole-world signals</h4>
+                {(minimalViableWorld?.checkpoint.coverageSignals.wholeWorld ?? []).map((signal) => <p key={signal.key}>{signal.label}: {signal.status}</p>)}
+              </section>
+              <section>
+                <h4>Seeds</h4>
+                {minimalSeedOptions.map((seed) => <p key={seed.id}>{seed.shortId}: {seed.dimensions.map((dimension) => `${dimension.key} ${dimension.status}`).join(" · ")}</p>)}
+              </section>
+            </div>
+            <div className="grid">
+              <label>Seed<select value={minimalSeedRecordId} onChange={(event) => setMinimalSeedRecordId(event.target.value)}>
+                <option></option>
+                {minimalSeedOptions.map((seed) => <option key={seed.id} value={seed.id}>{seed.shortId}: {seed.title}</option>)}
+              </select></label>
+              <label>Dimension<select value={minimalDimensionKey} onChange={(event) => setMinimalDimensionKey(event.target.value)}>
+                <option></option>
+                {minimalDimensionOptions.map((dimension) => <option key={dimension.key} value={dimension.key}>{dimension.label}</option>)}
+              </select></label>
+              <label>Disposition<select value={minimalDisposition} onChange={(event) => setMinimalDisposition(event.target.value as "covered" | "deferred" | "protected_mystery")}>
+                <option value="covered">covered</option>
+                <option value="deferred">deferred</option>
+                <option value="protected_mystery">protected mystery</option>
+              </select></label>
+              <label>Evidence ids<input value={minimalEvidenceRecordIds} onChange={(event) => setMinimalEvidenceRecordIds(event.target.value)} /></label>
+            </div>
+            <label>Disposition substance<textarea rows={3} value={minimalDispositionSubstance} onChange={(event) => setMinimalDispositionSubstance(event.target.value)} /></label>
+            <button onClick={recordMinimalViableWorldDisposition} disabled={!openWorld || !minimalSeedRecordId || !minimalDimensionKey || !minimalDispositionSubstance.trim()}>Record Checkpoint Disposition</button>
+            <div className="grid">
+              <label>Proposal title<input value={minimalProposalTitle} onChange={(event) => setMinimalProposalTitle(event.target.value)} /></label>
+              <label>Proposal body<textarea rows={3} value={minimalProposalBody} onChange={(event) => setMinimalProposalBody(event.target.value)} /></label>
+            </div>
+            <button onClick={routeMinimalViableWorldProposal} disabled={!openWorld || minimalViableWorld?.checkpoint.report == null || !minimalProposalTitle.trim() || !minimalProposalBody.trim()}>Route Checkpoint Proposal</button>
+          </section>
           <section className="subpanel">
             <h3>Kernel authoring</h3>
             <p>Consequence mode is steward judgment.</p>
@@ -3420,6 +3625,19 @@ function App({
           <p>Score stability before calling the world stable.</p>
           <MethodCardPanel card={qaScorecard?.methodCard} />
           <DecisionContractPanel title="QA decision contract" contract={qaScorecard?.decisionPoint?.sharedContract} />
+          {qaScorecard?.minimalViableWorldEcho && (
+            <section className="subpanel minimal-viable-world-echo">
+              <h3>Minimal Viable World echo</h3>
+              <div className="chips">
+                <span>{qaScorecard.minimalViableWorldEcho.status}</span>
+                <span>{qaScorecard.minimalViableWorldEcho.report ? qaScorecard.minimalViableWorldEcho.report.shortId : qaScorecard.minimalViableWorldEcho.route}</span>
+                <span>Deferrals {qaScorecard.minimalViableWorldEcho.unresolvedDeferrals.length}</span>
+                <span>Debt {qaScorecard.minimalViableWorldEcho.openCanonDebt.length}</span>
+                <span>Proposals {qaScorecard.minimalViableWorldEcho.admissionProposals.length}</span>
+              </div>
+              {qaScorecard.minimalViableWorldEcho.coverageSignalSummary.map((signal) => <p key={signal.key}>{signal.label}: {signal.status}</p>)}
+            </section>
+          )}
           <div className="grid">
             <label>Subject type<select value={qaSubjectType} onChange={(event) => setQaSubjectType(event.target.value as "record" | "world")}>
               <option value="record">record</option>
@@ -4563,6 +4781,36 @@ function App({
               <span>{qaBand ? `Band: ${qaBand.color} - ${qaBand.reason}` : "Start or refresh a QA pass to load scorecard policy."}</span>
               {qaScorecard?.subjectMode && <span>Consequence mode: {qaScorecard.subjectMode}</span>}
             </div>
+            {qaScorecard?.minimalViableWorldEcho && (
+              <section className="subpanel minimal-viable-world-echo">
+                <h3>Minimal Viable World echo</h3>
+                <div className="chips">
+                  <span>{qaScorecard.minimalViableWorldEcho.status}</span>
+                  <span>{qaScorecard.minimalViableWorldEcho.report ? qaScorecard.minimalViableWorldEcho.report.shortId : qaScorecard.minimalViableWorldEcho.route}</span>
+                  <span>Deferrals {qaScorecard.minimalViableWorldEcho.unresolvedDeferrals.length}</span>
+                  <span>Debt {qaScorecard.minimalViableWorldEcho.openCanonDebt.length}</span>
+                  <span>Proposals {qaScorecard.minimalViableWorldEcho.admissionProposals.length}</span>
+                </div>
+                <div className="grid compact-grid">
+                  <section>
+                    <h4>Coverage echo</h4>
+                    {qaScorecard.minimalViableWorldEcho.coverageSignalSummary.map((signal) => (
+                      <p key={signal.key}><strong>{signal.label}</strong>: {signal.status}</p>
+                    ))}
+                  </section>
+                  <section>
+                    <h4>Protected mystery evidence</h4>
+                    {qaScorecard.minimalViableWorldEcho.protectedMysteryEvidence.length
+                      ? qaScorecard.minimalViableWorldEcho.protectedMysteryEvidence.map((signal) => <p key={signal.key}>{signal.label}: {signal.status}</p>)
+                      : <p>No protected mystery evidence returned.</p>}
+                  </section>
+                  <section>
+                    <h4>Read-side trail</h4>
+                    {qaScorecard.minimalViableWorldEcho.readSideTrail.map((item) => <p key={`${item.label}:${item.href}`}>{item.label} · {item.href}</p>)}
+                  </section>
+                </div>
+              </section>
+            )}
             <div className="grid">
               <label>Subject type<select value={qaSubjectType} onChange={(event) => setQaSubjectType(event.target.value as "record" | "world")}>
                 <option value="record">record</option>
@@ -4715,6 +4963,101 @@ function App({
                 : displayedCreationDecision.blockers.map((blocker) => (
                   <p key={blocker.key}><strong>{blocker.label}</strong>: {blocker.message} Requires {blocker.requires}.</p>
                 ))}
+            </section>
+            <section className="subpanel minimal-viable-world-checkpoint">
+              <h3>Minimal Viable World checkpoint</h3>
+              <div className="row">
+                <button onClick={loadMinimalViableWorld} disabled={!openWorld}>Refresh Checkpoint</button>
+                <span className="status">{minimalViableWorld ? `${minimalViableWorld.checkpoint.owed ? "owed" : "not owed"} · close ${minimalViableWorld.checkpoint.closeReadiness.status}` : "No checkpoint state loaded"}</span>
+                {minimalViableWorld?.checkpoint.report && <span className="status">{minimalViableWorld.checkpoint.report.shortId}</span>}
+              </div>
+              <DecisionContractPanel title="Minimal Viable World decision contract" contract={displayedMinimalDecision} />
+              <div className="grid compact-grid">
+                <section>
+                  <h4>Whole-world signals</h4>
+                  {(minimalViableWorld?.checkpoint.coverageSignals.wholeWorld ?? []).map((signal) => (
+                    <p key={signal.key}><strong>{signal.label}</strong>: {signal.status}</p>
+                  ))}
+                </section>
+                <section>
+                  <h4>Close readiness</h4>
+                  <p>{minimalViableWorld?.checkpoint.closeReadiness.status ?? "not loaded"}</p>
+                  {(minimalViableWorld?.checkpoint.closeReadiness.blockers ?? []).slice(0, 6).map((blocker) => (
+                    <p key={blocker.key}>{blocker.label}: {blocker.message}</p>
+                  ))}
+                </section>
+                <section>
+                  <h4>Deferrals and routes</h4>
+                  <p>Deferred: {minimalViableWorld?.checkpoint.unresolvedDeferrals.length ?? 0}</p>
+                  <p>Open debt: {minimalViableWorld?.checkpoint.openCanonDebt.length ?? 0}</p>
+                  <p>Admission proposals: {minimalViableWorld?.checkpoint.admissionProposals.length ?? 0}</p>
+                  <p>Advisory artifacts: {minimalViableWorld?.checkpoint.advisoryArtifacts.length ?? 0}</p>
+                </section>
+              </div>
+              <div className="records compact">
+                {minimalSeedOptions.map((seed) => (
+                  <article key={seed.id}>
+                    <button onClick={() => {
+                      setMinimalSeedRecordId(String(seed.id));
+                      setMinimalProposalSeedRecordId(String(seed.id));
+                    }}>Select</button>
+                    <h3>{seed.shortId}: {seed.title}</h3>
+                    <p className="meta">{seed.recordTypeKey} · {seed.canonStatus}</p>
+                    {seed.dimensions.map((dimension) => (
+                      <p key={`${seed.id}:${dimension.key}`}><strong>{dimension.label}</strong>: {dimension.status} · {dimension.evidence.map((record) => record.shortId).join(", ") || "no evidence"}</p>
+                    ))}
+                  </article>
+                ))}
+              </div>
+              <div className="grid">
+                <label>Seed<select value={minimalSeedRecordId} onChange={(event) => setMinimalSeedRecordId(event.target.value)}>
+                  <option></option>
+                  {minimalSeedOptions.map((seed) => <option key={seed.id} value={seed.id}>{seed.shortId}: {seed.title}</option>)}
+                </select></label>
+                <label>Dimension<select value={minimalDimensionKey} onChange={(event) => setMinimalDimensionKey(event.target.value)}>
+                  <option></option>
+                  {minimalDimensionOptions.map((dimension) => <option key={dimension.key} value={dimension.key}>{dimension.label}</option>)}
+                </select></label>
+                <label>Disposition<select value={minimalDisposition} onChange={(event) => setMinimalDisposition(event.target.value as "covered" | "deferred" | "protected_mystery")}>
+                  <option value="covered">covered</option>
+                  <option value="deferred">deferred</option>
+                  <option value="protected_mystery">protected mystery</option>
+                </select></label>
+                <label>Evidence ids<input value={minimalEvidenceRecordIds} onChange={(event) => setMinimalEvidenceRecordIds(event.target.value)} /></label>
+                <label>Protected record id<input value={minimalProtectedRecordId} onChange={(event) => setMinimalProtectedRecordId(event.target.value)} /></label>
+                <label>Deferral<select value={minimalDeferralKind} onChange={(event) => setMinimalDeferralKind(event.target.value as "none" | "skip" | "canon_debt")}>
+                  <option value="none">none</option>
+                  <option value="skip">skip</option>
+                  <option value="canon_debt">canon debt</option>
+                </select></label>
+                <label>Deferral step<input value={minimalDeferralStep} onChange={(event) => setMinimalDeferralStep(event.target.value)} /></label>
+                <label>Debt name<input value={minimalDebtName} onChange={(event) => setMinimalDebtName(event.target.value)} /></label>
+              </div>
+              <label>Disposition substance<textarea rows={3} value={minimalDispositionSubstance} onChange={(event) => setMinimalDispositionSubstance(event.target.value)} /></label>
+              <button onClick={recordMinimalViableWorldDisposition} disabled={!openWorld || !minimalSeedRecordId || !minimalDimensionKey || !minimalDispositionSubstance.trim()}>Record Checkpoint Disposition</button>
+              <div className="grid">
+                <label>Proposal seed<select value={minimalProposalSeedRecordId} onChange={(event) => setMinimalProposalSeedRecordId(event.target.value)}>
+                  <option></option>
+                  {minimalSeedOptions.map((seed) => <option key={seed.id} value={seed.id}>{seed.shortId}: {seed.title}</option>)}
+                </select></label>
+                <label>Proposal title<input value={minimalProposalTitle} onChange={(event) => setMinimalProposalTitle(event.target.value)} /></label>
+                <label>Truth layer<select value={minimalProposalTruthLayer} onChange={(event) => setMinimalProposalTruthLayer(event.target.value)}>
+                  <option value="Objective canon">Objective canon</option>
+                  {truthLayers.map((term) => <option key={term.term}>{term.term}</option>)}
+                </select></label>
+              </div>
+              <label>Proposal body<textarea rows={3} value={minimalProposalBody} onChange={(event) => setMinimalProposalBody(event.target.value)} /></label>
+              <button onClick={routeMinimalViableWorldProposal} disabled={!openWorld || minimalViableWorld?.checkpoint.report == null || !minimalProposalTitle.trim() || !minimalProposalBody.trim()}>Route Checkpoint Proposal</button>
+              <section className="subpanel">
+                <h4>Checkpoint Prompt-out</h4>
+                {(displayedMinimalDecision?.promptOut.modes ?? []).map((mode) => (
+                  <p key={mode.mode}><strong>{mode.label}</strong>: {mode.availability}{mode.blocker ? ` · ${mode.blocker}` : ""}</p>
+                ))}
+                <button onClick={loadMinimalViableWorldPromptStep} disabled={!openWorld || !displayedMinimalDecision?.promptOut.modes.some((mode) => mode.availability === "available" && mode.stepRequest)}>Load Checkpoint Prompt-out Step</button>
+              </section>
+              <div className="chips">
+                {(displayedMinimalDecision?.readSideTrail ?? []).map((item) => <span key={`${item.label}:${item.href}`}>{item.label} · {item.href}</span>)}
+              </div>
             </section>
             <section className="subpanel">
               <h3>Kernel authoring</h3>
