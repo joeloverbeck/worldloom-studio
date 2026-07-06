@@ -108,6 +108,17 @@ export const METHOD_CARDS: MethodCard[] = [
     packageSources: ["docs/worldbuilding-system/08_constraint_composition.md"]
   }),
   card({
+    key: "constraint.constrained-fact",
+    flowKey: "constraint_composition",
+    decisionPoint: "Constrained-fact framing",
+    decision: "Name the fact, capability, card, debt, or selected material whose limits are being tested.",
+    operativeRule: "Constraint work starts by making the constrained subject explicit before inventory or composition begins.",
+    why: "A constraint cannot create useful pressure if the steward has not named what is limited.",
+    goodMaterial: "Good framing names the constrained subject, the source material, and the reason this limit matters to the world.",
+    guidanceDepth: "standard",
+    packageSources: ["docs/worldbuilding-system/08_constraint_composition.md"]
+  }),
+  card({
     key: "constraint.inventory",
     flowKey: "constraint_composition",
     decisionPoint: "Constraint inventory",
@@ -137,6 +148,20 @@ export const METHOD_CARDS: MethodCard[] = [
     ]
   }),
   card({
+    key: "constraint.leakage-residue",
+    flowKey: "constraint_composition",
+    decisionPoint: "Leakage and residue",
+    decision: "Record loopholes, false bypasses, countermeasures, and ordinary-life residue.",
+    operativeRule: "Limits are only believable when the steward records who tests them, where they leak, and what residue remains.",
+    why: "Leakage and residue keep constraints from becoming abstract prohibitions with no world effect.",
+    goodMaterial: "Good leakage and residue prose names boundary testers, countermeasures, visible traces, resentment, markets, and failure modes.",
+    guidanceDepth: "full",
+    packageSources: [
+      "docs/worldbuilding-system/08_constraint_composition.md",
+      "docs/worldbuilding-system/checklists/constraint_composition_sweep.md"
+    ]
+  }),
+  card({
     key: "constraint.outcomes",
     flowKey: "constraint_composition",
     decisionPoint: "Constraint outcomes",
@@ -149,6 +174,60 @@ export const METHOD_CARDS: MethodCard[] = [
       "docs/worldbuilding-system/08_constraint_composition.md",
       "docs/worldbuilding-system/20_ai_assisted_workflow.md"
     ]
+  }),
+  card({
+    key: "constraint.prompt-out-skips",
+    flowKey: "constraint_composition",
+    decisionPoint: "Constraint Prompt-out and skips",
+    decision: "Use, dispose, cite, or skip advisory pressure for the constraint pass.",
+    operativeRule: "Prompt-out is advisory; skipped instruments and used advisory material must leave governed records before they affect outcomes.",
+    why: "Constraint pressure can help, but it must not smuggle unowned material or silent omissions into canon work.",
+    goodMaterial: "Good advisory handling names the prompt-out step, the disposition, the cited artifact if used, and the skip or debt when declined work remains.",
+    guidanceDepth: "standard",
+    packageSources: [
+      "docs/worldbuilding-system/08_constraint_composition.md",
+      "docs/worldbuilding-system/20_ai_assisted_workflow.md",
+      "docs/worldbuilding-system/21_templates_index.md"
+    ]
+  }),
+  card({
+    key: "constraint.close-preview",
+    flowKey: "constraint_composition",
+    decisionPoint: "Constraint close preview",
+    decision: "Check server blockers before the pass report closes.",
+    operativeRule: "A completed pass must leave constraint budget, loopholes, enforcement, residue, and routed outcomes or explicit non-mutation.",
+    why: "Close readiness prevents checkbox completion from replacing performed constraint work.",
+    goodMaterial: "Good close evidence shows required coverage satisfied, unresolved work routed, and the pass report ready to become append-only audit trail.",
+    guidanceDepth: "standard",
+    packageSources: [
+      "docs/worldbuilding-system/08_constraint_composition.md",
+      "docs/worldbuilding-system/21_templates_index.md"
+    ]
+  }),
+  card({
+    key: "constraint.read-side-trail",
+    flowKey: "constraint_composition",
+    decisionPoint: "Constraint read-side trail",
+    decision: "Follow the pass report, source, cards, proposals, debt, advisory artifacts, and skips after the decision.",
+    operativeRule: "Constraint outcomes remain auditable through record links and read-side trails rather than hidden browser state.",
+    why: "The steward must be able to see how a constraint pass created or routed later work.",
+    goodMaterial: "A good trail links the pass report, source record, surfaced proposals, canon debt, skipped instruments, and consulted advisory material.",
+    guidanceDepth: "lean",
+    packageSources: [
+      "docs/worldbuilding-system/08_constraint_composition.md",
+      "docs/principles/data-principles.md"
+    ]
+  }),
+  card({
+    key: "stage12.entry",
+    flowKey: "institutional_economic_suppression",
+    decisionPoint: "Stage 12 run entry",
+    decision: "Choose the material that needs institutional, economic, or suppression pressure.",
+    operativeRule: "Start from a fact, under-review fact, canon debt, selected material, record section, or pass report, then preserve source provenance.",
+    why: "Stage 12 work is meaningful only when the pressure source is explicit and resumable.",
+    goodMaterial: "Good entry material names the source, why this pass is owed, and which record or selected prose the pass will analyze.",
+    guidanceDepth: "standard",
+    packageSources: ["docs/worldbuilding-system/12_institutional_economic_and_suppression_protocol.md"]
   }),
   card({
     key: "stage12.lens",
@@ -180,6 +259,21 @@ export const METHOD_CARDS: MethodCard[] = [
     ]
   }),
   card({
+    key: "stage12.close-readiness",
+    flowKey: "institutional_economic_suppression",
+    decisionPoint: "Stage 12 close readiness",
+    decision: "Confirm every required lens has steward-authored substance before closing the pass.",
+    operativeRule: "A checkbox alone is not evidence; missing lens substance blocks close until the pass records enough world-specific prose.",
+    why: "Institutional and economic passes should close because pressure was worked, not because the steward reached the end of a form.",
+    goodMaterial: "Good close evidence names each satisfied lens, routed proposals or debt, governed skips, and the pass report that preserves the audit trail.",
+    guidanceDepth: "standard",
+    packageSources: [
+      "docs/worldbuilding-system/12_institutional_economic_and_suppression_protocol.md",
+      "docs/worldbuilding-system/checklists/institutional_economic_suppression_sweep.md",
+      "docs/worldbuilding-system/21_templates_index.md"
+    ]
+  }),
+  card({
     key: "propagation.entry",
     flowKey: "propagation",
     decisionPoint: "Propagation run entry",
@@ -188,6 +282,31 @@ export const METHOD_CARDS: MethodCard[] = [
     why: "Accepted facts become world pressure only when their consequences are worked.",
     goodMaterial: "Good entry material names the fact, its scale, and whether owed debt is driving this run.",
     guidanceDepth: "standard",
+    packageSources: [
+      "docs/worldbuilding-system/07_propagation_engine.md",
+      "docs/worldbuilding-system/04_domain_atlas.md"
+    ]
+  }),
+  card({
+    key: "propagation.shock-cone-orders",
+    flowKey: "propagation",
+    decisionPoint: "Shock-cone orders",
+    decision: "Work the ordered consequences of the accepted fact.",
+    operativeRule: "Move from definition through direct effects, adaptations, institutions, residue, and identity pressure at the depth severity licenses.",
+    why: "The shock cone turns a fact into causal pressure across the world instead of leaving it as an isolated statement.",
+    goodMaterial: "Good order evidence names a consequence, its order, pressure level, and enough prose to show why the world now answers differently.",
+    guidanceDepth: "full",
+    packageSources: ["docs/worldbuilding-system/07_propagation_engine.md"]
+  }),
+  card({
+    key: "propagation.domain-atlas",
+    flowKey: "propagation",
+    decisionPoint: "Domain-atlas sweep",
+    decision: "Classify which domains are directly changed, indirectly pressured, reactive, or quiet.",
+    operativeRule: "Domain declarations should explain the relationship to the fact, and negative domains need explicit declarations when they matter.",
+    why: "The domain atlas prevents the steward from only following the most obvious consequence path.",
+    goodMaterial: "Good domain evidence names direct, dependency, reaction, or negative pressure and gives enough declaration to audit why the domain was handled that way.",
+    guidanceDepth: "full",
     packageSources: [
       "docs/worldbuilding-system/07_propagation_engine.md",
       "docs/worldbuilding-system/04_domain_atlas.md"
@@ -208,19 +327,150 @@ export const METHOD_CARDS: MethodCard[] = [
     ]
   }),
   card({
-    key: "contradiction.guidance",
+    key: "propagation.proposals",
+    flowKey: "propagation",
+    decisionPoint: "Surfaced propagation proposals",
+    decision: "Route surfaced consequences as proposed facts when the pass creates new canon work.",
+    operativeRule: "Propagation may surface proposed facts, but Admission remains the only path to canon standing.",
+    why: "Consequences can become new work without bypassing governance.",
+    goodMaterial: "Good surfaced proposals name the consequence source, truth layer, proposed canon status, and Admission route.",
+    guidanceDepth: "standard",
+    packageSources: [
+      "docs/worldbuilding-system/07_propagation_engine.md",
+      "docs/worldbuilding-system/06_canon_fact_admission_protocol.md"
+    ]
+  }),
+  card({
+    key: "propagation.close",
+    flowKey: "propagation",
+    decisionPoint: "Propagation close",
+    decision: "Close only after high-pressure consequences reach a stopping state.",
+    operativeRule: "Open high-pressure consequences block close until answered, scoped out, assigned as canon debt, or protected as a mystery boundary.",
+    why: "Propagation close is the audit point that keeps unfinished consequences visible.",
+    goodMaterial: "Good close material names the report, unresolved blockers if any, and the stopping state for every high-pressure consequence.",
+    guidanceDepth: "standard",
+    packageSources: [
+      "docs/worldbuilding-system/07_propagation_engine.md",
+      "docs/worldbuilding-system/21_templates_index.md"
+    ]
+  }),
+  card({
+    key: "contradiction.triage",
     flowKey: "contradiction",
-    decisionPoint: "Contradiction, retcon, and mystery repair",
-    decision: "Triage the conflict, choose disposition, repair within jurisdiction, and protect mystery boundaries when needed.",
-    operativeRule: "Repair operations stay separate from Admission operations, retcons record cost, and mystery-preserving closes require preservation evidence.",
-    why: "Repair keeps canon coherent without flattening protected uncertainty or bypassing governance.",
-    goodMaterial: "Good repair material names affected truth layers, work scale, disposition, ordered repair operations, retcon cost if any, and repair propagation.",
+    decisionPoint: "Contradiction triage",
+    decision: "State the contradiction or mystery pressure and name the affected scope.",
+    operativeRule: "Triage records affected truth layers, who can notice, contradiction type, higher authority, and mystery relationship before repair.",
+    why: "Repair starts by separating actual contradictions from diegetic conflict and protected uncertainty.",
+    goodMaterial: "Good triage names the claims in tension, affected records, notice boundaries, and whether mystery protection is at stake.",
     guidanceDepth: "full",
     packageSources: [
       "docs/worldbuilding-system/13_contradiction_retcon_and_mystery.md",
-      "docs/worldbuilding-system/templates/contradiction_report.md",
-      "docs/worldbuilding-system/checklists/mystery_preservation.md"
+      "docs/worldbuilding-system/templates/contradiction_report.md"
     ]
+  }),
+  card({
+    key: "contradiction.work-scale",
+    flowKey: "contradiction",
+    decisionPoint: "Contradiction work scale",
+    decision: "Declare the work scale before choosing repair depth.",
+    operativeRule: "Repair cost scales with the steward-declared work scale; the app must not infer that judgment.",
+    why: "Scale decides how much evidence, routing, and audit the repair owes.",
+    goodMaterial: "Good scale material explains why the conflict is minor, moderate, major, severe, or catastrophic in world terms.",
+    guidanceDepth: "standard",
+    packageSources: [
+      "docs/worldbuilding-system/13_contradiction_retcon_and_mystery.md",
+      "docs/worldbuilding-system/06_canon_fact_admission_protocol.md"
+    ]
+  }),
+  card({
+    key: "contradiction.disposition",
+    flowKey: "contradiction",
+    decisionPoint: "Contradiction disposition",
+    decision: "Choose whether this is not a contradiction, diegetic conflict, mystery-preserving conflict, or repair work.",
+    operativeRule: "Disposition selects the repair jurisdiction and must not collapse protected mystery into ordinary inconsistency.",
+    why: "The same apparent conflict can require no repair, diegetic handling, mystery protection, or canon repair.",
+    goodMaterial: "Good disposition material names the chosen disposition and the reason that route respects truth layers and protected effects.",
+    guidanceDepth: "full",
+    packageSources: ["docs/worldbuilding-system/13_contradiction_retcon_and_mystery.md"]
+  }),
+  card({
+    key: "contradiction.repair",
+    flowKey: "contradiction",
+    decisionPoint: "Repair operations",
+    decision: "Record ordered repair operations and steward-authored repair text.",
+    operativeRule: "Repair operations stay separate from Admission operations, with the primary repair operation first.",
+    why: "Repair changes governance state without pretending it is first admission.",
+    goodMaterial: "Good repair material names affected records, ordered operations, next canon status if any, and repair prose in steward wording.",
+    guidanceDepth: "full",
+    packageSources: [
+      "docs/worldbuilding-system/13_contradiction_retcon_and_mystery.md",
+      "docs/worldbuilding-system/templates/contradiction_report.md"
+    ]
+  }),
+  card({
+    key: "contradiction.retcon-cost",
+    flowKey: "contradiction",
+    decisionPoint: "Retcon cost",
+    decision: "Record the cost of any retcon before it is accepted as repair.",
+    operativeRule: "Retcons owe explicit cost by type, not only a replacement statement.",
+    why: "Cost makes the repair's damage visible before the steward chooses it.",
+    goodMaterial: "Good retcon cost names continuity, institutional, character, mystery, aesthetic, or future cost with concrete prose.",
+    guidanceDepth: "full",
+    packageSources: ["docs/worldbuilding-system/13_contradiction_retcon_and_mystery.md"]
+  }),
+  card({
+    key: "contradiction.repair-propagation",
+    flowKey: "contradiction",
+    decisionPoint: "Repair propagation",
+    decision: "Assign or decline the follow-up propagation owed by repair.",
+    operativeRule: "Repairs that change consequences either create propagation debt or record a governed decline.",
+    why: "Repair can create new shock cones, and silent non-propagation hides downstream costs.",
+    goodMaterial: "Good repair propagation names the debt or skip record, why it is owed or declined, and which repaired material it follows.",
+    guidanceDepth: "standard",
+    packageSources: [
+      "docs/worldbuilding-system/13_contradiction_retcon_and_mystery.md",
+      "docs/worldbuilding-system/07_propagation_engine.md"
+    ]
+  }),
+  card({
+    key: "contradiction.mystery-preservation",
+    flowKey: "contradiction",
+    decisionPoint: "Mystery preservation",
+    decision: "Protect mystery boundaries when repair pressure would flatten uncertainty or sacred opacity.",
+    operativeRule: "Mystery-preserving closes require preservation evidence, reveal permissions, reveal prohibitions, and accountability where required.",
+    why: "The method allows protected uncertainty, but only when its consequences remain governed.",
+    goodMaterial: "Good preservation material names fixed facts, secret or undecided material, damaging explanations, reveal boundaries, and sacred-opacity accountability when owed.",
+    guidanceDepth: "full",
+    packageSources: [
+      "docs/worldbuilding-system/13_contradiction_retcon_and_mystery.md",
+      "docs/worldbuilding-system/checklists/mystery_preservation.md",
+      "docs/worldbuilding-system/templates/mystery_ledger_entry.md"
+    ]
+  }),
+  card({
+    key: "contradiction.close",
+    flowKey: "contradiction",
+    decisionPoint: "Contradiction close",
+    decision: "Close the contradiction only after repair, propagation, proposals, and mystery evidence are routed.",
+    operativeRule: "Close writes audit evidence and leaves unresolved consequences as routed work rather than invisible leftovers.",
+    why: "Contradiction repair is only stable when the audit trail shows what changed and what remains owed.",
+    goodMaterial: "Good close material names the contradiction report, final disposition, changed records, routed proposals or debt, and preservation evidence if relevant.",
+    guidanceDepth: "standard",
+    packageSources: [
+      "docs/worldbuilding-system/13_contradiction_retcon_and_mystery.md",
+      "docs/worldbuilding-system/21_templates_index.md"
+    ]
+  }),
+  card({
+    key: "qa.entry",
+    flowKey: "qa",
+    decisionPoint: "QA pass entry",
+    decision: "Choose the record or whole world to score before calling it stable.",
+    operativeRule: "QA starts by naming the subject, preserving the pass report, and keeping score judgment with the steward.",
+    why: "A scorecard is only useful when the subject and audit container are explicit.",
+    goodMaterial: "Good entry material names the subject, consequence mode if known, and why this pass is owed now.",
+    guidanceDepth: "standard",
+    packageSources: ["docs/worldbuilding-system/18_quality_assurance_tests.md"]
   }),
   card({
     key: "qa.scorecard",
@@ -232,6 +482,57 @@ export const METHOD_CARDS: MethodCard[] = [
     goodMaterial: "Good QA evidence names the scored test, the reason for n/a or low score, repair text, and any debt or proposal created.",
     guidanceDepth: "full",
     packageSources: ["docs/worldbuilding-system/18_quality_assurance_tests.md"]
+  }),
+  card({
+    key: "qa.regression-profile",
+    flowKey: "qa",
+    decisionPoint: "QA regression profile",
+    decision: "Name strongest, weakest, dangerous, fragile, overloaded, and suspicious domains after scoring.",
+    operativeRule: "The regression profile turns individual scores into world-level risk language.",
+    why: "QA should tell the steward where future facts are most likely to break the world.",
+    goodMaterial: "Good profile material names the weakest domain, most dangerous under-propagated fact, fragile mystery, overloaded constraint, and suspicious absent institutional response.",
+    guidanceDepth: "full",
+    packageSources: ["docs/worldbuilding-system/18_quality_assurance_tests.md"]
+  }),
+  card({
+    key: "qa.pass-fail-floor",
+    flowKey: "qa",
+    decisionPoint: "QA pass/fail floor",
+    decision: "Check whether load-bearing failures force repair routing before finalizing the pass.",
+    operativeRule: "Low load-bearing scores and floor-triggering capability gaps require repair pressure, not optimistic close.",
+    why: "The floor catches worlds that look scored but still fail stability under use.",
+    goodMaterial: "Good floor evidence names the triggered condition, score pattern, and what repair or debt will handle it.",
+    guidanceDepth: "full",
+    packageSources: ["docs/worldbuilding-system/18_quality_assurance_tests.md"]
+  }),
+  card({
+    key: "qa.repair-routing",
+    flowKey: "qa",
+    decisionPoint: "QA repair routing",
+    decision: "Route weak tests into repair, canon debt, Admission proposals, or governed skips.",
+    operativeRule: "QA identifies instability; repair and Admission own mutations and canon standing.",
+    why: "The pass should create governed follow-up work without silently changing canon.",
+    goodMaterial: "Good repair routing names the failed test, proposed repair text or debt, target flow, and advisory provenance if used.",
+    guidanceDepth: "standard",
+    packageSources: [
+      "docs/worldbuilding-system/18_quality_assurance_tests.md",
+      "docs/worldbuilding-system/13_contradiction_retcon_and_mystery.md",
+      "docs/worldbuilding-system/06_canon_fact_admission_protocol.md"
+    ]
+  }),
+  card({
+    key: "qa.finalize",
+    flowKey: "qa",
+    decisionPoint: "QA finalize",
+    decision: "Finalize the pass only after scores, profile, floor checks, and repair routing are recorded.",
+    operativeRule: "Finalizing QA preserves an audit trail; unresolved repair work remains visible as routed follow-up.",
+    why: "A stable-world claim needs durable evidence, not just a completed screen.",
+    goodMaterial: "Good finalize material names the pass report, band, routed repairs or debt, and any remaining limitations.",
+    guidanceDepth: "standard",
+    packageSources: [
+      "docs/worldbuilding-system/18_quality_assurance_tests.md",
+      "docs/worldbuilding-system/21_templates_index.md"
+    ]
   }),
   card({
     key: "setup.open-world",

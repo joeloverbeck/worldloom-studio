@@ -51,9 +51,14 @@ const DOCTRINE = {
 } as const;
 
 const constraintMethodCardForStep = (stepKey: string) => {
+  if (stepKey.includes("constrained")) return methodCard("constraint.constrained-fact");
   if (stepKey.includes("inventory")) return methodCard("constraint.inventory");
-  if (stepKey.includes("composition") || stepKey.includes("leakage") || stepKey.includes("residue")) return methodCard("constraint.composition");
-  if (stepKey.includes("card") || stepKey.includes("proposal") || stepKey.includes("debt") || stepKey.includes("skip") || stepKey.includes("close")) return methodCard("constraint.outcomes");
+  if (stepKey.includes("composition")) return methodCard("constraint.composition");
+  if (stepKey.includes("leakage") || stepKey.includes("residue")) return methodCard("constraint.leakage-residue");
+  if (stepKey.includes("advisory") || stepKey.includes("prompt") || stepKey.includes("skip")) return methodCard("constraint.prompt-out-skips");
+  if (stepKey.includes("close") || stepKey.includes("complete")) return methodCard("constraint.close-preview");
+  if (stepKey.includes("trail") || stepKey.includes("read")) return methodCard("constraint.read-side-trail");
+  if (stepKey.includes("card") || stepKey.includes("proposal") || stepKey.includes("debt")) return methodCard("constraint.outcomes");
   return methodCard("constraint.source-selection");
 };
 

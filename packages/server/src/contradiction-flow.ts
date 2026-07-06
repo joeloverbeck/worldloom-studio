@@ -148,6 +148,17 @@ const completedChecklistForFlow = (store: WorldFile, flowId: number): boolean =>
   return ContradictionStore.completedMysteryChecklistForFlow(store, flowId);
 };
 
+const contradictionMethodCardForStep = (stepKey: string) => {
+  if (stepKey.includes("work-scale")) return methodCard("contradiction.work-scale");
+  if (stepKey.includes("disposition")) return methodCard("contradiction.disposition");
+  if (stepKey.includes("retcon")) return methodCard("contradiction.retcon-cost");
+  if (stepKey.includes("propagation")) return methodCard("contradiction.repair-propagation");
+  if (stepKey.includes("mystery") || stepKey.includes("checklist") || stepKey.includes("boundary")) return methodCard("contradiction.mystery-preservation");
+  if (stepKey.includes("close") || stepKey.includes("complete")) return methodCard("contradiction.close");
+  if (stepKey.includes("repair") || stepKey.includes("target")) return methodCard("contradiction.repair");
+  return methodCard("contradiction.triage");
+};
+
 const replaceSingleFacet = (store: WorldFile, recordId: number, vocabulary: string, term: string): void => {
   assertVocabularyTerm(store, vocabulary, term);
   for (const facet of store.listFacets(recordId).filter((row) => row.vocabulary === vocabulary)) {
@@ -211,7 +222,7 @@ export const getContradictionRun = (store: WorldFile, flowId: number): unknown =
   const implicatedRecords = ContradictionStore.contradictionImplicatedRecordIds(store, flowId).map((recordId) => store.getRecord(recordId));
   return {
     flow,
-    methodCard: methodCard("contradiction.guidance"),
+    methodCard: contradictionMethodCardForStep(String(flow.current_step ?? "contradiction:entry")),
     methodCards: methodCardsForFlow("contradiction"),
     implicatedRecords,
     triage: triageEntries(store, flowId),

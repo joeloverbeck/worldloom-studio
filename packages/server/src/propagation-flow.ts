@@ -143,6 +143,17 @@ const propagationCoveragePolicy = (severity: DeclaredSeverity): PropagationCover
   };
 };
 
+const propagationMethodCardForStep = (stepKey: string) => {
+  if (stepKey.includes("domain")) return methodCard("propagation.domain-atlas");
+  if (stepKey.includes("disposition")) return methodCard("propagation.disposition");
+  if (stepKey.includes("proposal")) return methodCard("propagation.proposals");
+  if (stepKey.includes("close") || stepKey.includes("complete")) return methodCard("propagation.close");
+  if (["zeroth", "first", "second", "third", "fourth", "fifth"].some((order) => stepKey.includes(order))) {
+    return methodCard("propagation.shock-cone-orders");
+  }
+  return methodCard("propagation.entry");
+};
+
 const readPropagationFlow = (store: WorldFile, flowId: number): PropagationFlowRow => {
   const flow = store.getFlowInstance(flowId, "propagation");
   if (flow.propagation_fact_record_id == null) throw new Error(`Propagation flow has no fact: ${flowId}`);
@@ -216,9 +227,7 @@ export const getPropagationRun = (store: WorldFile, flowId: number): unknown => 
   return {
     flow,
     plan: propagationPlan(store, flow.propagation_fact_record_id),
-    methodCard: stepKey.includes("disposition") || stepKey.includes("complete")
-      ? methodCard("propagation.disposition")
-      : methodCard("propagation.entry"),
+    methodCard: propagationMethodCardForStep(stepKey),
     methodCards: methodCardsForFlow("propagation"),
     consequences: propagationConsequences(store, flowId),
     domainSweeps: propagationDomainSweeps(store, flowId),

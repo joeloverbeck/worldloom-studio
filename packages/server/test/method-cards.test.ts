@@ -80,15 +80,38 @@ describe("method-card guidance layer", () => {
       "admission.full-gate",
       "admission.seed-audit",
       "constraint.source-selection",
+      "constraint.constrained-fact",
       "constraint.inventory",
       "constraint.composition",
+      "constraint.leakage-residue",
       "constraint.outcomes",
+      "constraint.prompt-out-skips",
+      "constraint.close-preview",
+      "constraint.read-side-trail",
+      "stage12.entry",
       "stage12.lens",
       "stage12.outcomes",
+      "stage12.close-readiness",
       "propagation.entry",
+      "propagation.shock-cone-orders",
+      "propagation.domain-atlas",
       "propagation.disposition",
-      "contradiction.guidance",
+      "propagation.proposals",
+      "propagation.close",
+      "contradiction.triage",
+      "contradiction.work-scale",
+      "contradiction.disposition",
+      "contradiction.repair",
+      "contradiction.retcon-cost",
+      "contradiction.repair-propagation",
+      "contradiction.mystery-preservation",
+      "contradiction.close",
+      "qa.entry",
       "qa.scorecard",
+      "qa.regression-profile",
+      "qa.pass-fail-floor",
+      "qa.repair-routing",
+      "qa.finalize",
       "setup.open-world",
       "workflow-map.orientation",
       "operating-card"
@@ -183,8 +206,8 @@ describe("method-card guidance layer", () => {
         materialBody: "The toll office prices mourning routes."
       })
     );
-    expect(stage12.methodCard.key).toBe("stage12.lens");
-    expect(stage12.methodCards.map((card) => card.key)).toEqual(expect.arrayContaining(["stage12.lens", "stage12.outcomes"]));
+    expect(stage12.methodCard.key).toBe("stage12.entry");
+    expect(stage12.methodCards.map((card) => card.key)).toEqual(expect.arrayContaining(["stage12.entry", "stage12.lens", "stage12.outcomes", "stage12.close-readiness"]));
 
     const propagationPlan = await json<{ plan: { methodCard: { key: string }; methodCards: Array<{ key: string }> } }>(
       await app.request(`/api/propagation/records/${fact.record.id}/plan`)
@@ -198,13 +221,13 @@ describe("method-card guidance layer", () => {
     const contradiction = await json<{ methodCard: { key: string }; methodCards: Array<{ key: string }> }>(
       await app.request(`/api/contradiction/runs/${contradictionStart.flow.id}`)
     );
-    expect(contradiction.methodCard.key).toBe("contradiction.guidance");
-    expect(contradiction.methodCards.map((card) => card.key)).toContain("contradiction.guidance");
+    expect(contradiction.methodCard.key).toBe("contradiction.triage");
+    expect(contradiction.methodCards.map((card) => card.key)).toContain("contradiction.mystery-preservation");
 
     const qa = await json<{ scorecard: { methodCard: { key: string }; methodCards: Array<{ key: string }> } }>(
       await postJson(app, "/api/qa/passes/start", { subjectType: "world", title: "Whole-world QA" })
     );
-    expect(qa.scorecard.methodCard.key).toBe("qa.scorecard");
+    expect(qa.scorecard.methodCard.key).toBe("qa.entry");
     expect(qa.scorecard.methodCards.map((card) => card.key)).toContain("qa.scorecard");
   });
 

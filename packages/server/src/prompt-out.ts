@@ -149,11 +149,15 @@ const promptMethodCard = (input: PromptGenerationInput): MethodCard | null => {
   if (input.flowKey === "admission") {
     return methodCard(input.templateKey === "admission_prerequisite_audit" ? "admission.minor-ledger" : "admission.full-gate");
   }
-  if (input.flowKey === "constraint_composition") return methodCard("constraint.outcomes");
+  if (input.flowKey === "constraint_composition") {
+    const stepKey = input.stepKey ?? "";
+    if (stepKey.includes("skip") || stepKey.includes("prompt") || stepKey.includes("advisory")) return methodCard("constraint.prompt-out-skips");
+    return methodCard("constraint.outcomes");
+  }
   if (input.flowKey === "institutional_economic_suppression") return methodCard("stage12.outcomes");
   if (input.flowKey === "propagation") return methodCard("propagation.disposition");
-  if (input.flowKey === "contradiction") return methodCard("contradiction.guidance");
-  if (input.flowKey === "qa") return methodCard("qa.scorecard");
+  if (input.flowKey === "contradiction") return methodCard(input.templateKey === "boundary_guard" ? "contradiction.mystery-preservation" : "contradiction.repair");
+  if (input.flowKey === "qa") return methodCard(input.templateKey === "qa_red_team" ? "qa.repair-routing" : "qa.scorecard");
   return maybeMethodCard(`${input.flowKey ?? ""}.${input.stepKey ?? input.templateKey}`);
 };
 

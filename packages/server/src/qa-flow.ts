@@ -80,10 +80,19 @@ const subjectMode = (store: WorldFile, subjectRecordId: number | null): string |
   return store.listFacets(subjectRecordId).find((facet) => facet.vocabulary === "consequence_mode")?.term ?? null;
 };
 
-const scorecard = (store: WorldFile, subjectRecordId: number | null) => ({
+const qaMethodCardForStep = (stepKey: string) => {
+  if (stepKey.includes("entry")) return methodCard("qa.entry");
+  if (stepKey.includes("regression")) return methodCard("qa.regression-profile");
+  if (stepKey.includes("floor")) return methodCard("qa.pass-fail-floor");
+  if (stepKey.includes("repair") || stepKey.includes("skip")) return methodCard("qa.repair-routing");
+  if (stepKey.includes("complete") || stepKey.includes("final")) return methodCard("qa.finalize");
+  return methodCard("qa.scorecard");
+};
+
+const scorecard = (store: WorldFile, subjectRecordId: number | null, stepKey = "qa:scorecard") => ({
   tests: store.qaTestCatalog(),
   subjectMode: subjectMode(store, subjectRecordId),
-  methodCard: methodCard("qa.scorecard"),
+  methodCard: qaMethodCardForStep(stepKey),
   methodCards: methodCardsForFlow("qa"),
   doctrine: {
     scoreGuidance: QA_SCORE_GUIDANCE,
@@ -164,7 +173,7 @@ export const startQaPass = (
     return {
       flow,
       pass,
-      scorecard: scorecard(store, subjectRecordId),
+      scorecard: scorecard(store, subjectRecordId, "qa:entry"),
       band: derivedBand([])
     };
   });
@@ -178,7 +187,7 @@ export const getQaPass = (store: WorldFile, flowId: number): unknown => {
     flow,
     pass,
     subject: flow.qa_subject_record_id == null ? null : store.getRecord(flow.qa_subject_record_id),
-    scorecard: scorecard(store, flow.qa_subject_record_id),
+    scorecard: scorecard(store, flow.qa_subject_record_id, flow.current_step),
     scores,
     band: derivedBand(scores),
     profile: store.qaRegressionProfile(flowId),
