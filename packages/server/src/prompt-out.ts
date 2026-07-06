@@ -1,6 +1,8 @@
 import { requiresSkipReason } from "./severity-policy.js";
 import { resolveCreationDecompositionHandoff } from "./creation-handoff.js";
+import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest, maybeMethodCard } from "./method-cards.js";
 import type { PromptMode } from "./decision-point-contract.js";
+import type { MethodCard } from "@worldloom/shared";
 import type { RecordInput, RecordRow, WorldFile } from "./world-file.js";
 
 export type PromptOutFlowKey = "creation" | "admission" | "propagation" | "contradiction" | "qa" | string;
@@ -140,27 +142,19 @@ const standingRulingRows = (world: WorldFile): Array<{ disposition: string; note
       return { disposition: String(values.disposition), note: String(values.note ?? "") };
     });
 
-const creationDoctrineLines = (input: PromptGenerationInput): string[] => {
-  if (input.flowKey !== "creation") return [];
-  if (input.templateKey === "kernel_pressure") {
-    return [
-      "Current Creation decision: define the world's first governing kernel or pressure seed.",
-      "Creation doctrine: docs/worldbuilding-system/05_creation_protocol.md Phase 1.",
-      "Template doctrine: docs/worldbuilding-system/templates/world_kernel.md.",
-      "AI workflow doctrine: docs/worldbuilding-system/20_ai_assisted_workflow.md."
-    ];
+const promptMethodCard = (input: PromptGenerationInput): MethodCard | null => {
+  if (input.flowKey === "creation") {
+    return methodCard(input.templateKey === "decomposition_pressure" ? "creation.seed-decomposition" : "creation.kernel");
   }
-  if (input.templateKey === "decomposition_pressure") {
-    return [
-      "Current Creation decision: split broad steward material into smaller seed facts that can be independently rejected.",
-      "Creation doctrine excerpt: Phase 2 splits broad facts until each seed could be independently rejected without destroying its siblings.",
-      "Thin-start boundary: stop splitting when further division produces facts too small to owe consequences.",
-      "Creation parks proposed seeds; Admission owns first canon standing.",
-      "Human-writes-first framing: the steward authored the decomposition before advisory pressure.",
-      "AI workflow doctrine excerpt: ask for pressure, risks, alternatives, and questions; do not write final canon."
-    ];
+  if (input.flowKey === "admission") {
+    return methodCard(input.templateKey === "admission_prerequisite_audit" ? "admission.minor-ledger" : "admission.full-gate");
   }
-  return [];
+  if (input.flowKey === "constraint_composition") return methodCard("constraint.outcomes");
+  if (input.flowKey === "institutional_economic_suppression") return methodCard("stage12.outcomes");
+  if (input.flowKey === "propagation") return methodCard("propagation.disposition");
+  if (input.flowKey === "contradiction") return methodCard("contradiction.guidance");
+  if (input.flowKey === "qa") return methodCard("qa.scorecard");
+  return maybeMethodCard(`${input.flowKey ?? ""}.${input.stepKey ?? input.templateKey}`);
 };
 
 const creationDecompositionPrompt = (
@@ -170,6 +164,7 @@ const creationDecompositionPrompt = (
   stepKey: string
 ): PromptGenerationResult => {
   const handoff = resolveCreationDecompositionHandoff(world, input.recordId);
+  const cardValue = methodCard("creation.seed-decomposition");
   const rulings = standingRulingRows(world);
   const report = handoff.seedDecompositionReport;
   if (!report) throw new Error("decomposition prompt requires a seed-decomposition report and parked seeds");
@@ -198,17 +193,15 @@ const creationDecompositionPrompt = (
     `Source record: seed-decomposition report ${report.shortId} ${report.title}`,
     ...handoff.parkedSeeds.map((seed) => `Source record: parked seed ${seed.shortId} ${seed.title}`),
     ...(handoff.supportingKernel ? [`Source record: supporting kernel ${handoff.supportingKernel.shortId} ${handoff.supportingKernel.title}`] : []),
-    "Doctrine excerpt: docs/worldbuilding-system/05_creation_protocol.md Phase 2 granularity rule.",
-    "Doctrine excerpt: docs/worldbuilding-system/05_creation_protocol.md thin-start boundary.",
-    "Doctrine excerpt: docs/worldbuilding-system/06_canon_fact_admission_protocol.md Admission owns first canon standing.",
-    "Doctrine excerpt: docs/worldbuilding-system/20_ai_assisted_workflow.md human writes first; AI supplies advisory pressure.",
+    `Prompt template: ${template.key} (${template.package_source})`,
+    ...methodCardSourceManifest(cardValue),
     ...omissions.map((omission) => `Omission: ${omission}`)
   ];
 
   return {
     prompt: [
       `Role framing (${template.role_name}): ask for pressure, not answers. The steward's material comes first; do not write final canon.`,
-      `Default prompt derivation (${template.package_source}): ${template.current_text}`,
+      `Default prompt derivation: ${template.current_text}`,
       `Current decision context: flow ${input.flowKey ?? "unspecified"}, step ${stepKey}.`,
       "Steward material under pressure:",
       `Seed decomposition report ${report.shortId}: ${report.title}`,
@@ -219,8 +212,8 @@ const creationDecompositionPrompt = (
       `Granularity rationale: ${handoff.granularityRationale ?? "Each parked seed is independently rejectable without destroying its siblings."}`,
       ...(handoff.admissionIntent ? [`Admission intent: ${handoff.admissionIntent}`] : []),
       kernelContext,
-      "Doctrine at point of use:",
-      ...handoff.doctrineAtPointOfUse,
+      "Method card at point of use:",
+      ...methodCardDoctrineSlots(cardValue),
       "Forbidden moves: do not author final canon, do not admit canon inside Creation, do not flatten truth layer or canon status, and do not invent hidden world facts without labeling them as assumptions.",
       "Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories.",
       "Output labels: bundled seed, missing prerequisite, admission concern, risk, alternative, question, standing-ruling candidate, irrelevant omission.",
@@ -278,10 +271,11 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
   }
   const recordContext = input.recordId == null ? "No record context selected." : promptRecordContext(world, input.recordId);
   const rulings = standingRulingRows(world);
-  const doctrineLines = creationDoctrineLines(input);
+  const cardValue = promptMethodCard(input);
+  const doctrineLines = cardValue ? methodCardDoctrineSlots(cardValue) : [];
   const sourceManifest = [
     `Prompt template: ${template.key} (${template.package_source})`,
-    ...doctrineLines,
+    ...(cardValue ? methodCardSourceManifest(cardValue) : []),
     input.recordId == null ? "Selected record: none" : `Selected record id: ${input.recordId}`,
     `Standing rulings: ${rulings.length}`,
     "Omissions: no hidden repository context; unavailable world context must be named before copy-out."
@@ -292,7 +286,7 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
       mode === "proposal"
         ? `Proposal mode (${template.role_name}): ask for labeled candidate material with alternatives and assumptions. The response may recommend, never assign canon standing or separated labels.`
         : `Role framing (${template.role_name}): ask for pressure, not answers. The steward's material comes first; do not write final canon.`,
-      `Default prompt derivation (${template.package_source}): ${template.current_text}`,
+      `Default prompt derivation: ${template.current_text}`,
       `Current decision context: flow ${input.flowKey ?? "unspecified"}, step ${stepKey}.`,
       mode === "proposal"
         ? "Proposal mode output discipline: return labeled candidates, alternatives, assumptions, risks, and questions; forbid canon-standing assignments, truth-layer assignments, status assignments, or unlabeled invented facts."

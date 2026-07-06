@@ -1,3 +1,4 @@
+import { methodCard, methodCardDoctrineSlots } from "./method-cards.js";
 import type { LinkRow, RecordRow, SectionRow, WorldFile } from "./world-file.js";
 
 export interface HandoffRecordSummary {
@@ -40,11 +41,7 @@ export interface CreationHandoffContext {
   doctrineAtPointOfUse: string[];
 }
 
-export const CREATION_HANDOFF_DOCTRINE = [
-  "Phase 2 granularity rule: split until each seed could be independently rejected without destroying its siblings; stop when further division produces facts too small to owe consequences.",
-  "Creation parks proposed seeds; Admission owns first canon standing.",
-  "Prompt-out is optional advisory pressure after steward-authored material; pasted responses remain immutable advisory artifacts and never mutate canon automatically."
-];
+export const CREATION_HANDOFF_DOCTRINE = methodCardDoctrineSlots(methodCard("creation.seed-decomposition"));
 
 const toSummary = (record: RecordRow): HandoffRecordSummary => ({
   id: record.id,

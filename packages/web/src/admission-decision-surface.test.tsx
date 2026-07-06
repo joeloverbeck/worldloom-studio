@@ -5,6 +5,21 @@ import { describe, expect, it } from "vitest";
 import { App } from "./main";
 
 const admissionDecision = {
+  methodCard: {
+    key: "admission.full-gate",
+    flowKey: "admission",
+    decisionPoint: "Full canon fact gate",
+    decision: "Complete the full canon fact gate with written substance.",
+    operativeRule: "Major-or-higher work owes written consequences, ordered admission operations, n/a reasons, quiet-domain declarations, and follow-up debt where appropriate.",
+    why: "Load-bearing canon changes should expose their costs before they become accepted world truth.",
+    goodMaterial: "Good full-gate material names dependencies, costs, access limits, shock-cone summary, contradiction or mystery risk, and follow-up obligations in steward wording.",
+    guidanceDepth: "full",
+    derivationVersion: "method-card/v1",
+    packageSources: [
+      "docs/worldbuilding-system/06_canon_fact_admission_protocol.md",
+      "docs/worldbuilding-system/checklists/canon_fact_gate.md"
+    ]
+  },
   flow: { key: "admission", runState: "not_started" },
   currentStep: "record:7:severity-declared",
   nextOrResumeState: {
@@ -109,7 +124,7 @@ const admissionDecision = {
     preview: {
       currentDecision: "Complete the full canon fact gate with written substance.",
       promptText: "Role framing (Constraint challenger): ask for pressure, not answers.",
-      sourceManifest: ["Record FAC-7: Toll bell law", "Doctrine: docs/worldbuilding-system/06_canon_fact_admission_protocol.md"],
+      sourceManifest: ["Record FAC-7: Toll bell law", "Method card: admission.full-gate (method-card/v1)", "Package source: docs/worldbuilding-system/06_canon_fact_admission_protocol.md"],
       contextPreview: "FAC-7 Toll bell law",
       omissions: ["No hidden repository context is required."],
       advisoryCanonWarning: "Pasted responses remain advisory artifacts and are not admitted canon."

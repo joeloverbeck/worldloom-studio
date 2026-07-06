@@ -1,4 +1,5 @@
 import { intakeProposedFact } from "./admission-flow.js";
+import { methodCard, methodCardsForFlow } from "./method-cards.js";
 import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, RecordRow, WorldFile } from "./world-file.js";
 
@@ -269,6 +270,10 @@ export const getStage12Run = (world: WorldFile, flowId: number) => {
     report: world.getRecord(source.passReportRecordId),
     source,
     doctrine: DOCTRINE,
+    methodCard: String(flow.current_step ?? "").includes("proposal") || String(flow.current_step ?? "").includes("debt") || String(flow.current_step ?? "").includes("card") || String(flow.current_step ?? "").includes("skip")
+      ? methodCard("stage12.outcomes")
+      : methodCard("stage12.lens"),
+    methodCards: methodCardsForFlow(FLOW_KEY),
     coverage: coverageRows(world, flowId),
     linkedCards: linkedCardRows(world, flowId),
     proposals: proposalRows(world, flowId),

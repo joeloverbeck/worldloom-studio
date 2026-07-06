@@ -11,7 +11,8 @@ describe("Institutional, Economic, and Suppression web surface", () => {
 
     expect(html).toContain("Institutional, Economic, and Suppression flow");
     expect(html).toContain("Start or Resume Stage-12");
-    expect(html).toContain("Doctrine and checklist");
+    expect(html).toContain("Method guidance");
+    expect(html).toContain("Start or resume a stage-12 run to load server-returned method guidance.");
     expect(html).toContain("Close blockers");
     expect(html).toContain("Coverage lens");
     expect(html).toContain("Create or Link Card");

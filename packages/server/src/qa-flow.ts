@@ -1,4 +1,5 @@
 import { intakeProposedFact } from "./admission-flow.js";
+import { methodCard, methodCardsForFlow } from "./method-cards.js";
 import * as PromptOut from "./prompt-out.js";
 import { requiresSkipReason } from "./severity-policy.js";
 import {
@@ -82,6 +83,8 @@ const subjectMode = (store: WorldFile, subjectRecordId: number | null): string |
 const scorecard = (store: WorldFile, subjectRecordId: number | null) => ({
   tests: store.qaTestCatalog(),
   subjectMode: subjectMode(store, subjectRecordId),
+  methodCard: methodCard("qa.scorecard"),
+  methodCards: methodCardsForFlow("qa"),
   doctrine: {
     scoreGuidance: QA_SCORE_GUIDANCE,
     interpretation: {

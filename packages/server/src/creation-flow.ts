@@ -1,7 +1,9 @@
 import { parkCreationSeedForAdmission } from "./admission-flow.js";
 import { creationHandoffContext, type CreationHandoffContext } from "./creation-handoff.js";
 import { ADVISORY_OUTPUT_LABELS, promptMode, splitDisplayedContext, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
+import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest } from "./method-cards.js";
 import * as PromptOut from "./prompt-out.js";
+import type { MethodCard } from "@worldloom/shared";
 import type { FlowInstanceRow, RecordRow, SectionRow, WorldFile } from "./world-file.js";
 
 type AdmissionSeedInput = {
@@ -28,6 +30,7 @@ export interface CreationBlocker {
 }
 
 interface CreationDecisionPayload {
+  methodCard: MethodCard;
   flow: {
     key: "creation";
     runState: string;
@@ -207,6 +210,8 @@ export const creationDecisionPoint = (
   const localDecision = decompositionStep
     ? "Split broad steward material into smaller seed facts that can be independently rejected."
     : "Define the world's first governing kernel or pressure seed.";
+  const cardValue = methodCard(decompositionStep ? "creation.seed-decomposition" : "creation.kernel");
+  const cardDoctrineSlots = methodCardDoctrineSlots(cardValue);
   const blockers: CreationBlocker[] = [];
   if (!materialPresent) {
     blockers.push({
@@ -252,17 +257,12 @@ export const creationDecisionPoint = (
         `Seed decomposition report: ${handoff.seedDecompositionReport?.shortId} ${handoff.seedDecompositionReport?.title}`,
         ...handoff.parkedSeeds.map((seed) => `Parked seed: ${seed.shortId} ${seed.title} (${seed.truthLayer ?? "unset"} / ${seed.canonStatus ?? "unset"})`),
         ...(handoff.supportingKernel ? [`Supporting kernel: ${handoff.supportingKernel.shortId} ${handoff.supportingKernel.title}`] : []),
-        "Doctrine excerpt: Phase 2 granularity rule - split until each seed can be independently rejected without destroying its siblings.",
-        "Doctrine excerpt: thin-start boundary - stop before facts become too small to owe consequences.",
-        "Doctrine excerpt: Creation parks proposed seeds; Admission owns first canon standing.",
+        ...methodCardSourceManifest(cardValue),
         "Omissions: Frontloaded seed audit and Admission gate results do not exist inside Creation."
       ]
     : [
         ...(kernel ? [`Record ${kernel.shortId}: ${kernel.title}`] : []),
-        "Doctrine: docs/worldbuilding-system/05_creation_protocol.md Phase 1",
-        "Doctrine: docs/worldbuilding-system/05_creation_protocol.md Phase 2",
-        "Doctrine: docs/worldbuilding-system/templates/world_kernel.md",
-        "Doctrine: docs/worldbuilding-system/20_ai_assisted_workflow.md",
+        ...methodCardSourceManifest(cardValue),
         "Omissions: no Admission gate results exist inside Creation."
       ];
   const omissions = decompositionStep && decompositionPromptReady
@@ -324,7 +324,7 @@ export const creationDecisionPoint = (
       blocker: proposalAvailable
         ? null
         : proposalBlockedByEssence
-          ? "Proposal prompts are refused for the world's essence; docs/worldbuilding-system/20_ai_assisted_workflow.md reserves the World premise to the steward."
+          ? "Proposal prompts are refused for the world's essence; the AI-assisted workflow reserves the World premise to the steward."
           : "Proposal prompts need the server-owned decision context and current record before copy-out.",
       framing: "Request labeled candidates with alternatives and assumptions; adoption remains steward authorship.",
       role: "Decision proposal",
@@ -361,6 +361,7 @@ export const creationDecisionPoint = (
   const displayedContext = splitDisplayedContext(contextPreview);
   const sharedContract: DecisionPointSharedContract = {
     contractVersion: "decision-point/v1",
+    methodCard: cardValue,
     flow: { key: "creation", runState: flow.state },
     step: {
       key: currentStep,
@@ -384,7 +385,7 @@ export const creationDecisionPoint = (
       severityDependent: ["Explicitly select consequence mode before seed decomposition"]
     },
     doctrine: {
-      slots: decompositionStep ? handoff.doctrineAtPointOfUse : ["05 Creation Protocol", "world-kernel template", "20 AI-assisted workflow"],
+      slots: cardDoctrineSlots,
       packageSources: packageCitations
     },
     bearingContext: {
@@ -433,6 +434,7 @@ export const creationDecisionPoint = (
   };
 
   return {
+    methodCard: cardValue,
     flow: {
       key: "creation",
       runState: flow.state
@@ -483,7 +485,7 @@ export const creationDecisionPoint = (
           `Role framing (${role}): ask for pressure, not answers.`,
           `Current decision: ${localDecision}`,
           contextPreview,
-          ...(decompositionStep ? handoff.doctrineAtPointOfUse : ["Doctrine excerpts: 05 Creation Protocol, world-kernel template, and 20 AI-assisted workflow."]),
+          ...cardDoctrineSlots,
           "Advisory/canon warning: pasted responses remain advisory artifacts and never mutate canon fields automatically."
         ].filter(Boolean).join("\n\n"),
         contextPreview,

@@ -1,5 +1,6 @@
 import { intakeProposedFact } from "./admission-flow.js";
 import * as ContradictionStore from "./contradiction-store.js";
+import { methodCard, methodCardsForFlow } from "./method-cards.js";
 import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, RecordRow, SectionInput, WorldFile } from "./world-file.js";
 
@@ -210,6 +211,8 @@ export const getContradictionRun = (store: WorldFile, flowId: number): unknown =
   const implicatedRecords = ContradictionStore.contradictionImplicatedRecordIds(store, flowId).map((recordId) => store.getRecord(recordId));
   return {
     flow,
+    methodCard: methodCard("contradiction.guidance"),
+    methodCards: methodCardsForFlow("contradiction"),
     implicatedRecords,
     triage: triageEntries(store, flowId),
     workScale: workScale(store, flowId),

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { WorkflowMapPayload } from "@worldloom/shared";
+import type { MethodCard, WorkflowMapPayload } from "@worldloom/shared";
 
 interface WorkflowShellProps {
   workflowMap: WorkflowMapPayload;
@@ -18,6 +18,26 @@ interface DestinationSurfaceProps {
 }
 
 const stateLabel = (state: string): string => state.replaceAll("_", " ");
+
+function WorkflowMethodCard({ card }: { card?: MethodCard }) {
+  if (!card) return null;
+  return (
+    <section className="subpanel method-card">
+      <h3>Method card: {card.decisionPoint}</h3>
+      <p><strong>Decision</strong>: {card.decision}</p>
+      <p><strong>Operative rule</strong>: {card.operativeRule}</p>
+      <p><strong>Why the method asks</strong>: {card.why}</p>
+      <p><strong>What good material looks like</strong>: {card.goodMaterial}</p>
+      <details>
+        <summary>Provenance</summary>
+        <div className="chips">
+          <span>{card.derivationVersion}</span>
+          {card.packageSources.map((source) => <span key={source}>{source}</span>)}
+        </div>
+      </details>
+    </section>
+  );
+}
 
 export function SurfaceNavigation({ workflowMap, activeDestination, onNavigate }: Pick<WorkflowShellProps, "workflowMap" | "activeDestination" | "onNavigate">) {
   return (
@@ -42,6 +62,7 @@ export function WorkflowMapHome({ workflowMap, onNavigate }: Pick<WorkflowShellP
       <div className="panel">
         <h2 id="workflow-map-heading">Workflow map</h2>
         <p className="status">Where am I in the method</p>
+        <WorkflowMethodCard card={workflowMap.methodCards?.workflowMap} />
         <section className="subpanel next-decision">
           <h3>{workflowMap.nextDecision.label}</h3>
           <p>{workflowMap.nextDecision.reason}</p>

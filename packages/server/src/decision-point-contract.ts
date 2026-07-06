@@ -1,3 +1,5 @@
+import type { MethodCard } from "@worldloom/shared";
+
 export type PromptMode = "proposal" | "pressure";
 export type PromptAvailability = "available" | "blocked";
 
@@ -29,6 +31,7 @@ export interface DecisionPointPromptModeSummary {
 
 export interface DecisionPointSharedContract {
   contractVersion: "decision-point/v1";
+  methodCard?: MethodCard;
   flow: {
     key: string;
     runState: string;

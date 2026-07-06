@@ -1,5 +1,6 @@
 import { isFoundationalSeverity, isMajorOrHigher, type DeclaredSeverity } from "./severity-policy.js";
 import { intakeProposedFact } from "./admission-flow.js";
+import { methodCard, methodCardsForFlow } from "./method-cards.js";
 import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, FacetRow, RecordRow, WorldFile } from "./world-file.js";
 
@@ -186,6 +187,8 @@ export const propagationPlan = (store: WorldFile, recordId: number): unknown => 
     requiredDomainCount: coverage.requiredDomainCount === "all" ? DOMAIN_ATLAS.length : coverage.requiredDomainCount,
     orders: PROPAGATION_ORDERS.map(([key, label]) => ({ key, label })),
     domains: DOMAIN_ATLAS,
+    methodCard: methodCard("propagation.entry"),
+    methodCards: methodCardsForFlow("propagation"),
     doctrine: {
       mechanisms: "docs/worldbuilding-system/07_propagation_engine.md#propagation-mechanisms",
       signatureTests: ["why not everywhere?", "why not used by enemies?", "where are the fossils?"],
@@ -209,9 +212,14 @@ export const startPropagationRun = (store: WorldFile, input: { factRecordId: num
 
 export const getPropagationRun = (store: WorldFile, flowId: number): unknown => {
   const flow = readPropagationFlow(store, flowId);
+  const stepKey = String(flow.current_step ?? "propagation:entry");
   return {
     flow,
     plan: propagationPlan(store, flow.propagation_fact_record_id),
+    methodCard: stepKey.includes("disposition") || stepKey.includes("complete")
+      ? methodCard("propagation.disposition")
+      : methodCard("propagation.entry"),
+    methodCards: methodCardsForFlow("propagation"),
     consequences: propagationConsequences(store, flowId),
     domainSweeps: propagationDomainSweeps(store, flowId),
     dispositions: propagationDispositions(store, flowId),

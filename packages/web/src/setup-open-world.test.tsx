@@ -41,9 +41,11 @@ describe("setup/open-world browser shell", () => {
     expect(html).toContain("World open");
     expect(html).toContain("/tmp/empty-world.sqlite");
     expect(html).toContain("Setup controls");
+    expect(html).toContain("Setup method card: Open world");
+    expect(html).toContain("Create or open the visible world file that owns the canon store.");
     expect(html).toContain("Creation decision point");
     expect(html).toContain("Primary active path for a new world");
-    expect(html).toContain("docs/worldbuilding-system/templates/world_kernel.md");
+    expect(html).toContain("Server-returned method-card provenance loads after the Creation flow starts.");
     expect(html).toContain("Prerequisites before other flows");
     expect(html).toContain("New record");
     expect(html).toContain("Canon Workbench");

@@ -11,7 +11,8 @@ describe("Constraint Composition web surface", () => {
 
     expect(html).toContain("Constraint Composition flow");
     expect(html).toContain("Start or Resume Constraint Composition");
-    expect(html).toContain("Doctrine, checklist, and template");
+    expect(html).toContain("Method guidance");
+    expect(html).toContain("Start or resume a run to load server-returned method guidance.");
     expect(html).toContain("Current decision");
     expect(html).toContain("Server close blockers");
     expect(html).toContain("Constraint Inventory");
