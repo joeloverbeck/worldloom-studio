@@ -1,7 +1,7 @@
 # Trial-Readiness Program — audit verdict and PRD seeds
 
 **Date:** 2026-07-06 · **Baseline commit:** b0b1093 (branch `prd-173`, = main + one skills commit) · **Method version:** worldbuilding-system 1.1
-**Session:** `/grill-with-docs` stewardship audit of the app's readiness for the parity-trial phase; every decision below was ratified live by the steward. This report is the durable record and the source for the three PRD issues it seeds. It follows `reports/method-surface-program.md` (the four-PRD program it declared is complete) and supersedes nothing.
+**Session:** `/grill-with-docs` stewardship audit of the app's readiness for the parity-trial phase; every decision below was ratified live by the steward. This report is the durable record and the source for the three PRD issues it seeds — published the same session as **#201 (PRD-E), #202 (PRD-F), #204 (PRD-G)**. It follows `reports/method-surface-program.md` (the four-PRD program it declared is complete) and supersedes nothing.
 
 ## The question as felt
 
@@ -48,21 +48,21 @@ Decision: RATIFIED doc hygiene -> fix directly: coverage-ledger `#111 open` row 
 
 ## The PRDs (three, in order)
 
-### PRD-E — Temporal/Timeline (`09`) guided flow
+### PRD-E (#201) — Temporal/Timeline (`09`) guided flow
 
 **Problem:** the field-tested new-world path's step 8 names the temporal pass; the app offers only generic records. A blind steward cannot run temporal questions, date types, latency, sequence integrity, retrospective insertion, or the timeline audit from the UI, and no temporal prompt modes exist.
 **Scope:** a dedicated Temporal/Timeline guided flow implementing `09_temporal_and_timeline_protocol.md`, `checklists/temporal_timeline_sweep.md`, and `templates/temporal_timeline_card.md`, built by **adoption** of the shared `decision-point/v1` contract, the W-9 guidance layer (new method cards for `09`'s decision points), and the shared two-mode prompt rollout (pressure role: spatial-temporal analyst per `workflow-principles.md`'s W-1 mapping). Entry from the workflow map's conditional-passes area with `09`'s own trigger rule surfaced (Level 2+ facts with first-appearance/discovery/institutional/branch/retcon/inheritance/war/migration/law/aging/evidence implications); run starts from a fact, capability, or pass-report resume, following the Constraint Composition (`08`, PRD #141) precedent. Sweeps propose — facts the pass generates route to Admission (W-3); skips are W-4 records; the master record follows W-5/W-6 (pass-report container or `temporal_timeline` card when timing is load-bearing). Coverage ledger row promotes `09` from sweep-inside-another-flow to guided flow with honest maturity; workflow-map payload and navigation spec gain the destination; browser walkthrough evidence per `browser-visible-guidance-acceptance.md`.
 **Out of scope:** branching UI (T-6 stands; `09`'s timeline-branch material stays at its ADR 0003 schema door); spatial (`10`) and other untested passes.
 **Touches:** `09`; `schema-v1.md` (existing `temporal_timeline` type); `workflow-map-and-navigation.md`; `guided-flow-spec-template.md` (new spec born on-template); W-8/W-9/W-10, W-1–W-7, P-1/P-3, T-8; ADR 0007/0008/0009; PRD #141 as precedent; `docs/methodology-coverage.md`.
 
-### PRD-F — Creation phases 4–8: the Minimal Viable World checkpoint
+### PRD-F (#202) — Creation phases 4–8: the Minimal Viable World checkpoint
 
 **Problem:** `05`'s phases 4–8 ("Ordinary life is the test that separates a world from a backdrop") have no app surface; #112's ratified checkpoint decision was never implemented; naive stewards can ship backdrops without the app ever posing the phase-4 questions.
 **Scope:** implement #112's option 2 as ratified — a **non-generative** Minimal Viable World checkpoint, computed read-only from live records (per seed: ordinary-life residue, adapted institution, factional disagreement, path dependence, mystery boundary — from phases 4/6/7/8), surfaced at Creation close and echoed in QA's first-coherence-audit entry (`05` phase 9 → `18`; the "first stable candidate" verdict language of `19`). The checkpoint renders coverage signals (clerk work, P-3) and collects **steward judgments** per dimension — covered, deferred with reason (a W-4 skip/debt record), or protected as mystery — never auto-verdicts. Decision points carry method cards for phases 4–8 doctrine (including phase 5's expand-only-along-pressure-lines rule) and standard two-mode prompt-out per amended W-1 (proposal externalizes drafting of, e.g., candidate ordinary-life residues, as advisory material; the app itself still generates nothing — #112's non-generative constraint is about the app, and v1.1 makes externalized drafting orthodox). Record shape (reuse of the `21` pass-report container vs. report sections on the Creation trail) is a grooming decision inside the PRD, bounded by T-4 (no invented structure) and W-6 (append-only report regime).
 **Out of scope:** generative filling of any checkpoint dimension by the app; changes to Admission/QA jurisdiction; phases 3/9/10 (already routed).
 **Touches:** `05` phases 4–8; `creation-flow.md`; `qa-flow.md` (first-audit echo); issue #112's recorded decision; W-1/W-2/W-4/W-7/W-8/W-9, P-3; `docs/methodology-coverage.md` (Creation row and open-decisions row).
 
-### PRD-G — Prompt-packet structure hardening (research-fed)
+### PRD-G (#204) — Prompt-packet structure hardening (research-fed)
 
 **Problem:** the packet standard is context-complete by doctrine but its rendering order, formatting, and instruction placement were designed from first principles, not from prompting-effectiveness evidence; the steward's bar requires the trial to test the best-known structure.
 **Scope:** apply the applicable findings of `reports/prompt-structure-research-report.md` (produced this session) to (a) `docs/specs/prompt-out-context-assembly.md` — packet section *ordering and rendering* rules alongside the existing content rules; (b) the versioned default prompt texts of every flow's templates (the `canon-sovereignty.md` "Default prompt texts" discipline governs: derivation re-checked, versioned, steward-editable); (c) structural conformance tests at the server prompt-generation seam. Findings digest and the concrete restructuring decisions live in the PRD issue; the research report is the citation target.
