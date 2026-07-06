@@ -22,6 +22,15 @@ This spec defines Worldloom Studio's stage-12 guided flow: `12_institutional_eco
 14. **No broader framework.** This flow may add the smallest `pass_report` lifecycle support it needs. It does not introduce a generic all-specialized-passes framework.
 15. **No context or ADR update.** No new `CONTEXT.md` or ADR update is owed unless implementation discovery changes the boundary.
 
+## Step Map
+
+| Step | Package source | Decision point | Dependency-bearing | Severity path | Prompt-out modes and pressure role |
+|---|---|---|---|---|---|
+| Run entry | `12_institutional_economic_and_suppression_protocol.md` | Choose the fact, debt, selected material, section, or pass report that needs Stage 12 pressure. | yes | Triggered by relevance, scale, institution pressure, economic effect, or suppression residue rather than a new severity vocabulary. | Proposal and pressure modes use `institution_economy_analyst`; pressure is Institution/economy analyst over selected source material. |
+| Coverage lenses | `12_institutional_economic_and_suppression_protocol.md` and `checklists/institutional_economic_suppression_sweep.md` | Work action arena, rules-in-use, transaction cost, surplus capture, suppression residue, counter-institution, synthesis sentence, daily-life residue, and power conflict. | yes | Missing steward-authored substance for any required lens blocks close. | Proposal mode can label lens candidates; pressure mode challenges institution/economy/suppression consequences and unresolved debt. |
+| Outcome routing | `21_templates_index.md` and `20_ai_assisted_workflow.md` | Choose linked cards, Admission proposals, canon debt, advisory use, or governed skips. | yes | Unresolved consequence work routes to canon debt; new fact-shaped outcomes route to Admission. | Proposal and pressure modes remain advisory; explicit-use links are required before advisory material influences an outcome. |
+| Close/result | `12_institutional_economic_and_suppression_protocol.md` and `21_templates_index.md` | Close the append-only `pass_report` only after required lens substance exists. | yes | Server-returned close blockers reflect missing required lenses. | Prompt-out can be skipped with `skip_record`; pressure mode never changes canon standing directly. |
+
 ## Decision-Point UI Contract
 
 This flow must satisfy `guided-workflow-usability.md` W-8 and `guided-flow-spec-template.md`.

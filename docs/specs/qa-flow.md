@@ -7,7 +7,7 @@ QA asks whether a record or world section is coherent under pressure. It renders
 ## Fixed Decisions
 
 1. **QA pass subject.** A pass starts on either one steward-selected record or the whole world. Record-subject passes link the pass to the subject with the `assesses` link type; whole-world passes carry no subject link.
-2. **Master report.** A `qa_pass` record is a report-regime master record. It is append-only and carries subject type, score summary, regression profile, floor advisory, routed repairs, prompt-out audit, and close audit.
+2. **Master scorecard/report.** The schema/export master record key for the QA report surface is `qa_scorecard`; existing runtime pass rows remain compatibility storage until a separate migration explicitly changes them. The master scorecard is report-regime, append-only, and carries subject type, score summary, regression profile, floor advisory, routed repairs, prompt-out audit, and close audit.
 3. **Flow persistence.** QA uses existing `flow_instances` for resumable and interleavable work. A pass that has not been finalized remains parked with the flow.
 4. **Seeded test catalog.** The app seeds the 28 core tests from `docs/worldbuilding-system/18_quality_assurance_tests.md` into `qa_test_catalog`. Each row records number, name, cluster, package source, failure smell, calibrated 1/2/3 anchors, and mode-aware benchmark text where applicable.
 5. **Package self-audit exclusion.** P1 and P2 are package self-audit tests, not world-scorecard tests. They are not seeded into the world QA scorecard and are not rendered for a world steward.
@@ -32,6 +32,17 @@ QA asks whether a record or world section is coherent under pressure. It renders
 24. **Browser policy boundary.** The browser consumes server-returned pass, scorecard, profile, floor, repair, prompt-out, debt, and queue shapes. It does not duplicate scoring, band, floor, finalize, admission-routing, or debt-warning policy.
 25. **Terminology.** "QA pass", "pass report", "regression profile", "scorecard", and "consequence mode" are package terms from `18` and `22_glossary.md`. No new app-layer term is owed to `CONTEXT.md`.
 26. **Standalone ADR deferral.** The QA module boundary is declared here instead of a standalone ADR. QA reads across reports and ledgers, writes only its pass reports and follow-up canon debt, and routes canon proposals through Admission intake under W-3 and ADR 0006. A dedicated ADR is deferred until QA logic leaks across modules.
+
+## Step Map
+
+| Step | Package source | Decision point | Dependency-bearing | Severity path | Prompt-out modes and pressure role |
+|---|---|---|---|---|---|
+| Pass entry | `18_quality_assurance_tests.md` | Choose a record or whole-world subject and open a QA scorecard/pass. | yes | QA itself does not infer severity; declared major-or-higher context affects floor override reasons and skip reasons. | Proposal and pressure modes use `qa_red_team`; pressure is QA red team over selected subject material. |
+| Per-test scorecard | `18_quality_assurance_tests.md` | Score each applicable QA test, record n/a reasons, and name repair substance for weak load-bearing results. | yes | Finalize blocks unexplained n/a and routed weak load-bearing rows without repair prose. | Proposal mode can suggest labeled score/repair candidates; pressure mode challenges hidden contradictions, weak anchors, and missing repairs. |
+| Regression profile | `18_quality_assurance_tests.md` | Record strongest/weakest domains, fragile mysteries, contradictions, overloaded constraints, absent institutions, and blocking debt. | yes | Profile fields remain steward-authored prose; typed links carry named records/debt. | Proposal and pressure modes use `qa_red_team`; pressure tests missing relationships and over-explained repairs. |
+| Pass/fail floor | `18_quality_assurance_tests.md` | Surface the repeatable high-impact capability floor as an advisory warning, not a blocker. | yes | Major-or-higher overrides require a reason; below threshold no reason is collected. | Proposal mode can suggest floor evidence; pressure mode challenges missing limits, costs, distribution, adaptation, and institution response. |
+| Repair routing | `18_quality_assurance_tests.md`, `06`, and `13` | Route fact-shaped repairs to Admission at `proposed` or contradiction/mystery/deferred findings to canon debt. | yes | Receiving flows own their own severity and repair obligations. | Proposal and pressure modes remain advisory; QA never changes canon standing directly. |
+| Finalize/result | `18_quality_assurance_tests.md` and `21_templates_index.md` | Finalize the append-only QA scorecard/pass after substance blockers clear. | yes | Close blockers mirror unexplained n/a and missing required repair substance. | Prompt-out can be skipped with `skip_record`; advisory responses require disposition and explicit-use links before influence. |
 
 ## Decision-Point UI Contract
 
@@ -95,7 +106,7 @@ Touches `docs/principles/README.md` and affirms non-contradiction with:
 - `domain-fidelity.md` P-1, T-2: QA derives doctrine from `18`, keeps score/n/a/consequence-mode vocabulary separate, and does not redefine or infer package labels.
 - `workflow-principles.md` P-5, W-1, W-2, W-3, W-4, W-7: QA is resumable, severity-scaled, skippable with records, coverage-gated by substance, and routes canon proposals through Admission.
 - `guided-workflow-usability.md` W-8: QA browser work must expose each score, profile, floor, prompt-out, and repair routing point as a local decision.
-- `data-principles.md` P-6, W-5, W-6, T-3, T-4, T-5: `qa_pass` is the append-only audit record; score rows structure only what `18` structures; profile fields remain prose; typed links carry record/debt references; provenance is recorded at authorship time.
+- `data-principles.md` P-6, W-5, W-6, T-3, T-4, T-5: the QA `qa_scorecard`/pass report surface is the append-only audit record; score rows structure only what `18` structures; profile fields remain prose; typed links carry record/debt references; provenance is recorded at authorship time.
 - ADRs 0001, 0002, 0003, 0004: no storage, deployment, branch/collaboration, or stack change; the migration remains forward-only and backup-first.
 - ADR 0006: all QA fact repairs use Admission intake.
 - ADR 0007: QA consumes Prompt-out lifecycle mechanics instead of reimplementing generate/store/dispose/skip.

@@ -56,6 +56,38 @@ interface LinkRow {
   depth?: number;
 }
 
+interface DecisionPointPromptMode {
+  mode: string;
+  label: string;
+  availability: string;
+  blocker: string | null;
+  framing: string;
+  stepRequest: { method: string; href: string; body: Record<string, unknown> } | null;
+}
+
+interface DecisionPointSharedContract {
+  methodCard?: MethodCard;
+  flow: { key: string; runState: string };
+  step: { key: string; localDecision: string; packageSource: string; why: string };
+  obligations: { required: string[]; optional: string[]; skippable: string[]; severityDependent: string[] };
+  bearingContext: { displayed: string[]; sourceManifest: string[]; omissions: string[] };
+  promptOut: { serverOwned: boolean; modes: DecisionPointPromptMode[] };
+  blockers: Array<{ key: string; label?: string; message: string; requires?: string }>;
+  writeIntent: {
+    willWrite: string[];
+    willLink: string[];
+    willQueue: string[];
+    willRouteOnward: string[];
+    willLeaveUntouched: string[];
+  };
+  nextOrResumeState: { currentStep: string; nextStep: string; safeExit: string };
+  readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
+}
+
+interface DecisionPointEnvelope {
+  sharedContract: DecisionPointSharedContract;
+}
+
 interface RecentWorld {
   path: string;
   openedAt: string;
@@ -118,6 +150,7 @@ interface PropagationPlan {
   domains: string[];
   methodCard?: MethodCard;
   methodCards?: MethodCard[];
+  decisionPoint?: DecisionPointEnvelope;
   doctrine: { signatureTests: string[]; stoppingRules: string[] };
 }
 
@@ -156,6 +189,7 @@ interface QaScorecard {
   subjectMode: string | null;
   methodCard?: MethodCard;
   methodCards?: MethodCard[];
+  decisionPoint?: DecisionPointEnvelope;
   doctrine: {
     redFlags: string[];
     modeBenchmarks: string[];
@@ -228,6 +262,7 @@ interface Stage12Run {
   advisories: Array<{ id: number; stepKey: string; record: RecordRow }>;
   skips: Array<{ id: number; stepKey: string; record: RecordRow; debt: RecordRow | null }>;
   closeReadiness: { status: string; blockers: Stage12CloseBlocker[] };
+  decisionPoint?: DecisionPointEnvelope;
 }
 
 interface ConstraintCloseBlocker {
@@ -318,6 +353,7 @@ interface Stage13Run {
     sacred_guard_body: string;
     completed: number;
   }>;
+  decisionPoint?: DecisionPointEnvelope;
 }
 
 interface OwedBoundaryRow {
@@ -760,6 +796,61 @@ function MethodCardPanel({ card, title = "Method card" }: { card?: MethodCard | 
   );
 }
 
+function DecisionContractPanel({ title, contract }: { title: string; contract?: DecisionPointSharedContract | null }) {
+  const modes = contract?.promptOut.modes ?? [];
+  const writeItems = contract
+    ? [
+        ...contract.writeIntent.willWrite,
+        ...contract.writeIntent.willLink,
+        ...contract.writeIntent.willQueue,
+        ...contract.writeIntent.willRouteOnward,
+        ...contract.writeIntent.willLeaveUntouched
+      ]
+    : ["Start or refresh this flow to load server-returned write intent."];
+  return (
+    <section className="subpanel decision-contract">
+      <h3>{title}</h3>
+      <div className="grid compact-grid">
+        <section>
+          <h4>Current decision</h4>
+          <p>{contract?.step.localDecision ?? "Start or refresh this flow to load the current decision."}</p>
+          <p className="meta">{contract ? `${contract.flow.key} · ${contract.flow.runState} · ${contract.nextOrResumeState.currentStep}` : "No server contract loaded."}</p>
+        </section>
+        <section>
+          <h4>Prompt modes</h4>
+          {modes.length ? (
+            <ul>{modes.map((mode) => <li key={mode.mode}>{mode.label}: {mode.availability}{mode.blocker ? ` - ${mode.blocker}` : ""}</li>)}</ul>
+          ) : (
+            <p>Proposal and pressure mode availability loads from the server contract.</p>
+          )}
+        </section>
+        <section>
+          <h4>Write intent</h4>
+          <ul>{writeItems.map((item) => <li key={item}>{item}</li>)}</ul>
+        </section>
+        <section>
+          <h4>Next/resume</h4>
+          <p>{contract?.nextOrResumeState.nextStep ?? "Start or refresh this flow to load the next step."}</p>
+          <p className="meta">{contract?.nextOrResumeState.safeExit ?? "Safe exit and resume policy is server-owned."}</p>
+        </section>
+        <section>
+          <h4>Close blockers</h4>
+          {contract && contract.blockers.length === 0 ? (
+            <p>No server-returned blockers.</p>
+          ) : (
+            <ul>{(contract?.blockers ?? [{ key: "not-loaded", message: "Start or refresh this flow to load exact server blockers." }]).map((blocker) => <li key={blocker.key}>{blocker.label ? `${blocker.label}: ` : ""}{blocker.message}</li>)}</ul>
+          )}
+        </section>
+        <section>
+          <h4>Prompt preview with source manifest</h4>
+          <p>{contract?.bearingContext.displayed[0] ?? "Source context loads from the server contract."}</p>
+          <p className="meta">{contract?.bearingContext.sourceManifest.join(" · ") || "No source manifest loaded yet."}</p>
+        </section>
+      </div>
+    </section>
+  );
+}
+
 const defaultCreationDecision: CreationDecisionPoint = {
   flow: {
     key: "creation",
@@ -1008,6 +1099,7 @@ function App({
   const [canonDebt, setCanonDebt] = useState<RecordRow[]>([]);
   const [propagationQueue, setPropagationQueue] = useState<PropagationQueueRow[]>([]);
   const [propagationPlan, setPropagationPlan] = useState<PropagationPlan | null>(null);
+  const [propagationDecisionPoint, setPropagationDecisionPoint] = useState<DecisionPointEnvelope | null>(null);
   const [propagationConsequences, setPropagationConsequences] = useState<PropagationConsequence[]>([]);
   const [propagationDomains, setPropagationDomains] = useState<PropagationDomain[]>([]);
   const [propagationDispositions, setPropagationDispositions] = useState<PropagationDisposition[]>([]);
@@ -1842,11 +1934,13 @@ function App({
   const loadPropagationRun = async (flowId: number) => {
     const payload = await api<{
       plan: PropagationPlan;
+      decisionPoint?: DecisionPointEnvelope;
       consequences: PropagationConsequence[];
       domainSweeps: PropagationDomain[];
       dispositions: PropagationDisposition[];
     }>(`/api/propagation/runs/${flowId}`);
     setPropagationPlan(payload.plan);
+    setPropagationDecisionPoint(payload.decisionPoint ?? payload.plan.decisionPoint ?? null);
     setPropagationConsequences(payload.consequences);
     setPropagationDomains(payload.domainSweeps);
     setPropagationDispositions(payload.dispositions);
@@ -1867,6 +1961,7 @@ function App({
     if (!propagationFactId) return;
     const payload = await api<{ plan: PropagationPlan }>(`/api/propagation/records/${propagationFactId}/plan`);
     setPropagationPlan(payload.plan);
+    setPropagationDecisionPoint(payload.plan.decisionPoint ?? null);
     setPropagationDomainName(payload.plan.domains[0] ?? "");
     setPropagationOrderKey(payload.plan.orders[1]?.key ?? payload.plan.orders[0]?.key ?? "first");
   };
@@ -2846,7 +2941,25 @@ function App({
           <h2>Propagation flow</h2>
           <p>Work shock cones, consequence domains, and stopping-rule dispositions.</p>
           <MethodCardPanel card={propagationPlan?.methodCard} />
+          <DecisionContractPanel title="Propagation decision contract" contract={(propagationDecisionPoint ?? propagationPlan?.decisionPoint)?.sharedContract} />
+          <div className="grid">
+            <label>Fact id<input value={propagationFactId} onChange={(event) => setPropagationFactId(event.target.value)} /></label>
+            <label>Debt id<input value={propagationDebtId} onChange={(event) => setPropagationDebtId(event.target.value)} /></label>
+            <label>Flow id<input value={propagationFlowId ?? ""} onChange={(event) => setPropagationFlowId(event.target.value ? Number(event.target.value) : null)} /></label>
+          </div>
+          <div className="row">
+            <button onClick={loadPropagationPlan} disabled={!openWorld || !propagationFactId}>Load Plan</button>
+            <button onClick={startPropagation} disabled={!openWorld || !propagationFactId}>Start or Resume</button>
+            <button onClick={() => propagationFlowId != null && loadPropagationRun(propagationFlowId)} disabled={!openWorld || propagationFlowId == null}>Refresh Run</button>
+            <button onClick={closePropagation} disabled={!openWorld || propagationFlowId == null}>Close Run</button>
+          </div>
           {propagationQueue.map((record) => <p key={record.id}>{record.shortId} · {record.title}</p>)}
+          <section className="subpanel">
+            <h3>Run payload</h3>
+            <p>Consequences: {propagationConsequences.map((consequence) => `#${consequence.id} ${consequence.pressure}`).join(", ") || "none loaded"}</p>
+            <p>Domains: {propagationDomains.map((domain) => domain.domainName).join(", ") || "none loaded"}</p>
+            <p>Dispositions: {propagationDispositions.map((disposition) => `${disposition.consequenceId}:${disposition.disposition}`).join(", ") || "none loaded"}</p>
+          </section>
         </section>
       ),
       constraint: (
@@ -2861,6 +2974,32 @@ function App({
           <h2>Institutional / Economic / Suppression flow</h2>
           <p>Run conditional institutional, economic, and suppression passes.</p>
           <MethodCardPanel card={stage12Run?.methodCard} />
+          <DecisionContractPanel title="Stage-12 decision contract" contract={stage12Run?.decisionPoint?.sharedContract} />
+          <div className="grid">
+            <label>Source type<select value={stage12SourceType} onChange={(event) => setStage12SourceType(event.target.value as typeof stage12SourceType)}>
+              <option value="fact">fact</option>
+              <option value="under_review_fact">under-review fact</option>
+              <option value="canon_debt">canon debt</option>
+              <option value="material">selected material</option>
+              <option value="record_section">record section</option>
+              <option value="pass_report">pass report</option>
+            </select></label>
+            <label>Source or report id<input value={stage12SourceRecordId} onChange={(event) => setStage12SourceRecordId(event.target.value)} /></label>
+            <label>Flow id<input value={stage12FlowId ?? ""} onChange={(event) => setStage12FlowId(event.target.value ? Number(event.target.value) : null)} /></label>
+          </div>
+          <div className="row">
+            <button onClick={startStage12Run} disabled={!openWorld || (stage12SourceType !== "material" && !stage12SourceRecordId) || (stage12SourceType === "material" && (!stage12MaterialTitle.trim() || !stage12MaterialBody.trim()))}>Start or Resume Stage-12</button>
+            <button onClick={() => void refreshStage12Run()} disabled={!openWorld || stage12FlowId == null}>Refresh Stage-12</button>
+            <button onClick={closeStage12Run} disabled={!openWorld || stage12FlowId == null}>Close Stage-12 Run</button>
+          </div>
+          <section className="subpanel">
+            <h3>Close blockers</h3>
+            {stage12Run?.closeReadiness.blockers.length ? (
+              <ul>{stage12Run.closeReadiness.blockers.map((blocker) => <li key={blocker.key}>{blocker.label}: {blocker.message}</li>)}</ul>
+            ) : (
+              <p className="status">{stage12Run ? "No server-returned blockers." : "Refresh a run to load exact server blockers."}</p>
+            )}
+          </section>
         </section>
       ),
       contradiction: (
@@ -2868,14 +3007,38 @@ function App({
           <h2>Contradiction/Retcon/Mystery flow</h2>
           <p>Repair contradictions and preserve protected effects.</p>
           <MethodCardPanel card={stage13Run?.methodCard} />
+          <DecisionContractPanel title="Stage 13 decision contract" contract={stage13Run?.decisionPoint?.sharedContract} />
+          <div className="grid">
+            <label>Source record id<input value={stage13SourceRecordId} onChange={(event) => setStage13SourceRecordId(event.target.value)} /></label>
+            <label>Flow id<input value={stage13FlowId ?? ""} onChange={(event) => setStage13FlowId(event.target.value ? Number(event.target.value) : null)} /></label>
+          </div>
+          <div className="row">
+            <button onClick={startStage13Run} disabled={!openWorld || (!stage13SourceRecordId && !stage13Title.trim())}>Start or Resume Stage 13</button>
+            <button onClick={() => void refreshStage13Run()} disabled={!openWorld || stage13FlowId == null}>Refresh Stage 13</button>
+            <button onClick={closeStage13Run} disabled={!openWorld || stage13FlowId == null}>Attempt Stage 13 Close</button>
+          </div>
           {stage13OwedBoundaries.map((row) => <p key={row.propagationDispositionId}>Boundary #{row.propagationDispositionId} · protected record {row.protectedRecordId}</p>)}
         </section>
       ),
       qa: (
         <section className="panel">
-          <h2>QA</h2>
+          <h2>QA flow</h2>
           <p>Score stability before calling the world stable.</p>
           <MethodCardPanel card={qaScorecard?.methodCard} />
+          <DecisionContractPanel title="QA decision contract" contract={qaScorecard?.decisionPoint?.sharedContract} />
+          <div className="grid">
+            <label>Subject type<select value={qaSubjectType} onChange={(event) => setQaSubjectType(event.target.value as "record" | "world")}>
+              <option value="record">record</option>
+              <option value="world">world</option>
+            </select></label>
+            <label>Subject record id<input value={qaSubjectRecordId} onChange={(event) => setQaSubjectRecordId(event.target.value)} /></label>
+            <label>Flow id<input value={qaFlowId ?? ""} onChange={(event) => setQaFlowId(event.target.value ? Number(event.target.value) : null)} /></label>
+          </div>
+          <div className="row">
+            <button onClick={startQaPass} disabled={!openWorld || (qaSubjectType === "record" && !qaSubjectRecordId)}>Start QA Pass</button>
+            <button onClick={refreshQaPass} disabled={!openWorld || qaFlowId == null}>Refresh QA Pass</button>
+            <button onClick={finalizeQaPass} disabled={!openWorld || qaFlowId == null}>Finalize QA Pass</button>
+          </div>
         </section>
       ),
       "canon-workbench": (
@@ -3438,6 +3601,7 @@ function App({
           <div className="panel">
             <h2>Institutional, Economic, and Suppression flow</h2>
             <MethodCardPanel card={stage12Run?.methodCard} />
+            <DecisionContractPanel title="Stage-12 decision contract" contract={stage12Run?.decisionPoint?.sharedContract} />
             <div className="doctrine">
               <strong>Method guidance</strong>
               <span>{stage12Run?.methodCard?.operativeRule ?? "Start or resume a stage-12 run to load server-returned method guidance."}</span>
@@ -3757,6 +3921,7 @@ function App({
           <div className="panel">
             <h2>Contradiction/Retcon/Mystery flow</h2>
             <MethodCardPanel card={stage13Run?.methodCard} />
+            <DecisionContractPanel title="Stage 13 decision contract" contract={stage13Run?.decisionPoint?.sharedContract} />
             <div className="doctrine">
               <strong>Stage 13</strong>
               <span>{stage13Run?.methodCard?.operativeRule ?? "Start or refresh a Stage 13 run to load server-returned contradiction guidance."}</span>
@@ -3922,6 +4087,7 @@ function App({
           <div className="panel">
             <h2>Propagation flow</h2>
             <MethodCardPanel card={propagationPlan?.methodCard} />
+            <DecisionContractPanel title="Propagation decision contract" contract={(propagationDecisionPoint ?? propagationPlan?.decisionPoint)?.sharedContract} />
             <div className="doctrine">
               <strong>Shock cone</strong>
               <span>{propagationPlan?.methodCard?.operativeRule ?? "Load a fact plan to see server-returned propagation guidance."}</span>
@@ -3992,6 +4158,7 @@ function App({
           <div className="panel">
             <h2>QA flow</h2>
             <MethodCardPanel card={qaScorecard?.methodCard} />
+            <DecisionContractPanel title="QA decision contract" contract={qaScorecard?.decisionPoint?.sharedContract} />
             <div className="doctrine">
               <strong>Scorecard</strong>
               <span>{qaScorecard?.methodCard?.operativeRule ?? "Start or refresh a QA pass to load server-returned scorecard guidance."}</span>

@@ -28,6 +28,18 @@ The flow governs contradictions, repairs, retcons, and protected mysteries after
 20. **Advisory artifacts and skips.** Pasted responses remain immutable `advisory_artifact` records with standing rulings. Informed mutations link advisory sources. Every declined offered instrument writes a `skip_record`; major-or-higher skips require reasons, below-threshold skips record that no reason was collected.
 21. **Provenance.** Every repair mutation records actor, timestamp, flow step, and advisory derivation where applicable through existing provenance, link, and jurisdiction-event substrates.
 
+## Step Map
+
+| Step | Package source | Decision point | Dependency-bearing | Severity path | Prompt-out modes and pressure role |
+|---|---|---|---|---|---|
+| Entry and triage | `13_contradiction_retcon_and_mystery.md` and `templates/contradiction_report.md` | State the suspected contradiction or mystery pressure and affected scope. | yes | Work scale is steward-declared and never inferred. | Proposal and pressure modes use `repair_challenge`; pressure is Repair challenger over claims, scope, and notice. |
+| Work scale | `13_contradiction_retcon_and_mystery.md` and `06_canon_fact_admission_protocol.md` vocabulary | Declare scale before choosing repair depth. | yes | Uses app `work_scale` vocabulary; template `foundational` wording is recorded as divergence. | Proposal mode can suggest labeled scale evidence; pressure mode challenges scale/cost assumptions. |
+| Disposition | `13_contradiction_retcon_and_mystery.md` | Choose not a contradiction, diegetic conflict, mystery-preserving conflict, repair, branch, deprecation, or rejection path. | yes | Disposition controls whether repair, retcon, propagation, or mystery evidence is required. | Proposal mode can label candidate dispositions; pressure mode challenges whether the choice hides repair work or flattens mystery. |
+| Repair operations and retcon costs | `13_contradiction_retcon_and_mystery.md` and `templates/contradiction_report.md` | Order repair operations, separate resulting standing/branch decisions, and record retcon costs when owed. | yes | Repair-required/deprecation/rejection dispositions owe operations; retcon operations owe retcon type and costs. | Proposal and pressure modes use `repair_challenge`; pressure tests operations, costs, propagation, and new contradictions. |
+| Repair propagation and surfaced proposals | `07_propagation_engine.md`, `06_canon_fact_admission_protocol.md`, and `13` | Assign or decline follow-up propagation and route repair-created facts to Admission at `proposed`. | yes | Reason thresholds follow major-or-higher work when decline is governed. | Proposal mode can label routed outcomes; pressure mode tests downstream propagation and Admission boundaries. |
+| Mystery boundary and preservation checklist | `13_contradiction_retcon_and_mystery.md`, `templates/mystery_ledger_entry.md`, and `checklists/mystery_preservation.md` | Preserve protected effects without using mystery as an excuse for missing repair. | yes | Mystery-preserving conflict blocks close until preservation evidence exists. | Proposal and pressure modes use `boundary_guard`; pressure is Boundary guard over protected effect, reveal permissions, and sacred-opacity accountability. |
+| Close/result | `templates/contradiction_report.md` | Write the append-only contradiction report and read-side trail after blockers clear. | yes | Close blockers mirror work scale, disposition, repair, retcon, propagation, and mystery obligations. | Prompt-out remains optional/skippable; advisory material requires explicit disposition and links. |
+
 ## Decision-Point UI Contract
 
 This flow must satisfy `guided-workflow-usability.md` W-8 and `guided-flow-spec-template.md`.

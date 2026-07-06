@@ -1,6 +1,7 @@
 import { isFoundationalSeverity, isMajorOrHigher, type DeclaredSeverity } from "./severity-policy.js";
 import { intakeProposedFact } from "./admission-flow.js";
-import { methodCard, methodCardsForFlow } from "./method-cards.js";
+import { ADVISORY_OUTPUT_LABELS, promptMode, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
+import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest, methodCardsForFlow } from "./method-cards.js";
 import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, FacetRow, RecordRow, WorldFile } from "./world-file.js";
 
@@ -67,6 +68,11 @@ const PROPAGATION_ORDERS = [
   ["fourth", "Fourth-order: historical and cultural residue"],
   ["fifth", "Fifth-order: identity and metaphysics"]
 ] as const;
+
+const PROPAGATION_PROTOCOL = "docs/worldbuilding-system/07_propagation_engine.md";
+const DOMAIN_ATLAS_PROTOCOL = "docs/worldbuilding-system/04_domain_atlas.md";
+const AI_WORKFLOW_PROTOCOL = "docs/worldbuilding-system/20_ai_assisted_workflow.md";
+const PROMPT_TEMPLATE_KEY = "propagation_consequence_scout";
 
 const DOMAIN_ATLAS = [
   "Physics, metaphysics, and cosmology",
@@ -179,6 +185,151 @@ const propagationDispositions = (store: WorldFile, flowId: number): PropagationD
 const undispositionedHighPressureConsequences = (store: WorldFile, flowId: number): PropagationConsequenceRow[] =>
   store.undispositionedHighPressurePropagationConsequences(flowId).map((row) => rowToPropagationConsequence(row));
 
+const propagationCloseBlockers = (store: WorldFile, flowId: number): DecisionPointSharedContract["blockers"] =>
+  undispositionedHighPressureConsequences(store, flowId).map((row) => ({
+    key: "undispositioned-high-pressure",
+    label: "Undispositioned high-pressure consequence",
+    message: `High-pressure consequence #${row.id} must be answered, scoped out, assigned as canon debt, or protected as a mystery boundary before close.`,
+    requires: "consequence disposition"
+  }));
+
+const propagationPromptModes = (
+  record: RecordRow,
+  options: { flowId?: number; stepKey: string }
+): DecisionPointPromptMode[] => {
+  const commonBody = {
+    flowKey: "propagation",
+    flowId: options.flowId,
+    recordId: record.id,
+    templateKey: PROMPT_TEMPLATE_KEY,
+    stepKey: options.stepKey
+  };
+  const hasMaterial = Boolean(record.body.trim());
+  return withPromptModeSummaries([
+    promptMode({
+      mode: "proposal",
+      label: "Proposal mode",
+      available: true,
+      blocker: null,
+      framing: `Request labeled propagation candidates for ${record.shortId}; adoption remains steward authorship and routes onward as proposed work.`,
+      role: "Propagation proposal",
+      templateKey: PROMPT_TEMPLATE_KEY,
+      stepKey: options.stepKey,
+      outputLabels: ADVISORY_OUTPUT_LABELS,
+      stepRequest: {
+        method: "POST",
+        href: "/api/prompt-out/steps",
+        body: { ...commonBody, mode: "proposal", label: "Proposal mode" }
+      }
+    }),
+    promptMode({
+      mode: "pressure",
+      label: "Pressure mode",
+      available: hasMaterial,
+      blocker: hasMaterial ? null : "Pressure prompts require steward-authored source fact material.",
+      framing: "Ask for consequences, adaptations, countermeasures, quiet domains, fossils, and assumptions without admitting new facts.",
+      role: "Consequence scout",
+      templateKey: PROMPT_TEMPLATE_KEY,
+      stepKey: options.stepKey,
+      outputLabels: ADVISORY_OUTPUT_LABELS,
+      stepRequest: hasMaterial
+        ? {
+            method: "POST",
+            href: "/api/prompt-out/steps",
+            body: { ...commonBody, mode: "pressure", label: "Consequence scout" }
+          }
+        : null
+    })
+  ]);
+};
+
+const propagationDecisionPoint = (
+  store: WorldFile,
+  input: { recordId: number; flowId?: number; runState?: string; currentStep?: string; blockers?: DecisionPointSharedContract["blockers"] }
+): { sharedContract: DecisionPointSharedContract } => {
+  const record = store.getRecord(input.recordId);
+  const severity = declaredSeverityFromFacets(store.listFacets(record.id));
+  const coverage = propagationCoveragePolicy(severity);
+  const currentStep = input.currentStep ?? "propagation:entry";
+  const cardValue = propagationMethodCardForStep(currentStep);
+  const displayed = [
+    `Source fact: ${record.shortId} ${record.title}`,
+    record.body,
+    `Admission level: ${severity.admissionLevel ?? "unset"}`,
+    `Work scale: ${severity.workScale ?? "unset"}`,
+    `Required coverage: ${coverage.requiredCoverage}`,
+    `Current step: ${currentStep}`
+  ].filter(Boolean);
+  const modes = propagationPromptModes(record, { flowId: input.flowId, stepKey: currentStep });
+  return {
+    sharedContract: {
+      contractVersion: "decision-point/v1",
+      methodCard: cardValue,
+      flow: { key: "propagation", runState: input.runState ?? "not_started" },
+      step: {
+        key: currentStep,
+        localDecision: cardValue.decision,
+        packageSource: PROPAGATION_PROTOCOL,
+        why: "Propagation turns an accepted fact into worked causal pressure while leaving canon standing changes to Admission."
+      },
+      obligations: {
+        required: [
+          "Start from a canon fact or propagation-scoped canon debt",
+          `Work the required coverage path: ${coverage.requiredCoverage}`,
+          "Disposition every high-pressure consequence before close"
+        ],
+        optional: ["Route surfaced consequences as proposed facts when the pass creates new canon work"],
+        skippable: ["Prompt-out advisory support can be declined with a skip_record"],
+        severityDependent: [
+          "Major-or-higher facts require multiple orders and direct/dependency/reaction domains",
+          "Foundational facts require a full domain-atlas sweep"
+        ]
+      },
+      skipRule: {
+        offered: true,
+        reasonRequired: isMajorOrHigher(severity),
+        reasonThreshold: "major-or-higher propagation work",
+        recordType: "skip_record"
+      },
+      doctrine: {
+        slots: methodCardDoctrineSlots(cardValue),
+        packageSources: [PROPAGATION_PROTOCOL, DOMAIN_ATLAS_PROTOCOL, AI_WORKFLOW_PROTOCOL]
+      },
+      bearingContext: {
+        displayed,
+        sourceManifest: [
+          `Source fact: ${record.shortId} ${record.title}`,
+          ...methodCardSourceManifest(cardValue)
+        ],
+        omissions: ["Cross-flow consequences remain proposed or canon-debt routed until the steward works the receiving flow."]
+      },
+      promptOut: { serverOwned: true, modes },
+      blockers: input.blockers ?? [],
+      substanceValidations: [
+        "High-pressure consequences must reach an explicit stopping state before close.",
+        "Negative domain declarations require steward-authored explanation when recorded."
+      ],
+      writeIntent: {
+        willWrite: ["propagation consequence, domain, disposition, skip, and close-report records when the steward acts"],
+        willLink: ["digest and derived_from links from the source fact, report, proposals, and governed skips"],
+        willQueue: ["canon debt when a consequence is assigned as follow-up work"],
+        willRouteOnward: ["surfaced facts route to Admission as proposed", "protected mystery boundaries route to Stage 13"],
+        willLeaveUntouched: ["Propagation never admits facts", "accepted source canon standing remains unchanged by the propagation pass"]
+      },
+      nextOrResumeState: {
+        currentStep,
+        nextStep: input.blockers?.length ? "disposition high-pressure consequences" : "continue shock cone, domain sweep, or close readiness",
+        safeExit: "Return to the workflow map; this propagation run can be resumed."
+      },
+      readSideTrail: [
+        { label: "Source fact", href: `/api/canon-workbench/records/${record.id}`, recordId: record.id },
+        { label: "Current Canon", href: "/api/canon-workbench/current" },
+        { label: "Audit Trail", href: "/api/canon-workbench/audit" }
+      ]
+    }
+  };
+};
+
 export const propagationQueue = (store: WorldFile): PropagationQueueRow[] =>
   store.propagationQueueRecordIds().map((id) => {
     const record = store.getRecord(id);
@@ -200,6 +351,7 @@ export const propagationPlan = (store: WorldFile, recordId: number): unknown => 
     domains: DOMAIN_ATLAS,
     methodCard: methodCard("propagation.entry"),
     methodCards: methodCardsForFlow("propagation"),
+    decisionPoint: propagationDecisionPoint(store, { recordId }),
     doctrine: {
       mechanisms: "docs/worldbuilding-system/07_propagation_engine.md#propagation-mechanisms",
       signatureTests: ["why not everywhere?", "why not used by enemies?", "where are the fossils?"],
@@ -224,11 +376,19 @@ export const startPropagationRun = (store: WorldFile, input: { factRecordId: num
 export const getPropagationRun = (store: WorldFile, flowId: number): unknown => {
   const flow = readPropagationFlow(store, flowId);
   const stepKey = String(flow.current_step ?? "propagation:entry");
+  const blockers = propagationCloseBlockers(store, flowId);
   return {
     flow,
     plan: propagationPlan(store, flow.propagation_fact_record_id),
     methodCard: propagationMethodCardForStep(stepKey),
     methodCards: methodCardsForFlow("propagation"),
+    decisionPoint: propagationDecisionPoint(store, {
+      recordId: flow.propagation_fact_record_id,
+      flowId,
+      runState: flow.state,
+      currentStep: stepKey,
+      blockers
+    }),
     consequences: propagationConsequences(store, flowId),
     domainSweeps: propagationDomainSweeps(store, flowId),
     dispositions: propagationDispositions(store, flowId),

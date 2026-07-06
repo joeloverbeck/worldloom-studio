@@ -10,6 +10,10 @@ describe("QA flow web surface", () => {
     const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
 
     expect(html).toContain("QA flow");
+    expect(html).toContain("QA decision contract");
+    expect(html).toContain("Prompt modes");
+    expect(html).toContain("Write intent");
+    expect(html).toContain("Next/resume");
     expect(html).toContain("Subject type");
     expect(html).toContain("Start QA Pass");
     expect(html).toContain("28-test scorecard");

@@ -10,6 +10,10 @@ describe("Institutional, Economic, and Suppression web surface", () => {
     const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
 
     expect(html).toContain("Institutional, Economic, and Suppression flow");
+    expect(html).toContain("Stage-12 decision contract");
+    expect(html).toContain("Prompt modes");
+    expect(html).toContain("Write intent");
+    expect(html).toContain("Next/resume");
     expect(html).toContain("Start or Resume Stage-12");
     expect(html).toContain("Method guidance");
     expect(html).toContain("Start or resume a stage-12 run to load server-returned method guidance.");

@@ -1,10 +1,12 @@
 import { intakeProposedFact } from "./admission-flow.js";
-import { methodCard, methodCardsForFlow } from "./method-cards.js";
+import { ADVISORY_OUTPUT_LABELS, promptMode, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
+import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest, methodCardsForFlow } from "./method-cards.js";
 import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, RecordRow, WorldFile } from "./world-file.js";
 
 export const FLOW_KEY = "institutional_economic_suppression";
 export const PROMPT_TEMPLATE_KEY = "institution_economy_analyst";
+const AI_WORKFLOW_PROTOCOL = "docs/worldbuilding-system/20_ai_assisted_workflow.md";
 
 type Stage12SourceType = "fact" | "under_review_fact" | "canon_debt" | "material" | "record_section";
 type Stage12CardType = "action_arena" | "institution" | "counter_institution";
@@ -265,6 +267,132 @@ const stage12MethodCardForStep = (stepKey: string) => {
   return methodCard("stage12.lens");
 };
 
+const stage12PromptModes = (world: WorldFile, flowId: number): DecisionPointPromptMode[] => {
+  const source = readSource(world, flowId);
+  const flow = readFlow(world, flowId);
+  const stepKey = String(flow.current_step ?? "stage12:entry");
+  const recordId = source.sourceRecordId ?? source.passReportRecordId;
+  const hasMaterial = Boolean(source.materialBody.trim());
+  const commonBody = {
+    flowKey: FLOW_KEY,
+    flowId,
+    recordId,
+    templateKey: PROMPT_TEMPLATE_KEY,
+    stepKey
+  };
+  return withPromptModeSummaries([
+    promptMode({
+      mode: "proposal",
+      label: "Proposal mode",
+      available: true,
+      blocker: null,
+      framing: `Request labeled institutional, economic, and suppression candidates for ${source.sourceSummary}; adoption remains steward authorship.`,
+      role: "Stage 12 proposal",
+      templateKey: PROMPT_TEMPLATE_KEY,
+      stepKey,
+      outputLabels: ADVISORY_OUTPUT_LABELS,
+      stepRequest: {
+        method: "POST",
+        href: "/api/prompt-out/steps",
+        body: { ...commonBody, mode: "proposal", label: "Proposal mode" }
+      }
+    }),
+    promptMode({
+      mode: "pressure",
+      label: "Pressure mode",
+      available: hasMaterial,
+      blocker: hasMaterial ? null : "Pressure prompts require steward-authored Stage 12 source material.",
+      framing: "Ask for action arenas, rules-in-use, transaction costs, surplus capture, suppression residue, counter-institutions, and power conflicts.",
+      role: "Institution/economy analyst",
+      templateKey: PROMPT_TEMPLATE_KEY,
+      stepKey,
+      outputLabels: ADVISORY_OUTPUT_LABELS,
+      stepRequest: hasMaterial
+        ? {
+            method: "POST",
+            href: "/api/prompt-out/steps",
+            body: { ...commonBody, mode: "pressure", label: "Institution/economy analyst" }
+          }
+        : null
+    })
+  ]);
+};
+
+const stage12DecisionPoint = (world: WorldFile, flowId: number): { sharedContract: DecisionPointSharedContract } => {
+  const flow = readFlow(world, flowId);
+  const source = readSource(world, flowId);
+  const stepKey = String(flow.current_step ?? "stage12:entry");
+  const cardValue = stage12MethodCardForStep(stepKey);
+  const readiness = closeReadiness(world, flowId);
+  return {
+    sharedContract: {
+      contractVersion: "decision-point/v1",
+      methodCard: cardValue,
+      flow: { key: FLOW_KEY, runState: String(flow.state ?? "in_progress") },
+      step: {
+        key: stepKey,
+        localDecision: cardValue.decision,
+        packageSource: DOCTRINE.protocol,
+        why: "Stage 12 exposes institutional, economic, and suppression consequences without admitting new canon directly."
+      },
+      obligations: {
+        required: LENSES.map((lens) => lens.label),
+        optional: ["Route cards, proposals, debt, advisory use, or governed skips when the pass produces follow-up work"],
+        skippable: ["Prompt-out advisory pressure can be declined with a skip_record"],
+        severityDependent: ["Use the pass when the fact's scale, institution pressure, economic effect, or suppression residue makes the lens relevant"]
+      },
+      skipRule: {
+        offered: true,
+        reasonRequired: false,
+        reasonThreshold: "major-or-higher or unresolved Stage 12 work",
+        recordType: "skip_record"
+      },
+      doctrine: {
+        slots: methodCardDoctrineSlots(cardValue),
+        packageSources: [DOCTRINE.protocol, DOCTRINE.checklist, DOCTRINE.templateIndex, AI_WORKFLOW_PROTOCOL]
+      },
+      bearingContext: {
+        displayed: [
+          `Source: ${source.sourceSummary}`,
+          source.materialBody || source.materialTitle,
+          `Current step: ${stepKey}`,
+          `Close readiness: ${readiness.status}`
+        ].filter(Boolean),
+        sourceManifest: [
+          `Pass report: ${source.passReportRecordId}`,
+          ...(source.sourceRecordId == null ? [] : [`Source record id: ${source.sourceRecordId}`]),
+          ...methodCardSourceManifest(cardValue)
+        ],
+        omissions: ["Stage 12 routes new fact-shaped material to Admission instead of changing canon standing directly."]
+      },
+      promptOut: { serverOwned: true, modes: stage12PromptModes(world, flowId) },
+      blockers: readiness.blockers,
+      substanceValidations: [
+        "Each required lens needs steward-authored substance; checkbox-only answers are rejected.",
+        "Advisory material must be explicitly disposed before it influences Stage 12 outcomes."
+      ],
+      writeIntent: {
+        willWrite: ["pass_report sections, coverage rows, linked cards, routed proposals, canon debt, advisories, and skips when the steward acts"],
+        willLink: ["derived_from source links", "advisory links only after explicit steward use", "read-side audit links"],
+        willQueue: ["Admission proposals and canon debt only when explicitly routed"],
+        willRouteOnward: ["fact-shaped outcomes route to Admission as proposed", "unresolved work routes to canon debt"],
+        willLeaveUntouched: ["Stage 12 never admits facts", "source canon standing remains unchanged by this pass"]
+      },
+      nextOrResumeState: {
+        currentStep: stepKey,
+        nextStep: readiness.status === "ready" ? "close Stage 12 pass" : "complete missing Stage 12 lens evidence",
+        safeExit: "Return to the workflow map; this Stage 12 pass can be resumed from its pass report."
+      },
+      readSideTrail: [
+        { label: "Pass report", href: `/api/canon-workbench/records/${source.passReportRecordId}`, recordId: source.passReportRecordId },
+        ...(source.sourceRecordId == null ? [] : [{ label: "Source record", href: `/api/canon-workbench/records/${source.sourceRecordId}`, recordId: source.sourceRecordId }]),
+        { label: "Current Canon", href: "/api/canon-workbench/current" },
+        { label: "Audit Trail", href: "/api/canon-workbench/audit" }
+      ]
+    }
+  };
+};
+
 export type StartStage12RunInput =
   | { sourceType: "fact" | "under_review_fact" | "canon_debt"; recordId: number }
   | { sourceType: "record_section"; recordId: number; sectionHeading: string }
@@ -287,7 +415,8 @@ export const getStage12Run = (world: WorldFile, flowId: number) => {
     debt: debtRows(world, flowId),
     advisories: advisoryRows(world, flowId),
     skips: skipRows(world, flowId),
-    closeReadiness: closeReadiness(world, flowId)
+    closeReadiness: closeReadiness(world, flowId),
+    decisionPoint: stage12DecisionPoint(world, flowId)
   };
 };
 
