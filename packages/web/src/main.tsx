@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { HealthPayload, LinkTypeDefinition, RecordTypeDefinition } from "@worldloom/shared";
+import type { HealthPayload, LinkTypeDefinition, RecordTypeDefinition, WorkflowMapPayload } from "@worldloom/shared";
+import { WorkflowShell } from "./workflow-shell.js";
 import "./styles.css";
 
 interface RecordRow {
@@ -60,10 +61,27 @@ interface RecentWorld {
   openedAt: string;
 }
 
+interface SetupErrorState {
+  action: "create" | "open";
+  path: string;
+  kind: string;
+  message: string;
+  recovery: string;
+}
+
+interface SetupStatusPayload {
+  server: { reachable: true; version: string };
+  catalog: { ready: boolean; recordTypeCount: number; linkTypeCount: number };
+  world: { open: false } | { open: true; path: string };
+  recentWorlds: RecentWorld[];
+}
+
 interface AdmissionQueueRow extends RecordRow {
   admissionLevel: string | null;
   workScale: string | null;
   constraintTags: string[];
+  decisionPointHref?: string;
+  sourceLinks?: Array<LinkRow & { target: Pick<RecordRow, "id" | "shortId" | "title" | "recordTypeKey"> | null }>;
 }
 
 interface PropagationQueueRow extends RecordRow {
@@ -206,6 +224,49 @@ interface Stage12Run {
   closeReadiness: { status: string; blockers: Stage12CloseBlocker[] };
 }
 
+interface ConstraintCloseBlocker {
+  kind: string;
+  key: string;
+  label: string;
+  message: string;
+}
+
+interface ConstraintRun {
+  flow: { id: number; state: string; current_step: string };
+  report: RecordRow;
+  source: {
+    sourceType: string;
+    sourceRecordId: number | null;
+    sourceSectionHeading: string | null;
+    materialTitle: string;
+    materialBody: string;
+    constrainedSubject: string;
+    sourceSummary: string;
+  };
+  doctrine: {
+    flowKey: string;
+    protocol: string;
+    checklist: string;
+    template: string;
+    stepMap: Array<{ key: string; label: string; decision: string }>;
+    completionRule: string;
+    browserPolicy: string;
+  };
+  inventory: Array<{ id: number; constrainedFact: string; constraintStatement: string; constraintType: string; prevents: string; allows: string; enforcement: string; residue: string }>;
+  composition: Array<{ id: number; analysisType: string; body: string }>;
+  leakage: { loopholes: string; countermeasures: string } | null;
+  residue: { ordinaryLife: string; institutionalEffects: string; economicEffects: string } | null;
+  linkedCards: Array<{ id: number; relation: string; card: RecordRow }>;
+  proposals: Array<{ id: number; sourceStep: string; record: RecordRow }>;
+  debt: Array<{ id: number; sourceStep: string; record: RecordRow }>;
+  advisories: Array<{ id: number; stepKey: string; record: RecordRow }>;
+  skips: Array<{ id: number; stepKey: string; record: RecordRow; debt: RecordRow | null }>;
+  closeReadiness: { status: string; blockers: ConstraintCloseBlocker[] };
+  closePreview: { state: string; outcomeState: string; beforeCompletion: string[]; afterCompletion: string[] };
+  promptOut: { available: boolean; templateKey: string; stepKey: string; coldUseEvidence: string; sourceRecordId: number | null };
+  readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
+}
+
 interface Stage13Run {
   flow: {
     id: number;
@@ -341,15 +402,260 @@ interface CanonWorkbenchDetail {
   exportAffordance: { method: "GET"; href: string };
 }
 
+interface AdmissionDecisionPoint {
+  flow: {
+    key: "admission";
+    runState: string;
+  };
+  currentStep: string;
+  nextOrResumeState: {
+    currentStep: string;
+    nextStep: string;
+    safeExit: string;
+  };
+  localDecision: string;
+  packageAuthority: {
+    primary: string;
+    why: string;
+    citations: string[];
+  };
+  selectedRecord: AdmissionQueueRow & {
+    sourceLinks: Array<LinkRow & { target: Pick<RecordRow, "id" | "shortId" | "title" | "recordTypeKey"> | null }>;
+  };
+  severity: {
+    admissionLevel: string | null;
+    workScale: string | null;
+    gatePath: "minor_ledger" | "full_gate" | null;
+    definitions: Array<{ key: string; term: string; definition: string; source: string }>;
+    obligations: string[];
+  };
+  work: {
+    required: string[];
+    optional: string[];
+    skippable: string[];
+    severityDependent: string[];
+  };
+  doctrineCitations: string[];
+  blockers: Array<{ key: string; label: string; message: string; requires: string }>;
+  skipRule: {
+    offered: boolean;
+    reasonRequired: boolean;
+    reasonThreshold: string;
+    belowThresholdNote: string;
+    recordType: "skip_record";
+  };
+  seedAudit: {
+    offered: boolean;
+    doctrine: string[];
+    runWrites: string;
+    declineWrites: string;
+    nonMutation: string;
+  };
+  promptOut: {
+    advisory: "optional";
+    templateKey: string;
+    stepKey: string;
+    role: string;
+    modes?: PromptOutMode[];
+    stepRequest: {
+      method: "POST";
+      href: string;
+      body: {
+        flowKey: "admission";
+        templateKey: string;
+        recordId: number;
+        stepKey: string;
+        mode?: "proposal" | "pressure";
+        label: string;
+        admissionLevel?: string;
+        workScale?: string;
+      };
+    };
+    preview: {
+      currentDecision: string;
+      promptText: string;
+      sourceManifest: string[];
+      contextPreview: string;
+      omissions: string[];
+      advisoryCanonWarning: string;
+    };
+  };
+  writeIntent: {
+    willWrite: string[];
+    willLink: string[];
+    willQueue: string[];
+    willLeaveUntouched: string[];
+    willRouteOnward: string[];
+  };
+  closePreview: {
+    beforeCompletion: string[];
+    afterCompletion: string[];
+  };
+  readSideTrail: Array<{ label: string; href: string }>;
+}
+
+interface CreationDecisionPoint {
+  flow: {
+    key: "creation";
+    runState: string;
+  };
+  currentStep: string;
+  localDecision: string;
+  packageAuthority: {
+    primary: string;
+    why: string;
+    citations: string[];
+  };
+  currentKernel: {
+    id: number;
+    shortId: string;
+    title: string;
+  } | null;
+  sectionPrompts: Array<{
+    heading: string;
+    prompt: string;
+    obligation: "required" | "optional" | "allowed-empty";
+  }>;
+  work: {
+    required: string[];
+    optional: string[];
+    allowedEmpty: string[];
+    skippable: string[];
+  };
+  blockers: Array<{ key: string; label: string; message: string; requires: string }>;
+  promptOut: {
+    available: boolean;
+    blocker: string | null;
+    templateKey: string;
+    stepKey: string;
+    role: string;
+    modes?: PromptOutMode[];
+    stepRequest: {
+      method: "POST";
+      href: string;
+      body: {
+        flowKey: "creation";
+        flowId: number;
+        recordId: number;
+        templateKey: string;
+        stepKey: string;
+        mode?: "proposal" | "pressure";
+        label: string;
+      };
+    } | null;
+    preview: {
+      currentDecision: string;
+      promptText: string;
+      contextPreview: string;
+      sourceManifest: string[];
+      omissions: string[];
+      advisoryCanonWarning: string;
+    };
+  };
+  writeIntent: {
+    willWrite: string[];
+    willLink: string[];
+    willQueue: string[];
+    willRouteOnward: string[];
+    willLeaveUntouched: string[];
+  };
+  nextOrResumeState: {
+    currentStep: string;
+    nextStep: string;
+    safeExit: string;
+  };
+  readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
+  handoffs: string[];
+  handoff: {
+    seedDecompositionReport: {
+      id: number;
+      shortId: string;
+      title: string;
+      recordTypeKey: string;
+      body: string;
+      truthLayer: string | null;
+      canonStatus: string | null;
+    } | null;
+    reportSections: SectionRow[];
+    parkedSeeds: Array<{
+      id: number;
+      shortId: string;
+      title: string;
+      recordTypeKey: string;
+      body: string;
+      truthLayer: string | null;
+      canonStatus: string | null;
+      sourceLinks: Array<{
+        label: string;
+        href: string;
+        recordId: number;
+        shortId: string;
+        title: string;
+        recordTypeKey: string;
+        linkTypeKey: string;
+        note: string;
+      }>;
+    }>;
+    supportingKernel: {
+      id: number;
+      shortId: string;
+      title: string;
+      recordTypeKey: string;
+      body: string;
+      truthLayer: string | null;
+      canonStatus: string | null;
+    } | null;
+    kernelSections: SectionRow[];
+    granularityRationale: string | null;
+    admissionIntent: string | null;
+    admissionQueueRoute: string;
+    currentStatus: string;
+    nextStep: string;
+    sourceLinks: Array<{
+      label: string;
+      href: string;
+      recordId: number;
+      shortId: string;
+      title: string;
+      recordTypeKey: string;
+      linkTypeKey: string;
+      note: string;
+    }>;
+    doctrineAtPointOfUse: string[];
+  };
+}
+
 interface AppProps {
   initialRecords?: RecordRow[];
   initialOpenWorld?: string | null;
+  initialRecentWorlds?: RecentWorld[];
+  initialSetupError?: SetupErrorState | null;
+  initialWorkflowMap?: WorkflowMapPayload | null;
+  initialDestination?: string;
   initialCanonCurrent?: CanonWorkbenchCurrentRow[];
   initialCanonAudit?: CanonWorkbenchAuditItem[];
   initialCanonDetail?: CanonWorkbenchDetail | null;
+  initialAdmissionQueue?: AdmissionQueueRow[];
+  initialAdmissionDecision?: AdmissionDecisionPoint | null;
+  initialCreationDecision?: CreationDecisionPoint | null;
 }
 
-type PromptFlowKey = "creation" | "admission" | "propagation" | "contradiction" | "qa" | "institutional_economic_suppression";
+type PromptFlowKey = "creation" | "admission" | "propagation" | "contradiction" | "qa" | "institutional_economic_suppression" | "constraint_composition";
+
+interface PromptOutMode {
+  mode: "proposal" | "pressure";
+  label: string;
+  available: boolean;
+  availability?: "available" | "blocked";
+  blocker: string | null;
+  framing: string;
+  outputLabels: string[];
+  stepRequest: {
+    method: "POST";
+    href: string;
+    body: Record<string, unknown>;
+  } | null;
+}
 
 interface PromptOutActionLink {
   method: "POST";
@@ -360,6 +666,8 @@ interface PromptOutStep {
   id: string;
   label: string;
   templateKey: string;
+  mode?: "proposal" | "pressure";
+  availableModes?: Array<{ mode: "proposal" | "pressure"; label: string; framing: string; available: boolean; blocker: string | null }>;
   context: {
     flowKey: string | null;
     flowId: number | null;
@@ -388,20 +696,28 @@ interface PromptOutStep {
   };
 }
 
-const storedToken = () => typeof window === "undefined" ? "" : window.localStorage.getItem("worldloom-token") ?? "";
+class ApiError extends Error {
+  readonly status: number;
+  readonly payload: unknown;
+
+  constructor(message: string, status: number, payload: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.payload = payload;
+  }
+}
 
 const api = async <T,>(path: string, init?: RequestInit): Promise<T> => {
-  const token = storedToken();
   const response = await fetch(path, {
     ...init,
     headers: {
       "content-type": "application/json",
-      ...(token ? { "x-worldloom-token": token } : {}),
       ...init?.headers
     }
   });
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error ?? response.statusText);
+  if (!response.ok) throw new ApiError(payload.error ?? response.statusText, response.status, payload);
   return payload as T;
 };
 
@@ -410,6 +726,103 @@ const emptyRecordForm = {
   body: "",
   truthLayer: "",
   canonStatus: ""
+};
+
+const defaultCreationDecision: CreationDecisionPoint = {
+  flow: {
+    key: "creation",
+    runState: "not started"
+  },
+  currentStep: "kernel:World premise",
+  localDecision: "Define the world's first governing kernel or pressure seed.",
+  packageAuthority: {
+    primary: "docs/worldbuilding-system/05_creation_protocol.md",
+    why: "Phase 1 owns the world kernel as a pressure seed, not an encyclopedia.",
+    citations: [
+      "docs/worldbuilding-system/05_creation_protocol.md",
+      "docs/worldbuilding-system/templates/world_kernel.md",
+      "docs/worldbuilding-system/20_ai_assisted_workflow.md",
+      "docs/specs/creation-flow.md"
+    ]
+  },
+  currentKernel: null,
+  sectionPrompts: [
+    { heading: "World premise", prompt: "What is the world, in one or two sentences?", obligation: "required" },
+    { heading: "Core promise", prompt: "What experience should the world reliably create?", obligation: "allowed-empty" },
+    { heading: "Starting scale", prompt: "Name where the world starts.", obligation: "required" },
+    { heading: "Genre, tone, and consequence-mode commitments", prompt: "Name consequence mode explicitly.", obligation: "required" },
+    { heading: "Initial mysteries and protected effects", prompt: "Name protected unknowns if they exist.", obligation: "allowed-empty" }
+  ],
+  work: {
+    required: [
+      "Write steward-authored kernel material",
+      "Explicitly select consequence mode before seed decomposition",
+      "For decomposition, provide seed title, body, truth layer, and granularity confirmation"
+    ],
+    optional: [
+      "Allowed-empty kernel sections may remain thin",
+      "Creation Prompt-out advisory pressure after steward-authored material exists",
+      "Admission intent note for future review"
+    ],
+    allowedEmpty: ["Core promise", "Foundational constraints", "Initial mysteries and protected effects", "Ordinary-life promise"],
+    skippable: ["Prompt-out advisory pressure can be declined with a skip_record"]
+  },
+  blockers: [
+    { key: "kernel_material", label: "Kernel material", message: "Creation Prompt-out and seed decomposition wait for steward-authored kernel material.", requires: "steward-authored kernel material" },
+    { key: "consequence_mode", label: "Consequence mode", message: "Seed decomposition cannot proceed until the steward explicitly selects consequence mode.", requires: "explicit consequence mode" }
+  ],
+  promptOut: {
+    available: false,
+    blocker: "Creation Prompt-out requires steward-authored kernel material and a current kernel record.",
+    templateKey: "kernel_pressure",
+    stepKey: "creation:kernel_prompt",
+    role: "Consequence scout",
+    stepRequest: null,
+    preview: {
+      currentDecision: "Define the world's first governing kernel or pressure seed.",
+      promptText: "Role framing: ask for pressure, not answers.",
+      contextPreview: "No kernel material has been saved yet.",
+      sourceManifest: [
+        "Doctrine: docs/worldbuilding-system/05_creation_protocol.md Phase 1",
+        "Doctrine: docs/worldbuilding-system/templates/world_kernel.md",
+        "Doctrine: docs/worldbuilding-system/20_ai_assisted_workflow.md"
+      ],
+      omissions: ["Current kernel material is absent until the steward writes it."],
+      advisoryCanonWarning: "Pasted responses remain advisory artifacts and are not admitted canon."
+    }
+  },
+  writeIntent: {
+    willWrite: ["one living world_kernel record", "seed_decomposition report", "canon_fact records fixed at proposed"],
+    willLink: ["read-side trail placeholders until records exist", "derived_from links from parked seeds to the kernel and decomposition report"],
+    willQueue: ["parked seeds appear in the Admission queue"],
+    willRouteOnward: ["Seed decomposition after explicit consequence mode", "Admission flow"],
+    willLeaveUntouched: ["canon standing is not admitted inside Creation", "pasted advisory text does not alter canon fields"]
+  },
+  nextOrResumeState: {
+    currentStep: "kernel:World premise",
+    nextStep: "continue kernel authoring",
+    safeExit: "Safe exit leaves the Creation flow in progress and resumable from the same world file."
+  },
+  readSideTrail: [
+    { label: "Current Canon", href: "/api/canon-workbench/current" },
+    { label: "Audit Trail", href: "/api/canon-workbench/audit" },
+    { label: "Admission queue", href: "/api/admission/queue" }
+  ],
+  handoffs: ["new-world navigation", "kernel decision surface", "Creation-bound Prompt-out", "seed decomposition surface", "browser evidence/coverage closeout"],
+  handoff: {
+    seedDecompositionReport: null,
+    reportSections: [],
+    parkedSeeds: [],
+    supportingKernel: null,
+    kernelSections: [],
+    granularityRationale: null,
+    admissionIntent: null,
+    admissionQueueRoute: "/api/admission/queue",
+    currentStatus: "not parked",
+    nextStep: "complete seed decomposition",
+    sourceLinks: [],
+    doctrineAtPointOfUse: []
+  }
 };
 
 const emptyQaProfile: QaProfileFields = {
@@ -477,6 +890,44 @@ const stage13MysterySectionHeadings = [
 
 const emptyStage13RetconCosts = Object.fromEntries(stage13RetconCostKeys.map((key) => [key, ""])) as Record<string, string>;
 const emptyStage13MysterySections = Object.fromEntries(stage13MysterySectionHeadings.map((heading) => [heading, ""])) as Record<string, string>;
+const constraintCompositionTypes = ["stacking", "gate", "tradeoff", "threshold", "sequential", "cancellation", "contradiction", "chain"];
+
+const emptyConstraintInventory = {
+  constrainedFact: "",
+  constraintStatement: "",
+  constraintType: "access",
+  prevents: "",
+  allows: "",
+  boundaryKnowledge: "",
+  bypassActors: "",
+  causeOrMysteryBoundary: "",
+  enforcement: "",
+  residue: "",
+  costOrObservable: ""
+};
+
+const emptyConstraintLeakage = {
+  bottleneck: "",
+  loopholes: "",
+  partialWorkarounds: "",
+  falseBypasses: "",
+  accidents: "",
+  countermeasures: "",
+  boundaryTesters: ""
+};
+
+const emptyConstraintResidue = {
+  ordinaryLife: "",
+  institutionalEffects: "",
+  economicEffects: "",
+  visibleTraces: "",
+  expertise: "",
+  resentment: "",
+  crime: "",
+  ritual: "",
+  markets: "",
+  failureModes: ""
+};
 
 const parseNumberList = (value: string): number[] =>
   value
@@ -495,27 +946,40 @@ const optionalNumber = (value: string): number | undefined => {
 function App({
   initialRecords = [],
   initialOpenWorld = null,
+  initialRecentWorlds = [],
+  initialSetupError = null,
+  initialWorkflowMap = null,
+  initialDestination,
   initialCanonCurrent = [],
   initialCanonAudit = [],
-  initialCanonDetail = null
+  initialCanonDetail = null,
+  initialAdmissionQueue = [],
+  initialAdmissionDecision = null,
+  initialCreationDecision = null
 }: AppProps = {}) {
-  const [token, setToken] = useState(storedToken());
   const [worldPath, setWorldPath] = useState("");
   const [openWorld, setOpenWorld] = useState<string | null>(initialOpenWorld);
+  const [workflowMap, setWorkflowMap] = useState<WorkflowMapPayload | null>(initialWorkflowMap);
+  const [activeDestination, setActiveDestination] = useState<string>(initialDestination ?? (initialWorkflowMap ? "map" : "legacy"));
   const [serverVersion, setServerVersion] = useState("");
+  const [serverStatus, setServerStatus] = useState<"checking" | "ready" | "failed">("checking");
+  const [catalogStatus, setCatalogStatus] = useState<"checking" | "ready" | "failed">("checking");
+  const [setupError, setSetupError] = useState<SetupErrorState | null>(initialSetupError);
   const [message, setMessage] = useState("");
   const [recordTypes, setRecordTypes] = useState<RecordTypeDefinition[]>([]);
   const [linkTypes, setLinkTypes] = useState<LinkTypeDefinition[]>([]);
   const [records, setRecords] = useState<RecordRow[]>(initialRecords);
   const [links, setLinks] = useState<LinkRow[]>([]);
-  const [recentWorlds, setRecentWorlds] = useState<RecentWorld[]>([]);
+  const [recentWorlds, setRecentWorlds] = useState<RecentWorld[]>(initialRecentWorlds);
   const [terms, setTerms] = useState<VocabularyTerm[]>([]);
   const [headings, setHeadings] = useState<SectionHeading[]>([]);
   const [sections, setSections] = useState<SectionRow[]>([]);
   const [facets, setFacets] = useState<FacetRow[]>([]);
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
-  const [admissionQueue, setAdmissionQueue] = useState<AdmissionQueueRow[]>([]);
+  const [admissionQueue, setAdmissionQueue] = useState<AdmissionQueueRow[]>(initialAdmissionQueue);
+  const [admissionDecision, setAdmissionDecision] = useState<AdmissionDecisionPoint | null>(initialAdmissionDecision);
+  const [creationDecision, setCreationDecision] = useState<CreationDecisionPoint | null>(initialCreationDecision);
   const [canonDebt, setCanonDebt] = useState<RecordRow[]>([]);
   const [propagationQueue, setPropagationQueue] = useState<PropagationQueueRow[]>([]);
   const [propagationPlan, setPropagationPlan] = useState<PropagationPlan | null>(null);
@@ -537,6 +1001,26 @@ function App({
   const [stage12AdvisoryRecordId, setStage12AdvisoryRecordId] = useState("");
   const [stage12SkipStep, setStage12SkipStep] = useState("black_market_depth");
   const [stage12SkipUnresolved, setStage12SkipUnresolved] = useState(false);
+  const [constraintRun, setConstraintRun] = useState<ConstraintRun | null>(null);
+  const [constraintFlowId, setConstraintFlowId] = useState<number | null>(null);
+  const [constraintSourceType, setConstraintSourceType] = useState<"fact" | "capability" | "constraint_card" | "canon_debt" | "material" | "record_section" | "pass_report">("fact");
+  const [constraintSourceRecordId, setConstraintSourceRecordId] = useState("");
+  const [constraintSourceSection, setConstraintSourceSection] = useState("");
+  const [constraintMaterialTitle, setConstraintMaterialTitle] = useState("");
+  const [constraintMaterialBody, setConstraintMaterialBody] = useState("");
+  const [constraintSubject, setConstraintSubject] = useState("");
+  const [constraintInventory, setConstraintInventory] = useState(emptyConstraintInventory);
+  const [constraintCompositionType, setConstraintCompositionType] = useState("stacking");
+  const [constraintCompositionBody, setConstraintCompositionBody] = useState("");
+  const [constraintLeakage, setConstraintLeakage] = useState(emptyConstraintLeakage);
+  const [constraintResidue, setConstraintResidue] = useState(emptyConstraintResidue);
+  const [constraintInventoryId, setConstraintInventoryId] = useState("");
+  const [constraintExistingCardId, setConstraintExistingCardId] = useState("");
+  const [constraintCardRelation, setConstraintCardRelation] = useState("");
+  const [constraintSourceStep, setConstraintSourceStep] = useState("constraint:challenge");
+  const [constraintAdvisoryRecordId, setConstraintAdvisoryRecordId] = useState("");
+  const [constraintSkipStep, setConstraintSkipStep] = useState("constraint:challenge");
+  const [constraintSkipUnresolved, setConstraintSkipUnresolved] = useState(false);
   const [stage13Run, setStage13Run] = useState<Stage13Run | null>(null);
   const [stage13FlowId, setStage13FlowId] = useState<number | null>(null);
   const [stage13SourceRecordId, setStage13SourceRecordId] = useState("");
@@ -631,6 +1115,10 @@ function App({
   const [consequenceMode, setConsequenceMode] = useState("");
   const [seedTitle, setSeedTitle] = useState("");
   const [seedBody, setSeedBody] = useState("");
+  const [seedTruthLayer, setSeedTruthLayer] = useState("");
+  const [granularityRationale, setGranularityRationale] = useState("");
+  const [granularityConfirmed, setGranularityConfirmed] = useState(false);
+  const [admissionIntent, setAdmissionIntent] = useState("");
   const [admissionRecordId, setAdmissionRecordId] = useState("");
   const [admissionLevel, setAdmissionLevel] = useState("");
   const [workScale, setWorkScale] = useState("");
@@ -670,6 +1158,7 @@ function App({
   const vocabularies = useMemo(() => [...new Set(terms.map((term) => term.vocabulary))], [terms]);
   const facetTerms = useMemo(() => terms.filter((term) => term.vocabulary === facetVocabulary), [terms, facetVocabulary]);
   const consequenceModes = useMemo(() => terms.filter((term) => term.vocabulary === "consequence_mode"), [terms]);
+  const constraintTypes = useMemo(() => terms.filter((term) => term.vocabulary === "constraint_type"), [terms]);
   const advisoryDispositions = useMemo(() => terms.filter((term) => term.vocabulary === "advisory_disposition"), [terms]);
   const admissionLevels = useMemo(() => terms.filter((term) => term.vocabulary === "admission_level"), [terms]);
   const workScales = useMemo(() => terms.filter((term) => term.vocabulary === "work_scale"), [terms]);
@@ -689,18 +1178,27 @@ function App({
   const selectedHeadings = headings.filter((heading) => heading.record_type_key === recordTypeKey);
   const selectedTemplate = templates.find((template) => template.key === promptTemplateKey);
   const selectedAdmissionRecord = records.find((record) => record.id === Number(admissionRecordId));
+  const displayedCreationDecision = creationDecision ?? defaultCreationDecision;
+  const creationDecisionHandoff = creationDecision ? creationDecision.handoff : displayedCreationDecision.handoff;
+  const creationHandoffReady = displayedCreationDecision.handoff.parkedSeeds.length > 0;
   const relatedAuditItems = useMemo(() => selectedCanonRecordId == null
     ? []
     : canonAuditTrail.filter((item) => item.affectedCurrentRecords.some((record) => record.id === selectedCanonRecordId)),
   [canonAuditTrail, selectedCanonRecordId]);
 
   useEffect(() => {
-    if (!token) return;
     api<HealthPayload>("/api/health")
-      .then((health) => setServerVersion(health.version))
-      .catch((error: Error) => setMessage(error.message));
+      .then((health) => {
+        setServerVersion(health.version);
+        setServerStatus("ready");
+      })
+      .catch((error: Error) => {
+        setServerStatus("failed");
+        setMessage(error.message);
+      });
     api<{ recordTypes: RecordTypeDefinition[]; linkTypes: LinkTypeDefinition[] }>("/api/catalog")
       .then((catalog) => {
+        setCatalogStatus("ready");
         setRecordTypes(catalog.recordTypes);
         setLinkTypes(catalog.linkTypes);
         setRecordTypeKey(catalog.recordTypes[0]?.key ?? "canon_fact");
@@ -708,8 +1206,11 @@ function App({
         setLinkTypeKey(catalog.linkTypes[0]?.key ?? "depends_on");
         return loadRecentWorlds();
       })
-      .catch((error: Error) => setMessage(error.message));
-  }, [token]);
+      .catch((error: Error) => {
+        setCatalogStatus("failed");
+        setMessage(error.message);
+      });
+  }, []);
 
   useEffect(() => {
     if (!facetTerm && facetTerms[0]) setFacetTerm(facetTerms[0].term);
@@ -756,6 +1257,8 @@ function App({
   }, [
     admissionLevel,
     admissionRecordId,
+    constraintFlowId,
+    constraintSourceRecordId,
     flowId,
     promptFlowKey,
     promptRecordId,
@@ -772,18 +1275,14 @@ function App({
     workScale
   ]);
 
-  const rememberToken = (next: string) => {
-    setToken(next);
-    if (typeof window !== "undefined") window.localStorage.setItem("worldloom-token", next);
-  };
-
   const loadRecentWorlds = async () => {
     const payload = await api<{ recentWorlds: RecentWorld[] }>("/api/recent-worlds");
     setRecentWorlds(payload.recentWorlds);
   };
 
   const loadWorldData = async () => {
-    const [recordPayload, linkPayload, vocabularyPayload, headingPayload, draftPayload, templatePayload, queuePayload, debtPayload, propagationQueuePayload, stage13OwedPayload, canonCurrentPayload, canonAuditPayload] = await Promise.all([
+    const [workflowMapPayload, recordPayload, linkPayload, vocabularyPayload, headingPayload, draftPayload, templatePayload, queuePayload, debtPayload, propagationQueuePayload, stage13OwedPayload, canonCurrentPayload, canonAuditPayload] = await Promise.all([
+      api<WorkflowMapPayload>("/api/workflow-map"),
       api<{ records: RecordRow[] }>("/api/records"),
       api<{ links: LinkRow[] }>("/api/links"),
       api<{ terms: VocabularyTerm[] }>("/api/vocabularies"),
@@ -797,6 +1296,7 @@ function App({
       api<{ rows: CanonWorkbenchCurrentRow[] }>("/api/canon-workbench/current"),
       api<{ spine: CanonWorkbenchAuditItem[] }>("/api/canon-workbench/audit")
     ]);
+    setWorkflowMap(workflowMapPayload);
     setRecords(recordPayload.records);
     setLinks(linkPayload.links);
     setTerms(vocabularyPayload.terms);
@@ -809,6 +1309,30 @@ function App({
     setStage13OwedBoundaries(stage13OwedPayload.queue);
     setCanonCurrentRows(canonCurrentPayload.rows);
     setCanonAuditTrail(canonAuditPayload.spine);
+  };
+
+  const applyAdmissionDecision = (decision: AdmissionDecisionPoint | null) => {
+    setAdmissionDecision(decision);
+    if (!decision) return;
+    setAdmissionRecordId(String(decision.selectedRecord.id));
+    if (decision.severity.admissionLevel) setAdmissionLevel(decision.severity.admissionLevel);
+    if (decision.severity.workScale) setWorkScale(decision.severity.workScale);
+    setPromptFlowKey("admission");
+    setPromptTemplateKey(decision.promptOut.templateKey);
+    setPromptRecordId(String(decision.selectedRecord.id));
+  };
+
+  const loadAdmissionDecision = async (recordId = admissionRecordId, href?: string) => {
+    const selectedId = optionalNumber(recordId);
+    if (selectedId == null) return null;
+    const payload = await api<{ decisionPoint: AdmissionDecisionPoint }>(href ?? `/api/admission/records/${selectedId}/decision-point`);
+    applyAdmissionDecision(payload.decisionPoint);
+    return payload.decisionPoint;
+  };
+
+  const selectAdmissionQueueRow = async (row: AdmissionQueueRow) => {
+    setAdmissionRecordId(String(row.id));
+    await loadAdmissionDecision(String(row.id), row.decisionPointHref);
   };
 
   const loadCanonWorkbench = async () => {
@@ -834,15 +1358,37 @@ function App({
   };
 
   const createOrOpen = async (mode: "create" | "open", selectedPath = worldPath) => {
-    const payload = await api<{ path: string; records: RecordRow[] }>(`/api/worlds/${mode}`, {
-      method: "POST",
-      body: JSON.stringify({ path: selectedPath })
-    });
-    setOpenWorld(payload.path);
-    setRecords(payload.records);
-    await loadWorldData();
-    await loadRecentWorlds();
-    setMessage(`${mode === "create" ? "Created" : "Opened"} ${payload.path}`);
+    try {
+      const payload = await api<{
+        path: string;
+        records: RecordRow[];
+        setupStatus?: SetupStatusPayload;
+      }>(`/api/worlds/${mode}`, {
+        method: "POST",
+        body: JSON.stringify({ path: selectedPath })
+      });
+      setOpenWorld(payload.path);
+      setWorldPath(payload.path);
+      setRecords(payload.records);
+      setActiveDestination("map");
+      setSetupError(null);
+      if (payload.setupStatus?.recentWorlds) setRecentWorlds(payload.setupStatus.recentWorlds);
+      await loadWorldData();
+      await loadRecentWorlds();
+      setMessage(`${mode === "create" ? "Created" : "Opened"} ${payload.path}`);
+    } catch (error) {
+      const payload = error instanceof ApiError ? error.payload as { setupError?: SetupErrorState; setupStatus?: SetupStatusPayload } : null;
+      const nextError = payload?.setupError ?? {
+        action: mode,
+        path: selectedPath,
+        kind: "open_failed",
+        message: error instanceof Error ? error.message : String(error),
+        recovery: "Correct the world-file prerequisite shown here, then retry create or open."
+      };
+      setSetupError(nextError);
+      if (payload?.setupStatus?.recentWorlds) setRecentWorlds(payload.setupStatus.recentWorlds);
+      setMessage(nextError.message);
+    }
   };
 
   const resetRecordForm = () => {
@@ -997,6 +1543,7 @@ function App({
     if (promptFlowKey === "propagation") return propagationFlowId ?? undefined;
     if (promptFlowKey === "qa") return qaFlowId ?? undefined;
     if (promptFlowKey === "institutional_economic_suppression") return stage12FlowId ?? undefined;
+    if (promptFlowKey === "constraint_composition") return constraintFlowId ?? undefined;
     if (promptFlowKey === "contradiction") return stage13FlowId ?? undefined;
     return undefined;
   };
@@ -1011,9 +1558,11 @@ function App({
           ? optionalNumber(qaSubjectRecordId)
           : promptFlowKey === "institutional_economic_suppression"
             ? optionalNumber(stage12SourceRecordId)
-            : promptFlowKey === "contradiction"
-              ? optionalNumber(stage13SourceRecordId)
-              : undefined);
+            : promptFlowKey === "constraint_composition"
+              ? optionalNumber(constraintSourceRecordId)
+              : promptFlowKey === "contradiction"
+                ? optionalNumber(stage13SourceRecordId)
+                : undefined);
 
   const loadPromptStep = async () => {
     const payload = await api<{ step: PromptOutStep }>("/api/prompt-out/steps", {
@@ -1023,7 +1572,7 @@ function App({
         flowId: promptStepFlowId(),
         templateKey: promptTemplateKey,
         recordId: promptStepRecordId(),
-        stepKey: promptTemplateKey,
+        stepKey: promptFlowKey === "constraint_composition" ? "constraint:challenge" : promptTemplateKey,
         label: selectedTemplate?.role_name ?? promptTemplateKey,
         admissionLevel: admissionLevel || undefined,
         workScale: promptFlowKey === "contradiction" ? (stage13WorkScale || undefined) : (workScale || undefined)
@@ -1031,6 +1580,40 @@ function App({
     });
     setPromptStep(payload.step);
     setMessage(`Loaded Prompt-out step ${payload.step.label}`);
+    return payload.step;
+  };
+
+  const loadAdmissionPromptStep = async () => {
+    if (!admissionDecision) return null;
+    const request = admissionDecision.promptOut.stepRequest;
+    setPromptFlowKey("admission");
+    setPromptTemplateKey(admissionDecision.promptOut.templateKey);
+    setPromptRecordId(String(admissionDecision.promptOut.stepRequest.body.recordId));
+    const payload = await api<{ step: PromptOutStep }>(request.href, {
+      method: request.method,
+      body: JSON.stringify(request.body)
+    });
+    setPromptStep(payload.step);
+    setPromptText(admissionDecision.promptOut.preview.promptText);
+    setMessage(`Loaded Admission Prompt-out step ${payload.step.label}`);
+    return payload.step;
+  };
+
+  const loadCreationPromptStep = async () => {
+    if (!creationDecision?.promptOut.stepRequest && !creationDecision?.promptOut.modes?.some((mode) => mode.stepRequest)) return null;
+    const mode = creationDecision.promptOut.modes?.find((mode) => mode.available && mode.stepRequest) ?? null;
+    const request = mode?.stepRequest ?? creationDecision.promptOut.stepRequest;
+    if (!request) return null;
+    setPromptFlowKey("creation");
+    setPromptTemplateKey(String(request.body.templateKey ?? creationDecision.promptOut.templateKey));
+    setPromptRecordId(String(request.body.recordId ?? ""));
+    const payload = await api<{ step: PromptOutStep }>(request.href, {
+      method: request.method,
+      body: JSON.stringify(request.body)
+    });
+    setPromptStep(payload.step);
+    setPromptText(creationDecision.promptOut.preview.promptText);
+    setMessage(`Loaded Creation Prompt-out step ${payload.step.label}`);
     return payload.step;
   };
 
@@ -1070,47 +1653,62 @@ function App({
   };
 
   const startFlow = async () => {
-    const payload = await api<{ flow: { id: number; kernel_record_id?: number } }>("/api/flows/creation/start", { method: "POST" });
+    const payload = await api<{ flow: { id: number; kernel_record_id?: number }; decisionPoint: CreationDecisionPoint }>("/api/flows/creation/start", { method: "POST" });
     setFlowId(payload.flow.id);
     if (payload.flow.kernel_record_id) setKernelRecordId(payload.flow.kernel_record_id);
+    setCreationDecision(payload.decisionPoint);
   };
 
   const saveKernelStep = async () => {
     if (flowId == null) return;
-    const payload = await api<{ kernel: { id: number } }>("/api/flows/creation/kernel-step", {
+    const payload = await api<{ kernel: { id: number }; decisionPoint: CreationDecisionPoint }>("/api/flows/creation/kernel-step", {
       method: "POST",
       body: JSON.stringify({ flowId, heading: kernelHeading, body: kernelBody, consequenceMode: consequenceMode || undefined })
     });
     setKernelRecordId(payload.kernel.id);
+    setCreationDecision(payload.decisionPoint);
     await loadWorldData();
   };
 
   const skipPrompt = async () => {
     const promptStep = await ensurePromptStep();
     const stage12 = promptStep.context.flowKey === "institutional_economic_suppression";
+    const constraint = promptStep.context.flowKey === "constraint_composition";
     await api(promptStep.actions.skip.href, {
       method: promptStep.actions.skip.method,
       body: JSON.stringify({
         reason: gateNotApplicable || undefined,
-        unresolved: stage12 ? stage12SkipUnresolved : undefined,
-        debtName: stage12 && stage12SkipUnresolved ? (canonDebtName || "Stage-12 skipped-work debt") : undefined
+        unresolved: stage12 ? stage12SkipUnresolved : constraint ? constraintSkipUnresolved : undefined,
+        debtName: stage12 && stage12SkipUnresolved
+          ? (canonDebtName || "Stage-12 skipped-work debt")
+          : constraint && constraintSkipUnresolved
+            ? (canonDebtName || "Constraint Composition skipped-work debt")
+            : undefined,
+        workScale: constraint ? (workScale || undefined) : undefined
       })
     });
     await loadWorldData();
+    if (constraintFlowId != null) await refreshConstraintRun(constraintFlowId);
   };
 
   const decompose = async () => {
     if (flowId == null || kernelRecordId == null) return;
-    await api("/api/flows/creation/decompose", {
+    const payload = await api<{ decisionPoint: CreationDecisionPoint }>("/api/flows/creation/decompose", {
       method: "POST",
       body: JSON.stringify({
         flowId,
         kernelRecordId,
-        seeds: [{ title: seedTitle, body: seedBody, truthLayer: recordForm.truthLayer, canonStatus: recordForm.canonStatus }]
+        granularityRationale,
+        admissionIntent,
+        seeds: [{ title: seedTitle, body: seedBody, truthLayer: seedTruthLayer, granularityConfirmed }]
       })
     });
+    setCreationDecision(payload.decisionPoint);
     setSeedTitle("");
     setSeedBody("");
+    setGranularityRationale("");
+    setGranularityConfirmed(false);
+    setAdmissionIntent("");
     await loadWorldData();
   };
 
@@ -1118,6 +1716,7 @@ function App({
     await api(`/api/admission/propose-record/${record.id}`, { method: "POST" });
     setAdmissionRecordId(String(record.id));
     await loadWorldData();
+    await loadAdmissionDecision(String(record.id));
   };
 
   const proposeDraft = async (draft: DraftRow) => {
@@ -1130,22 +1729,24 @@ function App({
 
   const declareSeverity = async () => {
     if (!admissionRecordId) return;
-    await api(`/api/admission/records/${admissionRecordId}/severity`, {
+    const payload = await api<{ decisionPoint: AdmissionDecisionPoint }>(`/api/admission/records/${admissionRecordId}/severity`, {
       method: "POST",
       body: JSON.stringify({ admissionLevel, workScale })
     });
+    applyAdmissionDecision(payload.decisionPoint);
     await loadWorldData();
   };
 
   const startAdmission = async () => {
     if (!admissionRecordId) return;
-    await api(`/api/admission/records/${admissionRecordId}/start`, { method: "POST" });
+    const payload = await api<{ decisionPoint: AdmissionDecisionPoint }>(`/api/admission/records/${admissionRecordId}/start`, { method: "POST" });
+    applyAdmissionDecision(payload.decisionPoint);
     await loadWorldData();
   };
 
   const completeAdmission = async () => {
     if (!admissionRecordId) return;
-    await api("/api/admission/gate/complete", {
+    const payload = await api<{ decisionPoint: AdmissionDecisionPoint }>("/api/admission/gate/complete", {
       method: "POST",
       body: JSON.stringify({
         recordId: Number(admissionRecordId),
@@ -1157,6 +1758,7 @@ function App({
         quietDomainDeclarations: gateQuietDomain ? [gateQuietDomain] : []
       })
     });
+    applyAdmissionDecision(payload.decisionPoint);
     await loadWorldData();
   };
 
@@ -1181,10 +1783,11 @@ function App({
 
   const runSeedAudit = async () => {
     if (!admissionRecordId) return;
-    await api("/api/admission/seed-audit", {
+    const payload = await api<{ decisionPoints: AdmissionDecisionPoint[] }>("/api/admission/seed-audit", {
       method: "POST",
       body: JSON.stringify({ seedRecordIds: [Number(admissionRecordId)], findings: seedAuditFindings, decision: "proceed" })
     });
+    applyAdmissionDecision(payload.decisionPoints[0] ?? null);
     await loadWorldData();
   };
 
@@ -1203,10 +1806,11 @@ function App({
   };
 
   const skipAdmissionInstrument = async () => {
-    await api("/api/admission/skip", {
+    const payload = await api<{ decisionPoint: AdmissionDecisionPoint | null }>("/api/admission/skip", {
       method: "POST",
       body: JSON.stringify({ recordId: admissionRecordId ? Number(admissionRecordId) : undefined, stepKey: "web_admission_instrument", admissionLevel, workScale, reason: gateNotApplicable || undefined })
     });
+    applyAdmissionDecision(payload.decisionPoint);
     await loadWorldData();
   };
 
@@ -1428,6 +2032,183 @@ function App({
     const payload = await api<Stage12Run>(`/api/institutional/runs/${stage12FlowId}/close`, { method: "POST" });
     applyStage12Run(payload);
     setMessage(`Closed stage-12 run with ${payload.report.shortId}`);
+    await loadWorldData();
+  };
+
+  const applyConstraintRun = (payload: ConstraintRun) => {
+    setConstraintRun(payload);
+    setConstraintFlowId(payload.flow.id);
+    if (payload.source.sourceRecordId != null) setConstraintSourceRecordId(String(payload.source.sourceRecordId));
+    setConstraintSubject(payload.source.constrainedSubject);
+    if (payload.inventory[0] && !constraintInventoryId) setConstraintInventoryId(String(payload.inventory[0].id));
+  };
+
+  const refreshConstraintRun = async (flowId = constraintFlowId) => {
+    if (flowId == null) return;
+    applyConstraintRun(await api<ConstraintRun>(`/api/constraint-composition/runs/${flowId}`));
+  };
+
+  const constraintStartPayload = () => {
+    if (constraintSourceType === "material") {
+      return {
+        sourceType: constraintSourceType,
+        materialTitle: constraintMaterialTitle,
+        materialBody: constraintMaterialBody,
+        constrainedSubject: constraintSubject || undefined
+      };
+    }
+    if (constraintSourceType === "record_section") {
+      return {
+        sourceType: constraintSourceType,
+        recordId: Number(constraintSourceRecordId),
+        sectionHeading: constraintSourceSection,
+        constrainedSubject: constraintSubject || undefined
+      };
+    }
+    if (constraintSourceType === "pass_report") {
+      return { sourceType: constraintSourceType, reportRecordId: Number(constraintSourceRecordId) };
+    }
+    return {
+      sourceType: constraintSourceType,
+      recordId: Number(constraintSourceRecordId),
+      constrainedSubject: constraintSubject || undefined
+    };
+  };
+
+  const startConstraintRun = async () => {
+    const payload = await api<ConstraintRun>("/api/constraint-composition/runs/start", {
+      method: "POST",
+      body: JSON.stringify(constraintStartPayload())
+    });
+    applyConstraintRun(payload);
+    setPromptFlowKey("constraint_composition");
+    setPromptTemplateKey("constraint_challenger");
+    if (payload.promptOut.sourceRecordId != null) setPromptRecordId(String(payload.promptOut.sourceRecordId));
+    await loadWorldData();
+  };
+
+  const saveConstraintInventory = async () => {
+    if (constraintFlowId == null) return;
+    await api("/api/constraint-composition/inventory", {
+      method: "POST",
+      body: JSON.stringify({ flowId: constraintFlowId, ...constraintInventory })
+    });
+    await refreshConstraintRun(constraintFlowId);
+  };
+
+  const saveConstraintComposition = async () => {
+    if (constraintFlowId == null) return;
+    await api("/api/constraint-composition/composition", {
+      method: "POST",
+      body: JSON.stringify({ flowId: constraintFlowId, analysisType: constraintCompositionType, body: constraintCompositionBody })
+    });
+    setConstraintCompositionBody("");
+    await refreshConstraintRun(constraintFlowId);
+  };
+
+  const saveConstraintLeakage = async () => {
+    if (constraintFlowId == null) return;
+    await api("/api/constraint-composition/leakage", {
+      method: "POST",
+      body: JSON.stringify({ flowId: constraintFlowId, ...constraintLeakage })
+    });
+    await refreshConstraintRun(constraintFlowId);
+  };
+
+  const saveConstraintResidue = async () => {
+    if (constraintFlowId == null) return;
+    await api("/api/constraint-composition/residue", {
+      method: "POST",
+      body: JSON.stringify({ flowId: constraintFlowId, ...constraintResidue })
+    });
+    await refreshConstraintRun(constraintFlowId);
+  };
+
+  const createOrLinkConstraintCard = async () => {
+    if (constraintFlowId == null) return;
+    await api("/api/constraint-composition/cards", {
+      method: "POST",
+      body: JSON.stringify({
+        flowId: constraintFlowId,
+        existingRecordId: constraintExistingCardId ? Number(constraintExistingCardId) : undefined,
+        inventoryId: constraintInventoryId ? Number(constraintInventoryId) : undefined,
+        title: recordForm.title || undefined,
+        body: recordForm.body || undefined,
+        relation: constraintCardRelation || undefined,
+        advisoryRecordId: constraintAdvisoryRecordId ? Number(constraintAdvisoryRecordId) : undefined
+      })
+    });
+    await refreshConstraintRun(constraintFlowId);
+    await loadWorldData();
+  };
+
+  const routeConstraintProposal = async () => {
+    if (constraintFlowId == null) return;
+    await api("/api/constraint-composition/proposals", {
+      method: "POST",
+      body: JSON.stringify({
+        flowId: constraintFlowId,
+        sourceStep: constraintSourceStep,
+        title: recordForm.title,
+        body: recordForm.body || constraintCompositionBody || constraintInventory.constraintStatement,
+        truthLayer: recordForm.truthLayer || "Objective canon",
+        advisoryRecordId: constraintAdvisoryRecordId ? Number(constraintAdvisoryRecordId) : undefined
+      })
+    });
+    await refreshConstraintRun(constraintFlowId);
+    await loadWorldData();
+  };
+
+  const mintConstraintDebt = async () => {
+    if (constraintFlowId == null) return;
+    await api("/api/constraint-composition/debt", {
+      method: "POST",
+      body: JSON.stringify({
+        flowId: constraintFlowId,
+        sourceStep: constraintSourceStep,
+        name: canonDebtName || "Constraint Composition follow-up debt",
+        reason: gateNotApplicable || constraintCompositionBody || constraintInventory.residue,
+        severityOrConsequenceMode: workScale || consequenceMode || undefined,
+        advisoryRecordId: constraintAdvisoryRecordId ? Number(constraintAdvisoryRecordId) : undefined
+      })
+    });
+    await refreshConstraintRun(constraintFlowId);
+    await loadWorldData();
+  };
+
+  const recordConstraintSkip = async () => {
+    if (constraintFlowId == null) return;
+    const payload = await api<{ step: PromptOutStep }>("/api/prompt-out/steps", {
+      method: "POST",
+      body: JSON.stringify({
+        flowKey: "constraint_composition",
+        flowId: constraintFlowId,
+        templateKey: "constraint_challenger",
+        recordId: optionalNumber(constraintSourceRecordId),
+        stepKey: constraintSkipStep,
+        label: "Constraint challenger",
+        workScale: workScale || undefined
+      })
+    });
+    await api(payload.step.actions.skip.href, {
+      method: payload.step.actions.skip.method,
+      body: JSON.stringify({
+        reason: gateNotApplicable || undefined,
+        unresolved: constraintSkipUnresolved,
+        debtName: constraintSkipUnresolved ? (canonDebtName || "Constraint Composition skipped-work debt") : undefined,
+        workScale: workScale || undefined
+      })
+    });
+    setPromptStep(payload.step);
+    await refreshConstraintRun(constraintFlowId);
+    await loadWorldData();
+  };
+
+  const closeConstraintRun = async () => {
+    if (constraintFlowId == null) return;
+    const payload = await api<ConstraintRun>(`/api/constraint-composition/runs/${constraintFlowId}/close`, { method: "POST" });
+    applyConstraintRun(payload);
+    setMessage(`Closed Constraint Composition run with ${payload.report.shortId}`);
     await loadWorldData();
   };
 
@@ -1811,30 +2592,331 @@ function App({
     await loadWorldData();
   };
 
+  const setupPanel = (secondary = false) => (
+    <section className={secondary ? "setup-panel compact-setup" : "setup-panel"}>
+      <h2>{secondary ? "Setup controls" : "Setup/open world"}</h2>
+      <div className="grid compact-grid">
+        <section className="subpanel">
+          <h3>Server status</h3>
+          <p className="status">{serverStatus === "ready" ? `Reachable (${serverVersion})` : serverStatus === "failed" ? "Server unreachable" : "Checking local server"}</p>
+        </section>
+        <section className="subpanel">
+          <h3>Catalog status</h3>
+          <p className="status">{catalogStatus === "ready" ? `${recordTypes.length} record types and ${linkTypes.length} link types available` : catalogStatus === "failed" ? "Catalog unavailable" : "Loading app catalog"}</p>
+        </section>
+      </div>
+      <label>World file path<input value={worldPath} onChange={(event) => setWorldPath(event.target.value)} placeholder="/tmp/example.worldloom.sqlite" /></label>
+      <div className="row">
+        <button onClick={() => createOrOpen("create")}>Create world</button>
+        <button onClick={() => createOrOpen("open")}>Open world</button>
+      </div>
+      {setupError && (
+        <section className="subpanel setup-error">
+          <h3>{setupError.action === "create" ? "Create failed" : "Open failed"}</h3>
+          <p>{setupError.message}</p>
+          <p>{setupError.recovery}</p>
+          <p className="meta">{setupError.path}</p>
+        </section>
+      )}
+      <section className="subpanel">
+        <h3>Recent worlds</h3>
+        {recentWorlds.length === 0 ? (
+          <p className="status">{catalogStatus === "failed" ? "Recent worlds unavailable until the app catalog loads." : "No recent worlds yet."}</p>
+        ) : (
+          <div className="recent">
+            {recentWorlds.map((recent) => <button key={recent.path} onClick={() => { setWorldPath(recent.path); void createOrOpen("open", recent.path); }}>{recent.path}</button>)}
+          </div>
+        )}
+      </section>
+    </section>
+  );
+
+  if (!openWorld) {
+    return (
+      <main>
+        <header className="topbar">
+          <div>
+            <h1>Worldloom Studio</h1>
+            <p>{serverVersion ? `Server ${serverVersion} · ` : ""}No world open</p>
+          </div>
+        </header>
+        <section className="setup-shell">
+          {setupPanel()}
+          {message && <p className="status">{message}</p>}
+        </section>
+      </main>
+    );
+  }
+
+  if (activeDestination !== "legacy") {
+    if (!workflowMap) {
+      return (
+        <main>
+          <header className="topbar">
+            <div>
+              <h1>Worldloom Studio</h1>
+              <p>{serverVersion ? `Server ${serverVersion} · ` : ""}World open · {openWorld}</p>
+            </div>
+          </header>
+          <section className="workspace workflow-shell">
+            <aside className="sidebar">
+              {setupPanel(true)}
+            </aside>
+            <section className="editor">
+              <div className="panel">
+                <h2>Workflow map</h2>
+                <p className="status">Loading server-owned workflow map.</p>
+              </div>
+            </section>
+          </section>
+        </main>
+      );
+    }
+
+    const displayedWorkflowMap = workflowMap;
+    const shellSurfaces = {
+      creation: (
+        <section className="panel creation-decision">
+          <div className="operating-card">
+            <strong>Operating Card</strong>
+            <span>Source: docs/worldbuilding-system/operating_card.md</span>
+            <span>Fill a lean world kernel, decompose seeds until each can be independently rejected, then admit later through `06`.</span>
+          </div>
+          <h2>{"Creation decision point"}</h2>
+          <p className="status">Primary active path for a new world</p>
+          <section className="subpanel">
+            <h3>{displayedCreationDecision.currentStep}</h3>
+            <p>{displayedCreationDecision.localDecision}</p>
+            <p>{displayedCreationDecision.packageAuthority.primary}</p>
+            <p>{displayedCreationDecision.packageAuthority.why}</p>
+            <div className="chips">
+              {displayedCreationDecision.packageAuthority.citations.map((citation) => <span key={citation}>{citation}</span>)}
+            </div>
+          </section>
+          {creationHandoffReady && (
+            <section className="subpanel">
+              <h3>Creation-to-Admission handoff</h3>
+              <p className="status">Not current: work from the Creation handoff before starting unrelated advanced flows.</p>
+              <p>File paths and package sources are provenance, not primary operating instructions.</p>
+              <div className="grid compact-grid">
+                {creationDecisionHandoff.parkedSeeds.map((seed) => (
+                  <article key={seed.id} className="subpanel">
+                    <h3>{`${seed.shortId} · ${seed.title}`}</h3>
+                    <p>{seed.body}</p>
+                    <p className="meta">{`Truth layer: ${seed.truthLayer ?? "unset"} · Current canon status: ${seed.canonStatus ?? "unset"}`}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
+          <section className="subpanel">
+            <h3>Prerequisites before other flows</h3>
+            <div className="grid compact-grid">
+              {displayedCreationDecision.blockers.map((blocker) => (
+                <article key={blocker.key} className="subpanel">
+                  <h3>{blocker.label}</h3>
+                  <p>{blocker.message}</p>
+                  <p className="meta">{blocker.requires}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+          <section className="subpanel">
+            <h3>Kernel authoring</h3>
+            <p>Consequence mode is steward judgment.</p>
+            <div className="grid compact-grid">
+              <label>Kernel step<select value={kernelHeading} onChange={(event) => setKernelHeading(event.target.value)}>{displayedCreationDecision.sectionPrompts.map((prompt) => <option key={prompt.heading}>{prompt.heading}</option>)}</select></label>
+              <label>Kernel section<textarea rows={4} value={kernelBody} onChange={(event) => setKernelBody(event.target.value)} placeholder={displayedCreationDecision.sectionPrompts.find((prompt) => prompt.heading === kernelHeading)?.prompt} /></label>
+              {displayedCreationDecision.sectionPrompts.map((prompt) => (
+                <p key={prompt.heading} className="meta">{prompt.heading} · {prompt.obligation}</p>
+              ))}
+            </div>
+            <button onClick={saveKernelStep} disabled={flowId == null}>Save kernel step</button>
+          </section>
+          <section className="subpanel">
+            <h3>{"Prompt-out preview"}</h3>
+            <p>{displayedCreationDecision.promptOut.preview.currentDecision}</p>
+            <p>{displayedCreationDecision.promptOut.preview.promptText}</p>
+            <p>{displayedCreationDecision.promptOut.preview.advisoryCanonWarning}</p>
+            <h3>Source manifest</h3>
+            <div className="chips">
+              {displayedCreationDecision.promptOut.preview.sourceManifest.map((source) => <span key={source}>{source}</span>)}
+            </div>
+            <button onClick={loadCreationPromptStep} disabled={!openWorld || (!creationDecision?.promptOut.stepRequest && !creationDecision?.promptOut.modes?.some((mode) => mode.stepRequest))}>Load Creation Prompt-out Step</button>
+          </section>
+          <section className="subpanel">
+            <h3>Seed decomposition decision</h3>
+            <p>Actual current status: proposed</p>
+            <div className="grid compact-grid">
+              <label>Seed title<input value={seedTitle} onChange={(event) => setSeedTitle(event.target.value)} /></label>
+              <label>Seed body<textarea rows={3} value={seedBody} onChange={(event) => setSeedBody(event.target.value)} /></label>
+              <label>Admission intent<input value={admissionIntent} onChange={(event) => setAdmissionIntent(event.target.value)} /></label>
+            </div>
+            <label>Granularity rationale<textarea rows={3} value={granularityRationale} onChange={(event) => setGranularityRationale(event.target.value)} /></label>
+            <label className="inline-check"><input type="checkbox" checked={granularityConfirmed} onChange={(event) => setGranularityConfirmed(event.target.checked)} />Granularity confirmation</label>
+            <button onClick={decompose} disabled={flowId == null || kernelRecordId == null}>Decompose and Park Seed</button>
+          </section>
+          <section className="subpanel">
+            <h3>Write preview</h3>
+            <p>{displayedCreationDecision.writeIntent.willWrite.join(" · ")}</p>
+            <p>{displayedCreationDecision.writeIntent.willLink.join(" · ")}</p>
+            <p>Admission handoff: {displayedCreationDecision.writeIntent.willRouteOnward.join(" · ")}</p>
+          </section>
+          <section className="subpanel">
+            <h3>Read-side trail</h3>
+            <div className="chips">
+              {displayedCreationDecision.readSideTrail.map((item) => <span key={`${item.label}:${item.href}`}>{item.label} · {item.href}</span>)}
+            </div>
+            <p>Safe exit/resume: {displayedCreationDecision.nextOrResumeState.safeExit}</p>
+          </section>
+          <section className="subpanel">
+            <h3>Naive steward walkthrough</h3>
+            <ol>
+              <li>Identify the current Creation decision and source doctrine.</li>
+              <li>Distinguish required, optional, skippable, and allowed-empty obligations.</li>
+              <li>Treat Prompt-out as advisory pressure, not canon generation.</li>
+            </ol>
+          </section>
+        </section>
+      ),
+      admission: (
+        <section className="panel">
+          <h2>Admission flow</h2>
+          <p>Admission is the only flow that changes canon standing.</p>
+          <section className="subpanel">
+            <h3>Queue</h3>
+            {admissionQueue.length === 0 ? <p className="status">No Admission work is queued.</p> : admissionQueue.map((record) => <p key={record.id}>{record.shortId} · {record.title}</p>)}
+          </section>
+          {admissionDecision && (
+            <section className="subpanel">
+              <h3>{admissionDecision.currentStep}</h3>
+              <p>{admissionDecision.localDecision}</p>
+              <p>{admissionDecision.packageAuthority.primary}</p>
+            </section>
+          )}
+        </section>
+      ),
+      propagation: (
+        <section className="panel">
+          <h2>Propagation flow</h2>
+          <p>Work shock cones, consequence domains, and stopping-rule dispositions.</p>
+          {propagationQueue.map((record) => <p key={record.id}>{record.shortId} · {record.title}</p>)}
+        </section>
+      ),
+      constraint: (
+        <section className="panel">
+          <h2>Constraint composition flow</h2>
+          <p>Compose constraints where facts apply.</p>
+        </section>
+      ),
+      stage12: (
+        <section className="panel">
+          <h2>Institutional / Economic / Suppression flow</h2>
+          <p>Run conditional institutional, economic, and suppression passes.</p>
+        </section>
+      ),
+      contradiction: (
+        <section className="panel">
+          <h2>Contradiction/Retcon/Mystery flow</h2>
+          <p>Repair contradictions and preserve protected effects.</p>
+          {stage13OwedBoundaries.map((row) => <p key={row.propagationDispositionId}>Boundary #{row.propagationDispositionId} · protected record {row.protectedRecordId}</p>)}
+        </section>
+      ),
+      qa: (
+        <section className="panel">
+          <h2>QA</h2>
+          <p>Score stability before calling the world stable.</p>
+        </section>
+      ),
+      "canon-workbench": (
+        <section className="panel">
+          <h2>Canon Workbench</h2>
+          <p>Current Canon</p>
+          <p>Audit Trail</p>
+          <p>Canon Workbench text query</p>
+          {canonCurrentRows.map((row) => <p key={row.id}>{row.shortId} · {row.title}</p>)}
+        </section>
+      ),
+      "markdown-export": (
+        <section className="panel">
+          <h2>Markdown export</h2>
+          <label>Markdown export directory<input value={exportDirectory} onChange={(event) => setExportDirectory(event.target.value)} placeholder="/tmp/example-markdown-export" /></label>
+          <button onClick={exportWorldMarkdown} disabled={!openWorld || !exportDirectory.trim()}>Export World Markdown</button>
+          {exportedMarkdown && <textarea rows={12} value={exportedMarkdown} readOnly />}
+        </section>
+      ),
+      substrate: (
+        <section className="panel">
+          <h2>Substrate</h2>
+          <p>Generic records, links, search, draft space, and Prompt-out substrate/admin.</p>
+          <section className="subpanel">
+            <h3>Search and links</h3>
+            <label>Search<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="record title or prose" /></label>
+            <div className="row">
+              <button onClick={runSearch} disabled={!openWorld}>Search</button>
+              <button onClick={loadWorldData} disabled={!openWorld}>All</button>
+            </div>
+            <label>Link from<input value={fromRecordId} onChange={(event) => setFromRecordId(event.target.value)} placeholder="record id" /></label>
+            <label>Link to<input value={toRecordId} onChange={(event) => setToRecordId(event.target.value)} placeholder="record id" /></label>
+            <button onClick={createLink} disabled={!openWorld}>Create Link</button>
+          </section>
+          <section className="subpanel">
+            <h3>New record</h3>
+            <label>Title<input value={recordForm.title} onChange={(event) => setRecordForm({ ...recordForm, title: event.target.value })} /></label>
+            <label>Body<textarea rows={5} value={recordForm.body} onChange={(event) => setRecordForm({ ...recordForm, body: event.target.value })} /></label>
+            <button onClick={saveRecord} disabled={!canSaveRecord}>Save record</button>
+          </section>
+          <section className="subpanel">
+            <h3>Prompt-out substrate/admin</h3>
+            <p>Generic Prompt-out is secondary to the in-flow Creation Prompt-out path.</p>
+            <button onClick={loadPromptStep} disabled={!openWorld}>Load Prompt Step</button>
+          </section>
+          {records.map((record) => (
+            <article key={record.id} className="subpanel">
+              <h3>{record.shortId} · {record.title}</h3>
+              <p>{record.body || "No prose yet."}</p>
+            </article>
+          ))}
+        </section>
+      )
+    };
+
+    return (
+      <main>
+        <header className="topbar">
+          <div>
+            <h1>Worldloom Studio</h1>
+            <p>{serverVersion ? `Server ${serverVersion} · ` : ""}World open · {openWorld}</p>
+          </div>
+        </header>
+        <WorkflowShell
+          workflowMap={displayedWorkflowMap}
+          activeDestination={activeDestination}
+          setupControls={setupPanel(true)}
+          surfaces={shellSurfaces}
+          status={message ? <p className="status">{message}</p> : null}
+          onNavigate={setActiveDestination}
+        />
+      </main>
+    );
+  }
+
   return (
     <main>
       <header className="topbar">
         <div>
           <h1>Worldloom Studio</h1>
-          <p>{serverVersion ? `Server ${serverVersion} · ` : ""}{openWorld ?? "No world file open"}</p>
+          <p>{serverVersion ? `Server ${serverVersion} · ` : ""}World open · {openWorld}</p>
         </div>
-        <input aria-label="Worldloom token" placeholder="server token" value={token} onChange={(event) => rememberToken(event.target.value)} />
       </header>
 
       <section className="workspace">
         <aside className="sidebar">
-          <label>World file path<input value={worldPath} onChange={(event) => setWorldPath(event.target.value)} placeholder="/tmp/example.worldloom.sqlite" /></label>
-          <div className="row">
-            <button onClick={() => createOrOpen("create")}>Create</button>
-            <button onClick={() => createOrOpen("open")}>Open</button>
-          </div>
+          {setupPanel(true)}
           <label>Snapshot path<input value={snapshotPath} onChange={(event) => setSnapshotPath(event.target.value)} placeholder="/tmp/example.snapshot.sqlite" /></label>
           <button onClick={snapshot} disabled={!openWorld}>Snapshot</button>
           <label>Markdown export directory<input value={exportDirectory} onChange={(event) => setExportDirectory(event.target.value)} placeholder="/tmp/example-markdown-export" /></label>
           <button onClick={exportWorldMarkdown} disabled={!openWorld || !exportDirectory.trim()}>Export World Markdown</button>
-          <div className="recent">
-            {recentWorlds.map((recent) => <button key={recent.path} onClick={() => { setWorldPath(recent.path); void createOrOpen("open", recent.path); }}>{recent.path}</button>)}
-          </div>
           <label>Search<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="record title or prose" /></label>
           <div className="row">
             <button onClick={runSearch} disabled={!openWorld}>Search</button>
@@ -1854,6 +2936,65 @@ function App({
             <span>Source: docs/worldbuilding-system/operating_card.md</span>
             <span>Fill a lean world kernel, decompose seeds until each can be independently rejected, then admit later through `06`.</span>
           </div>
+
+          {creationHandoffReady && (
+            <div className="panel method-frontier">
+              <section className="subpanel">
+                <h2>Creation-to-Admission handoff</h2>
+                <p className="status">Not current: work from the Creation handoff before starting unrelated advanced flows.</p>
+                <p>File paths and package sources are provenance, not primary operating instructions.</p>
+                <div className="doctrine">
+                  <strong>Method rule</strong>
+                  {creationDecisionHandoff.doctrineAtPointOfUse.map((rule) => <span key={rule}>{rule}</span>)}
+                </div>
+                <div className="grid compact-grid">
+                  <section className="subpanel">
+                    <h3>Parked seeds</h3>
+                    {creationDecisionHandoff.parkedSeeds.map((seed) => (
+                      <article key={seed.id}>
+                        <h3>{`${seed.shortId} · ${seed.title}`}</h3>
+                        <p>{seed.body}</p>
+                        <p className="meta">{`Truth layer: ${seed.truthLayer ?? "unset"} · Current canon status: ${seed.canonStatus ?? "unset"}`}</p>
+                        <p>{`Source links: ${seed.sourceLinks.map((link) => link.label).join(" · ") || "none"}`}</p>
+                      </article>
+                    ))}
+                  </section>
+                  <section className="subpanel">
+                    <h3>Report and rationale</h3>
+                    <p>{creationDecisionHandoff.seedDecompositionReport
+                      ? `Seed decomposition report ${creationDecisionHandoff.seedDecompositionReport.shortId}: ${creationDecisionHandoff.seedDecompositionReport.title}`
+                      : "No seed-decomposition report yet."}</p>
+                    <p>{creationDecisionHandoff.granularityRationale ? `Granularity rationale: ${creationDecisionHandoff.granularityRationale}` : "Granularity rationale not recorded yet."}</p>
+                    {creationDecisionHandoff.admissionIntent && <p>{`Admission intent: ${creationDecisionHandoff.admissionIntent}`}</p>}
+                  </section>
+                  <section className="subpanel">
+                    <h3>Prompt packet</h3>
+                    <p>{displayedCreationDecision.promptOut.role} · {displayedCreationDecision.promptOut.available ? "available" : "blocked"}</p>
+                    <p>{displayedCreationDecision.promptOut.blocker ?? displayedCreationDecision.promptOut.preview.currentDecision}</p>
+                    <p>{displayedCreationDecision.promptOut.preview.advisoryCanonWarning}</p>
+                  </section>
+                  <section className="subpanel">
+                    <h3>Next and read-side trail</h3>
+                    <p>{creationDecisionHandoff.nextStep}</p>
+                    <p>{`Admission route: ${creationDecisionHandoff.admissionQueueRoute}`}</p>
+                    <div className="chips">
+                      {displayedCreationDecision.readSideTrail.map((item) => <span key={`${item.label}-${item.href}`}>{`${item.label} · ${item.href}`}</span>)}
+                    </div>
+                  </section>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {!records.some((record) => record.recordTypeKey === "world_kernel") && (
+            <div className="panel">
+              <section className="subpanel">
+                <h2>Prerequisites before other flows</h2>
+                <p className="status">Creation is the primary path until a world_kernel exists.</p>
+                <p>Admission, Propagation, QA, Canon Workbench work, and generic substrate tools are available after a world is open, but they do not replace the first kernel decision.</p>
+              </section>
+            </div>
+          )}
 
           <div className="panel canon-workbench">
             <h2>Canon Workbench</h2>
@@ -2006,11 +3147,13 @@ function App({
               ))}
             </section>
             <section className="subpanel">
-              <h2>Prompt-out</h2>
+              <h2>Prompt-out substrate/admin</h2>
+              <p className="status">Generic Prompt-out is secondary to the in-flow Creation Prompt-out path.</p>
               <label>Prompt context<select value={promptFlowKey} onChange={(event) => {
                 const next = event.target.value as PromptFlowKey;
                 setPromptFlowKey(next);
                 if (next === "institutional_economic_suppression") setPromptTemplateKey("institution_economy_analyst");
+                if (next === "constraint_composition") setPromptTemplateKey("constraint_challenger");
                 if (next === "contradiction") setPromptTemplateKey("repair_challenge");
               }}>
                 <option value="creation">Creation</option>
@@ -2019,6 +3162,7 @@ function App({
                 <option value="contradiction">Contradiction</option>
                 <option value="qa">QA</option>
                 <option value="institutional_economic_suppression">Institutional / economic / suppression</option>
+                <option value="constraint_composition">Constraint Composition</option>
               </select></label>
               <label>Template<select value={promptTemplateKey} onChange={(event) => setPromptTemplateKey(event.target.value)}>{templates.map((template) => <option key={template.key} value={template.key}>{template.role_name} v{template.current_version}</option>)}</select></label>
               {selectedTemplate && (
@@ -2038,6 +3182,10 @@ function App({
               <div className="doctrine">
                 <strong>Server-owned step</strong>
                 <span>{promptStep ? `${promptStep.label} · ${promptStep.context.stepKey}` : "Load a server-returned Prompt-out step before actions."}</span>
+                {promptStep?.mode && <span>{promptStep.mode === "proposal" ? "Proposal mode" : "Pressure mode"}</span>}
+                {(promptStep?.availableModes ?? []).map((mode) => (
+                  <span key={mode.mode}>{`${mode.label}: ${mode.available ? "available" : mode.blocker ?? "blocked"} · ${mode.framing}`}</span>
+                ))}
                 <span>{promptStep?.selectedRecord ? `${promptStep.selectedRecord.shortId} · ${promptStep.selectedRecord.title}` : "No selected record context loaded."}</span>
               </div>
               <button onClick={generatePrompt} disabled={!openWorld}>Generate Prompt</button>
@@ -2058,6 +3206,136 @@ function App({
               <span>Queue and gate derive from docs/worldbuilding-system/06_canon_fact_admission_protocol.md, checklists/canon_fact_gate.md, checklists/frontloaded_seed_audit.md, and templates/admission_ledger.md.</span>
               <span>Severity is steward-declared; sweeps propose and only admission admits.</span>
             </div>
+            <section className="decision-point">
+              <h3>Decision point</h3>
+              <p><strong>{admissionDecision?.localDecision ?? "Choose which proposed fact enters Admission now."}</strong></p>
+              <p>Only Admission changes canon standing; proposed facts remain proposed until the steward completes this governed Admission flow.</p>
+              <p>No severity is selected by default. Existing severity values are displayed only when the server payload or steward selection supplies them.</p>
+              <div className="chips">
+                <span>Flow state: {admissionDecision?.flow.runState ?? "not started"}</span>
+                <span>Current step: {admissionDecision?.currentStep ?? "admission:queue-selection"}</span>
+                <span>Next/resume: {admissionDecision?.nextOrResumeState.nextStep ?? "select a proposed fact"}</span>
+              </div>
+              {admissionDecision?.selectedRecord && (
+                <div className="doctrine">
+                  <strong>{admissionDecision.selectedRecord.shortId} · {admissionDecision.selectedRecord.title}</strong>
+                  <span>{admissionDecision.selectedRecord.recordTypeKey} · {admissionDecision.selectedRecord.truthLayer ?? "unset truth layer"} · {admissionDecision.selectedRecord.canonStatus ?? "unset canon status"}</span>
+                  <span>Source or origin links: {admissionDecision.selectedRecord.sourceLinks.map((link) => link.target ? `${link.target.shortId} ${link.target.title}` : `record ${link.toRecordId}`).join(", ") || "none returned"}</span>
+                </div>
+              )}
+              <div className="grid compact-grid">
+                <section className="subpanel">
+                  <h3>Severity definitions</h3>
+                  {admissionDecision?.severity.definitions.length ? admissionDecision.severity.definitions.map((definition) => (
+                    <p key={`${definition.key}:${definition.term}`}><strong>{definition.key}</strong> {definition.term}: {definition.definition}</p>
+                  )) : <p className="status">Declare admission_level and work_scale explicitly to load the server-owned severity path.</p>}
+                  <p>Severity path: {admissionDecision?.severity.gatePath ?? "undeclared"}</p>
+                </section>
+                <section className="subpanel">
+                  <h3>Path obligations</h3>
+                  <p>{(admissionDecision?.severity.obligations ?? ["Declare admission_level", "Declare work_scale"]).join(" · ")}</p>
+                  <p>{admissionDecision?.nextOrResumeState.safeExit ?? "Safe exit leaves the fact in the Admission queue for later resume."}</p>
+                </section>
+              </div>
+              <div className="grid compact-grid">
+                <section className="subpanel work-list required-work">
+                  <h3>Required work</h3>
+                  {(admissionDecision?.work.required ?? ["Select a proposed fact", "Declare admission_level", "Declare work_scale"]).map((item) => <p key={item}>{item}</p>)}
+                </section>
+                <section className="subpanel work-list optional-work">
+                  <h3>Optional work</h3>
+                  {(admissionDecision?.work.optional ?? ["Prompt-out advisory pressure after steward-authored material exists"]).map((item) => <p key={item}>{item}</p>)}
+                </section>
+                <section className="subpanel work-list skippable-work">
+                  <h3>Skippable work</h3>
+                  {(admissionDecision?.work.skippable ?? ["Offered instruments write skip_record entries when declined"]).map((item) => <p key={item}>{item}</p>)}
+                </section>
+                <section className="subpanel work-list severity-work">
+                  <h3>Severity-dependent work</h3>
+                  {(admissionDecision?.work.severityDependent ?? ["Gate depth is unavailable until severity is declared"]).map((item) => <p key={item}>{item}</p>)}
+                </section>
+              </div>
+              <div className="grid compact-grid">
+                <section className="subpanel">
+                  <h3>Minor ledger path</h3>
+                  <p>Minor work stays batch-friendly: fact statement, scope, truth layer, canon status plus separated constraint tags, ordered admission operations, and one consequence check.</p>
+                  <p>Native Tab/Enter form order is preserved by the existing form controls below.</p>
+                </section>
+                <section className="subpanel">
+                  <h3>Full gate path</h3>
+                  {admissionDecision?.blockers.length ? admissionDecision.blockers.map((blocker) => (
+                    <p key={blocker.key}><strong>{blocker.label}</strong>: {blocker.message} Requires {blocker.requires}.</p>
+                  )) : <p>Full-gate blockers are returned by the server after severity declaration.</p>}
+                </section>
+              </div>
+              <section className="subpanel">
+                <h3>Frontloaded seed audit</h3>
+                <p>{admissionDecision?.seedAudit.offered ? "Offered before first seed admission when relevant." : "Not currently offered for the selected record."}</p>
+                <p>{admissionDecision?.seedAudit.runWrites ?? "Running seed audit writes a gate_result when offered."}</p>
+                <p>{admissionDecision?.seedAudit.declineWrites ?? "Declining an offered instrument writes a governed skip_record."}</p>
+                <p>{admissionDecision?.seedAudit.nonMutation ?? "Seed audit does not mutate seed truth layer, canon status, tags, severity, or operations."}</p>
+                {(admissionDecision?.seedAudit.doctrine ?? [
+                  "docs/worldbuilding-system/05_creation_protocol.md",
+                  "docs/worldbuilding-system/06_canon_fact_admission_protocol.md",
+                  "docs/worldbuilding-system/checklists/frontloaded_seed_audit.md"
+                ]).map((citation) => <p key={citation}>Doctrine: {citation}</p>)}
+                <p>{`Reason required: ${admissionDecision?.skipRule.reasonRequired ? "yes" : "no"} · ${admissionDecision?.skipRule.reasonThreshold ?? "major-or-higher Admission work"} · ${admissionDecision?.skipRule.belowThresholdNote ?? "Reason not collected below major-fact threshold."}`}</p>
+                <p>Open canon debt warnings are non-blocking and remain steward judgment context.</p>
+              </section>
+              <section className="subpanel">
+                <h3>Prompt packet preview</h3>
+                <p>{admissionDecision?.promptOut.role ?? "Admission Prompt-out role loads after selecting a record."} · {admissionDecision?.promptOut.advisory ?? "optional"} advisory pressure</p>
+                {(admissionDecision?.promptOut.modes ?? []).map((mode) => (
+                  <div className="doctrine" key={mode.mode}>
+                    <strong>{mode.label}</strong>
+                    <span>{mode.available ? "Available from server" : mode.blocker ?? "Blocked by server"}</span>
+                    <span>{mode.framing}</span>
+                    <span>Output labels: {mode.outputLabels.join(", ")}</span>
+                  </div>
+                ))}
+                <p>{admissionDecision?.promptOut.preview.currentDecision ?? "Prompt-out appears only after steward-authored material exists."}</p>
+                <strong>Source manifest</strong>
+                {(admissionDecision?.promptOut.preview.sourceManifest ?? ["No source manifest loaded yet."]).map((item) => <p key={item}>{item}</p>)}
+                <strong>Context preview</strong>
+                <p>{admissionDecision?.promptOut.preview.contextPreview ?? "No context preview loaded yet."}</p>
+                <strong>Omissions</strong>
+                {(admissionDecision?.promptOut.preview.omissions ?? ["No omissions loaded yet."]).map((item) => <p key={item}>{item}</p>)}
+                <strong>Advisory/canon warning</strong>
+                <p>{admissionDecision?.promptOut.preview.advisoryCanonWarning ?? "Pasted responses remain advisory artifacts and are not admitted canon."}</p>
+                <p>Pasted advisory responses are stored as advisory_artifact records and remain visibly separate from canon fields.</p>
+                <button onClick={loadAdmissionPromptStep} disabled={!openWorld || !admissionDecision}>Load Admission Prompt-out Step</button>
+              </section>
+              <section className="subpanel">
+                <h3>Close preview</h3>
+                <div className="grid compact-grid">
+                  <div>
+                    <strong>What will be written</strong>
+                    {(admissionDecision?.writeIntent.willWrite ?? ["No canon mutation until Admission completion."]).map((item) => <p key={item}>{item}</p>)}
+                  </div>
+                  <div>
+                    <strong>What will be linked</strong>
+                    {(admissionDecision?.writeIntent.willLink ?? ["Read-side trail links load with a selected decision point."]).map((item) => <p key={item}>{item}</p>)}
+                  </div>
+                  <div>
+                    <strong>What will be queued or left untouched</strong>
+                    {[...(admissionDecision?.writeIntent.willQueue ?? []), ...(admissionDecision?.writeIntent.willLeaveUntouched ?? [])].map((item) => <p key={item}>{item}</p>)}
+                  </div>
+                  <div>
+                    <strong>What routes onward</strong>
+                    {(admissionDecision?.writeIntent.willRouteOnward ?? ["Read-side views remain read-only."]).map((item) => <p key={item}>{item}</p>)}
+                  </div>
+                </div>
+                <p>Before completion: {(admissionDecision?.closePreview.beforeCompletion ?? ["canon status change", "gate result", "resume state"]).join(" · ")}</p>
+                <p>After completion: {(admissionDecision?.closePreview.afterCompletion ?? ["Current Canon", "Audit Trail", "record detail"]).join(" · ")}</p>
+              </section>
+              <section className="subpanel">
+                <h3>Read-side trail</h3>
+                <p>Read-side views stay read-only; Admission mutation controls remain inside this flow.</p>
+                <div className="chips">
+                  {(admissionDecision?.readSideTrail ?? [{ label: "Current Canon", href: "/api/canon-workbench/current" }, { label: "Audit Trail", href: "/api/canon-workbench/audit" }]).map((item) => <span key={`${item.label}:${item.href}`}>{item.label} · {item.href}</span>)}
+                </div>
+              </section>
+            </section>
             <div className="grid">
               <label>Record id<input value={admissionRecordId} onChange={(event) => setAdmissionRecordId(event.target.value)} /></label>
               <label>Admission level<select value={admissionLevel} onChange={(event) => setAdmissionLevel(event.target.value)}><option></option>{admissionLevels.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
@@ -2089,13 +3367,21 @@ function App({
               {canonDebt.map((debt) => <button key={debt.id} onClick={() => closeDebt(debt)}>{debt.shortId} · {debt.title}</button>)}
             </div>
             <div className="records compact">
-              {admissionQueue.map((row) => (
-                <article key={row.id}>
-                  <button onClick={() => setAdmissionRecordId(String(row.id))}>Select</button>
-                  <h3>{row.shortId} · {row.title}</h3>
-                  <p className="meta">{row.canonStatus} · level {row.admissionLevel ?? "unset"} · {row.workScale ?? "unset"} · tags {row.constraintTags.join(", ") || "none"}</p>
-                </article>
-              ))}
+              {admissionQueue.map((row) => {
+                const queueSources = row.sourceLinks?.map((link) =>
+                  link.target ? `${link.target.shortId} ${link.target.title}` : `record ${link.toRecordId}`
+                ).join(", ") || "none returned";
+                return (
+                  <article key={row.id}>
+                    <button onClick={() => { void selectAdmissionQueueRow(row); }}>Select</button>
+                    <h3>{row.shortId} · {row.title}</h3>
+                    <p className="meta">{`${row.recordTypeKey} · ${row.truthLayer ?? "unset truth layer"} · ${row.canonStatus ?? "unset canon status"}`}</p>
+                    <p className="meta">level {row.admissionLevel ?? "unset"} · {row.workScale ?? "unset"} · tags {row.constraintTags.join(", ") || "none"}</p>
+                    <p className="meta">Queue source or origin: {queueSources}</p>
+                    <p className="meta">Open canon debt warning context: {canonDebt.length ? `${canonDebt.length} open item(s)` : "none currently loaded"}</p>
+                  </article>
+                );
+              })}
             </div>
           </div>
 
@@ -2220,6 +3506,200 @@ function App({
                 </div>
               </>
             )}
+          </div>
+
+          <div className="panel">
+            <h2>Constraint Composition flow</h2>
+            <section className="subpanel">
+              <h3>Start or Resume Constraint Composition</h3>
+              <div className="doctrine">
+                <strong>Doctrine, checklist, and template</strong>
+                <span>{constraintRun ? `${constraintRun.doctrine.protocol} · ${constraintRun.doctrine.checklist} · ${constraintRun.doctrine.template}` : "Start or resume a run to load server-returned doctrine."}</span>
+                <span>{constraintRun?.doctrine.completionRule ?? "The server owns constraint budget, loopholes, enforcement, residue, and close readiness."}</span>
+              </div>
+              <div className="grid">
+                <label>Source type<select value={constraintSourceType} onChange={(event) => setConstraintSourceType(event.target.value as typeof constraintSourceType)}>
+                  <option value="fact">fact</option>
+                  <option value="capability">capability</option>
+                  <option value="constraint_card">constraint card</option>
+                  <option value="canon_debt">canon debt</option>
+                  <option value="material">selected material</option>
+                  <option value="record_section">record section</option>
+                  <option value="pass_report">pass report</option>
+                </select></label>
+                <label>Source or report id<input value={constraintSourceRecordId} onChange={(event) => setConstraintSourceRecordId(event.target.value)} /></label>
+                <label>Section heading<input value={constraintSourceSection} onChange={(event) => setConstraintSourceSection(event.target.value)} /></label>
+                <label>Flow id<input value={constraintFlowId ?? ""} onChange={(event) => setConstraintFlowId(event.target.value ? Number(event.target.value) : null)} /></label>
+              </div>
+              <div className="grid">
+                <label>Material title<input value={constraintMaterialTitle} onChange={(event) => setConstraintMaterialTitle(event.target.value)} /></label>
+                <label>Material body<textarea rows={2} value={constraintMaterialBody} onChange={(event) => setConstraintMaterialBody(event.target.value)} /></label>
+                <label>Constrained subject<input value={constraintSubject} onChange={(event) => setConstraintSubject(event.target.value)} /></label>
+              </div>
+              <div className="row">
+                <button onClick={startConstraintRun} disabled={!openWorld || (constraintSourceType !== "material" && !constraintSourceRecordId) || (constraintSourceType === "material" && (!constraintMaterialTitle.trim() || !constraintMaterialBody.trim()))}>Start or Resume Constraint Composition</button>
+                <button onClick={() => void refreshConstraintRun()} disabled={!openWorld || constraintFlowId == null}>Refresh Constraint Run</button>
+                <button onClick={closeConstraintRun} disabled={!openWorld || constraintFlowId == null}>Close Constraint Run</button>
+              </div>
+            </section>
+
+            <section className="subpanel">
+              <h3>Current decision</h3>
+              <p className="status">{constraintRun ? `${constraintRun.report.shortId} · ${constraintRun.source.sourceSummary} · ${constraintRun.flow.current_step}` : "No Constraint Composition run loaded."}</p>
+              <p className="meta">{constraintRun?.doctrine.browserPolicy ?? "Browser controls surface server policy, blockers, write intent, Prompt-out state, and read-side trail."}</p>
+              <ol>
+                {(constraintRun?.doctrine.stepMap ?? [
+                  { key: "source_selection", label: "Source selection", decision: "Pick the constrained material." },
+                  { key: "constraint_inventory", label: "Constraint inventory", decision: "Record budget, loopholes, enforcement, and residue." },
+                  { key: "close_preview", label: "Close preview", decision: "Use server-returned blockers before appending a report." }
+                ]).map((step) => <li key={step.key}>{step.label}: {step.decision}</li>)}
+              </ol>
+            </section>
+
+            <section className="subpanel">
+              <h3>Server close blockers</h3>
+              {constraintRun && constraintRun.closeReadiness.blockers.length === 0 ? (
+                <p className="status">No server-returned blockers.</p>
+              ) : (
+                <ul>
+                  {(constraintRun?.closeReadiness.blockers ?? [
+                    { key: "constraint_budget", label: "Constraint budget", message: "Start a run to load exact server blockers." },
+                    { key: "loopholes", label: "Loopholes", message: "Start a run to load exact server blockers." },
+                    { key: "enforcement", label: "Enforcement", message: "Start a run to load exact server blockers." },
+                    { key: "residue", label: "Residue", message: "Start a run to load exact server blockers." }
+                  ]).map((blocker) => <li key={blocker.key}>{blocker.label}: {blocker.message}</li>)}
+                </ul>
+              )}
+            </section>
+
+            <section className="subpanel">
+              <h3>Constraint Inventory</h3>
+              <div className="grid">
+                <label>Constrained fact<input value={constraintInventory.constrainedFact} onChange={(event) => setConstraintInventory((current) => ({ ...current, constrainedFact: event.target.value }))} /></label>
+                <label>Constraint statement<input value={constraintInventory.constraintStatement} onChange={(event) => setConstraintInventory((current) => ({ ...current, constraintStatement: event.target.value }))} /></label>
+                <label>Constraint type<select value={constraintInventory.constraintType} onChange={(event) => setConstraintInventory((current) => ({ ...current, constraintType: event.target.value }))}>
+                  {constraintTypes.map((term) => <option key={term.term}>{term.term}</option>)}
+                </select></label>
+                <label>Boundary knowledge<input value={constraintInventory.boundaryKnowledge} onChange={(event) => setConstraintInventory((current) => ({ ...current, boundaryKnowledge: event.target.value }))} /></label>
+              </div>
+              <div className="grid">
+                <label>Prevents<textarea rows={2} value={constraintInventory.prevents} onChange={(event) => setConstraintInventory((current) => ({ ...current, prevents: event.target.value }))} /></label>
+                <label>Allows<textarea rows={2} value={constraintInventory.allows} onChange={(event) => setConstraintInventory((current) => ({ ...current, allows: event.target.value }))} /></label>
+                <label>Bypass actors<textarea rows={2} value={constraintInventory.bypassActors} onChange={(event) => setConstraintInventory((current) => ({ ...current, bypassActors: event.target.value }))} /></label>
+                <label>Cause or mystery boundary<textarea rows={2} value={constraintInventory.causeOrMysteryBoundary} onChange={(event) => setConstraintInventory((current) => ({ ...current, causeOrMysteryBoundary: event.target.value }))} /></label>
+                <label>Enforcement<textarea rows={2} value={constraintInventory.enforcement} onChange={(event) => setConstraintInventory((current) => ({ ...current, enforcement: event.target.value }))} /></label>
+                <label>Residue<textarea rows={2} value={constraintInventory.residue} onChange={(event) => setConstraintInventory((current) => ({ ...current, residue: event.target.value }))} /></label>
+                <label>Cost or observable<input value={constraintInventory.costOrObservable} onChange={(event) => setConstraintInventory((current) => ({ ...current, costOrObservable: event.target.value }))} /></label>
+              </div>
+              <button onClick={saveConstraintInventory} disabled={constraintFlowId == null}>Save Constraint Inventory</button>
+            </section>
+
+            <section className="subpanel">
+              <h3>Composition Testing</h3>
+              <div className="grid">
+                <label>Analysis type<select value={constraintCompositionType} onChange={(event) => setConstraintCompositionType(event.target.value)}>
+                  {constraintCompositionTypes.map((type) => <option key={type}>{type}</option>)}
+                </select></label>
+                <label>Analysis<textarea rows={3} value={constraintCompositionBody} onChange={(event) => setConstraintCompositionBody(event.target.value)} /></label>
+              </div>
+              <button onClick={saveConstraintComposition} disabled={constraintFlowId == null || !constraintCompositionBody.trim()}>Save Composition Test</button>
+              <p className="meta">Saved: {constraintRun?.composition.map((entry) => entry.analysisType).join(", ") || "none"}</p>
+            </section>
+
+            <section className="subpanel">
+              <h3>Leakage and Residue</h3>
+              <div className="grid two">
+                <div>
+                  <label>Bottleneck<textarea rows={2} value={constraintLeakage.bottleneck} onChange={(event) => setConstraintLeakage((current) => ({ ...current, bottleneck: event.target.value }))} /></label>
+                  <label>Loopholes<textarea rows={2} value={constraintLeakage.loopholes} onChange={(event) => setConstraintLeakage((current) => ({ ...current, loopholes: event.target.value }))} /></label>
+                  <label>Partial workarounds<textarea rows={2} value={constraintLeakage.partialWorkarounds} onChange={(event) => setConstraintLeakage((current) => ({ ...current, partialWorkarounds: event.target.value }))} /></label>
+                  <label>False bypasses<textarea rows={2} value={constraintLeakage.falseBypasses} onChange={(event) => setConstraintLeakage((current) => ({ ...current, falseBypasses: event.target.value }))} /></label>
+                  <label>Accidents<textarea rows={2} value={constraintLeakage.accidents} onChange={(event) => setConstraintLeakage((current) => ({ ...current, accidents: event.target.value }))} /></label>
+                  <label>Countermeasures<textarea rows={2} value={constraintLeakage.countermeasures} onChange={(event) => setConstraintLeakage((current) => ({ ...current, countermeasures: event.target.value }))} /></label>
+                  <label>Boundary testers<textarea rows={2} value={constraintLeakage.boundaryTesters} onChange={(event) => setConstraintLeakage((current) => ({ ...current, boundaryTesters: event.target.value }))} /></label>
+                  <button onClick={saveConstraintLeakage} disabled={constraintFlowId == null}>Save Leakage</button>
+                </div>
+                <div>
+                  <label>Ordinary life<textarea rows={2} value={constraintResidue.ordinaryLife} onChange={(event) => setConstraintResidue((current) => ({ ...current, ordinaryLife: event.target.value }))} /></label>
+                  <label>Institutional effects<textarea rows={2} value={constraintResidue.institutionalEffects} onChange={(event) => setConstraintResidue((current) => ({ ...current, institutionalEffects: event.target.value }))} /></label>
+                  <label>Economic effects<textarea rows={2} value={constraintResidue.economicEffects} onChange={(event) => setConstraintResidue((current) => ({ ...current, economicEffects: event.target.value }))} /></label>
+                  <label>Visible traces<textarea rows={2} value={constraintResidue.visibleTraces} onChange={(event) => setConstraintResidue((current) => ({ ...current, visibleTraces: event.target.value }))} /></label>
+                  <label>Expertise<input value={constraintResidue.expertise} onChange={(event) => setConstraintResidue((current) => ({ ...current, expertise: event.target.value }))} /></label>
+                  <label>Resentment<input value={constraintResidue.resentment} onChange={(event) => setConstraintResidue((current) => ({ ...current, resentment: event.target.value }))} /></label>
+                  <label>Crime<input value={constraintResidue.crime} onChange={(event) => setConstraintResidue((current) => ({ ...current, crime: event.target.value }))} /></label>
+                  <label>Ritual<input value={constraintResidue.ritual} onChange={(event) => setConstraintResidue((current) => ({ ...current, ritual: event.target.value }))} /></label>
+                  <label>Markets<input value={constraintResidue.markets} onChange={(event) => setConstraintResidue((current) => ({ ...current, markets: event.target.value }))} /></label>
+                  <label>Failure modes<input value={constraintResidue.failureModes} onChange={(event) => setConstraintResidue((current) => ({ ...current, failureModes: event.target.value }))} /></label>
+                  <button onClick={saveConstraintResidue} disabled={constraintFlowId == null}>Save Residue</button>
+                </div>
+              </div>
+            </section>
+
+            <div className="grid two">
+              <section className="subpanel">
+                <h3>Create or Link Constraint Card</h3>
+                <div className="grid">
+                  <label>Inventory id<input value={constraintInventoryId} onChange={(event) => setConstraintInventoryId(event.target.value)} /></label>
+                  <label>Existing card id<input value={constraintExistingCardId} onChange={(event) => setConstraintExistingCardId(event.target.value)} /></label>
+                  <label>Relation<input value={constraintCardRelation} onChange={(event) => setConstraintCardRelation(event.target.value)} /></label>
+                  <label>Advisory id<input value={constraintAdvisoryRecordId} onChange={(event) => setConstraintAdvisoryRecordId(event.target.value)} /></label>
+                </div>
+                <button onClick={createOrLinkConstraintCard} disabled={constraintFlowId == null || (!constraintExistingCardId && !recordForm.title.trim() && !constraintInventoryId)}>Create or Link Constraint Card</button>
+                <p>Cards: {constraintRun?.linkedCards.map((card) => `${card.card.shortId} ${card.card.title}`).join(", ") || "none"}</p>
+              </section>
+              <section className="subpanel">
+                <h3>Route Admission Proposal</h3>
+                <label>Source step<input value={constraintSourceStep} onChange={(event) => setConstraintSourceStep(event.target.value)} /></label>
+                <button onClick={routeConstraintProposal} disabled={constraintFlowId == null || !recordForm.title.trim() || !(recordForm.body || constraintCompositionBody || constraintInventory.constraintStatement).trim()}>Route Admission Proposal</button>
+                <h3>Mint Constraint Debt</h3>
+                <button onClick={mintConstraintDebt} disabled={constraintFlowId == null || !(canonDebtName || recordForm.title).trim() || !(gateNotApplicable || constraintCompositionBody || constraintInventory.residue).trim()}>Mint Constraint Debt</button>
+                <p>Proposals: {constraintRun?.proposals.map((proposal) => `${proposal.record.shortId} ${proposal.record.title}`).join(", ") || "none"}</p>
+                <p>Debt: {constraintRun?.debt.map((debt) => `${debt.record.shortId} ${debt.record.title}`).join(", ") || "none"}</p>
+              </section>
+            </div>
+
+            <div className="grid two">
+              <section className="subpanel">
+                <h3>Record Governed Skip</h3>
+                <div className="grid">
+                  <label>Skip step<input value={constraintSkipStep} onChange={(event) => setConstraintSkipStep(event.target.value)} /></label>
+                  <label className="inline-check"><input type="checkbox" checked={constraintSkipUnresolved} onChange={(event) => setConstraintSkipUnresolved(event.target.checked)} />Unresolved follow-up</label>
+                </div>
+                <button onClick={recordConstraintSkip} disabled={constraintFlowId == null || !constraintSkipStep.trim()}>Record Governed Skip</button>
+                <p>Skips: {constraintRun?.skips.map((skip) => `${skip.record.shortId} ${skip.stepKey}`).join(", ") || "none"}</p>
+              </section>
+              <section className="subpanel">
+                <h3>Prompt-out preview</h3>
+                <p className="meta">{constraintRun?.promptOut.coldUseEvidence ?? "Prompt-out becomes available after steward-authored constraint material exists."}</p>
+                <button onClick={() => {
+                  setPromptFlowKey("constraint_composition");
+                  setPromptTemplateKey("constraint_challenger");
+                  if (constraintRun?.promptOut.sourceRecordId != null) setPromptRecordId(String(constraintRun.promptOut.sourceRecordId));
+                }} disabled={!constraintRun}>Use Constraint Challenger</button>
+                <p>Advisory: {constraintRun?.advisories.map((advisory) => `${advisory.record.shortId} ${advisory.stepKey}`).join(", ") || "none"}</p>
+              </section>
+            </div>
+
+            <section className="subpanel">
+              <h3>Read-side trail</h3>
+              <ul>
+                {(constraintRun?.readSideTrail ?? [
+                  { label: "Pass report", href: "/api/canon-workbench/records/:id" },
+                  { label: "Audit Trail", href: "/api/canon-workbench/audit" },
+                  { label: "Current Canon", href: "/api/canon-workbench/current" }
+                ]).map((item) => <li key={`${item.label}-${item.href}`}>{item.label}: {item.href}</li>)}
+              </ul>
+            </section>
+
+            <section className="subpanel">
+              <h3>Naive steward walkthrough</h3>
+              <ol>
+                <li>Start from a fact, capability, constraint card, canon debt, selected material, record section, or pass report.</li>
+                <li>Fill inventory, composition testing, leakage, and residue until the server removes close blockers.</li>
+                <li>Choose card, proposal, debt, Prompt-out, or skip outcomes without directly mutating canon from advisory material.</li>
+                <li>Close only when the pass report and read-side trail show the governed outcome.</li>
+              </ol>
+            </section>
           </div>
 
           <div className="panel">
@@ -2566,28 +4046,139 @@ function App({
             </div>
           </div>
 
-          <div className="panel">
-            <h2>Creation flow</h2>
+          <div className="panel creation-decision">
+            <h2>Creation decision point</h2>
+            <p className="status">Primary active path for a new world</p>
             <div className="row">
-              <button onClick={startFlow} disabled={!openWorld}>Start or Resume</button>
-              <span className="status">{flowId ? `Flow ${flowId}${kernelRecordId ? ` · kernel ${kernelRecordId}` : ""}` : ""}</span>
+              <button onClick={startFlow} disabled={!openWorld}>Start or Resume Creation</button>
+              <span className="status">{flowId ? `Flow ${flowId}${kernelRecordId ? ` · kernel ${kernelRecordId}` : ""}` : "No Creation flow loaded"}</span>
             </div>
-            <div className="grid">
-              <label>Kernel step<select value={kernelHeading} onChange={(event) => setKernelHeading(event.target.value)}>{headings.filter((heading) => heading.record_type_key === "world_kernel").map((heading) => <option key={heading.heading}>{heading.heading}</option>)}</select></label>
-              <label>Consequence mode<select value={consequenceMode} onChange={(event) => setConsequenceMode(event.target.value)}><option></option>{consequenceModes.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+            <section className="decision-point">
+              <h3>Current decision</h3>
+              <p><strong>{displayedCreationDecision.localDecision}</strong></p>
+              <div className="chips">
+                <span>Flow state: {displayedCreationDecision.flow.runState}</span>
+                <span>Current step: {displayedCreationDecision.currentStep}</span>
+                <span>Next: {displayedCreationDecision.nextOrResumeState.nextStep}</span>
+                <span>Safe exit/resume</span>
+              </div>
+              <div className="doctrine">
+                <strong>Package authority</strong>
+                <span>{displayedCreationDecision.packageAuthority.primary}</span>
+                <span>{displayedCreationDecision.packageAuthority.why}</span>
+                {displayedCreationDecision.packageAuthority.citations.map((citation) => <span key={citation}>{citation}</span>)}
+              </div>
+            </section>
+            <div className="grid compact-grid">
+              <section className="subpanel work-list required-work">
+                <h3>Required</h3>
+                {displayedCreationDecision.work.required.map((item) => <p key={item}>{item}</p>)}
+              </section>
+              <section className="subpanel work-list optional-work">
+                <h3>Optional</h3>
+                {displayedCreationDecision.work.optional.map((item) => <p key={item}>{item}</p>)}
+              </section>
+              <section className="subpanel work-list allowed-empty-work">
+                <h3>Allowed-empty</h3>
+                {displayedCreationDecision.work.allowedEmpty.map((item) => <p key={item}>{item}</p>)}
+              </section>
+              <section className="subpanel work-list skippable-work">
+                <h3>Skippable</h3>
+                {displayedCreationDecision.work.skippable.map((item) => <p key={item}>{item}</p>)}
+              </section>
             </div>
-            <div className="doctrine">
-              <strong>Doctrine at point of use</strong>
-              <span>Kernel steps derive from docs/worldbuilding-system/05_creation_protocol.md and docs/worldbuilding-system/templates/world_kernel.md.</span>
-              <span>Decomposition uses the granularity rule: split until each seed can be independently rejected without destroying its siblings; stop at the thin-start boundary.</span>
-            </div>
-            <label>Kernel section<textarea rows={4} value={kernelBody} onChange={(event) => setKernelBody(event.target.value)} /></label>
-            <button onClick={saveKernelStep} disabled={flowId == null}>Save Kernel Step</button>
-            <div className="grid">
-              <label>Seed title<input value={seedTitle} onChange={(event) => setSeedTitle(event.target.value)} /></label>
-              <label>Seed body<input value={seedBody} onChange={(event) => setSeedBody(event.target.value)} /></label>
-            </div>
-            <button onClick={decompose} disabled={flowId == null || kernelRecordId == null || !seedTitle || !recordForm.truthLayer || !recordForm.canonStatus}>Decompose and Park Seed</button>
+            <section className="subpanel">
+              <h3>Server blockers</h3>
+              {displayedCreationDecision.blockers.length === 0
+                ? <p className="status">No Creation blockers returned for the current step.</p>
+                : displayedCreationDecision.blockers.map((blocker) => (
+                  <p key={blocker.key}><strong>{blocker.label}</strong>: {blocker.message} Requires {blocker.requires}.</p>
+                ))}
+            </section>
+            <section className="subpanel">
+              <h3>Kernel authoring</h3>
+              <p>Consequence mode is steward judgment; the app does not infer, default, or silently reuse it.</p>
+              <div className="grid">
+                <label>Kernel step<select value={kernelHeading} onChange={(event) => setKernelHeading(event.target.value)}>{headings.filter((heading) => heading.record_type_key === "world_kernel").map((heading) => <option key={heading.heading}>{heading.heading}</option>)}</select></label>
+                <label>Consequence mode<select value={consequenceMode} onChange={(event) => setConsequenceMode(event.target.value)}><option></option>{consequenceModes.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+              </div>
+              <div className="grid compact-grid">
+                {displayedCreationDecision.sectionPrompts.map((section) => (
+                  <div key={section.heading} className="doctrine">
+                    <strong>{section.heading}</strong>
+                    <span>{section.obligation}</span>
+                    <span>{section.prompt}</span>
+                  </div>
+                ))}
+              </div>
+              <label>Kernel section<textarea rows={4} value={kernelBody} onChange={(event) => setKernelBody(event.target.value)} /></label>
+              <div className="subpanel">
+                <h3>Write preview</h3>
+                <p>{displayedCreationDecision.writeIntent.willWrite.join(" · ")}</p>
+                <p>{displayedCreationDecision.writeIntent.willLeaveUntouched.join(" · ")}</p>
+              </div>
+              <button onClick={saveKernelStep} disabled={flowId == null}>Save Kernel Step</button>
+            </section>
+            <section className="subpanel">
+              <h3>Prompt-out preview</h3>
+              <p>{displayedCreationDecision.promptOut.role} · {displayedCreationDecision.promptOut.available ? "available" : "blocked"}</p>
+              {(displayedCreationDecision.promptOut.modes ?? []).map((mode) => (
+                <div className="doctrine" key={mode.mode}>
+                  <strong>{mode.label}</strong>
+                  <span>{mode.available ? "Available from server" : mode.blocker ?? "Blocked by server"}</span>
+                  <span>{mode.framing}</span>
+                  <span>Output labels: {mode.outputLabels.join(", ")}</span>
+                </div>
+              ))}
+              <p>{displayedCreationDecision.promptOut.preview.currentDecision}</p>
+              <strong>Source manifest</strong>
+              {displayedCreationDecision.promptOut.preview.sourceManifest.map((item) => <p key={item}>{item}</p>)}
+              <strong>Context preview</strong>
+              <p>{displayedCreationDecision.promptOut.preview.contextPreview}</p>
+              <strong>Omissions</strong>
+              {displayedCreationDecision.promptOut.preview.omissions.map((item) => <p key={item}>{item}</p>)}
+              <strong>Advisory/canon warning</strong>
+              <p>{displayedCreationDecision.promptOut.preview.advisoryCanonWarning}</p>
+              <p>Pasted responses remain advisory artifacts and do not mutate kernel sections, seed records, reports, or proposals without explicit steward use.</p>
+              <button onClick={loadCreationPromptStep} disabled={!openWorld || (!creationDecision?.promptOut.stepRequest && !creationDecision?.promptOut.modes?.some((mode) => mode.stepRequest))}>Load Creation Prompt-out Step</button>
+            </section>
+            <section className="subpanel">
+              <h3>Seed decomposition decision</h3>
+              <p>Split broad steward material into smaller seed facts that can be independently rejected.</p>
+              <p>Actual current status: proposed</p>
+              <div className="grid">
+                <label>Seed title<input value={seedTitle} onChange={(event) => setSeedTitle(event.target.value)} /></label>
+                <label>Seed body<input value={seedBody} onChange={(event) => setSeedBody(event.target.value)} /></label>
+                <label>Truth layer<select value={seedTruthLayer} onChange={(event) => setSeedTruthLayer(event.target.value)}><option></option>{truthLayers.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+                <label>Admission intent<input value={admissionIntent} onChange={(event) => setAdmissionIntent(event.target.value)} placeholder="advisory future handling only" /></label>
+              </div>
+              <label>Granularity rationale<textarea rows={3} value={granularityRationale} onChange={(event) => setGranularityRationale(event.target.value)} /></label>
+              <label className="inline-check"><input type="checkbox" checked={granularityConfirmed} onChange={(event) => setGranularityConfirmed(event.target.checked)} />Granularity confirmation</label>
+              <div className="subpanel">
+                <h3>Write preview</h3>
+                <p>{displayedCreationDecision.writeIntent.willWrite.join(" · ")}</p>
+                <p>{displayedCreationDecision.writeIntent.willLink.join(" · ")}</p>
+                <p>{displayedCreationDecision.writeIntent.willQueue.join(" · ")}</p>
+                <p>Admission handoff: {displayedCreationDecision.writeIntent.willRouteOnward.join(" · ")}</p>
+              </div>
+              <button onClick={decompose} disabled={flowId == null || kernelRecordId == null}>Decompose and Park Seed</button>
+            </section>
+            <section className="subpanel">
+              <h3>Read-side trail</h3>
+              <div className="chips">
+                {displayedCreationDecision.readSideTrail.map((item) => <span key={`${item.label}:${item.href}`}>{item.label} · {item.href}</span>)}
+              </div>
+            </section>
+            <section className="subpanel">
+              <h3>Naive steward walkthrough</h3>
+              <ol>
+                <li>Identify the current Creation decision and source doctrine.</li>
+                <li>Distinguish required, optional, skippable, and allowed-empty obligations.</li>
+                <li>Treat Prompt-out as advisory pressure, not canon generation.</li>
+                <li>Predict the kernel, report, seed records, links, Admission handoff, and non-mutations before writing.</li>
+                <li>Exit and resume without losing flow orientation.</li>
+              </ol>
+            </section>
           </div>
 
           {message && <p className="status">{message}</p>}

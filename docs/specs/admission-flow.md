@@ -25,6 +25,17 @@ The flow is where a proposed fact becomes governed canon. Sweeps and checklist r
 17. **Severity policy boundary.** Neutral severity thresholds such as major-or-higher, foundational, and catastrophic remain shared app policy. Admission owns queue ordering, gate path and steps, full-gate validation, and foundational open-debt warning behavior.
 18. **Schema migration.** No new record types are needed. Existing records, facets, links, `jurisdiction_events`, prompt templates, flow instances, and report/card mutation regimes cover the slice.
 
+## Decision-Point UI Contract
+
+This flow must satisfy `guided-workflow-usability.md` W-8 and `guided-flow-spec-template.md`.
+
+- **Queue selection:** the browser shows the local decision as "which proposed fact enters Admission now," includes source/origin links, severity fields if already declared, open debt warnings, and the fact that only Admission can change canon standing.
+- **Severity declaration:** the browser shows `admission_level` and `work_scale` definitions from seeded vocabulary rows, cites `06`, prevents defaults or inference, and makes visible how the chosen severity changes the path.
+- **Minor ledger path:** the browser shows the five owed ledger decisions, required fields, one consequence check, batch affordances, prompt-out availability where dependency-bearing, and the write as `admission_ledger_row` records plus ordered admission operations.
+- **Full gate path:** the browser shows each gate decision with `06`, `canon_fact_gate.md`, and relevant `20` roles at point of use; blockers require written consequence, n/a reason, or quiet-domain declaration rather than checkboxes.
+- **Frontloaded seed audit:** the browser shows the audit as an offered instrument, cites `05`, `06`, and `frontloaded_seed_audit.md`, records completion as a `gate_result`, or records a governed skip without blocking admissibility.
+- **Close/result:** the browser previews the canon status change, gate report, card update/history behavior, advisory-use links, debt warnings, and next/resume state before submission.
+
 ## Testing Seams
 
 Primary seam: the localhost HTTP API against temp-file world databases for queue contents, proposing from drafts and records, creation-seed decomposition, propagation and contradiction surfaced proposals, severity declaration, batch ledger admission, full gate validation, gate results, seed audit, skip records, neutral and compatibility canon-debt routes, canon debt warnings, and admission prompt generation.
@@ -33,6 +44,6 @@ Secondary seam: focused flow-module tests against real temp world files for Admi
 
 ## Principles
 
-Touches `charter.md` (P-3, T-8), `canon-sovereignty.md` (P-2, W-1, T-5), `domain-fidelity.md` (P-1, T-2), `workflow-principles.md` (P-5, W-1-W-4, W-7), `data-principles.md` (W-5, W-6, T-3, T-4, T-5), and ADRs 0001-0006. It affirms non-contradiction: the methodology stays upstream, every judgment field is steward-declared, generated text is advisory, severity scales gate depth without being inferred, only admission admits, skips/debt are records, and gates demand written substance.
+Touches `charter.md` (P-3, T-8), `canon-sovereignty.md` (P-2, W-1, T-5), `domain-fidelity.md` (P-1, T-2), `workflow-principles.md` (P-5, W-1-W-4, W-7), `guided-workflow-usability.md` (W-8), `data-principles.md` (W-5, W-6, T-3, T-4, T-5), and ADRs 0001-0006 and 0009. It affirms non-contradiction: the methodology stays upstream, every judgment field is steward-declared, generated text is advisory, severity scales gate depth without being inferred, only admission admits, skips/debt are records, and gates demand written substance.
 
 T-8 honesty: prompt-out/paste-in remains unvalidated under a naive steward. This flow extends the creation-flow sovereignty surface without claiming new external validation.

@@ -26,6 +26,38 @@ Rows for doctrine, reference, examples, and support files use
 `non-goal (method doctrine/reference)` so the numbered package spine is
 complete without pretending every chapter should become a guided workflow.
 
+## Guidance Maturity
+
+Coverage class says how the package surface is represented. Guidance maturity
+says how usable the browser workflow is when the surface is in scope. Use the
+lowest honest value that applies:
+
+- **record-only**: schema/generic record support exists.
+- **server-policy**: flow policy exists below the UI.
+- **browser-exposed**: the browser can invoke or display the surface.
+- **decision-guided**: the browser satisfies `guided-workflow-usability.md` W-8's Decision-Point Contract.
+- **prompt-context-complete**: prompt-out packets pass the cold external LLM test from `prompt-out-context-assembly.md`.
+- **walkthrough-passed**: a naive-steward cognitive walkthrough passed.
+- **field-validated**: field trial or real app use validated the browser surface.
+
+Do not silently promote untested package surfaces. `10`, `11`, `14`, `15`,
+`16`, `17`, and naive-steward `19`/`20` remain honestly untested until field
+evidence says otherwise.
+
+## Guidance Maturity Snapshot
+
+| Surface | Current maturity | Notes |
+|---|---|---|
+| Workflow map/navigation (`W-10`) | walkthrough-passed | PRD #171 / issues #180-#184 add the map-as-home grammar, server-owned workflow-map payload, routed shell entry, one-destination map navigation, and browser walkthrough evidence from setup through map, Creation, back to map, and Admission. This row covers cross-flow orientation only; it does not promote the maturity of individual flow interiors. Browser artifact: `output/playwright/prd171-map-first-admission.png`; report: `reports/prd-171-map-first-walkthrough.md`. |
+| Creation (`05`) | walkthrough-passed | PRD #150 / issues #151-#157 added decision-guided evidence for phases 1-2: new-world start/resume, kernel guidance, Creation-bound Prompt-out, seed decomposition blockers, proposed parking, Admission handoff, and read-side trail. PRD #165 / issues #166-#169 add replacement-grade evidence for the post-decomposition handoff and prove the Creation `decomposition_pressure` packet as prompt-context-complete for that path. PRD #170 / issues #174-#179 add shared decision-point context, proposal/pressure mode rendering, the World premise essence refusal, a Starting scale proposal packet, advisory disposition, pressure skip, and read-side evidence for the Creation kernel prompt path. Browser artifacts: `output/playwright/prd150-creation-decision-smoke.png`, `reports/prd-165-replacement-handoff-walkthrough.md`, `reports/prd-170-prompt-modes-walkthrough.md`, and `output/playwright/prd170-prompt-modes-walkthrough.png`. Later Creation phases remain out of scope. |
+| Admission (`06`) | decision-guided | PRD #133 / issues #134-#140 added the server-owned decision-point payload, browser decision surface, close preview, read-side trail, and representative render/browser evidence for queue, severity, gate, seed audit, skip, Prompt-out preview, and write intent. |
+| Propagation (`07`) and domain atlas (`04`) | browser-exposed | Flow exists; future work must prove shock-cone/domain/disposition decision points and prompt context completeness. |
+| Constraint Composition (`08`) | walkthrough-passed | PRD #141 / issues #142-#149 added the dedicated flow, server blockers, browser decision surface, Prompt-out challenger path, read-side trail, and naive-steward walkthrough evidence. |
+| Stage 12 (`12`) | browser-exposed | Strongest current browser contract; still needs W-8 evidence before claiming decision-guided. |
+| Contradiction/Retcon/Mystery (`13`) | browser-exposed | UI reachability gap is closed; decision-guided maturity still needs browser acceptance evidence. |
+| QA (`18`) | browser-exposed | Scorecard flow exists; decision-guided maturity needs visible score/profile/floor/repair walkthrough evidence. |
+| Prompt-out (`20`) | browser-exposed | Prompt mechanics exist. PRD #165 proves one Creation decomposition path with source manifest and cold-context packet evidence. PRD #170 proves the proposal-mode browser grammar for one Creation kernel decision path, including the essence blocker, proposal packet, advisory disposition, and pressure skip. `20` is not promoted globally until other dependency-bearing prompt paths and proposal mode have field-use evidence. |
+
 ## Package Chapter Matrix
 
 | Package surface | Coverage class | App coverage | Recorded decision and citation | Field-use status |
@@ -37,10 +69,10 @@ complete without pretending every chapter should become a guided workflow.
 | `02_world_model.md` | non-goal (method doctrine/reference) | Dependency-link vocabulary and schema primitives in `docs/specs/schema-v1.md`. | `schema-v1.md` typed links and `dependency_type`; `domain-fidelity.md` P-1/T-2. | Thinking primitives, not a guided protocol. |
 | `03_truth_layers_and_canon_governance.md` | guided flow | Truth layers, canon statuses, admission decisions, repair jurisdiction, debt, and lifecycle are implemented across schema, Admission, Contradiction, QA, and Canon Workbench. | `schema-v1.md`; `admission-flow.md`; `contradiction-retcon-mystery-flow.md`; `qa-flow.md`; `canon-workbench.md`. | Field-tested governance spine; app coverage is cross-flow, not a standalone `03` flow. |
 | `04_domain_atlas.md` | guided flow | Domain-atlas sweep is part of the Propagation flow. | `propagation-flow.md`; PRD #29. | Field-tested as part of the core propagation path. |
-| `05_creation_protocol.md` | guided flow | Creation flow covers phases 1-2; Admission covers frontloaded seed audit. Minimal Viable World / First Stable Candidate coverage for phases 4-8 is a recorded follow-up decision. | `creation-flow.md`; `admission-flow.md`; issue #112 decision. | Core creation pipeline is field-tested; phases 4-8 checkpoint is decided but not implemented. |
-| `06_canon_fact_admission_protocol.md` | guided flow | Admission queue, severity declaration, gate, ledger rows, seed audit, skip records, and canon debt. | `admission-flow.md`. | Field-tested core pipeline. |
+| `05_creation_protocol.md` | guided flow | Creation flow covers phases 1-2; PRD #150 is the W-8 retrofit for new-world entry, kernel decision guidance, Creation-bound Prompt-out, and first seed decomposition into parked `proposed` records. PRD #165 adds the replacement-grade Creation-to-Admission handoff after seed parking and binds `decomposition_pressure` to the seed-decomposition report plus parked seeds. PRD #170 adds the shared decision-point contract and proposal/pressure Prompt-out mode evidence for the kernel path, including the World premise essence exception and Starting scale proposal packet. Admission covers frontloaded seed audit. Minimal Viable World / First Stable Candidate coverage for phases 4-8 is a recorded follow-up decision. | `creation-flow.md`; `admission-flow.md`; PRD #150; issues #151-#157; PRD #165; issues #166-#169; PRD #170; issues #174-#179; issue #112 decision; `reports/app-parity-trial-01-creation-decision-points.md`; `reports/app-parity-trial-03-replacement-guidance-prompt-context.md`; `reports/prd-165-replacement-handoff-walkthrough.md`; `reports/prd-170-prompt-modes-walkthrough.md`; `output/playwright/prd150-creation-decision-smoke.png`; `output/playwright/prd170-prompt-modes-walkthrough.png`. | Core creation pipeline is field-tested; browser guidance has walkthrough evidence for phases 1-2, prompt-context-complete evidence for the post-decomposition handoff, and prompt-mode walkthrough evidence for one kernel path, but not field validation and not phases 3-10. |
+| `06_canon_fact_admission_protocol.md` | guided flow | Admission queue, severity declaration, gate, ledger rows, seed audit, skip records, canon debt, server-owned decision-point payload, browser close preview, and read-side trail. | `admission-flow.md`; PRD #133; issues #134-#140. | Field-tested core pipeline; browser guidance is decision-guided as of the W-8 retrofit evidence. |
 | `07_propagation_engine.md` | guided flow | Propagation queue, shock-cone orders, domain sweep, consequence dispositions, surfaced proposals, propagation report. | `propagation-flow.md`; PRD #29. | Field-tested core pipeline. |
-| `08_constraint_composition.md` | sweep-inside-another-flow | Constraint record type and constraint-composition sweep support exist through schema/generic records and existing flow sweeps; no dedicated guided flow. | `schema-v1.md`; issue #111 backlog; PRD #29 and PRD #100 deferrals. | Field-tested in package trial 1, but flowless in the app. |
+| `08_constraint_composition.md` | guided flow | Constraint Composition flow supports fact, capability, constraint card, canon debt, selected material, record section, and pass-report resume starts; inventory, composition testing, leakage, residue, constraint cards, Admission proposals, canon debt, Prompt-out advisory use, governed skips, pass-report close sections, and Canon Workbench read-side trail. | `constraint-composition-flow.md`; PRD #141; issues #142-#149. | Field-tested in package trial 1 and now represented by a dedicated app flow; not field-validated in the app. |
 | `09_temporal_and_timeline_protocol.md` | sweep-inside-another-flow | Temporal timeline record type and temporal sweep support exist through schema/generic records and existing flow sweeps; no dedicated guided flow. | `schema-v1.md`; issue #111 backlog; PRD #29 and PRD #100 deferrals. | Field-tested in package trial 2, but flowless in the app. |
 | `10_spatial_and_geographic_propagation.md` | schema-only (T-8) | `spatial_region` record type, spatial facets/links, and generic record editing. | `schema-v1.md`; `charter.md` T-8. | Honestly untested in anger per `README.md` and `00_overhaul_notes.md`. |
 | `11_agent_character_psychology.md` | schema-only (T-8) | `agent_character` and `capability` record support through generic record editing. | `schema-v1.md`; `charter.md` T-8. | Honestly untested in anger per `README.md` and `00_overhaul_notes.md`. |
@@ -52,7 +84,7 @@ complete without pretending every chapter should become a guided workflow.
 | `17_aesthetic_coherence_and_semiosis.md` | schema-only (T-8) | `aesthetic_coherence` record type, aesthetic consequence mode support, generic record editing. | `schema-v1.md`; `charter.md` T-8. | Honestly untested in anger; aesthetic-promise disposal in lyrical/sacred-primary worlds remains untested. |
 | `18_quality_assurance_tests.md` | guided flow | QA pass, 28-test catalog, score rows, regression profile, floor advisory, repair routing, canon debt, prompt-out, skips. | `qa-flow.md`. | Field-tested QA machinery, including live mystery-preservation firing. |
 | `19_worked_examples.md` | non-goal (method doctrine/reference) | Reference material only; no app flow. | `README.md` package map; `charter.md` T-8. | Untested under a genuinely naive steward. |
-| `20_ai_assisted_workflow.md` | sweep-inside-another-flow | Prompt-out templates and advisory artifact lifecycle are offered inside Creation, Admission, Propagation, Contradiction, Institutional, and QA flows. | `creation-flow.md`; `admission-flow.md`; `propagation-flow.md`; `contradiction-retcon-mystery-flow.md`; `institutional-economic-suppression-flow.md`; `qa-flow.md`; ADR 0007. | Prompt-out mechanics are implemented; `20` under a genuinely naive steward remains honestly untested. |
+| `20_ai_assisted_workflow.md` | sweep-inside-another-flow | Prompt-out templates and advisory artifact lifecycle are offered inside Creation, Admission, Propagation, Contradiction, Institutional, QA, and Constraint Composition flows. PRD #165 proves the Creation `decomposition_pressure` packet can carry decomposition material, doctrine, source manifest, omissions, advisory/canon warning, and output labels without hidden repo context. PRD #170 implements proposal and pressure mode vocabulary, the essence exception, shared screen/packet context for Creation/Admission/Constraint decision points, and one browser walkthrough for the Creation kernel proposal packet plus pressure skip. | `creation-flow.md`; `prompt-out-context-assembly.md`; `admission-flow.md`; `propagation-flow.md`; `contradiction-retcon-mystery-flow.md`; `institutional-economic-suppression-flow.md`; `qa-flow.md`; `constraint-composition-flow.md`; ADR 0007; PRD #165; PRD #170; `reports/prd-165-replacement-handoff-walkthrough.md`; `reports/prd-170-prompt-modes-walkthrough.md`; `output/playwright/prd170-prompt-modes-walkthrough.png`. | Prompt-out mechanics are implemented; one Creation decomposition prompt path has prompt-context-complete evidence, and one Creation kernel path has proposal-mode walkthrough evidence. Proposal mode remains honestly untested in field use until a trial exercises it across real worldbuilding work. |
 | `21_templates_index.md` | non-goal (method doctrine/reference) | Record types, minimal instrument paths, pass-report container, and skip discipline guide schema and flows. | `schema-v1.md`; `workflow-principles.md` W-4; `charter.md` T-8. | Reference/index; package trial validated selected template paths. |
 | `22_glossary.md` | non-goal (method doctrine/reference) | Naming authority for UI, schema, code, and docs. | `domain-fidelity.md` P-1; root `CONTEXT.md`. | Reference authority, not a workflow. |
 | `23_research_notes_and_bibliography.md` | non-goal (method doctrine/reference) | Research rationale only; no app surface. | `README.md` package map; `charter.md` P-3/P-4. | Reference authority, not a workflow. |
@@ -62,10 +94,10 @@ complete without pretending every chapter should become a guided workflow.
 
 | Pass or instrument | Coverage class | App coverage | Decision and citation | Field-use status |
 |---|---|---|---|---|
-| Frontloaded seed audit | guided flow | Offered inside Admission; completion writes a `gate_result`; declined path writes `skip_record`. | `admission-flow.md`; `05`; `06`; `checklists/frontloaded_seed_audit.md`. | Field-tested core pipeline. |
-| Canon fact gate and admission ledger | guided flow | Admission full gate and minor batch ledger rows. | `admission-flow.md`; `checklists/canon_fact_gate.md`; `templates/admission_ledger.md`. | Field-tested core pipeline, including batch ledger promotion. |
+| Frontloaded seed audit | guided flow | Offered inside Admission; completion writes a `gate_result`; declined path writes `skip_record`; the browser decision surface now shows audit authority, skip rule, and non-mutation preview. | `admission-flow.md`; `05`; `06`; `checklists/frontloaded_seed_audit.md`; issues #137/#140. | Field-tested core pipeline with W-8 browser guidance evidence. |
+| Canon fact gate and admission ledger | guided flow | Admission full gate and minor batch ledger rows; the browser decision surface now distinguishes required, optional, skippable, and severity-dependent work with server-owned blockers and write intent. | `admission-flow.md`; `checklists/canon_fact_gate.md`; `templates/admission_ledger.md`; issues #136/#139/#140. | Field-tested core pipeline, including batch ledger promotion, with W-8 browser guidance evidence. |
 | Propagation sweep and domain atlas | guided flow | Propagation flow covers shock-cone orders, domain sweep, dispositions, report, surfaced proposals. | `propagation-flow.md`; PRD #29. | Field-tested core pipeline. |
-| Constraint composition sweep (`08`) | sweep-inside-another-flow | Constraint records and generic/sweep handling only; no dedicated guided flow. | `schema-v1.md`; issue #111. | Field-tested but flowless. |
+| Constraint composition sweep (`08`) | guided flow | Dedicated Constraint Composition flow covers constraint budget, composition interactions, loopholes, enforcement, residue, outcome routing, Prompt-out advisory pressure, governed skips, and pass-report/read-side closure. | `constraint-composition-flow.md`; PRD #141; issues #142-#149. | Field-tested in the package and now walkthrough-covered in the app; not app field-validated. |
 | Temporal/timeline sweep (`09`) | sweep-inside-another-flow | Temporal timeline records and generic/sweep handling only; no dedicated guided flow. | `schema-v1.md`; issue #111. | Field-tested but flowless. |
 | Spatial/geographic sweep (`10`) | schema-only (T-8) | `spatial_region` record type and generic record editing. | `schema-v1.md`; `charter.md` T-8. | Honestly untested. |
 | Agent/character sweep (`11`) | schema-only (T-8) | `agent_character` and `capability` record types. | `schema-v1.md`; `charter.md` T-8. | Honestly untested. |
@@ -82,9 +114,11 @@ complete without pretending every chapter should become a guided workflow.
 | Surface | Current ledger state | Tracker |
 |---|---|---|
 | Stage 13 UI reachability | Guided flow. The prior server-only coverage gap is closed; Stage 13 is browser-reachable and Prompt-out is wired. | #109 closed; #120 closed. |
-| `08` constraint composition and `09` temporal/timeline | Field-tested but flowless. They remain visible as sweep-only coverage and need future PRD grooming before dedicated guided flows. | #111 open. |
+| `08` constraint composition | Dedicated guided flow implemented from PRD #141 with coverage ledger, browser decision surface, Prompt-out challenger path, and read-side trail. Future work is app field validation, not flow grooming. | #141; #142-#149. |
+| `09` temporal/timeline | Field-tested but flowless. It remains visible as sweep-only coverage and needs future PRD grooming before a dedicated guided flow. | #111 open. |
 | Creation phases 4-8 | Record the ratified decision: add a non-generative Minimal Viable World / First Stable Candidate checkpoint as a future follow-up after this ledger exists. | #112 closed. |
-| Creation prompt-out bug | Not a coverage row. It was adjacent W-1 prompt coverage and is closed separately. | #113 closed. |
+| Creation prompt-out bug | The original adjacent W-1 prompt bug is closed. PRD #165 adds specific evidence that post-decomposition `decomposition_pressure` no longer falls back to a kernel-only prompt, without upgrading global Prompt-out maturity. | #113 closed; #165; #166-#169. |
+| Prompt-out proposal mode | Proposal and pressure modes are app-implemented for the shared Prompt-out contract, with a browser walkthrough for the Creation kernel path. Keep global maturity below field-validated until a real field trial exercises proposal mode beyond this representative path. | #170; #174-#179. |
 
 ## Flow-Done Checklist
 
@@ -97,5 +131,7 @@ changes what v1 treats as schema-only or non-goal:
 3. Cite the governing PRD, issue, spec, principle, or ADR in the row.
 4. Mark the field-use status honestly: field-tested, flowless, honestly
    untested, schema-only, or non-goal.
-5. Include "update `docs/methodology-coverage.md` or confirm no coverage
+5. Mark guidance maturity honestly when the browser workflow or prompt-out
+   surface changes.
+6. Include "update `docs/methodology-coverage.md` or confirm no coverage
    change" in the flow's closeout audit.

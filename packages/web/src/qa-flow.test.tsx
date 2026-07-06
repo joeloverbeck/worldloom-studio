@@ -6,7 +6,7 @@ import { App } from "./main";
 
 describe("QA flow web surface", () => {
   it("renders QA scorecard controls and routes score interactions through the server", () => {
-    const html = renderToString(<App />);
+    const html = renderToString(<App initialOpenWorld="/tmp/qa.sqlite" />);
     const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
 
     expect(html).toContain("QA flow");
@@ -27,7 +27,7 @@ describe("QA flow web surface", () => {
   });
 
   it("offers QA Prompt-out without duplicating Prompt-out storage routes", () => {
-    const html = renderToString(<App />);
+    const html = renderToString(<App initialOpenWorld="/tmp/qa.sqlite" />);
     const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
 
     expect(html).toContain("<option value=\"qa\">QA</option>");

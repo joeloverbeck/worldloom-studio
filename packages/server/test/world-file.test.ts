@@ -3,7 +3,17 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
-import { APPLICATION_ID, migration001, migration002, migration003, migration004 } from "../src/schema.js";
+import {
+  APPLICATION_ID,
+  CURRENT_SCHEMA_VERSION,
+  migration001,
+  migration002,
+  migration003,
+  migration004,
+  migration005,
+  migration006,
+  migration007
+} from "../src/schema.js";
 import { WorldFile } from "../src/world-file.js";
 import * as AdmissionFlow from "../src/admission-flow.js";
 import * as ContradictionFlow from "../src/contradiction-flow.js";
@@ -122,13 +132,14 @@ describe("WorldFile", () => {
     const store = WorldFile.create(path);
 
     expect(store.db.pragma("application_id", { simple: true })).toBe(APPLICATION_ID);
-    expect(store.db.pragma("user_version", { simple: true })).toBe(6);
+    expect(store.db.pragma("user_version", { simple: true })).toBe(CURRENT_SCHEMA_VERSION);
     expect(store.db.pragma("journal_mode", { simple: true })).toBe("wal");
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM record_types").get()).toMatchObject({ count: 27 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM link_types").get()).toMatchObject({ count: 25 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'canon_status'").get()).toMatchObject({ count: 11 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'consequence_disposition'").get()).toMatchObject({ count: 4 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'contradiction_disposition'").get()).toMatchObject({ count: 7 });
+    expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'advisory_disposition' AND term = 'adopted with steward revision'").get()).toMatchObject({ count: 1 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM qa_test_catalog").get()).toMatchObject({ count: 28 });
     expect(store.db.prepare("SELECT mutation_regime FROM record_types WHERE key = 'qa_pass'").get()).toMatchObject({ mutation_regime: "report" });
     expect(store.db.prepare("SELECT label FROM link_types WHERE key = 'assesses'").get()).toMatchObject({ label: "assesses" });
@@ -176,13 +187,28 @@ describe("WorldFile", () => {
       body: "Echo laws split into testimony, cost, and enforcement seeds.",
       ...explicitJudgment
     });
+    store.replaceSections(decomposition.id, [
+      { heading: "Kernel source", body: "KER-1 World kernel", position: 1 },
+      { heading: "Drafts consumed", body: "(empty)", position: 2 },
+      { heading: "Granularity decisions", body: "Each seed can be rejected independently.", position: 3 },
+      { heading: "Parked seeds", body: "FAC-1 Echo court testimony", position: 4 },
+      { heading: "Thin-start boundary", body: "No seed is admitted by Creation.\nAdmission intent: audit in Admission.", position: 5 }
+    ]);
+    const seed = store.createRecord({
+      recordTypeKey: "canon_fact",
+      title: "Echo court testimony",
+      body: "Courts accept echo testimony under conditions.",
+      ...explicitJudgment
+    });
+    store.createLink(seed.id, kernel.id, "derived_from", "Seed decomposed from world kernel");
+    store.createLink(seed.id, decomposition.id, "derived_from", "Seed recorded by decomposition report");
     store.db.prepare("DELETE FROM prompt_template_versions WHERE template_key IN ('kernel_pressure', 'decomposition_pressure')").run();
     store.db.prepare("DELETE FROM prompt_templates WHERE key IN ('kernel_pressure', 'decomposition_pressure')").run();
     store.close();
 
     const reopened = WorldFile.open(path);
 
-    expect(reopened.schemaVersion()).toBe(6);
+    expect(reopened.schemaVersion()).toBe(CURRENT_SCHEMA_VERSION);
     expect(PromptOut.listPromptTemplates(reopened)).toEqual(expect.arrayContaining([
       expect.objectContaining({
         key: "kernel_pressure",
@@ -230,6 +256,9 @@ describe("WorldFile", () => {
     expect(decompositionPrompt.prompt).toContain("Prerequisite auditor");
     expect(decompositionPrompt.prompt).toContain("Vocabulary guardrail");
     expect(decompositionPrompt.prompt).toContain("Echo laws split into testimony, cost, and enforcement seeds.");
+    expect(decompositionPrompt.prompt).toContain("FAC-1");
+    expect(decompositionPrompt.prompt).toContain("Courts accept echo testimony under conditions.");
+    expect(decompositionPrompt.prompt).toContain("Admission intent: audit in Admission.");
 
     reopened.close();
   });
@@ -242,9 +271,9 @@ describe("WorldFile", () => {
     oldDb.close();
 
     const migrated = WorldFile.open(oldPath);
-    expect(migrated.db.pragma("user_version", { simple: true })).toBe(6);
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(CURRENT_SCHEMA_VERSION);
     migrated.close();
-    expect(readdirSync(join(oldPath, "..")).some((name) => name.includes("pre-migration-v0-to-v6"))).toBe(true);
+    expect(readdirSync(join(oldPath, "..")).some((name) => name.includes(`pre-migration-v0-to-v${CURRENT_SCHEMA_VERSION}`))).toBe(true);
 
     const corruptPath = tempPath("corrupt.sqlite");
     writeFileSync(corruptPath, "not sqlite");
@@ -285,14 +314,14 @@ describe("WorldFile", () => {
     db.close();
 
     const migrated = WorldFile.open(path);
-    expect(migrated.db.pragma("user_version", { simple: true })).toBe(6);
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(CURRENT_SCHEMA_VERSION);
     expect(migrated.getRecord(recordId)).toMatchObject({ body: "Body from v1" });
     expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'consequence_disposition'").get()).toMatchObject({ count: 4 });
     expect(migrated.sectionHeadings("world_kernel")).toEqual(expect.arrayContaining([
       expect.objectContaining({ heading: "World premise" })
     ]));
     migrated.close();
-    expect(readdirSync(join(path, "..")).some((name) => name.includes("pre-migration-v1-to-v6"))).toBe(true);
+    expect(readdirSync(join(path, "..")).some((name) => name.includes(`pre-migration-v1-to-v${CURRENT_SCHEMA_VERSION}`))).toBe(true);
 
     const newerPath = tempPath("newer.sqlite");
     const newer = new Database(newerPath);
@@ -314,8 +343,8 @@ describe("WorldFile", () => {
     db.close();
 
     const migrated = WorldFile.open(path);
-    expect(migrated.db.pragma("user_version", { simple: true })).toBe(6);
-    expect(readdirSync(join(path, "..")).some((name) => name.includes("pre-migration-v3-to-v6"))).toBe(true);
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(CURRENT_SCHEMA_VERSION);
+    expect(readdirSync(join(path, "..")).some((name) => name.includes(`pre-migration-v3-to-v${CURRENT_SCHEMA_VERSION}`))).toBe(true);
 
     const repairTerms = (migrated.db.prepare("SELECT term FROM vocabulary_terms WHERE vocabulary = 'repair_operation'").all() as Array<{ term: string }>)
       .map((row) => row.term)
@@ -358,8 +387,8 @@ describe("WorldFile", () => {
     db.close();
 
     const migrated = WorldFile.open(path);
-    expect(migrated.db.pragma("user_version", { simple: true })).toBe(6);
-    expect(readdirSync(join(path, "..")).some((name) => name.includes("pre-migration-v4-to-v6"))).toBe(true);
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(CURRENT_SCHEMA_VERSION);
+    expect(readdirSync(join(path, "..")).some((name) => name.includes(`pre-migration-v4-to-v${CURRENT_SCHEMA_VERSION}`))).toBe(true);
     expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM qa_test_catalog").get()).toMatchObject({ count: 28 });
     expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM qa_test_catalog WHERE number IN ('P1', 'P2')").get()).toMatchObject({ count: 0 });
 
@@ -388,6 +417,30 @@ describe("WorldFile", () => {
     `).run(flow.id, pass.id);
     expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM qa_test_scores WHERE qa_pass_record_id = ?").get(pass.id)).toMatchObject({ count: 2 });
 
+    migrated.close();
+  });
+
+  it("migrates v7 files to the proposal-mode advisory vocabulary with backup", () => {
+    const path = tempPath("v7.sqlite");
+    const db = new Database(path);
+    db.exec("BEGIN");
+    db.exec(migration001);
+    db.exec(migration002);
+    db.exec(migration003);
+    db.exec(migration004);
+    db.exec(migration005);
+    db.exec(migration006);
+    db.exec(migration007);
+    db.exec("COMMIT");
+    expect(db.pragma("user_version", { simple: true })).toBe(7);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'advisory_disposition' AND term = 'adopted with steward revision'").get()).toMatchObject({ count: 0 });
+    db.close();
+
+    const migrated = WorldFile.open(path);
+
+    expect(migrated.db.pragma("user_version", { simple: true })).toBe(CURRENT_SCHEMA_VERSION);
+    expect(readdirSync(join(path, "..")).some((name) => name.includes(`pre-migration-v7-to-v${CURRENT_SCHEMA_VERSION}`))).toBe(true);
+    expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'advisory_disposition' AND term = 'adopted with steward revision'").get()).toMatchObject({ count: 1 });
     migrated.close();
   });
 
@@ -455,7 +508,8 @@ describe("WorldFile", () => {
     const result = CreationFlow.decomposeSeeds(store, {
       flowId: flow.id,
       kernelRecordId: kernelStep.kernel.id,
-      seeds: [{ title: "Echo bridges answer", body: "The bridges answer questions at dawn", truthLayer: "Objective canon", canonStatus: "proposed" }]
+      granularityRationale: "The bridge seed can be rejected independently.",
+      seeds: [{ title: "Echo bridges answer", body: "The bridges answer questions at dawn", truthLayer: "Objective canon", granularityConfirmed: true }]
     }) as { report: { id: number }; records: Array<{ id: number; canonStatus: string }> };
     expect(result.records).toMatchObject([{ canonStatus: "proposed" }]);
     expect(AdmissionFlow.admissionQueue(store)).toEqual(expect.arrayContaining([expect.objectContaining({ id: result.records[0]!.id, canonStatus: "proposed" })]));
@@ -562,6 +616,28 @@ describe("WorldFile", () => {
     AdmissionFlow.declareAdmissionSeverity(store, fact.id, { admissionLevel: "3", workScale: "major" });
     const flow = AdmissionFlow.startAdmissionGate(store, fact.id) as { current_step: string };
     expect(flow.current_step).toContain(`record:${fact.id}:gate`);
+    const decisionPoint = AdmissionFlow.admissionDecisionPoint(store, fact.id);
+    expect(decisionPoint).toMatchObject({
+      currentStep: `record:${fact.id}:gate`,
+      localDecision: "Complete the full canon fact gate with written substance.",
+      severity: { admissionLevel: "3", workScale: "major", gatePath: "full_gate" },
+      blockers: expect.arrayContaining([
+        expect.objectContaining({ key: "written_consequence", requires: "written consequence text" })
+      ]),
+      promptOut: {
+        advisory: "optional",
+        preview: {
+          currentDecision: "Complete the full canon fact gate with written substance.",
+          sourceManifest: expect.arrayContaining([expect.stringContaining("Record")]),
+          advisoryCanonWarning: expect.stringContaining("advisory")
+        }
+      },
+      writeIntent: {
+        willWrite: expect.arrayContaining(["gate_result report"]),
+        willRouteOnward: expect.arrayContaining(["Read-side views remain read-only and do not gain Admission mutation controls"])
+      },
+      readSideTrail: expect.arrayContaining([expect.objectContaining({ label: "Audit Trail" })])
+    });
     expect(() => AdmissionFlow.completeAdmissionGate(store, {
       recordId: fact.id,
       truthLayer: "Objective canon",

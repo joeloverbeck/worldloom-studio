@@ -10,19 +10,25 @@ The steward writes or explicitly approves every final word that enters the world
 
 The friction this creates is the feature working — deliberate human acts before accepting machine output measurably reduce uncritical over-reliance (report §4.1, P-2 research grounding). The mitigation is severity scaling (W-2), never a bypass.
 
-## W-1. Prompt-out at every dependency-bearing step; paste-in is advisory material
+## W-1. Prompt-out at every decision point; paste-in is advisory material
 
-Every step whose output later steps depend on offers a generated prompt the steward **may** (not must) run in any external LLM. The prompts operationalize `20`'s ten analyst roles; the step-to-role mapping lives in `workflow-principles.md`.
+Every decision point — every block of material the method asks the steward to author, classify, or dispose of — offers a generated prompt the steward **may** (not must) run in any external LLM, in either of `20`'s two assistance modes:
 
-Every prompt-out step preserves `20`'s invariant sequence: **human writes → AI challenges → human deletes/selects → human decides → AI summarizes → human records.** No flow step opens with generation — the steward's own material always comes first, and the AI is asked for pressure on it, never for the first draft.
+- **Proposal prompts** ask the external LLM to draft candidate content for the current decision, carrying the exact world context and doctrine the decision depends on. Available at every decision point except the world's essence (`05` Phase 1 kernel premise), which `20` reserves to the steward outright.
+- **Pressure prompts** ask for challenge on steward-authored material, operationalizing `20`'s ten analyst roles; the step-to-role mapping lives in `workflow-principles.md`. Pressure requires steward material to press on; proposal does not.
 
-- Every prompt embeds: the relevant record context (assembled by the app — this is the drudgery the method currently leaves to the steward), the role's ask-for-pressure framing, `20`'s vocabulary guardrail, the instruction to label assumptions, and the steward's standing rulings from prior dispositions.
+The two modes end identically, per `20`'s adoption rule: **the steward selects, edits, or discards, and authors the surviving material into the record in their own wording.** Adoption is authorship. Sovereignty is enforced at adoption and at admission — not by forbidding the LLM the first draft. Where the steward does write first, pressure mode remains the sharper instrument, and high-severity work should still end under pressure before admission; but no flow step may *require* steward-drafted material as a precondition for offering prompt-out.
+
+- Every prompt embeds or explicitly omits with reason: the current flow, step, and decision point; the selected record or draft context; relevant dependencies and source links; current-canon or world-kernel summary where applicable; governing package doctrine; `20`'s vocabulary guardrail; label-assumptions instruction; standing rulings and relevant prior advisory dispositions; open canon debt, skips, or unresolved contradictions that bear on the step; the requested mode and role; the mode-appropriate instruction — labeled candidates with alternatives for proposal prompts, pressure/risks/alternatives/questions for pressure prompts, never an assignment of canon standing or any separated label; and the advisory/canon warning.
 - Prompts must be **fully self-contained** — the receiving model is assumed to have never seen the world.
+- Prompt packets are reviewable before copy-out. The steward can see why each context item was included, and large prompts prefer a source manifest plus targeted excerpts over whole-world dumping.
 - Pasted responses are stored **verbatim as immutable advisory artifacts** attached to the step that generated the prompt. The app never parses a pasted response into a canon field.
 - The steward disposes of advisory material using `20`'s output labels; dispositions persist and steer future prompts.
 - Every prompt-out step is skippable — `20`'s anti-automation rule governs.
 
 The prompt-out/paste-in transport is a reasoned design, not an externally evidenced pattern: the archived report's §10 records a negative finding — no published study of deliberately API-less, clipboard-mediated LLM integration was found. App field use is its first real evaluation; specs building on W-1 inherit that honesty (charter T-8), not a claim of validated practice. Sovereignty itself (P-2) does not rest on this evidence — its roots are the prior app's failure and `20`'s doctrine, independently sufficient.
+
+A prompt passes the W-1 quality bar when it is useful in a cold external LLM session without hidden project context and still makes the steward's authority unmistakable.
 
 ## Default prompt texts
 

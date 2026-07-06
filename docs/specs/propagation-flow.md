@@ -23,6 +23,16 @@ The flow works a fact's shock cone. It never admits facts and never generates co
 15. **Skips.** Declined propagation steps write `skip_record` mechanically. A reason is required only at major-or-higher thresholds.
 16. **Provenance.** Records keep actor/timestamp provenance; propagation consequence, domain, disposition, proposal, and flow rows record the flow step that produced them.
 
+## Decision-Point UI Contract
+
+This flow must satisfy `guided-workflow-usability.md` W-8 and `guided-flow-spec-template.md`.
+
+- **Run entry:** the browser shows whether the steward is working owed propagation debt or an elective fact, cites the source fact/debt, and makes clear that the flow organizes consequences without admitting facts.
+- **Shock-cone orders:** each order shows the decision to write or stop a consequence, the relevant `07` doctrine, severity-derived expectations, consequence-scout prompt packet, and any blockers for high-pressure consequences.
+- **Domain-atlas sweep:** the browser shows the fourteen `04` domains, distinguishes direct/dependency/reaction/negative/unswept states, requires negative-domain declarations where selected, and explains which domains remain unswept.
+- **Disposition:** the browser shows the stop-when-governed choices, their package meaning, the write or routing effect of each choice, and whether the result creates canon debt, protects a mystery boundary, or surfaces a proposed fact.
+- **Close/result:** the browser previews the append-only propagation report, digest link, surfaced Admission proposals, debt, protected boundaries, skip records, advisory-use links, and read-side trail.
+
 ## Existing Types and Links
 
 No new record types are introduced. This flow uses existing `canon_fact`, `canon_debt`, `propagation_report`, `skip_record`, `advisory_artifact`, `canon_change_proposal`, `flow_instances`, `record_links`, `record_sections`, `record_facets`, `jurisdiction_events`, and prompt-template tables.
@@ -37,6 +47,6 @@ Secondary seam: direct store/SQL assertions for report append-only enforcement, 
 
 ## Principles
 
-Touches `charter.md` (P-3, P-4, T-8), `canon-sovereignty.md` (P-2, W-1), `domain-fidelity.md` (P-1, T-2), `workflow-principles.md` (P-5, W-2, W-3, W-4, W-7), `data-principles.md` (P-6, W-5, W-6, T-3, T-4, T-5), and ADRs 0001-0004. It affirms non-contradiction: the app clerks queueing, coverage, reports, links, and provenance; every judgment stays steward-authored; sweeps propose and admission admits; report-regime records remain master audit records.
+Touches `charter.md` (P-3, P-4, T-8), `canon-sovereignty.md` (P-2, W-1), `domain-fidelity.md` (P-1, T-2), `workflow-principles.md` (P-5, W-2, W-3, W-4, W-7), `guided-workflow-usability.md` (W-8), `data-principles.md` (P-6, W-5, W-6, T-3, T-4, T-5), and ADRs 0001-0004 and 0009. It affirms non-contradiction: the app clerks queueing, coverage, reports, links, and provenance; every judgment stays steward-authored; sweeps propose and admission admits; report-regime records remain master audit records.
 
 T-8 coverage statement: `07` and `04` are field-tested surfaces in the package, so a guided propagation flow is licensed. Specialized pass flows for `08`-`17` remain out of scope and continue to have schema-level/generic-record coverage only.

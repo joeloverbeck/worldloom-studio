@@ -22,7 +22,7 @@ Characteristics:
 - Describes WHAT, not HOW
 - One behavior contract per test; multiple assertions are fine when they jointly prove that contract and each expected value comes from the spec or a worked example
 
-**Static contract checks**: Use these only when the spec names a source-level contract, such as a required route string or a forbidden legacy import. Pair them with public-interface coverage when behavior is user-visible.
+**Static contract checks**: Use these only when the spec names a source-level contract, such as a required route string or a forbidden legacy import. Pair them with public-interface coverage when behavior is user-visible. Do not use source-file string checks merely to prove browser-visible UI text, controls, or flow behavior; use a public UI/rendered DOM test or evidence-only browser smoke unless the spec names the source contract.
 
 ```typescript
 import { readFileSync } from "node:fs";

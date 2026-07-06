@@ -35,4 +35,120 @@ describe("Prompt-out lifecycle web surface", () => {
     expect(storeAdvisory).not.toContain("flowKey:");
     expect(skipPrompt).not.toContain("flowKey:");
   });
+
+  it("renders server-returned prompt modes, essence blockers, and disposition labels without local availability policy", () => {
+    const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
+    const creationPromptPanel = snippetBetween(source, "<h3>Prompt-out preview</h3>", "<button onClick={loadCreationPromptStep}");
+    const creationPromptButton = snippetBetween(source, "<button onClick={loadCreationPromptStep}", "</button>");
+    const promptLoader = snippetBetween(source, "const loadCreationPromptStep = async () =>", "const ensurePromptStep = async");
+    const html = renderToString(<App
+      initialOpenWorld="/tmp/prompt-modes.sqlite"
+      initialCreationDecision={{
+        flow: { key: "creation", runState: "in_progress" },
+        currentStep: "kernel:Starting scale",
+        localDecision: "Name where the world starts.",
+        packageAuthority: {
+          primary: "docs/worldbuilding-system/05_creation_protocol.md",
+          why: "Phase 1 owns the world kernel.",
+          citations: ["docs/worldbuilding-system/20_ai_assisted_workflow.md"]
+        },
+        currentKernel: { id: 1, shortId: "KER-1", title: "World kernel" },
+        sectionPrompts: [],
+        work: { required: [], optional: [], allowedEmpty: [], skippable: [] },
+        blockers: [],
+        promptOut: {
+          available: true,
+          blocker: null,
+          templateKey: "kernel_pressure",
+          stepKey: "creation:kernel_prompt",
+          role: "Consequence scout",
+          stepRequest: {
+            method: "POST",
+            href: "/api/prompt-out/steps",
+            body: {
+              flowKey: "creation",
+              flowId: 1,
+              recordId: 1,
+              templateKey: "kernel_pressure",
+              stepKey: "creation:kernel_prompt",
+              label: "Pressure mode"
+            }
+          },
+          modes: [
+            {
+              mode: "proposal",
+              label: "Proposal mode",
+              available: true,
+              blocker: null,
+              framing: "Request labeled candidates with alternatives and assumptions.",
+              outputLabels: ["selected", "adopted with steward revision", "rejected"],
+              stepRequest: {
+                method: "POST",
+                href: "/api/prompt-out/steps",
+                body: {
+                  mode: "proposal",
+                  flowKey: "creation",
+                  flowId: 1,
+                  recordId: 1,
+                  templateKey: "kernel_pressure",
+                  stepKey: "creation:kernel_prompt",
+                  label: "Proposal mode"
+                }
+              }
+            },
+            {
+              mode: "pressure",
+              label: "Pressure mode",
+              available: false,
+              blocker: "Proposal is refused for the world's essence only; pressure waits for steward-authored material.",
+              framing: "Ask for challenge, risks, alternatives, and questions.",
+              outputLabels: ["challenged", "standing ruling"],
+              stepRequest: null
+            }
+          ],
+          preview: {
+            currentDecision: "Name where the world starts.",
+            promptText: "Proposal mode packet preview",
+            contextPreview: "Starting scale: harbor district",
+            sourceManifest: ["Source record: KER-1 World kernel"],
+            omissions: ["World essence proposal blocker shown only for World premise."],
+            advisoryCanonWarning: "Pasted responses remain advisory artifacts and are not admitted canon."
+          }
+        },
+        writeIntent: { willWrite: [], willLink: [], willQueue: [], willRouteOnward: [], willLeaveUntouched: [] },
+        nextOrResumeState: { currentStep: "kernel:Starting scale", nextStep: "continue kernel authoring", safeExit: "Safe exit." },
+        readSideTrail: [],
+        handoffs: [],
+        handoff: {
+          seedDecompositionReport: null,
+          reportSections: [],
+          parkedSeeds: [],
+          supportingKernel: null,
+          kernelSections: [],
+          granularityRationale: null,
+          admissionIntent: null,
+          admissionQueueRoute: "/api/admission/queue",
+          currentStatus: "proposed",
+          nextStep: "complete seed decomposition",
+          sourceLinks: [],
+          doctrineAtPointOfUse: []
+        }
+      } as any}
+    />);
+
+    expect(html).toContain("Proposal mode");
+    expect(html).toContain("Request labeled candidates with alternatives and assumptions.");
+    expect(html).toContain("adopted with steward revision");
+    expect(html).toContain("Pressure mode");
+    expect(html).toContain("challenge, risks, alternatives, and questions");
+    expect(html).toContain("world&#x27;s essence");
+    expect(html).toContain("Pasted responses remain advisory artifacts");
+    expect(creationPromptPanel).toContain("promptOut.modes");
+    expect(creationPromptButton).toContain("promptOut.modes?.some((mode) => mode.stepRequest)");
+    expect(promptLoader).toContain("mode.stepRequest");
+    expect(promptLoader.indexOf("setPromptFlowKey(\"creation\")")).toBeLessThan(promptLoader.indexOf("setPromptStep(payload.step)"));
+    expect(promptLoader.indexOf("setPromptRecordId(String(request.body.recordId ?? \"\"))")).toBeLessThan(promptLoader.indexOf("setPromptStep(payload.step)"));
+    expect(promptLoader).not.toContain('mode.mode === "proposal"');
+    expect(promptLoader).not.toContain("currentStep.includes");
+  });
 });

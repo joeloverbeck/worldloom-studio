@@ -33,6 +33,16 @@ QA asks whether a record or world section is coherent under pressure. It renders
 25. **Terminology.** "QA pass", "pass report", "regression profile", "scorecard", and "consequence mode" are package terms from `18` and `22_glossary.md`. No new app-layer term is owed to `CONTEXT.md`.
 26. **Standalone ADR deferral.** The QA module boundary is declared here instead of a standalone ADR. QA reads across reports and ledgers, writes only its pass reports and follow-up canon debt, and routes canon proposals through Admission intake under W-3 and ADR 0006. A dedicated ADR is deferred until QA logic leaks across modules.
 
+## Decision-Point UI Contract
+
+This flow must satisfy `guided-workflow-usability.md` W-8 and `guided-flow-spec-template.md`.
+
+- **Pass entry:** the browser shows the decision to assess one record or the whole world, cites `18`, shows subject context, mode-aware calibration when available, and the fact that QA cannot change canon standing.
+- **Score rows:** each rendered test shows the failure smell, anchors, score meaning, n/a rule, required repair field, prompt role where relevant, and blockers for unexplained n/a or routed low-score rows without repair prose.
+- **Regression profile and floor:** the browser shows the profile fields as steward-authored judgments, typed-link affordances, floor advisory conditions, override reason threshold, and the warning/non-blocking distinction.
+- **Repair routing:** proposed fixes show whether they become Admission proposals, canon debt, or no mutation; they never repair canon in place.
+- **Finalize/result:** the browser previews the append-only QA pass, score rows, debt, Admission proposals, advisory-use links, skip records, and read-side trail.
+
 ## Core Test Catalog
 
 The world QA catalog contains only the 28 core tests from `18`; each row cites `docs/worldbuilding-system/18_quality_assurance_tests.md`.
@@ -84,9 +94,11 @@ Touches `docs/principles/README.md` and affirms non-contradiction with:
 - `canon-sovereignty.md` P-2, W-1, T-5: QA uses prompt-out/paste-in only; advisory artifacts remain immutable and type-separated; explicit advisory use is linked when the steward names it.
 - `domain-fidelity.md` P-1, T-2: QA derives doctrine from `18`, keeps score/n/a/consequence-mode vocabulary separate, and does not redefine or infer package labels.
 - `workflow-principles.md` P-5, W-1, W-2, W-3, W-4, W-7: QA is resumable, severity-scaled, skippable with records, coverage-gated by substance, and routes canon proposals through Admission.
+- `guided-workflow-usability.md` W-8: QA browser work must expose each score, profile, floor, prompt-out, and repair routing point as a local decision.
 - `data-principles.md` P-6, W-5, W-6, T-3, T-4, T-5: `qa_pass` is the append-only audit record; score rows structure only what `18` structures; profile fields remain prose; typed links carry record/debt references; provenance is recorded at authorship time.
 - ADRs 0001, 0002, 0003, 0004: no storage, deployment, branch/collaboration, or stack change; the migration remains forward-only and backup-first.
 - ADR 0006: all QA fact repairs use Admission intake.
 - ADR 0007: QA consumes Prompt-out lifecycle mechanics instead of reimplementing generate/store/dispose/skip.
+- ADR 0009: QA presents server-owned policy as guided decision points in the browser.
 
 No deliberate exceptions.

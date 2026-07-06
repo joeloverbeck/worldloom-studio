@@ -1,10 +1,12 @@
 import * as AdmissionFlow from "./admission-flow.js";
+import * as ConstraintFlow from "./constraint-composition-flow.js";
 import * as ContradictionFlow from "./contradiction-flow.js";
 import * as CreationFlow from "./creation-flow.js";
 import * as InstitutionalFlow from "./institutional-flow.js";
 import * as PromptOut from "./prompt-out.js";
 import * as PropagationFlow from "./propagation-flow.js";
 import * as QaFlow from "./qa-flow.js";
+import type { DecisionPointPromptModeSummary, PromptMode } from "./decision-point-contract.js";
 import type { RecordRow, WorldFile } from "./world-file.js";
 
 export interface PromptOutStepActionContext {
@@ -13,6 +15,7 @@ export interface PromptOutStepActionContext {
   templateKey?: string;
   recordId?: number;
   stepKey: string;
+  mode?: PromptMode;
   admissionLevel?: string;
   workScale?: string;
 }
@@ -20,6 +23,7 @@ export interface PromptOutStepActionContext {
 export interface PromptOutStepOfferInput extends PromptOutStepActionContext {
   templateKey: string;
   label?: string;
+  availableModes?: DecisionPointPromptModeSummary[];
 }
 
 interface PromptOutStepAction {
@@ -31,6 +35,8 @@ export interface PromptOutStepDto {
   id: string;
   label: string;
   templateKey: string;
+  mode: PromptMode;
+  availableModes: DecisionPointPromptModeSummary[];
   context: {
     flowKey: string | null;
     flowId: number | null;
@@ -78,6 +84,8 @@ export interface PromptOutSkipBody {
   unresolved?: boolean;
   debtName?: string;
   existingDebtRecordId?: number;
+  admissionLevel?: string;
+  workScale?: string;
 }
 
 const actionBase = "/api/prompt-out/steps/actions";
@@ -96,6 +104,7 @@ const actionHref = (action: "generate" | "store-advisory" | "disposition" | "ski
     templateKey: input.templateKey,
     recordId: input.recordId,
     stepKey: input.stepKey,
+    mode: input.mode,
     admissionLevel: input.admissionLevel,
     workScale: input.workScale
   };
@@ -128,6 +137,7 @@ export const promptOutActionContextFromQuery = (query: (key: string) => string |
   templateKey: query("templateKey"),
   recordId: optionalNumber(query("recordId")),
   stepKey: query("stepKey") ?? "",
+  mode: query("mode") === "proposal" ? "proposal" : "pressure",
   admissionLevel: query("admissionLevel"),
   workScale: query("workScale")
 });
@@ -135,10 +145,28 @@ export const promptOutActionContextFromQuery = (query: (key: string) => string |
 export const buildPromptOutStep = (world: WorldFile, input: PromptOutStepOfferInput): PromptOutStepDto => {
   const template = PromptOut.listPromptTemplates(world).find((row) => row.key === input.templateKey);
   if (!template) throw new Error(`Prompt template not found: ${input.templateKey}`);
+  const mode = input.mode ?? "pressure";
   return {
     id: stepId(input),
     label: input.label?.trim() || template.role_name || input.stepKey,
     templateKey: input.templateKey,
+    mode,
+    availableModes: input.availableModes ?? [
+      {
+        mode: "proposal",
+        label: "Proposal mode",
+        framing: "Request labeled candidates with alternatives and assumptions; adoption remains steward authorship.",
+        available: true,
+        blocker: null
+      },
+      {
+        mode: "pressure",
+        label: "Pressure mode",
+        framing: "Request challenge, risks, alternatives, and questions on steward-authored material.",
+        available: true,
+        blocker: null
+      }
+    ],
     context: {
       flowKey: input.flowKey ?? null,
       flowId: input.flowId ?? null,
@@ -169,17 +197,27 @@ export const runPromptOutGenerateAction = (world: WorldFile, input: PromptOutSte
     flowId: input.flowId,
     templateKey: input.templateKey ?? "",
     recordId: input.recordId,
-    stepKey: input.stepKey
+    stepKey: input.stepKey,
+    mode: input.mode
   });
 
 export const runPromptOutStoreAdvisoryAction = (
   world: WorldFile,
   input: PromptOutStepActionContext,
   payload: PromptOutStoreAdvisoryBody
-): { record: RecordRow } | ReturnType<typeof InstitutionalFlow.storeStage12Advisory> => {
+): { record: RecordRow } | ReturnType<typeof InstitutionalFlow.storeStage12Advisory> | ReturnType<typeof ConstraintFlow.storeConstraintAdvisory> => {
   if (input.flowKey === InstitutionalFlow.FLOW_KEY) {
     if (input.flowId == null) throw new Error("Stage-12 Prompt-out actions require a flow id");
     return InstitutionalFlow.storeStage12Advisory(world, {
+      flowId: input.flowId,
+      stepKey: input.stepKey,
+      promptText: payload.promptText,
+      responseText: payload.responseText
+    });
+  }
+  if (input.flowKey === ConstraintFlow.FLOW_KEY) {
+    if (input.flowId == null) throw new Error("Constraint Composition Prompt-out actions require a flow id");
+    return ConstraintFlow.storeConstraintAdvisory(world, {
       flowId: input.flowId,
       stepKey: input.stepKey,
       promptText: payload.promptText,
@@ -191,6 +229,7 @@ export const runPromptOutStoreAdvisoryAction = (
       flowKey: input.flowKey,
       flowId: input.flowId,
       stepKey: input.stepKey,
+      mode: input.mode,
       promptText: payload.promptText,
       responseText: payload.responseText
     })
@@ -230,6 +269,15 @@ const skipHandlers: Record<string, SkipHandler> = {
       flowId: input.flowId,
       stepKey: input.stepKey
     });
+  },
+  [ConstraintFlow.FLOW_KEY]: (world, input, payload) => {
+    if (input.flowId == null) throw new Error("Constraint Composition Prompt-out skip actions require a flow id");
+    return ConstraintFlow.skipConstraintStep(world, {
+      ...input,
+      ...payload,
+      flowId: input.flowId,
+      stepKey: input.stepKey
+    });
   }
 };
 
@@ -239,14 +287,19 @@ export const runPromptOutSkipAction = (
   payload: PromptOutSkipBody = {}
 ): unknown => {
   const handler = input.flowKey ? skipHandlers[input.flowKey] : undefined;
-  if (handler) return handler(world, input, payload);
+  const mergedInput = {
+    ...input,
+    admissionLevel: payload.admissionLevel ?? input.admissionLevel,
+    workScale: payload.workScale ?? input.workScale
+  };
+  if (handler) return handler(world, mergedInput, payload);
   return {
     record: PromptOut.recordPromptOutSkip(world, {
       flowKey: input.flowKey,
       flowId: input.flowId,
       stepKey: input.stepKey,
-      admissionLevel: input.admissionLevel,
-      workScale: input.workScale,
+      admissionLevel: mergedInput.admissionLevel,
+      workScale: mergedInput.workScale,
       reason: payload.reason
     })
   };

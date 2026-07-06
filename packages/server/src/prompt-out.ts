@@ -1,4 +1,6 @@
 import { requiresSkipReason } from "./severity-policy.js";
+import { resolveCreationDecompositionHandoff } from "./creation-handoff.js";
+import type { PromptMode } from "./decision-point-contract.js";
 import type { RecordInput, RecordRow, WorldFile } from "./world-file.js";
 
 export type PromptOutFlowKey = "creation" | "admission" | "propagation" | "contradiction" | "qa" | string;
@@ -25,6 +27,7 @@ export interface PromptOutStepContext {
   flowKey?: PromptOutFlowKey;
   flowId?: number;
   stepKey: string;
+  mode?: PromptMode;
   admissionLevel?: string | null;
   workScale?: string | null;
   reason?: string;
@@ -36,6 +39,7 @@ export interface PromptGenerationInput {
   templateKey: string;
   recordId?: number;
   stepKey?: string;
+  mode?: PromptMode;
 }
 
 export interface PromptGenerationResult {
@@ -44,6 +48,7 @@ export interface PromptGenerationResult {
     flowKey: PromptOutFlowKey | null;
     flowId: number | null;
     stepKey: string;
+    mode: PromptMode;
     templateKey: string;
     recordId: number | null;
   };
@@ -53,6 +58,7 @@ export interface AdvisoryResponseInput {
   flowKey?: PromptOutFlowKey;
   flowId?: number;
   stepKey: string;
+  mode?: PromptMode;
   promptText: string;
   responseText: string;
 }
@@ -62,6 +68,8 @@ const contextLines = (input: { flowKey?: PromptOutFlowKey; flowId?: number; step
   ...(input.flowId == null ? [] : [`Flow id: ${input.flowId}`]),
   `Step: ${input.stepKey}`
 ];
+
+const modeLine = (mode?: PromptMode): string[] => mode ? [`Mode: ${mode}`] : [];
 
 const rowToPromptTemplate = (row: Record<string, unknown>): PromptTemplateRow => ({
   key: String(row.key),
@@ -120,7 +128,7 @@ const promptRecordContext = (world: WorldFile, recordId: number): string => {
     `Truth layer: ${record.truthLayer ?? "unset"}`,
     `Canon status: ${record.canonStatus ?? "unset"}`,
     record.body,
-    ...sections.map((section) => `## ${section.heading}\n${section.body}`)
+    ...sections.map((section) => `## ${section.heading}\n${section.body}\n${section.heading}: ${section.body}`)
   ].filter(Boolean).join("\n");
 };
 
@@ -131,6 +139,110 @@ const standingRulingRows = (world: WorldFile): Array<{ disposition: string; note
       const values = row as Record<string, unknown>;
       return { disposition: String(values.disposition), note: String(values.note ?? "") };
     });
+
+const creationDoctrineLines = (input: PromptGenerationInput): string[] => {
+  if (input.flowKey !== "creation") return [];
+  if (input.templateKey === "kernel_pressure") {
+    return [
+      "Current Creation decision: define the world's first governing kernel or pressure seed.",
+      "Creation doctrine: docs/worldbuilding-system/05_creation_protocol.md Phase 1.",
+      "Template doctrine: docs/worldbuilding-system/templates/world_kernel.md.",
+      "AI workflow doctrine: docs/worldbuilding-system/20_ai_assisted_workflow.md."
+    ];
+  }
+  if (input.templateKey === "decomposition_pressure") {
+    return [
+      "Current Creation decision: split broad steward material into smaller seed facts that can be independently rejected.",
+      "Creation doctrine excerpt: Phase 2 splits broad facts until each seed could be independently rejected without destroying its siblings.",
+      "Thin-start boundary: stop splitting when further division produces facts too small to owe consequences.",
+      "Creation parks proposed seeds; Admission owns first canon standing.",
+      "Human-writes-first framing: the steward authored the decomposition before advisory pressure.",
+      "AI workflow doctrine excerpt: ask for pressure, risks, alternatives, and questions; do not write final canon."
+    ];
+  }
+  return [];
+};
+
+const creationDecompositionPrompt = (
+  world: WorldFile,
+  input: PromptGenerationInput,
+  template: PromptTemplateRow,
+  stepKey: string
+): PromptGenerationResult => {
+  const handoff = resolveCreationDecompositionHandoff(world, input.recordId);
+  const rulings = standingRulingRows(world);
+  const report = handoff.seedDecompositionReport;
+  if (!report) throw new Error("decomposition prompt requires a seed-decomposition report and parked seeds");
+  const reportSections = handoff.reportSections.map((section) => `### ${section.heading}\n${section.body || "(empty)"}`).join("\n\n");
+  const seedContext = handoff.parkedSeeds.map((seed) => [
+    `Seed ${seed.shortId}: ${seed.title}`,
+    `Truth layer: ${seed.truthLayer ?? "unset"}`,
+    `Canon status: ${seed.canonStatus ?? "unset"}`,
+    `Body: ${seed.body}`,
+    `Derived-from links: ${seed.sourceLinks.map((link) => `${link.shortId} ${link.title} (${link.note})`).join("; ")}`
+  ].join("\n")).join("\n\n");
+  const kernelContext = handoff.supportingKernel
+    ? [
+        `Supporting kernel context: ${handoff.supportingKernel.shortId} ${handoff.supportingKernel.title}`,
+        handoff.supportingKernel.body,
+        ...handoff.kernelSections.map((section) => `${section.heading}: ${section.body}`)
+      ].filter(Boolean).join("\n")
+    : "Supporting kernel context: omitted because no linked kernel was found.";
+  const omissions = [
+    "Frontloaded seed audit results omitted: Admission owns that instrument and no result exists yet.",
+    "Admission gate results omitted: Admission has not selected severity or run a gate yet.",
+    "Standing rulings omitted when none exist.",
+    "Open canon debt omitted unless it affects the decomposition decision."
+  ];
+  const sourceManifest = [
+    `Source record: seed-decomposition report ${report.shortId} ${report.title}`,
+    ...handoff.parkedSeeds.map((seed) => `Source record: parked seed ${seed.shortId} ${seed.title}`),
+    ...(handoff.supportingKernel ? [`Source record: supporting kernel ${handoff.supportingKernel.shortId} ${handoff.supportingKernel.title}`] : []),
+    "Doctrine excerpt: docs/worldbuilding-system/05_creation_protocol.md Phase 2 granularity rule.",
+    "Doctrine excerpt: docs/worldbuilding-system/05_creation_protocol.md thin-start boundary.",
+    "Doctrine excerpt: docs/worldbuilding-system/06_canon_fact_admission_protocol.md Admission owns first canon standing.",
+    "Doctrine excerpt: docs/worldbuilding-system/20_ai_assisted_workflow.md human writes first; AI supplies advisory pressure.",
+    ...omissions.map((omission) => `Omission: ${omission}`)
+  ];
+
+  return {
+    prompt: [
+      `Role framing (${template.role_name}): ask for pressure, not answers. The steward's material comes first; do not write final canon.`,
+      `Default prompt derivation (${template.package_source}): ${template.current_text}`,
+      `Current decision context: flow ${input.flowKey ?? "unspecified"}, step ${stepKey}.`,
+      "Steward material under pressure:",
+      `Seed decomposition report ${report.shortId}: ${report.title}`,
+      report.body,
+      reportSections,
+      "Parked seeds:",
+      seedContext,
+      `Granularity rationale: ${handoff.granularityRationale ?? "Each parked seed is independently rejectable without destroying its siblings."}`,
+      ...(handoff.admissionIntent ? [`Admission intent: ${handoff.admissionIntent}`] : []),
+      kernelContext,
+      "Doctrine at point of use:",
+      ...handoff.doctrineAtPointOfUse,
+      "Forbidden moves: do not author final canon, do not admit canon inside Creation, do not flatten truth layer or canon status, and do not invent hidden world facts without labeling them as assumptions.",
+      "Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories.",
+      "Output labels: bundled seed, missing prerequisite, admission concern, risk, alternative, question, standing-ruling candidate, irrelevant omission.",
+      "Requested analyst role: Prerequisite auditor. Provide pressure, risks, alternatives, and questions that help the steward decide whether the decomposition is ready for Admission.",
+      `Standing rulings: ${rulings.length ? rulings.map((row) => `${row.disposition}: ${row.note}`).join("; ") : "none"}.`,
+      ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey }),
+      "Source manifest:",
+      sourceManifest.join("\n"),
+      "Omissions:",
+      omissions.join("\n"),
+      "Advisory/canon warning: this prompt asks for optional pressure only. Pasted responses stay advisory artifacts until the steward authors and admits canon through the governed flow."
+    ].join("\n\n"),
+    promptOut: {
+      flowKey: input.flowKey ?? null,
+      flowId: input.flowId ?? null,
+      stepKey,
+      mode: "pressure",
+      templateKey: input.templateKey,
+      recordId: report.id
+    }
+  };
+};
 
 const insertAdvisoryDisposition = (
   world: WorldFile,
@@ -160,25 +272,51 @@ export const revertPromptTemplate = (world: WorldFile, key: string): PromptTempl
 export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): PromptGenerationResult => {
   const template = promptTemplateRow(world, input.templateKey);
   const stepKey = input.stepKey ?? input.templateKey;
+  const mode: PromptMode = input.mode ?? "pressure";
+  if (mode === "pressure" && input.flowKey === "creation" && input.templateKey === "decomposition_pressure") {
+    return creationDecompositionPrompt(world, input, template, stepKey);
+  }
   const recordContext = input.recordId == null ? "No record context selected." : promptRecordContext(world, input.recordId);
   const rulings = standingRulingRows(world);
+  const doctrineLines = creationDoctrineLines(input);
+  const sourceManifest = [
+    `Prompt template: ${template.key} (${template.package_source})`,
+    ...doctrineLines,
+    input.recordId == null ? "Selected record: none" : `Selected record id: ${input.recordId}`,
+    `Standing rulings: ${rulings.length}`,
+    "Omissions: no hidden repository context; unavailable world context must be named before copy-out."
+  ].join("\n");
 
   return {
     prompt: [
-      `Role framing (${template.role_name}): ask for pressure, not answers. The steward's material comes first; do not write final canon.`,
+      mode === "proposal"
+        ? `Proposal mode (${template.role_name}): ask for labeled candidate material with alternatives and assumptions. The response may recommend, never assign canon standing or separated labels.`
+        : `Role framing (${template.role_name}): ask for pressure, not answers. The steward's material comes first; do not write final canon.`,
       `Default prompt derivation (${template.package_source}): ${template.current_text}`,
+      `Current decision context: flow ${input.flowKey ?? "unspecified"}, step ${stepKey}.`,
+      mode === "proposal"
+        ? "Proposal mode output discipline: return labeled candidates, alternatives, assumptions, risks, and questions; forbid canon-standing assignments, truth-layer assignments, status assignments, or unlabeled invented facts."
+        : "Pressure mode output discipline: provide pressure, risks, alternatives, and questions; do not author final canon.",
+      ...doctrineLines,
       "Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories.",
       "Label assumptions instruction: separate direct consequences from speculative assumptions and mark unadmitted assumptions plainly.",
+      "Output labels: selected, deleted, challenged, ignored, standing ruling, adopted with steward revision, rejected.",
       `Standing rulings: ${rulings.length ? rulings.map((row) => `${row.disposition}: ${row.note}`).join("; ") : "none"}.`,
+      ...modeLine(mode),
       ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey }),
       `Step: ${stepKey}`,
+      "Source manifest:",
+      sourceManifest,
+      "Context preview:",
       "Record context:",
-      recordContext
+      recordContext,
+      "Advisory/canon warning: this prompt asks for optional pressure only. Pasted responses stay advisory artifacts until the steward authors and admits canon through the governed flow."
     ].join("\n\n"),
     promptOut: {
       flowKey: input.flowKey ?? null,
       flowId: input.flowId ?? null,
       stepKey,
+      mode,
       templateKey: input.templateKey,
       recordId: input.recordId ?? null
     }
@@ -189,7 +327,7 @@ export const storeAdvisoryResponse = (world: WorldFile, input: AdvisoryResponseI
   world.createRecord({
     recordTypeKey: "advisory_artifact",
     title: `Advisory artifact: ${input.stepKey}`,
-    body: [...contextLines(input), `Prompt:`, input.promptText, `Response:`, input.responseText].join("\n\n"),
+    body: [...contextLines(input), ...modeLine(input.mode), `Prompt:`, input.promptText, `Response:`, input.responseText].join("\n\n"),
     truthLayer: "disputed claim",
     canonStatus: "proposed"
   });

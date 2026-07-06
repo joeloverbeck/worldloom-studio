@@ -28,6 +28,50 @@ export interface HealthPayload {
   version: string;
 }
 
+export type WorkflowMapStageState = "done" | "active" | "owed" | "blocked" | "not_yet_earned";
+export type WorkflowMapDestinationKind = "guided-flow" | "read-side" | "substrate";
+export type WorkflowMapDestinationState = "active" | "available" | "owed" | "blocked" | "not_yet_earned";
+
+export interface WorkflowMapStage {
+  key: string;
+  label: string;
+  state: WorkflowMapStageState;
+  summary: string;
+  destinationKey: string;
+  unlockReason?: string;
+}
+
+export interface WorkflowMapQueue {
+  key: string;
+  label: string;
+  count: number;
+  destinationKey: string;
+  href: string;
+  summary: string;
+}
+
+export interface WorkflowMapDestination {
+  key: string;
+  label: string;
+  kind: WorkflowMapDestinationKind;
+  summary: string;
+  state: WorkflowMapDestinationState;
+}
+
+export interface WorkflowMapPayload {
+  readOnly: true;
+  world: { path: string };
+  stages: WorkflowMapStage[];
+  queues: WorkflowMapQueue[];
+  nextDecision: {
+    destinationKey: string;
+    label: string;
+    reason: string;
+    href: string;
+  };
+  destinations: WorkflowMapDestination[];
+}
+
 export const APP_VERSION = "0.0.0";
 
 export const RECORD_TYPES: RecordTypeDefinition[] = [
@@ -116,7 +160,7 @@ export const VOCABULARY_TERMS: VocabularyTerm[] = [
   ...terms("merge_expectation", "docs/worldbuilding-system/templates/canon_branch_diff.md", ["never", "possible", "planned", "required"]),
   ...terms("workflow_role", "docs/worldbuilding-system/templates/collaboration_decision_record.md", ["steward", "contributor", "reviewer", "approver", "implementer", "observer", "advisor", "maintainer"]),
   ...terms("provenance_actor_role", "docs/principles/data-principles.md", ["steward"]),
-  ...terms("advisory_disposition", "docs/worldbuilding-system/20_ai_assisted_workflow.md", ["selected", "deleted", "challenged", "ignored", "standing ruling"]),
+  ...terms("advisory_disposition", "docs/worldbuilding-system/20_ai_assisted_workflow.md", ["selected", "deleted", "challenged", "ignored", "standing ruling", "adopted with steward revision"]),
   ...terms("consequence_disposition", "docs/worldbuilding-system/07_propagation_engine.md", ["answered", "intentionally scoped out", "assigned as canon debt", "protected as a mystery boundary"]),
   ...terms("admission_ledger_minor_item", "docs/worldbuilding-system/templates/admission_ledger.md", ["fact", "truth layer", "status", "dependencies", "canon debt"])
 ];

@@ -1,19 +1,19 @@
 {
   "package": "docs/worldbuilding-system",
   "name": "Causal Canon Worldbuilding System",
-  "version": "1.0",
-  "iteration": 9,
-  "generated_date": "2026-07-02",
+  "version": "1.1",
+  "iteration": 10,
+  "generated_date": "2026-07-05",
   "repository": "joeloverbeck/worldloom-studio",
   "provenance": {
     "executor": "Claude Code (model: Fable / claude-fable-5), local session with direct working-tree access",
-    "worked_from_commit": "b2580daf44a8173509ffbad319725d84327dba95",
-    "baseline_divergence": "none; HEAD matched the release brief's pinned baseline",
-    "acquisition": "direct file reads of the working tree; no web fetching — the pass is evidence-bounded by the second field trial and needed no external research",
+    "worked_from_commit": "1f57c33 (branch concerns-about-direction)",
+    "baseline_divergence": "two pre-existing modified skill files outside the package; the package itself was clean",
+    "acquisition": "direct file reads of the working tree; no web fetching — the amendment is bounded by a ratified steward decision and the 2026-07-05 application parity trials",
     "edits": "applied in place to the working tree; not committed by the executor"
   },
   "file_count": 58,
-  "structural_change": "none; no file added, removed, renamed, split, or merged — a release pass applying the second field trial's five sentence fixes and the 1.0 coverage statement; iteration history lives in 00_overhaul_notes.md",
+  "structural_change": "none; no file added, removed, renamed, split, or merged — a steward-decided amendment adding proposal mode to 20_ai_assisted_workflow.md, with version markers re-synced; iteration history lives in 00_overhaul_notes.md",
   "files": [
     "docs/worldbuilding-system/00_overhaul_notes.md",
     "docs/worldbuilding-system/01_core_theory.md",

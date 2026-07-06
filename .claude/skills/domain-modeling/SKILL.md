@@ -69,7 +69,7 @@ When decisions are drafted without live user input (the user is away, or the ses
 
 ### Update the relevant CONTEXT.md inline
 
-When a term is resolved, update the relevant context's `CONTEXT.md` right there. Don't batch these up — capture them as they happen. Use the format in [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md). Exception: when the glossary file's own existence or shape is still an open decision in the session, hold resolved terms aside and write them in one pass once it's ratified.
+When a term is resolved, update the relevant context's `CONTEXT.md` right there. Don't batch these up — capture them as they happen. Consult [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md) itself when adding or editing entries — the live file's existing entries are not the format authority and may have drifted. Two exceptions share one shape: when the glossary file's own existence or shape is still an open decision in the session, or when a session branch governing whether standing files change at all (for example, a driving skill's deliverable-depth question) is unresolved, hold resolved terms aside — listed as pending writes in the caller's recap where one exists — and write them in one pass once the open question resolves.
 
 When the domain ships its own authoritative glossary, the relevant `CONTEXT.md` defers to it and holds only the terms this project's layer introduces — see the deference rule in [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md).
 
@@ -85,10 +85,10 @@ Only offer to create an ADR when all three are true:
 2. **Surprising without context** — a future reader will wonder "why did they do it this way?"
 3. **The result of a real trade-off** — there were genuine alternatives and you picked one for specific reasons
 
-If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md).
+If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md). When the decision amends an artifact that carries its own decision-record discipline (a methodology package's changelog, a standards spec's change process), record it there and do not offer a duplicate ADR — the domain's own record satisfies the test.
 
 ### Before the session closes
 
-When this skill was invoked in a supporting role (e.g., by another skill) and no trigger fired, don't end silently: review the session's resolved decisions once and confirm none introduced a term owed to the relevant `CONTEXT.md` or a decision passing the three-part ADR test. State the conclusion explicitly in one line (e.g., "Domain model unchanged — no new app-layer terms, no ADR-worthy decisions"), so the dormant path is auditable rather than implicit. If another skill is driving the session, include that one-line result in the caller's recap or pre-deliverable checkpoint before documents, issues, code, or implementation begin. When the reviewed decisions are themselves provisional (applied without user ratification), qualify the closing line accordingly — e.g., "Domain model unchanged — contingent on ratification of the provisional decisions" — so a later veto re-triggers the check.
+When this skill was invoked in a supporting role (e.g., by another skill) and no trigger fired, don't end silently: review the session's resolved decisions once and confirm none introduced a term owed to the relevant `CONTEXT.md`, sharpened or contradicted an existing entry's definition, or made a decision passing the three-part ADR test. State the conclusion explicitly in one line (e.g., "Domain model unchanged — no new app-layer terms, no ADR-worthy decisions"), so the dormant path is auditable rather than implicit. If another skill is driving the session, include that one-line result in the caller's recap or pre-deliverable checkpoint before documents, issues, code, or implementation begin. When the reviewed decisions are themselves provisional (applied without user ratification), qualify the closing line accordingly — e.g., "Domain model unchanged — contingent on ratification of the provisional decisions" — so a later veto re-triggers the check.
 
 When this skill changes the domain model in a supporting role, make the caller's recap just as explicit: list the exact `CONTEXT.md` term changes and any ADRs created or offered, including paths when files were written.

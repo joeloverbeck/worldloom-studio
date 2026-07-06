@@ -17,6 +17,7 @@ describe("shared catalogs", () => {
       expect.objectContaining({ vocabulary: "contradiction_disposition", term: "repair required" }),
       expect.objectContaining({ vocabulary: "preservation_operation", term: "consecrate" }),
       expect.objectContaining({ vocabulary: "retcon_type", term: "hard retcon" }),
+      expect.objectContaining({ vocabulary: "advisory_disposition", term: "adopted with steward revision" }),
       expect.objectContaining({ vocabulary: "protected_effect_type", term: "sacred opacity" })
     ]));
     expect(VOCABULARY_TERMS.filter((term) => term.vocabulary === "repair_operation").map((term) => term.term)).toEqual([

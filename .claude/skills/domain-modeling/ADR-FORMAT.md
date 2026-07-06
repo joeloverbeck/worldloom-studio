@@ -36,6 +36,8 @@ All three of these must be true:
 
 If a decision is easy to reverse, skip it — you'll just reverse it. If it's not surprising, nobody will wonder why. If there was no real alternative, there's nothing to record beyond "we did the obvious thing."
 
+A decision that amends an artifact carrying its own decision-record discipline (a methodology package's changelog, a standards spec's change process) is recorded there, not duplicated as an ADR — even when all three hold.
+
 ### What qualifies
 
 - **Architectural shape.** "We're using a monorepo." "The write model is event-sourced, the read model is projected into Postgres."

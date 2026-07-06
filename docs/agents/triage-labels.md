@@ -13,3 +13,5 @@ The skills speak in terms of five canonical triage roles. This file maps those r
 When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
 
 Edit the right-hand column to match whatever vocabulary you actually use.
+
+Before applying `ready-for-agent` or `ready-for-human` to a guided-flow issue, also check `docs/agents/issue-tracker.md` for the browser-visible guidance acceptance checklist.

@@ -492,6 +492,41 @@ const readFlowRelationships = (world: WorldFile, reportId: number) => {
     FROM stage12_skips
     WHERE pass_report_record_id = ?
   `).all(reportId).map((row) => ({ kind: "stage12_skip", ...(row as DbRow) }));
+  const constraintSubject = world.db.prepare(`
+    SELECT *
+    FROM constraint_run_sources
+    WHERE pass_report_record_id = ?
+  `).all(reportId).map((row) => ({ kind: "constraint_subject", ...(row as DbRow) }));
+  const constraintCards = world.db.prepare(`
+    SELECT *
+    FROM constraint_linked_cards
+    WHERE pass_report_record_id = ?
+  `).all(reportId).map((row) => ({ kind: "constraint_linked_card", ...(row as DbRow) }));
+  const constraintProposals = world.db.prepare(`
+    SELECT *
+    FROM constraint_proposals
+    WHERE pass_report_record_id = ?
+  `).all(reportId).map((row) => ({ kind: "constraint_proposal", ...(row as DbRow) }));
+  const constraintDebt = world.db.prepare(`
+    SELECT *
+    FROM constraint_debts
+    WHERE pass_report_record_id = ?
+  `).all(reportId).map((row) => ({ kind: "constraint_debt", ...(row as DbRow) }));
+  const constraintAdvisories = world.db.prepare(`
+    SELECT *
+    FROM constraint_advisories
+    WHERE pass_report_record_id = ?
+  `).all(reportId).map((row) => ({ kind: "constraint_advisory", ...(row as DbRow) }));
+  const constraintAdvisoryUses = world.db.prepare(`
+    SELECT *
+    FROM constraint_advisory_uses
+    WHERE pass_report_record_id = ?
+  `).all(reportId).map((row) => ({ kind: "constraint_advisory_use", ...(row as DbRow) }));
+  const constraintSkips = world.db.prepare(`
+    SELECT *
+    FROM constraint_skips
+    WHERE pass_report_record_id = ?
+  `).all(reportId).map((row) => ({ kind: "constraint_skip", ...(row as DbRow) }));
   return [
     ...flowInstances,
     ...propagation,
@@ -502,7 +537,14 @@ const readFlowRelationships = (world: WorldFile, reportId: number) => {
     ...stage12Debt,
     ...stage12Advisories,
     ...stage12AdvisoryUses,
-    ...stage12Skips
+    ...stage12Skips,
+    ...constraintSubject,
+    ...constraintCards,
+    ...constraintProposals,
+    ...constraintDebt,
+    ...constraintAdvisories,
+    ...constraintAdvisoryUses,
+    ...constraintSkips
   ];
 };
 

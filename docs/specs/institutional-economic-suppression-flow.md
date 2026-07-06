@@ -22,6 +22,15 @@ This spec defines Worldloom Studio's stage-12 guided flow: `12_institutional_eco
 14. **No broader framework.** This flow may add the smallest `pass_report` lifecycle support it needs. It does not introduce a generic all-specialized-passes framework.
 15. **No context or ADR update.** No new `CONTEXT.md` or ADR update is owed unless implementation discovery changes the boundary.
 
+## Decision-Point UI Contract
+
+This flow must satisfy `guided-workflow-usability.md` W-8 and `guided-flow-spec-template.md`.
+
+- **Run entry:** the browser shows the source fact/material/debt/report, the stage-12 package source, and the decision to inspect institutional, economic, and suppression consequences rather than admit new canon.
+- **Coverage slots:** action arena, rules-in-use, transaction cost, surplus capture, suppression residue, counter-institution, synthesis sentence, daily-life residue, and power conflict each show the local decision, checklist source, required steward-authored substance, prompt-out availability, and server-returned blockers.
+- **Outcome routing:** proposal, card, debt, skip, and close decisions show what will be written, which links will be created, which items re-enter Admission, and which consequences stay unresolved.
+- **Close/result:** the browser previews the append-only `pass_report` sections, linked cards, Admission proposals, canon debt, skip records, advisory-use links, and Canon Workbench/Audit Trail visibility.
+
 ## Existing Types and Links
 
 No new canon-facing record types are introduced. The flow uses existing `pass_report`, `action_arena`, `institution`, `counter_institution`, `canon_fact`, `canon_debt`, `skip_record`, `advisory_artifact`, `canon_change_proposal`, `flow_instances`, `record_links`, `record_sections`, and `advisory_dispositions`.
@@ -46,8 +55,9 @@ Touches `docs/principles/README.md` and affirms non-contradiction with:
 - `domain-fidelity.md` P-1/T-2: methodology terms keep their package meaning.
 - `canon-sovereignty.md` P-2/W-1/T-5: Prompt-out is advisory; the flow never lets an LLM or checklist canonize material.
 - `workflow-principles.md` P-5/W-2/W-3/W-4/W-7: flows are resumable, skips are records, sweeps propose, and gates demand substance.
+- `guided-workflow-usability.md` W-8: the browser must expose stage-12 as decision-point guidance, not only a coverage editor.
 - `data-principles.md` P-6/W-5/W-6/T-3/T-4/T-5: the world file remains canonical; records, links, provenance, and report sections preserve the audit trail.
 - `charter.md` P-3/P-4/T-8: the app clerks consequence and governance rather than replacing the methodology with generic project management.
-- ADRs 0001-0008: SQLite remains canonical, browser storage is non-canonical, the stack and GitHub gates are unchanged, Admission owns canon intake, Prompt-out owns advisory mechanics, and stage-12 SQL lives with the flow module.
+- ADRs 0001-0009: SQLite remains canonical, browser storage is non-canonical, the stack and GitHub gates are unchanged, Admission owns canon intake, Prompt-out owns advisory mechanics, stage-12 SQL lives with the flow module, and the browser presents a guided decision surface.
 
 No deliberate exceptions.

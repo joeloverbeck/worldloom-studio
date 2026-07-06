@@ -31,7 +31,7 @@ describe("Institutional, Economic, and Suppression web surface", () => {
   });
 
   it("offers stage-12 Prompt-out through the shared prompt lifecycle", () => {
-    const html = renderToString(<App />);
+    const html = renderToString(<App initialOpenWorld="/tmp/stage12.sqlite" />);
     const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
 
     expect(html).toContain("<option value=\"institutional_economic_suppression\">Institutional / economic / suppression</option>");

@@ -28,6 +28,16 @@ The flow governs contradictions, repairs, retcons, and protected mysteries after
 20. **Advisory artifacts and skips.** Pasted responses remain immutable `advisory_artifact` records with standing rulings. Informed mutations link advisory sources. Every declined offered instrument writes a `skip_record`; major-or-higher skips require reasons, below-threshold skips record that no reason was collected.
 21. **Provenance.** Every repair mutation records actor, timestamp, flow step, and advisory derivation where applicable through existing provenance, link, and jurisdiction-event substrates.
 
+## Decision-Point UI Contract
+
+This flow must satisfy `guided-workflow-usability.md` W-8 and `guided-flow-spec-template.md`.
+
+- **Entry and triage:** the browser shows the decision to describe a suspected contradiction or protected mystery pressure, cites `13`, shows implicated records, truth layers, affected scope, notice, higher authority, and mystery/protected-effect relationship.
+- **Disposition:** the browser shows the contradiction disposition choices and package meaning, requires one disposition before close, and makes visible whether the choice routes to repair, branch, deprecation, rejection, mystery preservation, or no action.
+- **Repair/retcon:** repair decisions show the ordered `repair_operation` vocabulary, resulting status/branch choices separately, required retcon type and costs, repair-challenge prompt packet, jurisdiction boundary, and any repair-created facts routed to Admission.
+- **Mystery boundary:** boundary work shows the owed-boundaries source, protected-effect minimum fields, preservation-boundary choices, boundary-guard prompt packet, and the link back to the propagation report or protected record.
+- **Close/result:** the browser previews the append-only contradiction report, card-history changes, repair operations, canon debt, Admission proposals, skip records, advisory-use links, and read-side trail.
+
 ## Testing Seams
 
 Primary seam: the localhost HTTP API against temp-file world databases for vocabulary listing, contradiction report entry from a record and free-standing, run resume, triage capture, steward-declared scale, close refusal, disposition close, full repair, repair-created admission proposal, retcon cost, propagation debt, owed-boundaries queue, mystery ledger, preservation checklist, prompt generation, advisory paste/disposition, informed mutation links, and skip thresholds.
@@ -38,6 +48,6 @@ No new testing seams are introduced.
 
 ## Principles
 
-Touches `charter.md` (P-3, P-4, T-8), `canon-sovereignty.md` (P-2, W-1, T-5), `domain-fidelity.md` (P-1, T-2), `workflow-principles.md` (P-5, W-2, W-3, W-4, W-7), `data-principles.md` (P-6, W-5, W-6, T-3, T-4, T-5), and ADRs 0001-0004. It affirms non-contradiction: the app clerks flow state, queues, gates, links, provenance, and vocabulary jurisdiction while the steward supplies claims, classifications, repairs, costs, boundaries, and final wording.
+Touches `charter.md` (P-3, P-4, T-8), `canon-sovereignty.md` (P-2, W-1, T-5), `domain-fidelity.md` (P-1, T-2), `workflow-principles.md` (P-5, W-2, W-3, W-4, W-7), `guided-workflow-usability.md` (W-8), `data-principles.md` (P-6, W-5, W-6, T-3, T-4, T-5), and ADRs 0001-0004 and 0009. It affirms non-contradiction: the app clerks flow state, queues, gates, links, provenance, and vocabulary jurisdiction while the steward supplies claims, classifications, repairs, costs, boundaries, and final wording.
 
 T-8 coverage statement: `13` and its contradiction/mystery instruments are the next field-tested spine surface after propagation. Uncertainty, belief, evidence, QA, specialized pass flows, branch mechanics, app-side contradiction detection, Markdown export, LLM API integration, and multi-steward features stay out of this slice.

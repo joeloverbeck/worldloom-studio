@@ -45,7 +45,9 @@ The walking skeleton supports on-demand snapshots while the app is running. Auto
 
 The server binds to `127.0.0.1` by default. It does not bind `0.0.0.0`.
 
-The server issues a per-process bearer token at startup. Browser API calls include the token; requests without it are rejected. This is not a multi-user auth model. It only reduces accidental access from other local processes and keeps ADR 0002's browser UI from becoming a network-exposed surface.
+Worldloom Studio v1 has no accounts, hosted service, multi-steward auth, pairing flow, or manual browser token. The local browser/API trust boundary is the loopback binding plus the single-steward local runtime from the charter. Requests from the browser do not need a copied terminal secret, and stale or arbitrary `x-worldloom-token` headers are ignored rather than treated as authentication failures.
+
+Development CORS is explicitly scoped to local Vite browser origins (`127.0.0.1` / `localhost` on the dev UI ports). Production or hosted cross-origin access is not authorized by this ADR. Any future network binding, desktop pairing, hosted deployment, or multi-user authorization must reopen this decision with a new ADR.
 
 ## Consequences
 
@@ -53,7 +55,8 @@ The server issues a per-process bearer token at startup. Browser API calls inclu
 - The schema and migrations are owned by the app, not a third-party migration table.
 - Shared record catalogs live in `packages/shared`, making record kinds, vocabularies, and link types a type-level single source.
 - A future desktop wrapper can reuse the same server and store layers.
+- Startup and setup tests must treat health, catalog, create, and open as normal local app dependencies rather than credential choreography.
 
 ## Principles
 
-Touches `charter.md` (P-3, P-4, T-8), `canon-sovereignty.md` (P-2), `domain-fidelity.md` (P-1, T-2), `workflow-principles.md` (W-3, W-6), `data-principles.md` (P-6, W-5, W-6, T-1, T-3, T-4, T-6), and ADRs 0001-0003. This ADR affirms non-contradiction with them.
+Touches `charter.md` (P-3, P-4, T-8), `canon-sovereignty.md` (P-2), `domain-fidelity.md` (P-1, T-2), `workflow-principles.md` (W-3, W-6), `guided-workflow-usability.md` (W-8), `data-principles.md` (P-6, W-5, W-6, T-1, T-3, T-4, T-6), ADRs 0001-0003, and PRD #158. This ADR deliberately revises the prior bearer-token localhost decision and affirms non-contradiction with the remaining authorities.

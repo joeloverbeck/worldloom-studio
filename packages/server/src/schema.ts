@@ -12,7 +12,7 @@ import {
 import { QA_RED_TEAM_PROMPT_TEXT, QA_TEST_CATALOG } from "./qa-catalog.js";
 
 export const APPLICATION_ID = 0x574c4f4d;
-export const CURRENT_SCHEMA_VERSION = 6;
+export const CURRENT_SCHEMA_VERSION = 8;
 
 const sqlString = (value: string): string => `'${value.replaceAll("'", "''")}'`;
 
@@ -1197,4 +1197,246 @@ CREATE TABLE IF NOT EXISTS stage12_skips (
 ) STRICT;
 
 PRAGMA user_version = 6;
+`;
+
+const constraintPassReportHeadings = [
+  [8, "Constraint source and run"],
+  [9, "Constraint coverage"],
+  [10, "Constraint cards"],
+  [11, "Constraint proposals"],
+  [12, "Constraint debt"],
+  [13, "Constraint Prompt-out and skips"],
+  [14, "Constraint close readiness"]
+] as const;
+
+export const migration007 = `
+${constraintPassReportHeadings.map(([position, heading]) => `INSERT OR IGNORE INTO record_section_headings (record_type_key, position, heading, package_source) VALUES ('pass_report', ${position}, ${sqlString(heading)}, 'docs/worldbuilding-system/08_constraint_composition.md');`).join("\n")}
+
+INSERT OR IGNORE INTO prompt_templates (key, role_name, original_text, package_source) VALUES
+  ('constraint_challenger', 'Constraint challenger', 'Pressure-test this constraint-composition pass. Work from steward-authored material first. Identify what the constraint prevents, what remains possible, who knows the boundary, who tests it, loopholes, enforcement, residue, and places where a constraint card, Admission proposal, or canon debt is owed. Do not admit facts; label surfaced facts as proposed-only.', 'docs/worldbuilding-system/20_ai_assisted_workflow.md');
+
+INSERT OR IGNORE INTO prompt_template_versions (template_key, version, text)
+SELECT key, 1, original_text FROM prompt_templates WHERE key = 'constraint_challenger';
+
+CREATE TABLE IF NOT EXISTS constraint_run_sources (
+  flow_id INTEGER PRIMARY KEY REFERENCES flow_instances(id) ON DELETE CASCADE,
+  pass_report_record_id INTEGER NOT NULL UNIQUE REFERENCES records(id) ON DELETE CASCADE,
+  source_type TEXT NOT NULL CHECK (source_type IN ('fact', 'capability', 'constraint_card', 'canon_debt', 'material', 'record_section')),
+  source_record_id INTEGER REFERENCES records(id) ON DELETE SET NULL,
+  source_section_heading TEXT,
+  material_title TEXT NOT NULL DEFAULT '',
+  material_body TEXT NOT NULL DEFAULT '',
+  constrained_subject TEXT NOT NULL DEFAULT '',
+  source_summary TEXT NOT NULL,
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS constraint_inventory_entries (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  pass_report_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  constrained_fact TEXT NOT NULL,
+  constraint_statement TEXT NOT NULL,
+  constraint_type TEXT NOT NULL,
+  prevents TEXT NOT NULL,
+  allows TEXT NOT NULL,
+  boundary_knowledge TEXT NOT NULL,
+  bypass_actors TEXT NOT NULL,
+  cause_or_mystery_boundary TEXT NOT NULL,
+  enforcement TEXT NOT NULL,
+  residue TEXT NOT NULL,
+  cost_or_observable TEXT NOT NULL DEFAULT '',
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS constraint_inventory_validate_type
+BEFORE INSERT ON constraint_inventory_entries
+WHEN NOT EXISTS (
+  SELECT 1 FROM vocabulary_terms
+  WHERE vocabulary = 'constraint_type'
+    AND term = new.constraint_type
+)
+BEGIN
+  SELECT RAISE(ABORT, 'unknown constraint type');
+END;
+
+CREATE TRIGGER IF NOT EXISTS constraint_inventory_validate_type_update
+BEFORE UPDATE ON constraint_inventory_entries
+WHEN NOT EXISTS (
+  SELECT 1 FROM vocabulary_terms
+  WHERE vocabulary = 'constraint_type'
+    AND term = new.constraint_type
+)
+BEGIN
+  SELECT RAISE(ABORT, 'unknown constraint type');
+END;
+
+CREATE TRIGGER IF NOT EXISTS constraint_inventory_touch_updated_at
+AFTER UPDATE ON constraint_inventory_entries
+WHEN old.updated_at = new.updated_at
+BEGIN
+  UPDATE constraint_inventory_entries SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = new.id;
+END;
+
+CREATE TABLE IF NOT EXISTS constraint_composition_entries (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  pass_report_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  analysis_type TEXT NOT NULL CHECK (analysis_type IN ('stacking', 'gate', 'tradeoff', 'threshold', 'sequential', 'cancellation', 'contradiction', 'chain')),
+  body TEXT NOT NULL,
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (flow_id, analysis_type)
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS constraint_composition_touch_updated_at
+AFTER UPDATE ON constraint_composition_entries
+WHEN old.updated_at = new.updated_at
+BEGIN
+  UPDATE constraint_composition_entries SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = new.id;
+END;
+
+CREATE TABLE IF NOT EXISTS constraint_leakage_entries (
+  flow_id INTEGER PRIMARY KEY REFERENCES flow_instances(id) ON DELETE CASCADE,
+  pass_report_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  bottleneck TEXT NOT NULL,
+  loopholes TEXT NOT NULL,
+  partial_workarounds TEXT NOT NULL,
+  false_bypasses TEXT NOT NULL,
+  accidents TEXT NOT NULL,
+  countermeasures TEXT NOT NULL,
+  boundary_testers TEXT NOT NULL,
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS constraint_leakage_touch_updated_at
+AFTER UPDATE ON constraint_leakage_entries
+WHEN old.updated_at = new.updated_at
+BEGIN
+  UPDATE constraint_leakage_entries SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE flow_id = new.flow_id;
+END;
+
+CREATE TABLE IF NOT EXISTS constraint_residue_entries (
+  flow_id INTEGER PRIMARY KEY REFERENCES flow_instances(id) ON DELETE CASCADE,
+  pass_report_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  ordinary_life TEXT NOT NULL,
+  institutional_effects TEXT NOT NULL,
+  economic_effects TEXT NOT NULL,
+  visible_traces TEXT NOT NULL,
+  expertise TEXT NOT NULL,
+  resentment TEXT NOT NULL,
+  crime TEXT NOT NULL,
+  ritual TEXT NOT NULL,
+  markets TEXT NOT NULL,
+  failure_modes TEXT NOT NULL,
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS constraint_residue_touch_updated_at
+AFTER UPDATE ON constraint_residue_entries
+WHEN old.updated_at = new.updated_at
+BEGIN
+  UPDATE constraint_residue_entries SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE flow_id = new.flow_id;
+END;
+
+CREATE TABLE IF NOT EXISTS constraint_linked_cards (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  pass_report_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  card_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  inventory_id INTEGER REFERENCES constraint_inventory_entries(id) ON DELETE SET NULL,
+  relation TEXT NOT NULL DEFAULT '',
+  advisory_record_id INTEGER REFERENCES records(id),
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (flow_id, card_record_id)
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS constraint_proposals (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  pass_report_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  proposal_record_id INTEGER NOT NULL UNIQUE REFERENCES records(id) ON DELETE CASCADE,
+  source_step TEXT NOT NULL,
+  advisory_record_id INTEGER REFERENCES records(id),
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS constraint_debts (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  pass_report_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  debt_record_id INTEGER NOT NULL UNIQUE REFERENCES records(id) ON DELETE CASCADE,
+  source_step TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  severity_or_consequence_mode TEXT NOT NULL DEFAULT '',
+  advisory_record_id INTEGER REFERENCES records(id),
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS constraint_advisories (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  pass_report_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  advisory_record_id INTEGER NOT NULL UNIQUE REFERENCES records(id) ON DELETE CASCADE,
+  step_key TEXT NOT NULL,
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS constraint_advisory_uses (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  pass_report_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  advisory_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  outcome_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  outcome_kind TEXT NOT NULL CHECK (outcome_kind IN ('card', 'proposal', 'debt', 'report', 'skip')),
+  note TEXT NOT NULL DEFAULT '',
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (advisory_record_id, outcome_record_id, outcome_kind)
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS constraint_skips (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  pass_report_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  skip_record_id INTEGER NOT NULL UNIQUE REFERENCES records(id) ON DELETE CASCADE,
+  step_key TEXT NOT NULL,
+  unresolved INTEGER NOT NULL DEFAULT 0 CHECK (unresolved IN (0, 1)),
+  debt_record_id INTEGER REFERENCES records(id),
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  CHECK (unresolved = 0 OR debt_record_id IS NOT NULL)
+) STRICT;
+
+PRAGMA user_version = 7;
+`;
+
+export const migration008 = `
+INSERT OR IGNORE INTO vocabulary_terms (vocabulary, term, package_source, extension_allowed, seeded_other)
+VALUES ('advisory_disposition', 'adopted with steward revision', 'docs/worldbuilding-system/20_ai_assisted_workflow.md', 0, 0);
+
+PRAGMA user_version = 8;
 `;

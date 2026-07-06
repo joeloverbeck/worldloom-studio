@@ -8,6 +8,8 @@ A skill exists to wrangle determinism out of a stochastic system. **Predictabili
 
 **Bold terms** are defined in [`GLOSSARY.md`](GLOSSARY.md); look them up there for the full meaning.
 
+**Writing one from zero?** These are levers, not a sequence — but a serviceable order is: settle **invocation** first (it sets what every other choice costs), mine the **leading words** you already say when you want the skill, draft, then prune and self-check the draft against the **failure modes** below. Editing an existing skill, jump straight to the lever at issue.
+
 ## Invocation
 
 Two choices, trading different costs:
@@ -16,6 +18,8 @@ Two choices, trading different costs:
 - A **user-invoked** skill strips the description from the agent's reach: only you, typing its name, can invoke it — and no other skill can. Zero context load, but it spends **cognitive load**: _you_ are the index that must remember it exists. Mechanics: set `disable-model-invocation: true`; the `description` becomes human-facing — a one-line summary, trigger lists stripped.
 
 Pick model-invocation only when the agent must reach the skill on its own, or another skill must. If it only ever fires by hand, make it user-invoked and pay no context load.
+
+Beyond this axis, the rest of a skill's front matter is plumbing, not a predictability lever — for a human-facing `description`, or to declare the `arguments` a skill accepts, copy the shape from a sibling skill rather than deriving it here.
 
 When user-invoked skills multiply past what you can remember, that piled-up cognitive load is cured by a **router skill**: one user-invoked skill that names the others and when to reach for each.
 
@@ -73,7 +77,7 @@ You win twice over: fewer tokens, _and_ a sharper hook for the agent to hang its
 
 ## Failure modes
 
-Use these to diagnose issues the user may be having with the skill.
+Use these to diagnose issues the user may be having with a live skill — and as a pre-ship checklist run over a fresh draft before you ship it.
 
 - **Premature completion** — ending a step before it's genuinely done, attention slipping to _being done_. Defence, in order: sharpen the completion criterion first (cheap, local); only if it is irreducibly fuzzy _and_ you observe the rush, hide the post-completion steps by splitting (the sequence cut).
 - **Duplication** — the same meaning in more than one place. Costs maintenance and tokens, and inflates a meaning's prominence on the ladder past its real rank.

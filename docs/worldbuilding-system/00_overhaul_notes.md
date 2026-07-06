@@ -1,8 +1,12 @@
-# Overhaul Notes — Causal Canon Worldbuilding System Version 1.0
+# Overhaul Notes — Causal Canon Worldbuilding System
+
+This document is the package's single changelog: iteration history lives here, not inside the doctrine, protocol, or instrument files. It carries the version-1.0 release record (below) and the version-1.1 amendment record (at the end).
+
+## Version 1.0 release pass
 
 Date: 2026-07-02
 
-This document records the version-1.0 release pass of `docs/worldbuilding-system/**` — the repair half of the ninth iteration, whose first half was the second field trial. It supersedes the version-0.8 overhaul notes for package stewardship. It is the package's single changelog: iteration history lives here, not inside the doctrine, protocol, or instrument files.
+This section records the version-1.0 release pass of `docs/worldbuilding-system/**` — the repair half of the ninth iteration, whose first half was the second field trial. It supersedes the version-0.8 overhaul notes for package stewardship.
 
 ## Provenance
 
@@ -159,3 +163,13 @@ The README carries the user-facing version of this statement; this is the full a
 ## Research rationale
 
 None was needed, and none was used. This pass is evidence-bounded by design: all five fixes, the micro-fix, and the coverage statement trace to logged findings of the second field trial, and the release-versioning question (what a 1.0 label may honestly claim) was answered by the trial's own verdict language rather than by external versioning literature — importing release-engineering convention into a storage-agnostic methodology package would have been citation as decoration, which `23`'s translation rules forbid. `23` is therefore untouched; all prior research lanes and citations are retained unchanged.
+
+## Version 1.1 amendment — proposal mode (2026-07-05)
+
+**Change.** `20_ai_assisted_workflow.md` now defines **two assistance modes** — proposal mode (the steward asks the AI to draft candidate material for the judgment at hand) and pressure mode (the existing challenge discipline) — with a matching proposal-mode workflow, prompt discipline, an anti-automation clarification, one new output label ("adopted with steward revision"), and one boundary: the world's essence (`05` Phase 1 kernel premise) originates with the steward and is never delegated. Adoption remains authorship: the steward selects, edits, and words everything that enters a record, and admission (`06`) still governs canon standing. The core rule — AI is never canon authority — is unchanged, as are all ten analyst roles, the vocabulary guardrail, the risk bands, and the failure-mode checklist.
+
+**Evidence and provenance.** This is a steward-decided amendment, not a trial-driven one, and is recorded as such. The steward's ratified intent (2026-07-05 stewardship session): externalize essentially every judgment except the world's essence to an external assistant via context-complete requests, then curate the responses into the record. Supporting evidence: the pre-package working practice this system grew from (an LLM drafting whole worlds from a seed, whose failure was *wholesale* delegation without judgment-scoped curation — the failure proposal mode's discipline exists to prevent), and three application-layer parity field trials (2026-07-05) showing the pressure-only reading produced assistance blocked exactly where drafting help was wanted. `20`'s own opening ("proposer, challenger, summarizer…") and its risk-band row for creating new canon ("AI proposal must pass admission like any other proposal") already licensed the substance; 1.0's prompt discipline ("ask for pressure, not answers") contradicted them, and 1.1 resolves that tension in the proposer direction.
+
+**Honesty.** Proposal mode is **untested in anger** — no field trial has run it. It joins the coverage statement's honestly-untested list (`README.md` "What version 1.1 claims") beside `20`-under-a-naive-steward, and is expected to generate the next revision's evidence. The two field-validated trials exercised pressure-style assistance only.
+
+**Scope and retention.** One protocol-tier file edited (`20`); doctrine (`01`–`04`), all other protocols, all instruments, and the glossary byte-identical. "Proposal mode" and "pressure mode" are used as plain descriptions, not new controlled vocabulary — no glossary entry is owed (the Q2-01 precedent). Agnosticism intact: the amendment speaks of stewards and assistants, never of software, storage, or any application. Version markers updated: `README.md` (version line and coverage subsection), `manifest.json` (version 1.1, iteration 10), and this file. File count unchanged at 58; no structural change.

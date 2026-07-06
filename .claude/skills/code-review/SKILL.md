@@ -66,7 +66,7 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 
 ### 4. Run both review axes
 
-Use the available sub-agent mechanism, if permitted, with two independent read-only review tasks. Prefer running the axes in parallel; if the tool surface uses different role names, choose the closest general read-only reviewer role. If sub-agent tools may be deferred or lazy-loaded, perform the minimal tool-discovery check needed to inspect the surfaced sub-agent policy before deciding. If the discovered policy requires explicit user authorization to spawn agents and the user did not grant it, record `policy-blocked` and do not spawn. If sub-agents are unavailable or policy-blocked, run both axes locally against the same fixed point, keep the analysis separated under the same headings, and state that the fallback path was used.
+Use the available sub-agent mechanism, if permitted, with two independent read-only review tasks. Prefer running the axes in parallel; if the tool surface uses different role names, choose the closest general read-only reviewer role. If sub-agent tools may be deferred or lazy-loaded, perform the minimal tool-discovery check needed to inspect the surfaced sub-agent policy before deciding. If the discovered policy requires explicit user authorization to spawn agents and the user did not grant it, record `policy-blocked` and do not spawn. If the discovered policy says spawning agents requires explicit user authorization and the user did not explicitly ask for sub-agents, delegation, parallel agents, or parallel agent work, the discovery check is complete: record `policy-blocked`, skip sub-agent prompt inspection/preparation, and proceed directly to local fallback. If sub-agents are unavailable or policy-blocked, run both axes locally against the same fixed point, keep the analysis separated under the same headings, and state that the fallback path was used.
 
 **Local fallback checklist** — use this when sub-agents cannot run:
 
@@ -75,23 +75,30 @@ Use the available sub-agent mechanism, if permitted, with two independent read-o
 - Keep the outputs separated under `## Standards` and `## Spec`.
 - For PRD child issue families, include the compact per-child coverage table `Issue | Acceptance source | Evidence reviewed | Findings/residuals` before reporting zero residual Spec findings.
 - Cite the concrete standards/spec sources used for each axis.
+- Source lists must name exact files, issue numbers, or other concrete authorities. Do not use generic placeholders such as `relevant principles/ADRs` or `named principle/ADR sources`; put Principles/ADRs on the Standards axis only when the named source states a coding, review, tracker, or verification convention.
 - Apply the smell baseline as judgement-call heuristics, not hard violations, and let documented repo standards override it.
 - In the Standards output, include a dedicated `Smell baseline applied: <yes / skipped because ...>.` line before findings, so a zero-finding fallback still proves the baseline was considered.
 - End with the required axis summary: `Standards <count/worst>, Spec <count/worst>`.
+- If any finding is fixed before closeout, distinguish `Findings found` from `Residual findings` in the fallback report or immediate-fix block. The final axis count may be zero residual, but the found-and-fixed item must remain visible.
+- Before leaving local fallback, perform a fallback shape hard stop: confirm the output contains the review frame, `## Standards`, `## Spec`, `Smell baseline applied:`, the PRD child coverage table when reviewing a child-issue family, the axis summary, and the exact `Review fallback:` closeout-ready line when invoked by `implement`. If any required piece is missing, stop and fill it before moving to the implementation pre-close audit or issue closeout.
+- Emit this literal gate line after the hard stop: `Review fallback gate passed: frame <yes/no>; Standards <yes/no>; Spec <yes/no>; child table <yes/N/A>; smell baseline <yes/no>; found-vs-residual <yes/N/A>; closeout line <yes/N/A>; verification/browser freshness <yes/N/A>.`
+- When invoked by `implement`, the full mandatory fallback block must be embedded in the durable closeout artifact, or placed in an adjacent durable sink with an explicit link from the closeout artifact. The one-line `Review fallback:` closeout-ready evidence line is still required, but it does not substitute for the full fallback block.
 
 Mandatory local fallback output — paste this shape even when both axes have zero findings:
 
 ```markdown
+Review frame: fixed point <ref>; diff command `git diff <fixed-point>...HEAD`; commits <git log <fixed-point>..HEAD --oneline>; worktree scope <committed diff only / WIP inputs included>, excluded dirty files <none / paths>; spec source <issues/spec paths>.
+
 ## Standards
 
 Fallback used: <unavailable tooling / policy-blocked delegation / other reason>.
-Sources reviewed: <standards-source files, root agent instructions, smell baseline>.
+Sources reviewed: <exact standards-source files or issue numbers; root agent instructions; smell baseline; named Principles/ADRs only when they state coding/workflow conventions>.
 Smell baseline applied: <yes / skipped because ...>.
 Findings: <none / bullets with file+hunk and standard or smell label>.
 
 ## Spec
 
-Sources reviewed: <issue/PRD/spec files, Principles/ADRs when applicable>.
+Sources reviewed: <exact issue/PRD/spec files, named Principles/ADRs when applicable>.
 
 | Issue | Acceptance source | Evidence reviewed | Findings/residuals |
 |---|---|---|---|
@@ -100,12 +107,17 @@ Sources reviewed: <issue/PRD/spec files, Principles/ADRs when applicable>.
 Findings: <none / bullets with quoted spec line>.
 
 Axis summary: Standards <count/worst>, Spec <count/worst>
+
+Review fallback gate passed: frame <yes/no>; Standards <yes/no>; Spec <yes/no>; child table <yes/N/A>; smell baseline <yes/no>; found-vs-residual <yes/N/A>; closeout line <yes/N/A>; verification/browser freshness <yes/N/A>.
+Review fallback: <required when invoked by implement: why code-review could not run; standards/spec result <...>; fixes <none / SHA ...>; verification rerun <commands> / N/A when not invoked by implement>.
 ```
 
 When invoked by the repo `implement` skill, also emit one closeout-ready review evidence line after the two-axis report, matching the caller's format:
 
 - `Review: code-review against <fixed point>; outcome <no findings / findings fixed in SHA ...>; verification rerun <commands>.`
 - `Review fallback: <why code-review could not run>; standards/spec result <...>; fixes <none / SHA ...>; verification rerun <commands>.`
+
+If fallback was used, the closeout-ready line must start `Review fallback:` exactly. Do not use `Review:` for fallback reviews.
 
 If review reports no findings and no files change after review, `verification rerun` may state that no rerun was needed after review because the unchanged final tree already passed named gates. In that case, cite those gates explicitly and keep the implementation commit SHA as the reviewed SHA.
 
@@ -137,13 +149,15 @@ If the review resumes, compacts, or is interrupted before final reporting, reval
 
 End with a one-line summary: total findings per axis, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes — that's the reranking the separation exists to prevent.
 
-When this review is part of implementation closeout, report findings first. If fixes are made immediately, rerun the relevant verification, state whether the commit was amended or followed by a new commit, and include the review outcome in the implementation closeout evidence. When a finding requires a behavior change, invoke the repo `tdd` skill where possible: add or adjust the smallest assertion first and run it red before fixing. If the code was already fixed to protect the tree or unblock verification, record that red-first was skipped and why.
+When this review is part of implementation closeout, report findings first. If fixes are made immediately, rerun the relevant verification, state whether the commit was amended or followed by a new commit, and include the review outcome in the implementation closeout evidence. When a finding requires a behavior change, invoke the repo `tdd` skill where possible: add or adjust the smallest assertion first and run it red before fixing. If the code was already fixed to protect the tree or unblock verification, record that red-first was skipped and why. For behavior-changing review fixes, generic wording such as `fixed and covered` is not enough; the closeout must include the red command/failure or an explicit `red-first skipped because ...` reason. If a review finding is missing proof or coverage only, add the smallest assertion and run it; if it passes without code changes, record `coverage-only review fix; red-first N/A because behavior already existed and no code changed`; if it fails, treat the finding as missing behavior and use the normal TDD red-green path. If a review fix touches UI, route handlers, browser-consumed API shapes, fixtures, or an action path covered by earlier browser/manual evidence, rerun that evidence on the final tree or record an explicit blocked/stale reason.
 
 For immediate-fix closeout, use this compact shape after the two axis reports:
 
 - **Findings found**: `<count and short titles, or none>`
-- **Fixes made**: `<files/behavior changed, or none>`
+- **Fixes made**: `<files/behavior changed, proof/coverage added, or none>`
+- **TDD/review-fix evidence**: `<red command/failure per behavior-changing fix, coverage-only review fix reason, or explicit red-first skipped because ...>`
 - **Verification rerun**: `<commands and browser/manual checks>`
+- **Browser/manual evidence freshness**: `<rerun evidence on final tree, not affected, or explicit blocked/stale reason>`
 - **Commit handling**: `<unchanged implementation commit SHA / amended commit SHA / follow-up commit SHA / no commit yet>`
 - **Residual findings**: `<remaining Standards and Spec findings, or none>`
 - **Axis summary**: `Standards <count/worst>, Spec <count/worst>`

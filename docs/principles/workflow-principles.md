@@ -2,7 +2,7 @@
 
 *Altitude: architectural principles. Durable, but may evolve with field evidence from app use.*
 
-How the package's protocols become guided flows. The concrete flow designs (new world, single idea, contradiction/mystery/retcon, QA) are specced downstream against these principles; the archived report's §6 is the evidentiary reference architecture those specs start from — the binding conformance surface remains this folder, not the archive.
+How the package's protocols become guided flows. The concrete flow designs (new world, single idea, contradiction/mystery/retcon, QA) are specced downstream against these principles and `guided-workflow-usability.md`; the archived report's §6 is the evidentiary reference architecture those specs start from — the binding conformance surface remains this folder, not the archive.
 
 ## The division of labor (P-3, working rule)
 
@@ -15,7 +15,8 @@ The steward judges; the app remembers, routes, and checks. In every flow: the ap
 - Flows are **resumable and interleavable**; every flow can be exited with state parked at `proposed`/`under review`.
 - Repair must be cheap (`13`'s retcon kindness rule expects change).
 - The steward is a repeat expert: flows owe **accelerators** — batch admission, per-cluster gate runs, keyboard-driven paths.
-- Each step shows the relevant doctrine at point of use; the operating card is persistent UI chrome — embedded as a **versioned derivation** re-checked against upstream when the card changes (the same discipline as default prompt texts, `canon-sovereignty.md`), never as a live coupling: the methodology card must not acquire the app as a change-control dependent (`reports/tenth-iteration-outlook.md` §1.4).
+- Each step shows the relevant doctrine at the decision point, not in a distant reference panel; the operating card is persistent UI chrome — embedded as a **versioned derivation** re-checked against upstream when the card changes (the same discipline as default prompt texts, `canon-sovereignty.md`), never as a live coupling: the methodology card must not acquire the app as a change-control dependent (`reports/tenth-iteration-outlook.md` §1.4).
+- A flow is not complete merely because its records, routes, stores, and server validations exist. Completion requires the browser-visible Decision-Point Contract in `guided-workflow-usability.md`: the steward can see what decision is owed, what package rule governs it, what must be filled, what can be skipped, what prompt-out support exists, and what happens next.
 
 ## W-2. Severity scaling is the core conditional dimension
 
@@ -35,7 +36,7 @@ A gate item is satisfied by content, not a checkbox: the consequence check requi
 
 ## W-1's step-to-role mapping
 
-Every dependency-bearing step offers its `20` analyst role (the boundary rules live in `canon-sovereignty.md`):
+Every decision point offers prompt-out in `20`'s two modes (the boundary rules live in `canon-sovereignty.md`): a **proposal prompt** everywhere except the world-essence decision, and a **pressure prompt** wherever steward material exists to press on. The analyst roles below are the pressure-mode mapping for dependency-bearing steps; proposal prompts derive their framing from the decision point itself — the block of material being authored — rather than from a fixed role:
 
 | Flow step | Analyst role |
 |---|---|
@@ -50,4 +51,4 @@ Every dependency-bearing step offers its `20` analyst role (the boundary rules l
 | Residue steps / aesthetic pass | Aesthetic-residue analyst |
 | Change-package / report assembly | Collaboration secretary |
 
-`20`'s risk-band table maps to UI emphasis: low-risk uses are one click; high-risk uses (contradiction resolution, new canon) get the full labeled-disposal treatment.
+`20`'s risk-band table maps to UI emphasis: low-risk uses are one click; high-risk uses (contradiction resolution, new canon) get the full labeled-disposal treatment. W-1 prompt-out is part of the decision point, never a detached panel: the browser shows the available modes, the role or decision framing, the prompt packet preview, the advisory/canon warning, and context omissions before copy-out — and the packet is assembled from the same context the decision point itself displays.

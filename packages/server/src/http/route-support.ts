@@ -14,7 +14,14 @@ export const listQuery = (value?: string): string[] =>
   value?.split(",").map((item) => item.trim()).filter(Boolean) ?? [];
 
 export const badRequest = (c: Context, error: unknown): Response =>
-  c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+  c.json({
+    error: error instanceof Error ? error.message : String(error),
+    ...(
+      typeof error === "object" && error !== null && "decisionPoint" in error
+        ? { decisionPoint: (error as { decisionPoint: unknown }).decisionPoint }
+        : {}
+    )
+  }, 400);
 
 export const withWorld = (
   c: Context,

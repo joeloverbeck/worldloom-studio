@@ -32,3 +32,21 @@ Create a GitHub issue.
 ## When a skill says "fetch the relevant ticket"
 
 Run `gh issue view <number> --comments`.
+
+## Implementable guided-flow issue acceptance
+
+Any issue or PRD touching a guided flow, prompt-out, Canon Workbench provenance, or browser workflow navigation must include acceptance criteria for browser-visible guidance, not only API/store behavior. Before applying `ready-for-agent` or `ready-for-human`, check for:
+
+- package source cited;
+- decision-point contract named for the affected step;
+- required, optional, skippable, and severity-dependent fields visible where relevant;
+- doctrine at the actual decision point;
+- prompt packet preview, source manifest, and cold external LLM test when prompt-out is in scope;
+- advisory/canon separation visible when advisory material is in scope;
+- skip path and reason storage when an instrument can be declined;
+- blockers/substance validation when the step can be incomplete;
+- current, next, and resume state for browser workflow changes;
+- read-side audit or provenance link when the slice writes records, reports, links, skips, debt, or advisory artifacts;
+- cognitive walkthrough scenario when the browser task grammar changes.
+
+If a raw triage issue lacks this detail, leave it cheap and mark it `needs-triage` or `needs-info` as appropriate. The checklist is owed when grooming to an implementable issue.

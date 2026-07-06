@@ -2,10 +2,12 @@ import {
   isCatastrophicSeverity,
   isFoundationalSeverity,
   isMajorOrHigher,
+  requiresSkipReason,
   type DeclaredSeverity
 } from "./severity-policy.js";
+import { ADVISORY_OUTPUT_LABELS, promptMode, splitDisplayedContext, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
 import * as PromptOut from "./prompt-out.js";
-import type { AdmissionQueueRow, FacetRow, RecordRow, WorldFile } from "./world-file.js";
+import type { AdmissionQueueRow, FacetRow, LinkRow, RecordRow, WorldFile } from "./world-file.js";
 
 export type AdmissionGatePath = "minor_ledger" | "full_gate";
 
@@ -18,6 +20,115 @@ export interface AdmissionGatePolicy {
 export interface AdmissionQueueSortKey {
   workScaleRank: number;
   admissionLevelRank: number;
+}
+
+export interface AdmissionDecisionReference {
+  label: string;
+  href: string;
+}
+
+export type AdmissionDecisionSourceLink = LinkRow & {
+  target: { id: number; shortId: string; title: string; recordTypeKey: string } | null;
+};
+
+export interface AdmissionQueueDecisionRow extends AdmissionQueueRow {
+  decisionPointHref: string;
+  sourceLinks: AdmissionDecisionSourceLink[];
+}
+
+export interface AdmissionDecisionWork {
+  required: string[];
+  optional: string[];
+  skippable: string[];
+  severityDependent: string[];
+}
+
+export interface AdmissionDecisionPayload {
+  flow: {
+    key: "admission";
+    runState: string;
+  };
+  currentStep: string;
+  nextOrResumeState: {
+    currentStep: string;
+    nextStep: string;
+    safeExit: string;
+  };
+  localDecision: string;
+  packageAuthority: {
+    primary: string;
+    why: string;
+    citations: string[];
+  };
+  selectedRecord: AdmissionQueueRow & {
+    sourceLinks: AdmissionDecisionSourceLink[];
+  };
+  severity: {
+    admissionLevel: string | null;
+    workScale: string | null;
+    gatePath: AdmissionGatePath | null;
+    definitions: Array<{ key: "admission_level" | "work_scale"; term: string; definition: string; source: string }>;
+    obligations: string[];
+  };
+  work: AdmissionDecisionWork;
+  doctrineCitations: string[];
+  blockers: Array<{ key: string; label: string; message: string; requires: string }>;
+  skipRule: {
+    offered: boolean;
+    reasonRequired: boolean;
+    reasonThreshold: string;
+    belowThresholdNote: string;
+    recordType: "skip_record";
+  };
+  seedAudit: {
+    offered: boolean;
+    doctrine: string[];
+    runWrites: string;
+    declineWrites: string;
+    nonMutation: string;
+  };
+  promptOut: {
+    advisory: "optional";
+    templateKey: string;
+    stepKey: string;
+    role: string;
+    modes: DecisionPointPromptMode[];
+    stepRequest: {
+      method: "POST";
+      href: "/api/prompt-out/steps";
+      body: {
+        flowKey: "admission";
+        templateKey: string;
+        recordId: number;
+        stepKey: string;
+        mode?: "proposal" | "pressure";
+        label: string;
+        admissionLevel?: string;
+        workScale?: string;
+      };
+    };
+    preview: {
+      currentDecision: string;
+      promptText: string;
+      sourceManifest: string[];
+      contextPreview: string;
+      omissions: string[];
+      advisoryCanonWarning: string;
+    };
+  };
+  writeIntent: {
+    willWrite: string[];
+    willLink: string[];
+    willQueue: string[];
+    willLeaveUntouched: string[];
+    willRouteOnward: string[];
+  };
+  closePreview: {
+    beforeCompletion: string[];
+    afterCompletion: string[];
+  };
+  readSideTrail: AdmissionDecisionReference[];
+  sharedContract: DecisionPointSharedContract;
 }
 
 type AdmissionIntakeCompletion = {
@@ -72,6 +183,25 @@ const MINOR_LEDGER_STEPS = [
   "admission operations",
   "one consequence check"
 ];
+
+const ADMISSION_LEVEL_DEFINITIONS: Record<string, string> = {
+  "0": "Trivial or bookkeeping admission; still steward-declared and recorded.",
+  "1": "Minor admission level; fast ledger work is usually enough.",
+  "2": "Moderate admission level; minor work plus targeted cost, access, constraint, or ripple checks.",
+  "3": "Major admission level; full canon fact gate and written consequence substance are owed.",
+  "4": "Severe/foundational admission level; full gate plus temporal, spatial, branch, mystery, aesthetic, and QA follow-up pressure.",
+  "5": "Catastrophic admission level; full gate plus explicit decision-record and rollback or branch planning pressure."
+};
+
+const WORK_SCALE_DEFINITIONS: Record<string, string> = {
+  minor: "Small local fact; batch ledger path should remain cheap.",
+  moderate: "Moderate change; targeted extra checks can be required.",
+  major: "Major dependency-bearing change; full gate substance and skip reasons are required.",
+  severe: "Foundational change; open canon debt warns and deeper follow-up work is expected.",
+  catastrophic: "World-scale or rollback-risk change; explicit decision and branch/rollback planning are expected."
+};
+
+const decisionPointHref = (recordId: number): string => `/api/admission/records/${recordId}/decision-point`;
 
 const FULL_GATE_STEPS = [
   "fact statement",
@@ -161,6 +291,13 @@ export const admissionQueue = (worldFile: WorldFile): AdmissionQueueRow[] =>
       if (left.updatedAt !== right.updatedAt) return left.updatedAt < right.updatedAt ? 1 : -1;
       return right.id - left.id;
     });
+
+export const admissionQueueWithDecisionPointLinks = (worldFile: WorldFile): AdmissionQueueDecisionRow[] =>
+  admissionQueue(worldFile).map((row) => ({
+    ...row,
+    decisionPointHref: decisionPointHref(row.id),
+    sourceLinks: admissionSourceLinks(worldFile, row.id)
+  }));
 
 export const routeRecordToAdmissionQueue = (
   worldFile: WorldFile,
@@ -273,17 +410,449 @@ export const gateComposition = (worldFile: WorldFile, recordId: number): unknown
   };
 };
 
+const currentAdmissionStep = (worldFile: WorldFile, record: RecordRow, severityDeclared: boolean): { runState: string; currentStep: string } => {
+  const flow = worldFile.findLatestInProgressFlowByStepPrefix("admission", `record:${record.id}:`);
+  if (flow) {
+    return {
+      runState: String(flow.state ?? "in_progress"),
+      currentStep: String(flow.current_step ?? `record:${record.id}:gate`)
+    };
+  }
+  if (["accepted", "accepted with constraints", "localized", "contested", "quarantined", "branch-only", "rejected"].includes(record.canonStatus ?? "")) {
+    return { runState: "complete", currentStep: `record:${record.id}:complete` };
+  }
+  if (severityDeclared) return { runState: "not_started", currentStep: `record:${record.id}:severity-declared` };
+  return { runState: "not_started", currentStep: `record:${record.id}:queue-selection` };
+};
+
+const severityDefinitions = (severity: DeclaredSeverity): AdmissionDecisionPayload["severity"]["definitions"] => [
+  ...(severity.admissionLevel == null
+    ? []
+    : [{
+        key: "admission_level" as const,
+        term: severity.admissionLevel,
+        definition: ADMISSION_LEVEL_DEFINITIONS[severity.admissionLevel] ?? "Steward-declared admission-level term from 06.",
+        source: "docs/worldbuilding-system/06_canon_fact_admission_protocol.md"
+      }]),
+  ...(severity.workScale == null
+    ? []
+    : [{
+        key: "work_scale" as const,
+        term: severity.workScale,
+        definition: WORK_SCALE_DEFINITIONS[severity.workScale] ?? "Steward-declared work-scale term from 06.",
+        source: "docs/worldbuilding-system/06_canon_fact_admission_protocol.md"
+      }])
+];
+
+const admissionSourceLinks = (
+  worldFile: WorldFile,
+  recordId: number
+): AdmissionDecisionSourceLink[] =>
+  worldFile.listLinks(recordId)
+    .filter((link) => link.fromRecordId === recordId && link.linkTypeKey === "derived_from")
+    .map((link) => {
+      let target: AdmissionDecisionSourceLink["target"] = null;
+      try {
+        const record = worldFile.getRecord(link.toRecordId);
+        target = { id: record.id, shortId: record.shortId, title: record.title, recordTypeKey: record.recordTypeKey };
+      } catch {
+        target = null;
+      }
+      return { ...link, target };
+    });
+
+const seedAuditIsRelevant = (record: RecordRow, sourceLinks: AdmissionDecisionPayload["selectedRecord"]["sourceLinks"]): boolean => {
+  const sourceText = [record.title, record.body, ...sourceLinks.map((link) => link.note)].join(" ").toLowerCase();
+  return record.recordTypeKey === "canon_fact" && record.canonStatus === "proposed" && /\b(seed|world kernel)\b/.test(sourceText);
+};
+
+const localDecisionFor = (severityDeclared: boolean, gatePath: AdmissionGatePath | null): string => {
+  if (!severityDeclared) return "Choose and classify the proposed fact before Admission changes canon standing.";
+  if (gatePath === "minor_ledger") return "Complete the minor admission ledger while preserving batch speed.";
+  return "Complete the full canon fact gate with written substance.";
+};
+
+const workFor = (
+  severityDeclared: boolean,
+  gate: AdmissionGatePolicy | null,
+  seedAuditOffered: boolean
+): AdmissionDecisionWork => {
+  if (!severityDeclared || !gate) {
+    return {
+      required: ["Select a proposed fact", "Declare admission_level", "Declare work_scale"],
+      optional: ["Prompt-out advisory pressure after steward-authored material exists"],
+      skippable: seedAuditOffered ? ["Frontloaded seed audit can be declined with a governed skip record"] : [],
+      severityDependent: ["Gate depth is unavailable until severity is declared"]
+    };
+  }
+
+  if (gate.path === "minor_ledger") {
+    return {
+      required: [
+        "Precise fact statement",
+        "Scope",
+        "Truth layer",
+        "Canon status and separated constraint tags",
+        "Admission operation order",
+        "One consequence check"
+      ],
+      optional: ["Prompt-out advisory pressure after steward-authored material exists"],
+      skippable: [
+        ...(seedAuditOffered ? ["Frontloaded seed audit can be declined with a governed skip record"] : []),
+        "Prompt-out can be declined through a skip_record"
+      ],
+      severityDependent: ["Minor path writes admission_ledger_row records and ordered admission operations"]
+    };
+  }
+
+  return {
+    required: ["Written consequence text", "Admission operation order", ...gate.steps],
+    optional: ["Prompt-out advisory pressure after steward-authored material exists", "Advisory-use link when an advisory artifact informed the steward-authored decision"],
+    skippable: [
+      ...(seedAuditOffered ? ["Frontloaded seed audit can be declined with a governed skip record"] : []),
+      "Prompt-out can be declined through a skip_record"
+    ],
+    severityDependent: gate.steps
+  };
+};
+
+const blockersFor = (severityDeclared: boolean, gate: AdmissionGatePolicy | null): AdmissionDecisionPayload["blockers"] => {
+  if (!severityDeclared) {
+    return [
+      {
+        key: "severity_required",
+        label: "Severity declaration",
+        message: "Admission cannot choose a path until the steward declares both severity facets.",
+        requires: "admission_level and work_scale"
+      }
+    ];
+  }
+  if (gate?.path !== "full_gate") {
+    return [
+      {
+        key: "minor_consequence_check",
+        label: "One consequence check",
+        message: "Minor ledger rows still owe one consequence check before admission.",
+        requires: "one consequence check"
+      }
+    ];
+  }
+  return [
+    {
+      key: "written_consequence",
+      label: "Written consequence",
+      message: "Full gates refuse checkbox-only completion.",
+      requires: "written consequence text"
+    },
+    {
+      key: "not_applicable_reason",
+      label: "N/A reason",
+      message: "Any not-applicable gate item must carry a reason.",
+      requires: "n/a reason"
+    },
+    {
+      key: "quiet_domain_declaration",
+      label: "Quiet domain declaration",
+      message: "Quiet domains must be declared rather than clicked away.",
+      requires: "quiet-domain declaration"
+    }
+  ];
+};
+
+const doctrineFor = (gate: AdmissionGatePolicy | null, seedAuditOffered: boolean): string[] => [
+  "docs/worldbuilding-system/06_canon_fact_admission_protocol.md",
+  ...(gate?.path === "full_gate" ? ["docs/worldbuilding-system/checklists/canon_fact_gate.md"] : ["docs/worldbuilding-system/templates/admission_ledger.md"]),
+  ...(seedAuditOffered
+    ? [
+        "docs/worldbuilding-system/05_creation_protocol.md",
+        "docs/worldbuilding-system/checklists/frontloaded_seed_audit.md"
+      ]
+    : []),
+  "docs/worldbuilding-system/20_ai_assisted_workflow.md",
+  "docs/principles/guided-workflow-usability.md"
+];
+
+const readSideTrailFor = (recordId: number): AdmissionDecisionReference[] => [
+  { label: "Current Canon", href: "/api/canon-workbench/current" },
+  { label: "Audit Trail", href: "/api/canon-workbench/audit" },
+  { label: "Record detail", href: `/api/canon-workbench/records/${recordId}` },
+  { label: "Advisory artifacts", href: `/api/canon-workbench/records/${recordId}` },
+  { label: "Skip records", href: `/api/canon-workbench/records/${recordId}` },
+  { label: "Canon debt", href: "/api/canon-debt?open=true" },
+  { label: "Export", href: `/api/records/${recordId}/export/markdown` }
+];
+
+const promptOutFor = (
+  worldFile: WorldFile,
+  record: AdmissionQueueRow,
+  localDecision: string,
+  gate: AdmissionGatePolicy | null,
+  sourceLinks: AdmissionDecisionPayload["selectedRecord"]["sourceLinks"],
+  doctrineCitations: string[]
+): AdmissionDecisionPayload["promptOut"] => {
+  const fullGate = gate?.path === "full_gate";
+  const templateKey = fullGate ? "admission_constraint_challenge" : "admission_prerequisite_audit";
+  const stepKey = fullGate ? "admission:constraints" : "admission:dependencies";
+  const role = fullGate ? "Constraint challenger" : "Prerequisite auditor";
+  const generated = PromptOut.generatePrompt(worldFile, {
+    flowKey: "admission",
+    templateKey,
+    recordId: record.id,
+    stepKey,
+    mode: "pressure"
+  });
+  const sourceManifest = [
+    `Record ${record.shortId}: ${record.title}`,
+    ...sourceLinks.map((link) => `Source link ${link.linkTypeKey}: ${link.target ? `${link.target.shortId} ${link.target.title}` : `record ${link.toRecordId}`} (${link.note || "no note"})`),
+    ...doctrineCitations.map((citation) => `Doctrine: ${citation}`)
+  ];
+  const pressureStepRequest = {
+    method: "POST" as const,
+    href: "/api/prompt-out/steps" as const,
+    body: {
+      flowKey: "admission" as const,
+      templateKey,
+      recordId: record.id,
+      stepKey,
+      mode: "pressure" as const,
+      label: role,
+      ...(record.admissionLevel ? { admissionLevel: record.admissionLevel } : {}),
+      ...(record.workScale ? { workScale: record.workScale } : {})
+    }
+  };
+  const proposalStepRequest = {
+    method: "POST" as const,
+    href: "/api/prompt-out/steps" as const,
+    body: {
+      flowKey: "admission" as const,
+      templateKey,
+      recordId: record.id,
+      stepKey,
+      mode: "proposal" as const,
+      label: "Proposal mode",
+      ...(record.admissionLevel ? { admissionLevel: record.admissionLevel } : {}),
+      ...(record.workScale ? { workScale: record.workScale } : {})
+    }
+  };
+  const modes: DecisionPointPromptMode[] = withPromptModeSummaries([
+    promptMode({
+      mode: "proposal",
+      label: "Proposal mode",
+      available: true,
+      blocker: null,
+      framing: "Request labeled candidate Admission material with alternatives and assumptions; Admission still governs canon standing.",
+      role: "Admission proposal",
+      templateKey,
+      stepKey,
+      outputLabels: ADVISORY_OUTPUT_LABELS,
+      stepRequest: proposalStepRequest
+    }),
+    promptMode({
+      mode: "pressure",
+      label: "Pressure mode",
+      available: Boolean(record.body.trim()),
+      blocker: record.body.trim() ? null : "Pressure prompts require steward-authored material on the proposed fact.",
+      framing: "Ask for challenge, risks, alternatives, and questions on the proposed fact.",
+      role,
+      templateKey,
+      stepKey,
+      outputLabels: ADVISORY_OUTPUT_LABELS,
+      stepRequest: record.body.trim() ? pressureStepRequest : null
+    })
+  ]);
+  return {
+    advisory: "optional",
+    templateKey,
+    stepKey,
+    role,
+    modes,
+    stepRequest: pressureStepRequest,
+    preview: {
+      currentDecision: localDecision,
+      promptText: generated.prompt,
+      sourceManifest,
+      contextPreview: `${record.shortId} ${record.title}\n${record.body || "No body supplied."}`,
+      omissions: ["No hidden repository context is required; any unavailable world context must be named before copy-out."],
+      advisoryCanonWarning: "Prompt-out is optional advisory pressure. Pasted responses remain advisory artifacts and are not admitted canon."
+    }
+  };
+};
+
+export const admissionDecisionPoint = (worldFile: WorldFile, recordId: number): AdmissionDecisionPayload => {
+  const record = withAdmissionFacets(worldFile, worldFile.getRecord(recordId));
+  const severity: DeclaredSeverity = { admissionLevel: record.admissionLevel, workScale: record.workScale };
+  const severityDeclared = Boolean(severity.admissionLevel && severity.workScale);
+  const gate = severityDeclared ? admissionGatePolicy(severity) : null;
+  const sourceLinks = admissionSourceLinks(worldFile, recordId);
+  const seedAuditOffered = seedAuditIsRelevant(record, sourceLinks);
+  const { runState, currentStep } = currentAdmissionStep(worldFile, record, severityDeclared);
+  const localDecision = localDecisionFor(severityDeclared, gate?.path ?? null);
+  const doctrineCitations = doctrineFor(gate, seedAuditOffered);
+  const reasonRequired = requiresSkipReason(severity);
+  const work = workFor(severityDeclared, gate, seedAuditOffered);
+  const promptOut = promptOutFor(worldFile, record, localDecision, gate, sourceLinks, doctrineCitations);
+  const writeIntent = {
+    willWrite: severityDeclared
+      ? [
+          gate?.path === "full_gate" ? "gate_result report" : "admission_ledger_row records",
+          "ordered admission operation events",
+          "steward-selected canon status change on completion"
+        ]
+      : ["No canon mutation until the steward completes Admission"],
+    willLink: [
+      "Admission gate result links",
+      "advisory-use links only when the steward explicitly names an advisory artifact",
+      "Read-side trail links expose Current Canon, Audit Trail, record detail, advisory artifacts, skip records, canon debt, and export"
+    ],
+    willQueue: ["Follow-up propagation canon debt when the steward supplies follow-up debt"],
+    willLeaveUntouched: [
+      "Admission does not infer truth layer, canon status, tags, or operations",
+      "Seed audit does not mutate seed truth layer, canon status, tags, severity, or operations"
+    ],
+    willRouteOnward: [
+      "minor ledger or full gate after severity declaration",
+      "Read-side views remain read-only and do not gain Admission mutation controls"
+    ]
+  };
+  const nextOrResumeState = {
+    currentStep,
+    nextStep: severityDeclared ? (gate?.path === "full_gate" ? "Full gate completion" : "Minor ledger entry") : "Severity declaration",
+    safeExit: "Leave the record at proposed or under review; resume from the same Admission record."
+  };
+  const readSideTrail = readSideTrailFor(recordId);
+  const sharedContract: DecisionPointSharedContract = {
+    contractVersion: "decision-point/v1",
+    flow: { key: "admission", runState },
+    step: {
+      key: currentStep,
+      localDecision,
+      packageSource: "docs/worldbuilding-system/06_canon_fact_admission_protocol.md",
+      why: "Admission is the only flow that changes canon standing; flow policy remains server-owned."
+    },
+    obligations: {
+      required: work.required,
+      optional: work.optional,
+      skippable: work.skippable,
+      severityDependent: work.severityDependent
+    },
+    skipRule: {
+      offered: true,
+      reasonRequired,
+      reasonThreshold: "major-or-higher Admission work",
+      recordType: "skip_record"
+    },
+    doctrine: {
+      slots: doctrineCitations,
+      packageSources: doctrineCitations
+    },
+    bearingContext: {
+      displayed: splitDisplayedContext(promptOut.preview.contextPreview),
+      sourceManifest: promptOut.preview.sourceManifest,
+      omissions: promptOut.preview.omissions
+    },
+    promptOut: {
+      serverOwned: true,
+      modes: promptOut.modes
+    },
+    blockers: blockersFor(severityDeclared, gate),
+    substanceValidations: [
+      "Minor ledger rows still owe one consequence check.",
+      "Full gates refuse checkbox-only completion.",
+      "Any not-applicable gate item must carry a reason."
+    ],
+    writeIntent,
+    nextOrResumeState,
+    readSideTrail
+  };
+
+  return {
+    flow: { key: "admission", runState },
+    currentStep,
+    nextOrResumeState,
+    localDecision,
+    packageAuthority: {
+      primary: "docs/worldbuilding-system/06_canon_fact_admission_protocol.md",
+      why: "Admission is the only flow that changes canon standing; this payload lets the browser show local decisions without owning policy.",
+      citations: doctrineCitations
+    },
+    selectedRecord: {
+      ...record,
+      sourceLinks
+    },
+    severity: {
+      admissionLevel: severity.admissionLevel,
+      workScale: severity.workScale,
+      gatePath: gate?.path ?? null,
+      definitions: severityDefinitions(severity),
+      obligations: gate?.steps ?? ["Declare admission_level", "Declare work_scale"]
+    },
+    work,
+    doctrineCitations,
+    blockers: blockersFor(severityDeclared, gate),
+    skipRule: {
+      offered: true,
+      reasonRequired,
+      reasonThreshold: "major-or-higher Admission work",
+      belowThresholdNote: "Reason not collected below major-fact threshold.",
+      recordType: "skip_record"
+    },
+    seedAudit: {
+      offered: seedAuditOffered,
+      doctrine: [
+        "docs/worldbuilding-system/05_creation_protocol.md",
+        "docs/worldbuilding-system/06_canon_fact_admission_protocol.md",
+        "docs/worldbuilding-system/checklists/frontloaded_seed_audit.md"
+      ],
+      runWrites: "Running seed audit writes a gate_result linked to audited seeds.",
+      declineWrites: "Declining seed audit writes a governed skip_record and leaves the proposed fact admissible.",
+      nonMutation: "Seed audit does not mutate seed truth layer, canon status, tags, severity, or operations."
+    },
+    promptOut,
+    writeIntent,
+    closePreview: {
+      beforeCompletion: [
+        "canon status change",
+        "gate result",
+        "card update/history behavior",
+        "ordered admission operation events",
+        "advisory-use links",
+        "canon-debt warnings",
+        "skip records",
+        "next step",
+        "resume state"
+      ],
+      afterCompletion: [
+        "Current Canon",
+        "Audit Trail",
+        "record detail",
+        "advisory artifacts",
+        "skip records",
+        "canon debt",
+        "export"
+      ]
+    },
+    readSideTrail,
+    sharedContract
+  };
+};
+
 export const declareAdmissionSeverity = (
   worldFile: WorldFile,
   recordId: number,
   input: { admissionLevel: string; workScale: string }
-): { record: RecordRow; facets: FacetRow[]; gate: unknown; queue: AdmissionQueueRow[] } =>
+): { record: RecordRow; facets: FacetRow[]; gate: unknown; queue: AdmissionQueueRow[]; decisionPoint: AdmissionDecisionPayload } =>
   worldFile.atomicWrite(() => {
     worldFile.assertVocabularyTerm("admission_level", input.admissionLevel);
     worldFile.assertVocabularyTerm("work_scale", input.workScale);
     worldFile.replaceSingleFacet(recordId, "admission_level", input.admissionLevel);
     worldFile.replaceSingleFacet(recordId, "work_scale", input.workScale);
-    return { record: worldFile.getRecord(recordId), facets: worldFile.listFacets(recordId), gate: gateComposition(worldFile, recordId), queue: admissionQueue(worldFile) };
+    return {
+      record: worldFile.getRecord(recordId),
+      facets: worldFile.listFacets(recordId),
+      gate: gateComposition(worldFile, recordId),
+      queue: admissionQueue(worldFile),
+      decisionPoint: admissionDecisionPoint(worldFile, recordId)
+    };
   });
 
 export const admitMinorBatch = (
