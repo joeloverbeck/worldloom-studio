@@ -54,6 +54,7 @@ For each issue:
 - When a UI browser smoke requires starting a dev server, record the server URL and whether the server was stopped or intentionally left running. Include that URL or cleanup note in closeout/final evidence so no background session is left ambiguous.
 - For dense app screens or long single-page snapshots, keep browser-smoke evidence bounded: prefer targeted DOM/text assertions, concise excerpts, and screenshots over full-page snapshot dumps. The closeout still needs route, action path, and observed outcome; the raw browser transcript does not need to include the whole page.
 - If any later edit touches the UI, route handlers, browser-consumed API shapes, fixture/data setup, or action path covered by a browser/manual smoke, treat the earlier smoke as preliminary and rerun it on the final tree before closeout, or record why rerun is blocked.
+- Before final closeout, if browser/manual evidence exists, compare it against the final touched-file set after implementation, review, verification, and documentation edits. Record files changed since the smoke, whether they affect UI/routes/browser-consumed API/fixtures/action path, and whether the evidence was rerun, not affected, or blocked.
 
 Run typechecking regularly and single test files regularly. After a focused test command, check the output confirms the intended file or seam actually ran. If a package script does not forward file arguments cleanly, invoke the underlying runner directly, for example `pnpm --filter <pkg> exec vitest run test/file.test.ts`.
 
@@ -77,6 +78,7 @@ The repo's code-review skill expects a fixed point. Use one of these routes:
 - Commit the completed implementation locally, then run the `code-review` skill against `HEAD~1` or another fixed point before pushing or closing issues.
 - If committing first would be inappropriate, run an explicit pre-commit review against `git diff HEAD` and say that you are adapting the review because no committed fixed point exists yet.
 - If the `code-review` skill cannot run because a required mechanism is unavailable, including when sub-agents or other review tools are unavailable or policy-blocked, run a local two-axis review against the fixed point: standards/conventions and spec/acceptance. Defer to the `code-review` skill's fixed-point and tool-policy discovery rules before choosing fallback, and record whether fallback is due to unavailable tooling or policy-blocked delegation. Document the deviation and its reason, fix any findings, rerun the relevant gates, and include the review outcome in closeout evidence.
+- When local two-axis fallback is used during implementation closeout, carry forward the `code-review` skill's full mandatory fallback block into the durable closeout artifact, or link an adjacent durable sink that contains it. The one-line `Review fallback:` evidence line remains required, but it does not substitute for the review frame, `## Standards`, `## Spec`, PRD child coverage table when applicable, `Smell baseline applied:`, axis summary, `Review fallback gate passed:` line, and any immediate-fix or TDD fields required by `code-review`.
 - If review finds no issues after the implementation commit, keep that commit as the final SHA; no second commit is needed. If review fixes happen after the implementation commit, stage only implementation-owned files and intentionally either amend the implementation commit or create a follow-up commit. Refresh the final SHA after the last commit, rerun required gates on the final tree, and use that final SHA in closeout comments.
 - If review fixes create a follow-up commit instead of amending the implementation commit, keep the final review and closeout frame anchored at the original implementation fixed point through final `HEAD`. Do not default closeout review evidence to `HEAD~1` when that would cover only the review-fix commit.
 - For behavior-changing review fixes, red-first evidence must fail for the intended review finding, not merely for a nearby or generic reason. If the first red command fails because of a missing test file, a generic invariant, an unrelated assertion, or any reason that does not prove the reviewed behavior is wrong, record it as `partial red - wrong reason: <reason>`, then add or adjust the smallest assertion that fails for the intended behavior and run that before patching. If a true intended-behavior red is impossible, record `red-first skipped because <specific reason>`.
@@ -145,6 +147,32 @@ Long parent rollup or child-family audit bodies must include this table shape, e
 |---|---|---|---|
 | #N | ... | commit/tests/browser route/store seam/etc. | satisfied / blocked / not done |
 
+For 4+ child issues using a parent PRD rollup, start from this body shape unless the issue set needs a richer audit:
+
+```markdown
+Implementation closeout for #<parent>
+
+Final SHA: <sha>
+Local-only SHA: <sha> is not remote-reachable because <reason>; local-only closeout is acceptable because <user request/repo policy>. / N/A because <remote branch contains sha>
+Verification:
+- `<command>`: <passed/failed/blocked and relevant scope>
+Review evidence:
+- Review: <code-review fixed point/outcome/verification rerun>
+- Review fallback: <fallback line, or N/A because code-review ran normally>
+- Full review fallback block: <embedded below or linked adjacent durable sink; N/A because code-review ran normally>
+Principles/ADR conformance: <no deliberate exceptions / approved exception / N/A>
+Browser evidence:
+- Route/action/outcome: <route and observed result / N/A because ... / blocked because ...>
+- Freshness: files touched since smoke <paths or none>; affects UI/routes/browser-consumed API/fixtures/action path <yes/no and why>; smoke freshness <rerun/not affected/blocked>
+Child state verification before parent closeout: <exact issue numbers and states>
+
+| Issue | Acceptance criterion or conformance check | Evidence | Status |
+|---|---|---|---|
+| #N | ... | commit/tests/browser route/store seam/etc. | satisfied / blocked / not done |
+
+Closeout body check passed: audit table columns exact; every acceptance checkbox or conformance check named; every status literal satisfied/blocked/not done; final SHA present; verification evidence present; review evidence present; Principles/ADR conformance string present or N/A; full Local-only SHA explanatory sentence present or N/A; browser evidence present/N/A/blocked; exact fixed child inline comment inspected <yes/N/A>.
+```
+
 Then inspect the exact body before posting:
 
 ```bash
@@ -186,7 +214,7 @@ Closeout preflight:
 - Principles/ADR conformance: <present/N/A>
 - Local-only SHA: <full explanatory sentence present/N/A>
 - Review evidence: <Review:/Review fallback: line or reference>
-- Browser evidence freshness: <rerun/N/A/blocked, with route/action/outcome when applicable>
+- Browser evidence freshness: <files touched since smoke; affects UI/routes/browser-consumed API/fixtures/action path yes/no and why; rerun/N/A because .../blocked, with route/action/outcome when applicable>
 - Child states verified: <yes/N/A, exact issue numbers>
 
 Closeout gate passed: audit sink <conversation/comment URL/issue reference>; review evidence <line/reference>; final SHA <sha>; Principles/ADR conformance <present/N/A>; Local-only SHA <full explanatory sentence present/N/A>; child states verified <yes/N/A>; browser evidence <present/N/A/blocked>.

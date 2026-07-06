@@ -79,6 +79,13 @@ src/<module> — the code seam this target touches (name it; Session 2 reads it)
 reports/<report> — prior finding-set this target builds on.
 ```
 
+**Evidence-first ordering (triage targets).** When a specific report, log, or trial artifact is
+the *seed being triaged* — the evidence the deliverable reasons over — it leads §2 as an
+*evidence-read-first* group ahead of the authority-ordered stack it judges, even when the seed
+lives in `reports/` (which otherwise sorts last). This is distinct from a *prior finding-set*
+read that merely frames a delta: the triage seed is read first because the whole deliverable is
+a response to it.
+
 **Boundary-awareness reads.** When a scoped target must read adjacent docs *only* to know what
 is **out** of scope, mark those entries as *boundary-awareness (read to bound scope, not a
 conformance target)* — distinct from *primary (load-bearing)* entries. This stops Session 2

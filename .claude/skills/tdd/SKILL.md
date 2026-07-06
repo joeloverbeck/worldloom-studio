@@ -32,12 +32,13 @@ For shared-boundary issue families, paste this compact evidence table stub befor
 
 Non-bypassable TDD closeout gate:
 
-- Before handing work to review, a pre-close audit, issue closure, parent PRD closeout, or the repo `implement` skill's closeout gate, inspect the durable audit sink that will carry TDD evidence.
-- The durable sink must contain the compact table below or equivalent explicit fields: issue(s), context/doctrine read status, seam, red command/failure or skip reason, green command/evidence, and acceptance covered.
+- Before handing work to review, inspect an interim durable audit sink that preserves TDD evidence for review. This can be the conversation, implementation ledger, or a body draft if the final parent rollup or closeout body cannot exist yet.
+- Before a pre-close audit, issue closure, parent PRD closeout, or the repo `implement` skill's closeout gate, inspect the final durable closeout sink or body that will be posted or linked.
+- Both the interim and final durable sinks must contain the compact table below or equivalent explicit fields: issue(s), context/doctrine read status, seam, red command/failure or skip reason, green command/evidence, and acceptance covered.
 - Make the literal `TDD evidence gate passed:` line visible in the conversation, implementation ledger, or durable audit sink. If any field is missing or only implied, stop and add it before leaving the TDD loop.
 - Do not write or accept the shorthand `TDD evidence gate passed: yes`. The gate line must be the full fielded sentence shown below, including `durable sink`, `compact table/header`, `seams accounted for`, `context/doctrine read status`, partial-red or skip-reason status, and evidence-only row status.
 - Body-check token sweep: before declaring the gate satisfied, grep or visually verify that the durable sink contains `TDD closeout preflight`, `TDD evidence gate passed: durable sink`, `compact table/header`, `seams accounted for`, `context/doctrine read status`, `partial-red / red-first skip reasons`, and `evidence-only rows`.
-- When `implement` owns the surrounding workflow, the same parent rollup, issue comment, or body file that carries implementation closeout evidence must also carry the `TDD closeout preflight` block and the literal `TDD evidence gate passed:` line before review, pre-close audit, issue closure, or parent PRD closeout. A verification section that lists red/green commands is not equivalent unless it also names the issue/seam rows, context/doctrine status, skip or partial-red reasons, and evidence-only freshness.
+- When `implement` owns the surrounding workflow, copy or link the interim TDD evidence into the same final parent rollup, issue comment, or body file that carries implementation closeout evidence before the pre-close audit, issue closure, or parent PRD closeout. A verification section that lists red/green commands is not equivalent unless it also names the issue/seam rows, context/doctrine status, skip or partial-red reasons, and evidence-only freshness.
 
 ## What a good test is
 
@@ -86,9 +87,9 @@ Shared-boundary red-command hard stop: for shared-boundary issue families, do no
 - **Shared-boundary issue families still need tracer bullets.** When PRD child issues share one implementation boundary and separate red-green cycles would be artificial, write the smallest red tracer at each agreed seam, record the red failures by seam and issue, then implement the shared boundary while keeping the acceptance mapping explicit.
 - **Inventory shared-boundary seams before broad red tests.** Before writing the first broad tracer for a shared-boundary issue family, list every agreed seam and mark each one as `red-first`, `no-runnable`, or `evidence-only`. Instantiate the compact evidence table stub before the first red test: one row per in-scope issue and agreed seam, with `TBD` allowed only in command/evidence cells that cannot exist yet. Use that inventory as the row plan for the compact evidence table; if a seam cannot be classified, stop and clarify the seam before writing tests.
 - **Shared-boundary closeout hard stop.** Do not enter closeout for a shared-boundary issue family until the compact evidence table below has one row per agreed seam, or an explicit red-first skip reason is recorded for each seam that could not reasonably go red first.
-- **Implementation closeout consumes the TDD table.** When the repo `implement` skill owns the surrounding workflow, merge the compact TDD evidence table into the implementation ledger or pre-close audit before review and closeout. Immediately before the pre-close audit, either post a short `TDD evidence` block or explicitly carry the TDD fields into the audit evidence. Put that table or block in the same durable sink as the pre-close audit, or directly adjacent to it with an explicit link or citation; do not rely on earlier prose-only red/green notes surviving context compaction. The minimum evidence is: issue or issues, context/doctrine read status or `N/A`, seam, red command and expected failure or skip reason, and green command or evidence. If a seam has no row, add the explicit red-first skip reason before leaving the TDD loop.
+- **Implementation closeout consumes the TDD table.** When the repo `implement` skill owns the surrounding workflow, preserve the compact TDD evidence table in the implementation ledger or another interim durable sink before review, then carry the same fields into the pre-close audit or final closeout sink before tracker mutation. Immediately before the pre-close audit, either post a short `TDD evidence` block or explicitly carry the TDD fields into the audit evidence. Put that table or block in the same durable sink as the pre-close audit, or directly adjacent to it with an explicit link or citation; do not rely on earlier prose-only red/green notes surviving context compaction. The minimum evidence is: issue or issues, context/doctrine read status or `N/A`, seam, red command and expected failure or skip reason, and green command or evidence. If a seam has no row, add the explicit red-first skip reason before leaving the TDD loop.
 - **TDD evidence artifact stop.** Before the pre-close audit, issue closure, or parent PRD closeout, inspect the actual durable closeout body that will be posted or linked. It satisfies this skill only when it contains the compact table header row below, or when every entry explicitly carries the same minimum fields: issue(s), context/doctrine read status, seam, red command/failure or skip reason, green command/evidence, and acceptance covered. Prose-only red/green bullet lists do not satisfy this stop, even if the commands are present.
-- **TDD closeout preflight.** Before handing off to review, a pre-close audit, issue closure, or parent PRD closeout, fill and paste this block in the conversation, implementation ledger, or closeout audit. Do not proceed until the `TDD evidence gate passed:` line is present immediately under it.
+- **TDD closeout preflight.** Before handing off to review, fill and paste this block in the conversation, implementation ledger, or other interim durable sink. Before a pre-close audit, issue closure, or parent PRD closeout, paste or update it in the final closeout audit or body. Do not proceed until the `TDD evidence gate passed:` line is present immediately under it.
 
   ```markdown
   TDD closeout preflight:
@@ -100,9 +101,29 @@ Shared-boundary red-command hard stop: for shared-boundary issue families, do no
   - Evidence-only rows freshness: <none/listed with Evidence freshness result>
   ```
 
-- **TDD evidence gate line.** After inspecting the durable closeout body and before leaving the TDD loop for review or closeout, write this literal line in the conversation, implementation ledger, or closeout audit:
+- **TDD evidence gate line.** After inspecting the current interim sink or final closeout body and before leaving the TDD loop for review or closeout, write this literal line in the conversation, implementation ledger, or closeout audit:
 
   `TDD evidence gate passed: durable sink <conversation/comment URL/issue reference>; compact table/header <present/equivalent fields present>; seams accounted for <all listed / exceptions named>; context/doctrine read status <present/N/A>; partial-red / red-first skip reasons <none/listed>; evidence-only rows <none/listed>.`
+
+- **Parent-rollup-ready TDD evidence fragment.** For 4+ child issues using a parent PRD rollup, paste or adapt this block into the final rollup, or link an adjacent durable sink that contains it:
+
+  ```markdown
+  TDD evidence
+
+  | Issue | Context / doctrine read | Seam | Red command/failure | Green command or evidence | Acceptance covered | Review fix / red-first skip reason |
+  |---|---|---|---|---|---|---|
+  | #N | <CONTEXT.md / ADRs / principles read or N/A> | <red-first / no-runnable / evidence-only seam> | <command plus expected failure / partial red - wrong reason / N/A / explicit skip reason> | <passing command / browser route-action-result / artifact path / N/A> | <criterion or checkbox> | <N/A / review-fix evidence / partial-red follow-up / red-first skip reason> |
+
+  TDD closeout preflight:
+  - Durable sink/body inspected: <conversation/comment URL/issue reference/final body file>
+  - Compact table/header: <present/equivalent fields present/missing>
+  - Rows accounted for: <all in-scope issues and seams listed / exceptions named>
+  - Context/doctrine read status: <present/N/A>
+  - Partial-red / red-first skip reasons: <none/listed>
+  - Evidence-only rows freshness: <none/listed with Evidence freshness result>
+
+  TDD evidence gate passed: durable sink <conversation/comment URL/issue reference>; compact table/header <present/equivalent fields present>; seams accounted for <all listed / exceptions named>; context/doctrine read status <present/N/A>; partial-red / red-first skip reasons <none/listed>; evidence-only rows <none/listed>.
+  ```
 
 - **Refactoring is not part of the loop.** Incidental cleanup belongs to the review stage (see the `code-review` skill), not the red → green implementation cycle. When the requested work is itself a behavior-preserving refactor with observable or static acceptance criteria, the loop can use a red tracer for the required contract plus behavior-preservation tests at the agreed seams.
 
