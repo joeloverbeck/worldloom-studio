@@ -350,6 +350,23 @@ export const creationDecisionPoint = (
       stepRequest: pressureStepRequest
     })
   ]);
+  const previewMode = modes.find((mode) => mode.available && mode.stepRequest)?.mode ?? "pressure";
+  const previewPromptText = promptRecordId != null && modes.some((mode) => mode.available && mode.stepRequest)
+    ? PromptOut.generatePrompt(worldFile, {
+        flowKey: "creation",
+        flowId: flow.id,
+        templateKey,
+        recordId: promptRecordId,
+        stepKey,
+        mode: previewMode
+      }).prompt
+    : [
+        `Role framing (${role}): ask for pressure, not answers.`,
+        `Current decision: ${localDecision}`,
+        contextPreview,
+        ...cardDoctrineSlots,
+        "Advisory/canon warning: pasted responses remain advisory artifacts and never mutate canon fields automatically."
+      ].filter(Boolean).join("\n\n");
   const packageCitations = [
     "docs/worldbuilding-system/05_creation_protocol.md#phase-1-world-kernel",
     "docs/worldbuilding-system/05_creation_protocol.md#phase-2-seed-decomposition",
@@ -481,13 +498,7 @@ export const creationDecisionPoint = (
       stepRequest: pressureStepRequest,
       preview: {
         currentDecision: localDecision,
-        promptText: [
-          `Role framing (${role}): ask for pressure, not answers.`,
-          `Current decision: ${localDecision}`,
-          contextPreview,
-          ...cardDoctrineSlots,
-          "Advisory/canon warning: pasted responses remain advisory artifacts and never mutate canon fields automatically."
-        ].filter(Boolean).join("\n\n"),
+        promptText: previewPromptText,
         contextPreview,
         sourceManifest,
         omissions,

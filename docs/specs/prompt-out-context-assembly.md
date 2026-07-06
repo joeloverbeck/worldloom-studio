@@ -21,6 +21,32 @@ Each packet includes these sections, omitting a section only when the prompt pre
 9. **Advisory warning** — the steward decides; pasted responses remain immutable advisory artifacts.
 10. **Source manifest** — records, doctrine excerpts, standing rulings, and omissions with reasons.
 
+## Packet Rendering
+
+The 10-section content list above is unchanged. PRD #204 and `reports/prompt-structure-research-report.md` change the packet's rendering, ordering, and elicitation structure only. The renderer applies recommendations R1-R10 from that report with the caveats recorded there: end-only task placement is not claimed as academically proven, delimiter ranking is phrased as "choose one, be consistent," named-axis diversity is trial-testable practice rather than confirmed academic fact, and named roles are stance/scope devices rather than accuracy claims.
+
+Every generated packet renders as a sandwich:
+
+1. **Compact top block** — mode, one-sentence role or decision stance, advisory/canon warning, compact forbidden-move summary, and output-label names.
+2. **Tagged context middle** — the shared context assembly, rendered in consistent XML-style tags rather than JSON. The standard tags are `<context_packet>`, `<bearing_context>`, `<package_doctrine>`, `<decision_material>`, `<source_records>`, `<standing_rulings>`, `<omissions>`, and `<source_manifest>`.
+3. **Full bottom block** — the current decision restated adjacent to the task, the complete mode request, quote-grounding pre-step, forbidden moves with rationales and positive restatements, output-label definitions, exactly one compact structural skeleton example for the active mode, the default prompt derivation, and the anchor phrase "Based on the material above...".
+
+Source records render inside `<documents>` as one `<document>` per record or flow artifact. Each document contains `<source>` metadata with the source-manifest provenance identifier and `<document_content>` with the excerpted content. Context must not be wrapped in JSON. Output labels may remain Markdown/plain text because the research report leaves chat-UI rendering of XML output labels as a field-trial open question.
+
+Section-local micro-instructions sit next to the material they govern:
+
+- advisory, pasted, proposed, or under-review material is labeled as such directly atop the decision material;
+- package doctrine is labeled as excerpted or app-owned derivation directly atop the doctrine block;
+- omissions are listed where the packet reader can see why missing context is unavailable or irrelevant.
+
+The quote-grounding pre-step appears before the main answer in both modes: the external model is asked to quote the canon, doctrine, or source-record lines its candidates or critiques rest on before answering. Proposal mode asks for alternatives that differ along named axes such as premise, mechanism, and consequence; this is a practice-informed trial criterion, not a proven academic claim. Pressure mode keeps challenge, risks, alternatives, and questions separate from final canon authorship.
+
+Forbidden moves render twice: a compact summary near the top and the full set near the bottom. The full set uses prohibition, rationale, and positive restatement, for example: "do not assign canon standing; only Admission and the steward can change canon standing; label every proposal as a candidate for steward review." The standard forbidden set covers final canon wording, canon standing, truth layer, status, separated package labels, hidden assumptions, and automatic adoption.
+
+Each packet contains exactly one compact structural skeleton example for the active mode. Skeletons are label/whitespace exemplars only; they use content-light placeholders so proposal packets do not anchor all candidates to one content pattern.
+
+Current in-scope Prompt-out surfaces are Creation kernel, Creation seed decomposition, Minimal Viable World checkpoint, Admission prerequisite/constraint prompts, Propagation consequence scout, Constraint Composition challenger, Temporal/Timeline spatial-temporal analyst, Stage 12 institution/economy analyst, Stage 13 repair challenge and boundary guard, and QA red team.
+
 ## Inclusion Rules
 
 - Include only context that can affect the current decision point.
@@ -66,6 +92,31 @@ For `decomposition_pressure`, missing or incomplete decomposition material is a 
 A proposal packet passes when a model with no prior world or repository context can draft labeled candidate material with alternatives and assumptions while still respecting the advisory/canon boundary and forbidden labels. A pressure packet passes when that same model can give useful pressure, risks, alternatives, or questions without being asked to author final canon. Both tests fail if the steward must manually add doctrine, source records, vocabulary guardrails, output-label rules, or advisory/canon boundaries before the prompt is usable.
 
 For decomposition pressure, the prompt passes only when the external model can inspect the exact parked seeds, report rationale, governance status, and Creation-to-Admission boundary without opening repository files or asking the steward for missing seed context.
+
+Structural criteria are part of the cold test and are checkable at the server prompt-generation seam:
+
+- sandwich placement is present: compact top block, tagged context middle, and full bottom block;
+- XML-style tags are consistent and source records use `<documents>/<document>/<source>/<document_content>`;
+- source identifiers from the source manifest are visible in the document metadata;
+- no JSON context wrapper is used;
+- section-local micro-instructions appear next to advisory/proposed material and excerpted doctrine;
+- quote-grounding is requested before the main answer;
+- forbidden moves are rationalized and positively restated, with summary near the top and full set near the bottom;
+- exactly one structural skeleton example appears for the active mode;
+- proposal alternatives are asked to differ along named axes such as premise, mechanism, and consequence;
+- pressure output keeps challenge, risks, alternatives, and questions separate from authoring final canon;
+- the current decision is adjacent to the closing task and anchor phrase.
+
+## Field-Trial Prompt Evaluation
+
+The field trial's isolated-subagent prompt evaluation inherits the research report's open questions instead of treating them as settled implementation facts:
+
+- whether named-analyst framing improves critique quality or only stance/tone;
+- which single-turn diversity device works best for proposal alternatives;
+- whether long-context placement effects matter below roughly 20k tokens;
+- whether chat UIs handle XML-tagged output labels well enough or should keep output labels in Markdown/plain text.
+
+The Prompt-out maturity row in `docs/methodology-coverage.md` should remain below field-validated until a real field trial exercises proposal and pressure packets across real worldbuilding work. This PRD hardens structure; it does not create field-use evidence by itself.
 
 ## Principles
 

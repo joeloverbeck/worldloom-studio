@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { basename, dirname, join, resolve } from "node:path";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { APPLICATION_ID, CURRENT_SCHEMA_VERSION, migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008 } from "./schema.js";
+import { PROMPT_TEMPLATE_SEEDS } from "./prompt-out-defaults.js";
 import { LINK_TYPES, RECORD_TYPES, RECORD_TYPE_BY_KEY } from "@worldloom/shared";
 
 export interface RecordInput {
@@ -1225,75 +1226,45 @@ export class WorldFile {
   }
 
   private ensurePromptTemplates(): void {
-    const templates = [
-      {
-        key: "kernel_pressure",
-        roleName: "Consequence scout",
-        text: "Pressure-test this steward-authored kernel as a pressure seed. Work from the kernel first, then surface direct consequences, speculative assumptions, ordinary-life residue, institutions, constraints, and quiet domains that the world may need to answer. Do not write first-draft or final canon; label surfaced facts as proposed-only.",
-        legacyText: "Given this canon fact and its constraints, list consequences across the domain atlas. Separate direct consequences from speculative ones. Do not invent new canon facts; label assumptions."
-      },
-      {
-        key: "decomposition_pressure",
-        roleName: "Prerequisite auditor",
-        text: "Pressure-test this steward-authored seed decomposition. Work from the split seeds first, then identify hidden prerequisites across hard, soft, economic, institutional, temporal, spatial, and psychological domains. Flag bundled seeds, missing prerequisites, and any prerequisite that needs its own canon admission. Do not write final canon; label assumptions plainly.",
-        legacyText: "What hard, soft, economic, institutional, temporal, spatial, and psychological prerequisites does this fact require? Flag any prerequisite that would itself need canon admission."
-      },
-      {
-        key: "admission_prerequisite_audit",
-        roleName: "Prerequisite auditor",
-        text: "Pressure-test this proposed fact statement and its dependencies. Identify hard, soft, economic, institutional, temporal, spatial, and psychological prerequisites; flag any prerequisite that needs its own admission."
-      },
-      {
-        key: "admission_constraint_challenge",
-        roleName: "Constraint challenger",
-        text: "Challenge the proposed capability, access, cost, and constraints. Look for hostile optimization, cheap countermeasures, missing prices, quiet domains, and places where a constraint should be typed rather than hidden in prose."
-      },
-      {
-        key: "propagation_consequence_scout",
-        roleName: "Consequence scout",
-        text: "Pressure-test this propagation step. Work from the steward material first, then list direct consequences, adaptations, countermeasures, fossils, quiet domains, and assumptions. Do not admit facts; label any surfaced fact as proposed-only."
-      },
-      {
-        key: "repair_challenge",
-        roleName: "Contradiction hunter",
-        text: "Pressure-test the quoted claims, chosen repair operation, retcon costs, status changes, and propagation obligations. Suggest repair pressure only; do not decide canon standing."
-      },
-      {
-        key: "boundary_guard",
-        roleName: "Mystery guardian",
-        text: "Pressure-test the preservation boundary, protected effect type, explanation-pressure operation, reveal permissions, reveal prohibitions, and sacred-opacity accountability. Protect consequence; do not solve by default."
-      },
-      {
-        key: "qa_red_team",
-        roleName: "QA hostile reader",
-        text: "Run a QA red-team pass as a hostile reader. Ask for pressure, not answers. Do not write final canon.\nUse the eight red-team questions from docs/worldbuilding-system/18_quality_assurance_tests.md."
-      },
-      {
-        key: "institution_economy_analyst",
-        roleName: "Institution/economy analyst",
-        text: "Pressure-test this institutional, economic, and suppression sweep. Work from steward-authored material first. Identify action arenas, rules-in-use, transaction costs, surplus capture, suppression residue, counter-institutions, daily-life residue, and power conflict. Do not admit facts; label surfaced facts as proposed-only and name unresolved canon debt."
-      },
-      {
-        key: "temporal_spatial_analyst",
-        roleName: "Spatial-temporal analyst",
-        text: "Pressure-test this Temporal/Timeline pass. Work from steward-authored material first. Identify date type separation, granularity pressure, first-true sequence, discovery latency, institutional reaction, residue by timescale, diffusion speed, chronology pluralism, and temporal mystery boundaries. Do not admit facts; label surfaced facts as proposed-only and name unresolved canon debt."
-      }
-    ];
     this.db.transaction(() => {
-      for (const template of templates) {
+      for (const template of PROMPT_TEMPLATE_SEEDS) {
+        const existing = this.db.prepare(`
+          SELECT pt.current_version, pt.original_text, ptv.text AS current_text
+          FROM prompt_templates pt
+          LEFT JOIN prompt_template_versions ptv ON ptv.template_key = pt.key AND ptv.version = pt.current_version
+          WHERE pt.key = ?
+        `).get(template.key) as { current_version: number; original_text: string; current_text: string | null } | undefined;
+
+        if (!existing) {
+          this.db.prepare(`
+            INSERT INTO prompt_templates (key, role_name, original_text, package_source, current_version)
+            VALUES (?, ?, ?, ?, 1)
+          `).run(template.key, template.roleName, template.text, template.packageSource);
+          this.db.prepare(`
+            INSERT INTO prompt_template_versions (template_key, version, text)
+            VALUES (?, 1, ?)
+          `).run(template.key, template.text);
+          continue;
+        }
+
+        const currentText = existing.current_text ?? "";
+        const oldDefaultTexts = new Set([existing.original_text, ...template.previousTexts].filter(Boolean));
         this.db.prepare(`
-          INSERT OR IGNORE INTO prompt_templates (key, role_name, original_text, package_source)
-          VALUES (?, ?, ?, 'docs/worldbuilding-system/20_ai_assisted_workflow.md')
-        `).run(template.key, template.roleName, template.text);
-        this.db.prepare(`
-          INSERT OR IGNORE INTO prompt_template_versions (template_key, version, text)
-          VALUES (?, 1, ?)
-        `).run(template.key, template.text);
-        if (template.legacyText) {
-          this.db.prepare("UPDATE prompt_templates SET original_text = ? WHERE key = ? AND original_text = ?")
-            .run(template.text, template.key, template.legacyText);
-          this.db.prepare("UPDATE prompt_template_versions SET text = ? WHERE template_key = ? AND version = 1 AND text = ?")
-            .run(template.text, template.key, template.legacyText);
+          UPDATE prompt_templates
+          SET role_name = ?, original_text = ?, package_source = ?
+          WHERE key = ?
+        `).run(template.roleName, template.text, template.packageSource, template.key);
+
+        const versions = this.db.prepare("SELECT version, text FROM prompt_template_versions WHERE template_key = ? ORDER BY version")
+          .all(template.key) as Array<{ version: number; text: string }>;
+        let defaultVersion = versions.find((row) => row.text === template.text)?.version;
+        if (defaultVersion == null) {
+          defaultVersion = Math.max(0, ...versions.map((row) => row.version)) + 1;
+          this.db.prepare("INSERT INTO prompt_template_versions (template_key, version, text) VALUES (?, ?, ?)")
+            .run(template.key, defaultVersion, template.text);
+        }
+        if (!currentText || currentText === template.text || oldDefaultTexts.has(currentText)) {
+          this.db.prepare("UPDATE prompt_templates SET current_version = ? WHERE key = ?").run(defaultVersion, template.key);
         }
       }
     })();

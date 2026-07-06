@@ -1,6 +1,7 @@
 import { requiresSkipReason } from "./severity-policy.js";
 import { resolveCreationDecompositionHandoff } from "./creation-handoff.js";
 import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest, maybeMethodCard } from "./method-cards.js";
+import { PROMPT_TEMPLATE_SEEDS } from "./prompt-out-defaults.js";
 import type { PromptMode } from "./decision-point-contract.js";
 import type { MethodCard } from "@worldloom/shared";
 import type { RecordInput, RecordRow, WorldFile } from "./world-file.js";
@@ -16,16 +17,14 @@ export interface PromptTemplateRow {
   current_text: string;
 }
 
-const BUILT_IN_PROMPT_TEMPLATES: PromptTemplateRow[] = [
-  {
-    key: "minimal_viable_world_checkpoint",
-    role_name: "Minimal Viable World checkpoint analyst",
-    original_text: "Work from admitted seed facts and checkpoint dispositions. In proposal mode, offer labeled candidate ordinary-life residues, adapted institutions or customs, factional disagreements or mode-equivalent pressures, path-dependence residues, mystery-boundary wording, aesthetic residue, pressure lines, and follow-up debt phrasing. In pressure mode, challenge existing evidence for backdrop-shaped gaps. Do not assign canon standing, truth layer, status, or final viability.",
-    package_source: "docs/worldbuilding-system/20_ai_assisted_workflow.md",
-    current_version: 1,
-    current_text: "Work from admitted seed facts and checkpoint dispositions. In proposal mode, offer labeled candidate ordinary-life residues, adapted institutions or customs, factional disagreements or mode-equivalent pressures, path-dependence residues, mystery-boundary wording, aesthetic residue, pressure lines, and follow-up debt phrasing. In pressure mode, challenge existing evidence for backdrop-shaped gaps. Do not assign canon standing, truth layer, status, or final viability."
-  }
-];
+const BUILT_IN_PROMPT_TEMPLATES: PromptTemplateRow[] = PROMPT_TEMPLATE_SEEDS.map((template) => ({
+  key: template.key,
+  role_name: template.roleName,
+  original_text: template.text,
+  package_source: template.packageSource,
+  current_version: 1,
+  current_text: template.text
+}));
 
 export interface AdvisoryDispositionRow {
   id: number;
@@ -84,6 +83,154 @@ const contextLines = (input: { flowKey?: PromptOutFlowKey; flowId?: number; step
 
 const modeLine = (mode?: PromptMode): string[] => mode ? [`Mode: ${mode}`] : [];
 
+interface PromptDocument {
+  source: string;
+  content: string;
+}
+
+interface PromptPacketInput {
+  mode: PromptMode;
+  roleName: string;
+  templateText: string;
+  currentDecision: string;
+  modeRequest: string;
+  bearingContext: string[];
+  packageDoctrine: string[];
+  decisionMaterial: string[];
+  sourceDocuments: PromptDocument[];
+  standingRulings: string[];
+  omissions: string[];
+  sourceManifest: string[];
+  advisoryWarning: string;
+  outputLabels?: string[];
+}
+
+const DEFAULT_OUTPUT_LABELS = [
+  "selected",
+  "deleted",
+  "challenged",
+  "ignored",
+  "standing ruling",
+  "adopted with steward revision",
+  "rejected"
+];
+
+const compact = (lines: string[]): string =>
+  lines.map((line) => line.trim()).filter(Boolean).join("\n");
+
+const tagBlock = (tag: string, body: string): string =>
+  [`<${tag}>`, body.trim() || "(none)", `</${tag}>`].join("\n");
+
+const inlineTag = (tag: string, body: string): string =>
+  `<${tag}>${body.trim() || "(none)"}</${tag}>`;
+
+const renderList = (lines: string[]): string =>
+  lines.length ? lines.map((line) => `- ${line}`).join("\n") : "- none";
+
+const renderDocuments = (documents: PromptDocument[]): string =>
+  tagBlock("documents", documents.map((document) => tagBlock("document", [
+    inlineTag("source", document.source),
+    tagBlock("document_content", document.content || "(empty)")
+  ].join("\n"))).join("\n\n") || "(none)");
+
+const quoteGrounding = "Quote-grounding pre-step: first quote the specific canon, doctrine, or source-record lines your candidates or critiques rest on before the main answer.";
+
+const topForbiddenSummary = "Forbidden-move summary: no canon standing, no truth layer or status assignment, no separated package-label assignment, no final canon wording, no hidden assumptions, and no automatic adoption.";
+
+const forbiddenMoves = (mode: PromptMode): string[] => [
+  "Prohibition: do not assign canon standing. Rationale: only Admission and the steward can change canon standing. Positive restatement: label every proposal as a candidate for steward review.",
+  "Prohibition: do not assign truth layer, status, constraint tag, admission operation, repair operation, consequence mode, or preservation boundary. Rationale: the methodology keeps these as separated steward judgments. Positive restatement: name any recommended label as a recommendation with reasons.",
+  "Prohibition: do not write final canon. Rationale: the steward authors surviving material in their own wording. Positive restatement: return challenge, risks, alternatives, and questions for steward disposition.",
+  "Prohibition: do not hide invented facts or borrowed assumptions. Rationale: cold prompt-out only works when provenance and assumptions are auditable. Positive restatement: mark assumptions and provenance gaps plainly.",
+  mode === "proposal"
+    ? "Prohibition: do not collapse proposal alternatives into one safe answer. Rationale: proposal mode needs real steward choice. Positive restatement: offer alternatives that differ along named axes: premise, mechanism, and consequence."
+    : "Prohibition: do not turn pressure mode into a rewrite. Rationale: pressure mode exists to challenge steward-authored material. Positive restatement: keep challenge, risks, alternatives, and questions separate from final canon authorship."
+];
+
+const structuralSkeleton = (mode: PromptMode): string => mode === "proposal"
+  ? [
+      "Structural skeleton example (proposal mode)",
+      "Grounding quotes:",
+      "- \"<short source or doctrine quote>\" — <source id>",
+      "",
+      "Candidate A — <axis difference: premise | mechanism | consequence>",
+      "Candidate material: <content-light candidate wording>",
+      "Assumptions: <labeled assumptions or none>",
+      "Risks: <advisory risks>",
+      "Questions: <steward decisions owed>"
+    ].join("\n")
+  : [
+      "Structural skeleton example (pressure mode)",
+      "Grounding quotes:",
+      "- \"<short source or doctrine quote>\" — <source id>",
+      "",
+      "Challenge: <what breaks or goes unsupported>",
+      "Risk: <canon, mystery, causality, or fidelity risk>",
+      "Alternative: <non-final option the steward may consider>",
+      "Question: <decision the steward must answer>"
+    ].join("\n");
+
+const roleStance = (mode: PromptMode, roleName: string): string =>
+  mode === "proposal"
+    ? `Role stance (not an accuracy claim): ${roleName} frames candidate generation for the current decision.`
+    : `Role stance (not an accuracy claim): ${roleName} frames pressure, risks, alternatives, and questions.`;
+
+const renderPromptPacket = (input: PromptPacketInput): string => {
+  const outputLabels = input.outputLabels ?? DEFAULT_OUTPUT_LABELS;
+  const modeTitle = input.mode === "proposal" ? "Proposal mode" : "Pressure mode";
+  const modeRequest = input.mode === "proposal"
+    ? `${input.modeRequest} Require alternatives that differ along named axes: premise, mechanism, and consequence.`
+    : input.modeRequest;
+  const compactTop = tagBlock("compact_top_block", compact([
+    `Mode: ${modeTitle}`,
+    roleStance(input.mode, input.roleName),
+    `Advisory/canon warning: ${input.advisoryWarning}`,
+    topForbiddenSummary,
+    `Output-label names: ${outputLabels.join("; ")}`
+  ]));
+  const contextPacket = tagBlock("context_packet", [
+    "Context preview:",
+    tagBlock("bearing_context", compact([
+      "Micro-instruction: use this as decision-bearing context only; omissions are listed with reasons.",
+      ...input.bearingContext
+    ])),
+    tagBlock("package_doctrine", compact([
+      "Micro-instruction: these are excerpts or app-owned derivations at point of use; omissions are listed separately.",
+      ...input.packageDoctrine
+    ])),
+    tagBlock("decision_material", compact([
+      "Micro-instruction: treat steward-authored material as material under review and pasted/proposed material as advisory until the steward acts.",
+      ...input.decisionMaterial
+    ])),
+    tagBlock("source_records", renderDocuments(input.sourceDocuments)),
+    tagBlock("standing_rulings", renderList(input.standingRulings)),
+    tagBlock("omissions", renderList(input.omissions)),
+    tagBlock("source_manifest", compact(["Source manifest:", renderList(input.sourceManifest)]))
+  ].join("\n\n"));
+  const bottom = [
+    "Current decision:",
+    input.currentDecision,
+    "",
+    "Mode request:",
+    modeRequest,
+    "",
+    quoteGrounding,
+    "",
+    "Forbidden moves with rationales and positive restatements:",
+    ...forbiddenMoves(input.mode),
+    "",
+    "Output label definitions:",
+    ...outputLabels.map((label) => `- ${label}: advisory label for steward disposition; not canon status.`),
+    "",
+    structuralSkeleton(input.mode),
+    "",
+    `Default prompt derivation: ${input.templateText}`,
+    "",
+    `Based on the material above, answer only for the current decision in ${input.mode} mode and keep every claim traceable to the quoted packet material.`
+  ].join("\n");
+  return [compactTop, contextPacket, bottom].join("\n\n");
+};
+
 const rowToPromptTemplate = (row: Record<string, unknown>): PromptTemplateRow => ({
   key: String(row.key),
   role_name: String(row.role_name),
@@ -131,7 +278,8 @@ const promptTemplateRow = (world: WorldFile, key: string): PromptTemplateRow => 
 const appendPromptTemplateVersion = (world: WorldFile, key: string, text: string): PromptTemplateRow => {
   const current = world.db.prepare("SELECT * FROM prompt_templates WHERE key = ?").get(key) as { current_version: number } | undefined;
   if (!current) throw new Error(`Prompt template not found: ${key}`);
-  const nextVersion = current.current_version + 1;
+  const versionRow = world.db.prepare("SELECT COALESCE(MAX(version), 0) + 1 AS next FROM prompt_template_versions WHERE template_key = ?").get(key) as { next: number };
+  const nextVersion = versionRow.next;
   world.atomicWrite(() => {
     world.db.prepare("INSERT INTO prompt_template_versions (template_key, version, text) VALUES (?, ?, ?)").run(key, nextVersion, text);
     world.db.prepare("UPDATE prompt_templates SET current_version = ? WHERE key = ?").run(nextVersion, key);
@@ -256,33 +404,57 @@ const creationDecompositionPrompt = (
   ];
 
   return {
-    prompt: [
-      `Role framing (${template.role_name}): ask for pressure, not answers. The steward's material comes first; do not write final canon.`,
-      `Default prompt derivation: ${template.current_text}`,
-      `Current decision context: flow ${input.flowKey ?? "unspecified"}, step ${stepKey}.`,
-      "Steward material under pressure:",
-      `Seed decomposition report ${report.shortId}: ${report.title}`,
-      report.body,
-      reportSections,
-      "Parked seeds:",
-      seedContext,
-      `Granularity rationale: ${handoff.granularityRationale ?? "Each parked seed is independently rejectable without destroying its siblings."}`,
-      ...(handoff.admissionIntent ? [`Admission intent: ${handoff.admissionIntent}`] : []),
-      kernelContext,
-      "Method card at point of use:",
-      ...methodCardDoctrineSlots(cardValue),
-      "Forbidden moves: do not author final canon, do not admit canon inside Creation, do not flatten truth layer or canon status, and do not invent hidden world facts without labeling them as assumptions.",
-      "Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories.",
-      "Output labels: bundled seed, missing prerequisite, admission concern, risk, alternative, question, standing-ruling candidate, irrelevant omission.",
-      "Requested analyst role: Prerequisite auditor. Provide pressure, risks, alternatives, and questions that help the steward decide whether the decomposition is ready for Admission.",
-      `Standing rulings: ${rulings.length ? rulings.map((row) => `${row.disposition}: ${row.note}`).join("; ") : "none"}.`,
-      ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey }),
-      "Source manifest:",
-      sourceManifest.join("\n"),
-      "Omissions:",
-      omissions.join("\n"),
-      "Advisory/canon warning: this prompt asks for optional pressure only. Pasted responses stay advisory artifacts until the steward authors and admits canon through the governed flow."
-    ].join("\n\n"),
+    prompt: renderPromptPacket({
+      mode: "pressure",
+      roleName: template.role_name,
+      templateText: template.current_text,
+      currentDecision: `Flow ${input.flowKey ?? "creation"}, step ${stepKey}: decide whether the seed decomposition is ready to hand to Admission.`,
+      modeRequest: "Provide pressure, risks, alternatives, and questions that help the steward decide whether the decomposition is ready for Admission.",
+      bearingContext: [
+        ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey }),
+        `Granularity rationale: ${handoff.granularityRationale ?? "Each parked seed is independently rejectable without destroying its siblings."}`,
+        ...(handoff.admissionIntent ? [`Admission intent: ${handoff.admissionIntent}`] : []),
+        kernelContext
+      ],
+      packageDoctrine: [
+        ...methodCardDoctrineSlots(cardValue),
+        "Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories."
+      ],
+      decisionMaterial: [
+        `Seed decomposition report ${report.shortId}: ${report.title}`,
+        report.body,
+        reportSections,
+        "Parked seeds:",
+        seedContext
+      ],
+      sourceDocuments: [
+        {
+          source: `seed_decomposition_report:${report.shortId}`,
+          content: [`${report.shortId} ${report.title}`, report.body, reportSections].filter(Boolean).join("\n\n")
+        },
+        ...handoff.parkedSeeds.map((seed) => ({
+          source: `parked_seed:${seed.shortId}`,
+          content: [
+            `${seed.shortId} ${seed.title}`,
+            `Truth layer: ${seed.truthLayer ?? "unset"}`,
+            `Canon status: ${seed.canonStatus ?? "unset"}`,
+            seed.body,
+            `Derived-from links: ${seed.sourceLinks.map((link) => `${link.shortId} ${link.title} (${link.note})`).join("; ")}`
+          ].join("\n")
+        })),
+        ...(handoff.supportingKernel
+          ? [{
+              source: `supporting_kernel:${handoff.supportingKernel.shortId}`,
+              content: kernelContext
+            }]
+          : [])
+      ],
+      standingRulings: rulings.map((row) => `${row.disposition}: ${row.note}`),
+      omissions,
+      sourceManifest,
+      advisoryWarning: "This prompt asks for optional pressure only. Pasted responses stay advisory artifacts until the steward authors and admits canon through the governed flow.",
+      outputLabels: ["bundled seed", "missing prerequisite", "admission concern", "risk", "alternative", "question", "standing-ruling candidate", "irrelevant omission"]
+    }),
     promptOut: {
       flowKey: input.flowKey ?? null,
       flowId: input.flowId ?? null,
@@ -326,7 +498,8 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
   if (mode === "pressure" && input.flowKey === "creation" && input.templateKey === "decomposition_pressure") {
     return creationDecompositionPrompt(world, input, template, stepKey);
   }
-  const recordContext = input.recordId == null ? "No record context selected." : promptRecordContext(world, input.recordId);
+  const selectedRecord = input.recordId == null ? null : world.getRecord(input.recordId);
+  const recordContext = selectedRecord == null ? "No record context selected." : promptRecordContext(world, selectedRecord.id);
   const rulings = standingRulingRows(world);
   const cardValue = promptMethodCard(input);
   const doctrineLines = cardValue ? methodCardDoctrineSlots(cardValue) : [];
@@ -335,37 +508,50 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
     `Prompt template: ${template.key} (${template.package_source})`,
     ...(cardValue ? methodCardSourceManifest(cardValue) : []),
     ...flowContext.sourceManifest,
-    input.recordId == null ? "Selected record: none" : `Selected record id: ${input.recordId}`,
+    selectedRecord == null ? "Selected record: none" : `Selected record: ${selectedRecord.shortId} ${selectedRecord.title}`,
     `Standing rulings: ${rulings.length}`,
     "Omissions: no hidden repository context; unavailable world context must be named before copy-out."
-  ].join("\n");
+  ];
+  const omissions = [
+    ...(selectedRecord == null ? ["Selected record omitted: no record context was provided."] : []),
+    "No hidden repository context is available to the external LLM.",
+    "Unavailable world context must be named before copy-out rather than silently omitted."
+  ];
+  const advisoryWarning = "This prompt is optional advisory support. Pasted responses stay advisory artifacts until the steward authors and admits canon through the governed flow.";
 
   return {
-    prompt: [
-      mode === "proposal"
-        ? `Proposal mode (${template.role_name}): ask for labeled candidate material with alternatives and assumptions. The response may recommend, never assign canon standing or separated labels.`
-        : `Role framing (${template.role_name}): ask for pressure, not answers. The steward's material comes first; do not write final canon.`,
-      `Default prompt derivation: ${template.current_text}`,
-      `Current decision context: flow ${input.flowKey ?? "unspecified"}, step ${stepKey}.`,
-      mode === "proposal"
-        ? "Proposal mode output discipline: return labeled candidates, alternatives, assumptions, risks, and questions; forbid canon-standing assignments, truth-layer assignments, status assignments, or unlabeled invented facts."
-        : "Pressure mode output discipline: provide pressure, risks, alternatives, and questions; do not author final canon.",
-      ...doctrineLines,
-      "Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories.",
-      "Label assumptions instruction: separate direct consequences from speculative assumptions and mark unadmitted assumptions plainly.",
-      "Output labels: selected, deleted, challenged, ignored, standing ruling, adopted with steward revision, rejected.",
-      `Standing rulings: ${rulings.length ? rulings.map((row) => `${row.disposition}: ${row.note}`).join("; ") : "none"}.`,
-      ...modeLine(mode),
-      ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey }),
-      `Step: ${stepKey}`,
-      "Source manifest:",
+    prompt: renderPromptPacket({
+      mode,
+      roleName: template.role_name,
+      templateText: template.current_text,
+      currentDecision: `Flow ${input.flowKey ?? "unspecified"}, step ${stepKey}; selected record ${selectedRecord ? `${selectedRecord.shortId} ${selectedRecord.title}` : "none"}.`,
+      modeRequest: mode === "proposal"
+        ? "Draft labeled candidate material with alternatives, assumptions, risks, and questions. Recommend with reasons, never assign canon standing or separated labels."
+        : "Provide pressure, risks, alternatives, and questions on steward-authored material. Do not author final canon.",
+      bearingContext: [
+        ...modeLine(mode),
+        ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey }),
+        ...(flowContext.lines.length ? flowContext.lines : [])
+      ],
+      packageDoctrine: [
+        ...doctrineLines,
+        "Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories.",
+        "Label assumptions instruction: separate direct consequences from speculative assumptions and mark unadmitted assumptions plainly."
+      ],
+      decisionMaterial: ["Record context:", recordContext],
+      sourceDocuments: [
+        ...(selectedRecord
+          ? [{ source: `selected_record:${selectedRecord.shortId}`, content: recordContext }]
+          : []),
+        ...(flowContext.lines.length
+          ? [{ source: `flow_context:${input.flowKey ?? "unspecified"}:${stepKey}`, content: flowContext.lines.join("\n\n") }]
+          : [])
+      ],
+      standingRulings: rulings.map((row) => `${row.disposition}: ${row.note}`),
+      omissions,
       sourceManifest,
-      "Context preview:",
-      ...(flowContext.lines.length ? ["Flow context:", flowContext.lines.join("\n\n")] : []),
-      "Record context:",
-      recordContext,
-      "Advisory/canon warning: this prompt asks for optional pressure only. Pasted responses stay advisory artifacts until the steward authors and admits canon through the governed flow."
-    ].join("\n\n"),
+      advisoryWarning
+    }),
     promptOut: {
       flowKey: input.flowKey ?? null,
       flowId: input.flowId ?? null,

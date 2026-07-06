@@ -237,7 +237,8 @@ describe("WorldFile", () => {
       recordId: kernel.id
     });
     expect(kernelPrompt.prompt).toContain("Consequence scout");
-    expect(kernelPrompt.prompt).toContain("The steward's material comes first; do not write final canon");
+    expect(kernelPrompt.prompt).toContain("Role stance (not an accuracy claim): Consequence scout");
+    expect(kernelPrompt.prompt).toContain("Prohibition: do not write final canon");
     expect(kernelPrompt.prompt).toContain("Vocabulary guardrail");
     expect(kernelPrompt.prompt).toContain("A city built on echoes.");
 
@@ -259,6 +260,52 @@ describe("WorldFile", () => {
     expect(decompositionPrompt.prompt).toContain("FAC-1");
     expect(decompositionPrompt.prompt).toContain("Courts accept echo testimony under conditions.");
     expect(decompositionPrompt.prompt).toContain("Admission intent: audit in Admission.");
+
+    reopened.close();
+  });
+
+  it("advances unchanged Prompt-out defaults while preserving steward-edited template versions", () => {
+    const path = tempPath("prompt-template-upgrade.sqlite");
+    const store = WorldFile.create(path);
+    const oldKernelDefault = "Pressure-test this steward-authored kernel as a pressure seed. Work from the kernel first, then surface direct consequences, speculative assumptions, ordinary-life residue, institutions, constraints, and quiet domains that the world may need to answer. Do not write first-draft or final canon; label surfaced facts as proposed-only.";
+    const oldQaDefault = "Run a QA red-team pass as a hostile reader. Ask for pressure, not answers. Do not write final canon.\nUse the eight red-team questions from docs/worldbuilding-system/18_quality_assurance_tests.md.";
+    const stewardEdit = "Custom steward QA red-team wording.";
+    store.db.prepare("UPDATE prompt_templates SET original_text = ?, current_version = 1 WHERE key = 'kernel_pressure'").run(oldKernelDefault);
+    store.db.prepare("UPDATE prompt_template_versions SET text = ? WHERE template_key = 'kernel_pressure' AND version = 1").run(oldKernelDefault);
+    store.db.prepare("UPDATE prompt_templates SET original_text = ?, current_version = 1 WHERE key = 'qa_red_team'").run(oldQaDefault);
+    store.db.prepare("UPDATE prompt_template_versions SET text = ? WHERE template_key = 'qa_red_team' AND version = 1").run(oldQaDefault);
+    PromptOut.updatePromptTemplate(store, "qa_red_team", stewardEdit);
+    store.close();
+
+    const reopened = WorldFile.open(path);
+    const templates = PromptOut.listPromptTemplates(reopened);
+    const kernelTemplate = templates.find((template) => template.key === "kernel_pressure");
+    const qaTemplate = templates.find((template) => template.key === "qa_red_team");
+
+    expect(templates).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "minimal_viable_world_checkpoint", current_text: expect.stringContaining("sandwich packet") }),
+      expect.objectContaining({ key: "constraint_challenger", current_text: expect.stringContaining("sandwich packet") }),
+      expect.objectContaining({ key: "temporal_spatial_analyst", current_text: expect.stringContaining("sandwich packet") })
+    ]));
+    expect(kernelTemplate).toMatchObject({
+      current_text: expect.stringContaining("sandwich packet"),
+      original_text: expect.stringContaining("sandwich packet")
+    });
+    expect(kernelTemplate?.current_version).toBeGreaterThan(1);
+    expect(reopened.db.prepare("SELECT text FROM prompt_template_versions WHERE template_key = 'kernel_pressure' ORDER BY version").all())
+      .toEqual(expect.arrayContaining([expect.objectContaining({ text: oldKernelDefault })]));
+    expect(qaTemplate).toMatchObject({
+      current_text: stewardEdit,
+      original_text: expect.stringContaining("sandwich packet")
+    });
+    expect(PromptOut.revertPromptTemplate(reopened, "qa_red_team")).toMatchObject({
+      current_text: expect.stringContaining("sandwich packet")
+    });
+    expect(reopened.db.prepare("SELECT text FROM prompt_template_versions WHERE template_key = 'qa_red_team' ORDER BY version").all())
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({ text: oldQaDefault }),
+        expect.objectContaining({ text: stewardEdit })
+      ]));
 
     reopened.close();
   });
@@ -817,8 +864,8 @@ describe("WorldFile", () => {
     const advisory = PromptOut.storeAdvisoryResponse(store, { stepKey: "contradiction:repair", promptText: prompt, responseText: "Challenge response" });
     PromptOut.disposeAdvisoryArtifact(store, advisory.id, { disposition: "standing ruling", note: "Preserve the flood consequence.", standingRuling: true });
     const editedBoundaryTemplate = PromptOut.updatePromptTemplate(store, "boundary_guard", "Custom boundary pressure") as { current_text: string; current_version: number };
-    expect(editedBoundaryTemplate).toMatchObject({ current_text: "Custom boundary pressure", current_version: 2 });
-    expect(PromptOut.revertPromptTemplate(store, "boundary_guard")).toMatchObject({ current_text: expect.stringContaining("Pressure-test the preservation boundary"), current_version: 3 });
+    expect(editedBoundaryTemplate).toMatchObject({ current_text: "Custom boundary pressure" });
+    expect(PromptOut.revertPromptTemplate(store, "boundary_guard")).toMatchObject({ current_text: expect.stringContaining("Pressure-test the preservation boundary") });
     ContradictionFlow.recordContradictionRepair(store, { flowId: flow.id, operations: ["clarify scope", "add constraint"], repairText: "The bridge survived only as a ferry charter; the stone span fell." });
     ContradictionFlow.addContradictionRepairTarget(store, {
       flowId: flow.id,

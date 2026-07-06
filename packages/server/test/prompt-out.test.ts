@@ -37,12 +37,10 @@ describe("Prompt-out module", () => {
       expect.objectContaining({ key: "kernel_pressure", current_text: expect.stringContaining("steward-authored kernel") })
     ]));
     expect(PromptOut.updatePromptTemplate(store, "kernel_pressure", "Custom kernel pressure")).toMatchObject({
-      current_text: "Custom kernel pressure",
-      current_version: 2
+      current_text: "Custom kernel pressure"
     });
     expect(PromptOut.revertPromptTemplate(store, "kernel_pressure")).toMatchObject({
-      current_text: expect.stringContaining("steward-authored kernel"),
-      current_version: 3
+      current_text: expect.stringContaining("steward-authored kernel")
     });
 
     const prompt = PromptOut.generatePrompt(store, {
@@ -50,12 +48,105 @@ describe("Prompt-out module", () => {
       recordId: fact.id,
       stepKey: "creation:kernel"
     }).prompt;
-    expect(prompt).toContain("Role framing");
+    expect(prompt).toContain("Role stance (not an accuracy claim)");
     expect(prompt).toContain("Vocabulary guardrail");
     expect(prompt).toContain("Label assumptions instruction");
-    expect(prompt).toContain("Standing rulings: none");
+    expect(prompt).toContain("<standing_rulings>");
+    expect(prompt).toContain("- none");
     expect(prompt).toContain("Step: creation:kernel");
     expect(prompt).toContain("Bell courts");
+
+    store.close();
+  });
+
+  it("renders proposal packets with the research-backed sandwich contract", () => {
+    const store = WorldFile.create(tempPath("sandwich-proposal.sqlite"));
+    const fact = store.createRecord({
+      recordTypeKey: "canon_fact",
+      title: "Bell courts",
+      body: "Bridge courts hear debt bells.",
+      ...explicitJudgment
+    });
+
+    const prompt = PromptOut.generatePrompt(store, {
+      flowKey: "admission",
+      templateKey: "admission_prerequisite_audit",
+      recordId: fact.id,
+      stepKey: "admission:dependencies",
+      mode: "proposal"
+    }).prompt;
+
+    expect(prompt).toContain("<compact_top_block>");
+    expect(prompt).toContain("<context_packet>");
+    expect(prompt).toContain("<bearing_context>");
+    expect(prompt).toContain("<package_doctrine>");
+    expect(prompt).toContain("<decision_material>");
+    expect(prompt).toContain("<documents>");
+    expect(prompt).toContain("<document>");
+    expect(prompt).toContain("<source>selected_record:");
+    expect(prompt).toContain("<document_content>");
+    expect(prompt).toContain("Quote-grounding pre-step");
+    expect(prompt).toContain("alternatives that differ along named axes: premise, mechanism, and consequence");
+    expect(prompt).toContain("Prohibition: do not assign canon standing");
+    expect(prompt).toContain("Rationale: only Admission and the steward can change canon standing");
+    expect(prompt).toContain("Positive restatement: label every proposal as a candidate for steward review");
+    expect(prompt).toContain("Output-label names");
+    expect(prompt).toContain("Structural skeleton example (proposal mode)");
+    expect(prompt.match(/Structural skeleton example/g)).toHaveLength(1);
+    expect(prompt).toMatch(/Current decision[\s\S]*Based on the material above/);
+    expect(prompt).not.toContain("```json");
+    expect(prompt).not.toContain("<json>");
+
+    store.close();
+  });
+
+  it("renders decomposition pressure packets with source documents, rationalized constraints, and one skeleton", () => {
+    const store = WorldFile.create(tempPath("sandwich-decomposition.sqlite"));
+    const kernel = store.createRecord({
+      recordTypeKey: "world_kernel",
+      title: "Echo city kernel",
+      body: "A city built on echoes.",
+      ...explicitJudgment
+    });
+    const decomposition = store.createRecord({
+      recordTypeKey: "seed_decomposition",
+      title: "Echo seed split",
+      body: "Echo laws split into testimony, cost, and enforcement seeds.",
+      ...explicitJudgment
+    });
+    store.replaceSections(decomposition.id, [
+      { heading: "Kernel source", body: "KER-1 World kernel", position: 1 },
+      { heading: "Granularity decisions", body: "Each seed can be rejected independently.", position: 2 },
+      { heading: "Parked seeds", body: "FAC-1 Echo court testimony", position: 3 },
+      { heading: "Thin-start boundary", body: "Admission intent: audit in Admission.", position: 4 }
+    ]);
+    const seed = store.createRecord({
+      recordTypeKey: "canon_fact",
+      title: "Echo court testimony",
+      body: "Courts accept echo testimony under conditions.",
+      ...explicitJudgment
+    });
+    store.createLink(seed.id, kernel.id, "derived_from", "Seed decomposed from world kernel");
+    store.createLink(seed.id, decomposition.id, "derived_from", "Seed recorded by decomposition report");
+
+    const prompt = PromptOut.generatePrompt(store, {
+      flowKey: "creation",
+      templateKey: "decomposition_pressure",
+      recordId: decomposition.id,
+      stepKey: "creation:decomposition_prompt",
+      mode: "pressure"
+    }).prompt;
+
+    expect(prompt).toContain("<compact_top_block>");
+    expect(prompt).toContain("<source>seed_decomposition_report:");
+    expect(prompt).toContain("<source>parked_seed:");
+    expect(prompt).toContain("<source>supporting_kernel:");
+    expect(prompt).toContain("Quote-grounding pre-step");
+    expect(prompt).toContain("Prohibition: do not write final canon");
+    expect(prompt).toContain("Positive restatement: return challenge, risks, alternatives, and questions");
+    expect(prompt).toContain("Structural skeleton example (pressure mode)");
+    expect(prompt.match(/Structural skeleton example/g)).toHaveLength(1);
+    expect(prompt).toContain("Based on the material above");
 
     store.close();
   });

@@ -915,6 +915,58 @@ function MethodCardPanel({ card, title = "Method card" }: { card?: MethodCard | 
   );
 }
 
+interface PromptPreviewPayload {
+  currentDecision: string;
+  promptText: string;
+  contextPreview: string;
+  sourceManifest: string[];
+  omissions: string[];
+  advisoryCanonWarning: string;
+}
+
+function PromptPacketPreview({
+  title,
+  roleLine,
+  modes,
+  preview,
+  advisoryNote,
+  action
+}: {
+  title: string;
+  roleLine?: string;
+  modes?: PromptOutMode[];
+  preview?: PromptPreviewPayload | null;
+  advisoryNote?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <section className="subpanel prompt-packet-preview">
+      <h3>{title}</h3>
+      {roleLine && <p>{roleLine}</p>}
+      {(modes ?? []).map((mode) => (
+        <div className="doctrine" key={mode.mode}>
+          <strong>{mode.label}</strong>
+          <span>{mode.available ? "Available from server" : mode.blocker ?? "Blocked by server"}</span>
+          <span>{mode.framing}</span>
+          <span>Output labels: {mode.outputLabels.join(", ")}</span>
+        </div>
+      ))}
+      <p>{preview?.currentDecision ?? "Prompt-out appears after server context is loaded."}</p>
+      <pre className="prompt-packet-text">{preview?.promptText ?? "No prompt packet loaded yet."}</pre>
+      <strong>Source manifest</strong>
+      {(preview?.sourceManifest ?? ["No source manifest loaded yet."]).map((item) => <p key={item}>{item}</p>)}
+      <strong>Context preview</strong>
+      <p>{preview?.contextPreview ?? "No context preview loaded yet."}</p>
+      <strong>Omissions</strong>
+      {(preview?.omissions ?? ["No omissions loaded yet."]).map((item) => <p key={item}>{item}</p>)}
+      <strong>Advisory/canon warning</strong>
+      <p>{preview?.advisoryCanonWarning ?? "Pasted responses remain advisory artifacts and are not admitted canon."}</p>
+      {advisoryNote && <p>{advisoryNote}</p>}
+      {action}
+    </section>
+  );
+}
+
 function DecisionContractPanel({ title, contract }: { title: string; contract?: DecisionPointSharedContract | null }) {
   const modes = contract?.promptOut.modes ?? [];
   const writeItems = contract
@@ -3483,17 +3535,14 @@ function App({
             </div>
             <button onClick={saveKernelStep} disabled={flowId == null}>Save kernel step</button>
           </section>
-          <section className="subpanel">
-            <h3>{"Prompt-out preview"}</h3>
-            <p>{displayedCreationDecision.promptOut.preview.currentDecision}</p>
-            <p>{displayedCreationDecision.promptOut.preview.promptText}</p>
-            <p>{displayedCreationDecision.promptOut.preview.advisoryCanonWarning}</p>
-            <h3>Source manifest</h3>
-            <div className="chips">
-              {displayedCreationDecision.promptOut.preview.sourceManifest.map((source) => <span key={source}>{source}</span>)}
-            </div>
-            <button onClick={loadCreationPromptStep} disabled={!openWorld || (!creationDecision?.promptOut.stepRequest && !creationDecision?.promptOut.modes?.some((mode) => mode.stepRequest))}>Load Creation Prompt-out Step</button>
-          </section>
+          <PromptPacketPreview
+            title="Prompt-out preview"
+            roleLine={`${displayedCreationDecision.promptOut.role} · ${displayedCreationDecision.promptOut.available ? "available" : "blocked"}`}
+            modes={displayedCreationDecision.promptOut.modes}
+            preview={displayedCreationDecision.promptOut.preview}
+            advisoryNote="Pasted responses remain advisory artifacts and do not mutate kernel sections, seed records, reports, or proposals without explicit steward use."
+            action={<button onClick={loadCreationPromptStep} disabled={!openWorld || (!creationDecision?.promptOut.stepRequest && !creationDecision?.promptOut.modes?.some((mode) => mode.stepRequest))}>Load Creation Prompt-out Step</button>}
+          />
           <section className="subpanel">
             <h3>Seed decomposition decision</h3>
             <p>Actual current status: proposed</p>
@@ -4125,29 +4174,14 @@ function App({
                 <p>{`Reason required: ${admissionDecision?.skipRule.reasonRequired ? "yes" : "no"} · ${admissionDecision?.skipRule.reasonThreshold ?? "major-or-higher Admission work"} · ${admissionDecision?.skipRule.belowThresholdNote ?? "Reason not collected below major-fact threshold."}`}</p>
                 <p>Open canon debt warnings are non-blocking and remain steward judgment context.</p>
               </section>
-              <section className="subpanel">
-                <h3>Prompt packet preview</h3>
-                <p>{admissionDecision?.promptOut.role ?? "Admission Prompt-out role loads after selecting a record."} · {admissionDecision?.promptOut.advisory ?? "optional"} advisory pressure</p>
-                {(admissionDecision?.promptOut.modes ?? []).map((mode) => (
-                  <div className="doctrine" key={mode.mode}>
-                    <strong>{mode.label}</strong>
-                    <span>{mode.available ? "Available from server" : mode.blocker ?? "Blocked by server"}</span>
-                    <span>{mode.framing}</span>
-                    <span>Output labels: {mode.outputLabels.join(", ")}</span>
-                  </div>
-                ))}
-                <p>{admissionDecision?.promptOut.preview.currentDecision ?? "Prompt-out appears only after steward-authored material exists."}</p>
-                <strong>Source manifest</strong>
-                {(admissionDecision?.promptOut.preview.sourceManifest ?? ["No source manifest loaded yet."]).map((item) => <p key={item}>{item}</p>)}
-                <strong>Context preview</strong>
-                <p>{admissionDecision?.promptOut.preview.contextPreview ?? "No context preview loaded yet."}</p>
-                <strong>Omissions</strong>
-                {(admissionDecision?.promptOut.preview.omissions ?? ["No omissions loaded yet."]).map((item) => <p key={item}>{item}</p>)}
-                <strong>Advisory/canon warning</strong>
-                <p>{admissionDecision?.promptOut.preview.advisoryCanonWarning ?? "Pasted responses remain advisory artifacts and are not admitted canon."}</p>
-                <p>Pasted advisory responses are stored as advisory_artifact records and remain visibly separate from canon fields.</p>
-                <button onClick={loadAdmissionPromptStep} disabled={!openWorld || !admissionDecision}>Load Admission Prompt-out Step</button>
-              </section>
+              <PromptPacketPreview
+                title="Prompt packet preview"
+                roleLine={`${admissionDecision?.promptOut.role ?? "Admission Prompt-out role loads after selecting a record."} · ${admissionDecision?.promptOut.advisory ?? "optional"} advisory pressure`}
+                modes={admissionDecision?.promptOut.modes}
+                preview={admissionDecision?.promptOut.preview}
+                advisoryNote="Pasted advisory responses are stored as advisory_artifact records and remain visibly separate from canon fields."
+                action={<button onClick={loadAdmissionPromptStep} disabled={!openWorld || !admissionDecision}>Load Admission Prompt-out Step</button>}
+              />
               <section className="subpanel">
                 <h3>Close preview</h3>
                 <div className="grid compact-grid">
@@ -5099,29 +5133,14 @@ function App({
               </div>
               <button onClick={saveKernelStep} disabled={flowId == null}>Save Kernel Step</button>
             </section>
-            <section className="subpanel">
-              <h3>Prompt-out preview</h3>
-              <p>{displayedCreationDecision.promptOut.role} · {displayedCreationDecision.promptOut.available ? "available" : "blocked"}</p>
-              {(displayedCreationDecision.promptOut.modes ?? []).map((mode) => (
-                <div className="doctrine" key={mode.mode}>
-                  <strong>{mode.label}</strong>
-                  <span>{mode.available ? "Available from server" : mode.blocker ?? "Blocked by server"}</span>
-                  <span>{mode.framing}</span>
-                  <span>Output labels: {mode.outputLabels.join(", ")}</span>
-                </div>
-              ))}
-              <p>{displayedCreationDecision.promptOut.preview.currentDecision}</p>
-              <strong>Source manifest</strong>
-              {displayedCreationDecision.promptOut.preview.sourceManifest.map((item) => <p key={item}>{item}</p>)}
-              <strong>Context preview</strong>
-              <p>{displayedCreationDecision.promptOut.preview.contextPreview}</p>
-              <strong>Omissions</strong>
-              {displayedCreationDecision.promptOut.preview.omissions.map((item) => <p key={item}>{item}</p>)}
-              <strong>Advisory/canon warning</strong>
-              <p>{displayedCreationDecision.promptOut.preview.advisoryCanonWarning}</p>
-              <p>Pasted responses remain advisory artifacts and do not mutate kernel sections, seed records, reports, or proposals without explicit steward use.</p>
-              <button onClick={loadCreationPromptStep} disabled={!openWorld || (!creationDecision?.promptOut.stepRequest && !creationDecision?.promptOut.modes?.some((mode) => mode.stepRequest))}>Load Creation Prompt-out Step</button>
-            </section>
+            <PromptPacketPreview
+              title="Prompt-out preview"
+              roleLine={`${displayedCreationDecision.promptOut.role} · ${displayedCreationDecision.promptOut.available ? "available" : "blocked"}`}
+              modes={displayedCreationDecision.promptOut.modes}
+              preview={displayedCreationDecision.promptOut.preview}
+              advisoryNote="Pasted responses remain advisory artifacts and do not mutate kernel sections, seed records, reports, or proposals without explicit steward use."
+              action={<button onClick={loadCreationPromptStep} disabled={!openWorld || (!creationDecision?.promptOut.stepRequest && !creationDecision?.promptOut.modes?.some((mode) => mode.stepRequest))}>Load Creation Prompt-out Step</button>}
+            />
             <section className="subpanel">
               <h3>Seed decomposition decision</h3>
               <p>Split broad steward material into smaller seed facts that can be independently rejected.</p>

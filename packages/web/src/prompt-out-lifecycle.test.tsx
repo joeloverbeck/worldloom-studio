@@ -151,4 +151,122 @@ describe("Prompt-out lifecycle web surface", () => {
     expect(promptLoader).not.toContain('mode.mode === "proposal"');
     expect(promptLoader).not.toContain("currentStep.includes");
   });
+
+  it("renders a server-provided sandwich packet preview with manifest, omissions, labels, and structural cues", () => {
+    const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
+    const html = renderToString(<App
+      initialOpenWorld="/tmp/prompt-preview.sqlite"
+      initialCreationDecision={{
+        flow: { key: "creation", runState: "in_progress" },
+        currentStep: "kernel:Starting scale",
+        localDecision: "Name where the world starts.",
+        packageAuthority: {
+          primary: "docs/worldbuilding-system/05_creation_protocol.md",
+          why: "Phase 1 owns the world kernel.",
+          citations: ["docs/worldbuilding-system/20_ai_assisted_workflow.md"]
+        },
+        currentKernel: { id: 1, shortId: "KER-1", title: "World kernel" },
+        sectionPrompts: [],
+        work: { required: [], optional: [], allowedEmpty: [], skippable: [] },
+        blockers: [],
+        promptOut: {
+          available: true,
+          blocker: null,
+          templateKey: "kernel_pressure",
+          stepKey: "creation:kernel_prompt",
+          role: "Consequence scout",
+          stepRequest: {
+            method: "POST",
+            href: "/api/prompt-out/steps",
+            body: {
+              flowKey: "creation",
+              flowId: 1,
+              recordId: 1,
+              templateKey: "kernel_pressure",
+              stepKey: "creation:kernel_prompt",
+              label: "Pressure mode"
+            }
+          },
+          modes: [
+            {
+              mode: "proposal",
+              label: "Proposal mode",
+              available: true,
+              blocker: null,
+              framing: "Request labeled candidates with alternatives and assumptions.",
+              outputLabels: ["selected", "adopted with steward revision", "rejected"],
+              stepRequest: {
+                method: "POST",
+                href: "/api/prompt-out/steps",
+                body: {
+                  mode: "proposal",
+                  flowKey: "creation",
+                  flowId: 1,
+                  recordId: 1,
+                  templateKey: "kernel_pressure",
+                  stepKey: "creation:kernel_prompt",
+                  label: "Proposal mode"
+                }
+              }
+            }
+          ],
+          preview: {
+            currentDecision: "Name where the world starts.",
+            promptText: [
+              "<compact_top_block>",
+              "Mode: proposal",
+              "Output-label names: selected; adopted with steward revision; rejected",
+              "</compact_top_block>",
+              "<context_packet>",
+              "<documents>",
+              "<document>",
+              "<source>selected_record:KER-1</source>",
+              "<document_content>Starting scale: harbor district.</document_content>",
+              "</document>",
+              "</documents>",
+              "</context_packet>",
+              "Quote-grounding pre-step: first quote the source lines.",
+              "Structural skeleton example (proposal mode)",
+              "Based on the material above, return candidates."
+            ].join("\n"),
+            contextPreview: "Starting scale: harbor district",
+            sourceManifest: ["Source record: KER-1 World kernel", "Prompt template: kernel_pressure"],
+            omissions: ["Omission: Admission gate results do not exist inside Creation."],
+            advisoryCanonWarning: "Pasted responses remain advisory artifacts and are not admitted canon."
+          }
+        },
+        writeIntent: { willWrite: [], willLink: [], willQueue: [], willRouteOnward: [], willLeaveUntouched: [] },
+        nextOrResumeState: { currentStep: "kernel:Starting scale", nextStep: "continue kernel authoring", safeExit: "Safe exit." },
+        readSideTrail: [],
+        handoffs: [],
+        handoff: {
+          seedDecompositionReport: null,
+          reportSections: [],
+          parkedSeeds: [],
+          supportingKernel: null,
+          kernelSections: [],
+          granularityRationale: null,
+          admissionIntent: null,
+          admissionQueueRoute: "/api/admission/queue",
+          currentStatus: "proposed",
+          nextStep: "complete seed decomposition",
+          sourceLinks: [],
+          doctrineAtPointOfUse: []
+        }
+      } as any}
+    />);
+
+    expect(html).toContain("prompt-packet-text");
+    expect(html).toContain("&lt;compact_top_block&gt;");
+    expect(html).toContain("&lt;documents&gt;");
+    expect(html).toContain("Quote-grounding pre-step");
+    expect(html).toContain("Structural skeleton example (proposal mode)");
+    expect(html).toContain("Source record: KER-1 World kernel");
+    expect(html).toContain("Omission: Admission gate results do not exist inside Creation.");
+    expect(html).toContain("adopted with steward revision");
+    expect(html).toContain("Pasted responses remain advisory artifacts");
+    expect(source).toContain("PromptPacketPreview");
+    expect(source).toContain("promptOut.preview.promptText");
+    expect(source).not.toContain("promptOut.preview.promptText.split");
+  });
 });
