@@ -120,12 +120,13 @@ Sources reviewed: <exact issue/PRD/spec files, named Principles/ADRs when applic
 
 Findings: <none / bullets with quoted spec line>.
 
+TDD closeout gate: <TDD closeout preflight plus full fielded TDD evidence gate line present or explicitly linked: TDD evidence gate passed: durable sink <conversation/comment URL/issue reference/body file inspected pending tracker URL>; compact table/header <present after structural check/equivalent fields present after structural check>; seams accounted for <all listed / exceptions named>; CONTEXT.md status <present/absent/N/A>; ADRs/principles/docs status <present/N/A>; partial-red / red-first skip reasons <none/listed>; evidence-only rows <none/listed> / N/A because no tdd skill was invoked>.
+
 If findings were fixed before closeout, include this block before the axis summary:
 
 - **Findings found**: `<count and short titles>`
 - **Fixes made**: `<files/behavior changed, proof/coverage added>`
 - **TDD/review-fix evidence**: `<red command/failure per behavior-changing fix, partial red - wrong reason: <reason> plus follow-up intended red if applicable, coverage-only review fix reason, explicit red-first skipped because ..., or linked TDD review-fix addendum>`
-- **TDD closeout gate**: `<TDD closeout preflight plus full fielded TDD evidence gate line present or explicitly linked: TDD evidence gate passed: durable sink <conversation/comment URL/issue reference/body file inspected pending tracker URL>; compact table/header <present after structural check/equivalent fields present after structural check>; seams accounted for <all listed / exceptions named>; CONTEXT.md status <present/absent/N/A>; ADRs/principles/docs status <present/N/A>; partial-red / red-first skip reasons <none/listed>; evidence-only rows <none/listed> / N/A because no tdd skill was invoked>`
 - **Verification rerun**: `<commands and browser/manual checks>`
 - **Browser/manual evidence freshness**: `<rerun evidence on final tree, not affected, or explicit blocked/stale reason>`
 - **Commit handling**: `<unchanged implementation commit SHA / amended commit SHA / follow-up commit SHA / no commit yet>`
@@ -149,13 +150,27 @@ Final tracker mutation gate:
 
 - Immediately before the first `gh issue comment`, `gh issue close`, `glab issue close`, or equivalent tracker mutation, produce the exact `Closeout preflight:` block and exact `Closeout gate passed: audit sink ...` line from this section in the conversation or durable audit sink. This is required even when the detailed audit is in a parent rollup body.
 - If the final SHA is not remote-reachable, the durable rollup or closeout comment must contain a line that starts exactly `Local-only SHA:` and follows the full copy-ready sentence. Reject `Local-only SHA status:`, `local-only reachability note`, or any other paraphrase.
-- Run the closeout body validator when a local checkout has it available, then still visually inspect grouped criteria and literal statuses:
+- Run the closeout body validators that apply when a local checkout has them available, then still visually inspect grouped criteria and literal statuses.
+
+Closeout validator matrix:
+
+| Closeout mode | Validator | Flags |
+|---|---|---|
+| Any implement closeout body | `node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body"` | Add `--closing` for bodies used to close issues, `--principles` when any in-scope issue or parent PRD has a `## Principles` section, `--local-only` when the final SHA is not remote-reachable, and `--review-fallback` when local code-review fallback was used. |
+| Fixed-template child closeout before the parent rollup URL exists | `node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body"` | Add `--fixed-child-pending`; do not combine it with `--fixed-child`. |
+| Fixed-template child closeout after the parent rollup URL is known and the body contains the exact child inline close comment with the real URL | `node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body"` | Add `--fixed-child`; do not combine it with `--fixed-child-pending`. |
+| TDD evidence in a parent PRD rollup | `node .claude/skills/tdd/scripts/validate-tdd-closeout-body.mjs "$body"` | Add `--parent-rollup` so the compact parent-rollup TDD table is enforced. |
+| Local code-review fallback evidence | `node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs "$body"` | Add `--implement`; add `--child-family` for child-family/parent-rollup closeout; add `--tdd` when TDD evidence is present, or `--tdd-parent-rollup` when TDD evidence is in a parent-rollup compact table. |
+
+Everything-active closeout recipe: for 4+ child issues using a parent PRD rollup, a local-only final SHA, invoked TDD, local code-review fallback, fixed-template child comments, and browser/manual proof, validate the inspected parent body before the first tracker mutation with:
 
 ```bash
+node .claude/skills/tdd/scripts/validate-tdd-closeout-body.mjs "$body" --parent-rollup
+node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs "$body" --implement --child-family --tdd-parent-rollup
 node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body" --closing --principles --local-only --fixed-child-pending --review-fallback
 ```
 
-Use only the flags that apply to the current closeout: `--principles` when any in-scope issue or parent PRD has a `## Principles` section, `--local-only` when the final SHA is not remote-reachable, `--fixed-child-pending` when validating a parent rollup before its tracker comment URL exists and the fixed-template child closeout alternate will be used, `--fixed-child` only after the parent rollup URL exists and the body contains the exact child close comment with that real URL, and `--review-fallback` when local code-review fallback was used. Passing the validator is an aid, not a substitute for checking that every acceptance checkbox is named explicitly.
+Drop only the flags whose conditions do not apply. After the parent rollup URL is known and the local body has been patched to contain the exact final child inline close comment with that real URL, rerun the implement validator with `--fixed-child` instead of `--fixed-child-pending` before relying on the patched body. Passing validators are aids, not substitutes for checking that every acceptance checkbox is named explicitly.
 
 Tracker mutation hard-stop checklist:
 
@@ -183,7 +198,7 @@ Non-bypassable closeout gate:
 - Literal-token validation hard stop: immediately before the first tracker mutation, inspect the exact body or linked durable rollup and the visible preflight line for the exact labels `Principles/ADR conformance:`, `Local-only SHA:` when the SHA is local-only, and `Closeout gate passed: audit sink`. Do not accept paraphrases such as "local-only reachability note present" or "closeout gate passed" without the copy-ready line. If the issue has no Principles section, the exact `Principles/ADR conformance:` label still appears in the preflight or body with `N/A`.
 - Before first tracker mutation hard stop: write both exact headings/lines below in the conversation or durable audit sink before the first `gh issue comment`, `gh issue close`, `glab issue close`, or equivalent command. Do not paraphrase them.
   - `Closeout preflight:`
-  - `Closeout gate passed: audit sink <conversation/comment URL/issue reference/body file inspected pending parent rollup URL>; review evidence <line/reference>; TDD evidence <present/N/A>; final SHA <sha>; Principles/ADR conformance <present/N/A>; Local-only SHA <full explanatory sentence present/N/A>; child states verified <yes/N/A>; browser evidence <present/N/A/blocked>.`
+  - `Closeout gate passed: audit sink <conversation/comment URL/issue reference/body file inspected pending parent rollup URL>; review evidence <line/reference>; TDD evidence <present/N/A>; final SHA <sha>; Principles/ADR conformance <present/N/A>; Local-only SHA sentence <full explanatory sentence present/N/A>; child states verified <yes/N/A>; browser evidence <present/N/A/blocked>.`
 
 - Closeout execution order for 4+ in-scope child issues defaults to: post the parent PRD rollup/audit comment first, capture its URL or exact comment reference, cite that rollup from each child closeout comment, close child issues, verify child states by exact issue number, then close the parent. Use per-child full audit comments instead only when no parent rollup is used.
 - For 4+ in-scope child issues, follow this command sequence unless you explicitly choose and state a different durable audit sink:
@@ -243,6 +258,7 @@ Review evidence:
 - Review: <code-review fixed point/outcome/verification rerun>
 - Review fallback: <fallback line, or N/A because code-review ran normally>
 - Full review fallback block: <embedded below or linked adjacent durable sink; N/A because code-review ran normally>
+- TDD closeout gate: <copy the code-review fallback block's TDD closeout gate field when both TDD and local review fallback were used, including the full TDD evidence gate reference; N/A because no tdd skill was invoked or code-review ran normally>
 Principles/ADR conformance: <no deliberate exceptions / approved exception / N/A>
 Browser evidence:
 - Route/action/outcome: <route and observed result / N/A because ... / blocked because ...>
@@ -265,7 +281,7 @@ body="/tmp/worldloom-closeout-<issue-or-prd>.md"
 $EDITOR "$body"
 # If no interactive editor is available, create the body with the environment-approved file-edit mechanism instead.
 sed -n '1,240p' "$body"
-rg -n "Acceptance criterion or conformance check|Status|satisfied|blocked|not done|TDD evidence|TDD evidence gate passed|Review:|Review fallback:|Principles/ADR conformance:|Local-only SHA:|not remote-reachable because|local-only closeout is acceptable because|browser smoke|browser evidence|Final freshness delta|Fixed child inline close comment|Closeout gate passed: audit sink" "$body"
+rg -n "Acceptance criterion or conformance check|Status|satisfied|blocked|not done|TDD evidence|TDD evidence gate passed|TDD closeout gate|Review:|Review fallback:|Principles/ADR conformance:|Local-only SHA:|not remote-reachable because|local-only closeout is acceptable because|browser smoke|browser evidence|Final freshness delta|Fixed child inline close comment|Closeout gate passed: audit sink" "$body"
 comment_url="$(gh issue comment <issue> --body-file "$body")"
 gh issue close <issue> --reason completed --comment "Completed; evidence: $comment_url"
 ```
@@ -273,6 +289,8 @@ gh issue close <issue> --reason completed --comment "Completed; evidence: $comme
 Do not leave temporary body files in the repo unless they are intentional committed evidence.
 
 Local-only SHA preflight: if the final SHA is not reachable from the intended remote branch, paste the copy-ready `Local-only SHA:` sentence below into the durable rollup or closeout comment before any close command. A bare `Local-only SHA: <sha>` line is not enough. The sentence must state both why the SHA is not remote-reachable and why local-only closeout is acceptable.
+
+The preflight scratchpad keeps the exact `Local-only SHA:` label because the body validators and literal-token checks need it. The visible `Closeout gate passed:` line calls that field `Local-only SHA sentence` so the full copy-ready sentence can be pasted without producing `Local-only SHA Local-only SHA: ...`.
 
 Do not embed the final SHA inside a durable artifact that is being committed in that same final commit. Amending the commit changes the SHA and makes the artifact stale. In that case, identify the implementation by fixed point and subject inside the committed artifact, then put the final SHA in tracker closeout comments and the final response.
 
@@ -306,7 +324,7 @@ Closeout preflight:
 - Final post-commit freshness delta: <files touched since last browser/manual proof after final commit and verification edits; not affected/rerun/blocked>
 - Child states verified: <yes/N/A, exact issue numbers>
 
-Closeout gate passed: audit sink <conversation/comment URL/issue reference/body file inspected pending parent rollup URL>; review evidence <line/reference>; TDD evidence <present/N/A>; final SHA <sha>; Principles/ADR conformance <present/N/A>; Local-only SHA <full explanatory sentence present/N/A>; child states verified <yes/N/A>; browser evidence <present/N/A/blocked>.
+Closeout gate passed: audit sink <conversation/comment URL/issue reference/body file inspected pending parent rollup URL>; review evidence <line/reference>; TDD evidence <present/N/A>; final SHA <sha>; Principles/ADR conformance <present/N/A>; Local-only SHA sentence <full explanatory sentence present/N/A>; child states verified <yes/N/A>; browser evidence <present/N/A/blocked>.
 ```
 
 Last body-check before first tracker mutation: immediately before the first `gh issue comment`, `gh issue close`, `glab issue close`, or equivalent closeout command, inspect the exact body or linked durable rollup one final time and write this line in the conversation or durable audit sink:
@@ -316,7 +334,7 @@ Last body-check before first tracker mutation: immediately before the first `gh 
 Use a targeted grep plus visual inspection. This command is a starting point, not a substitute for checking grouped criteria and literal status values:
 
 ```bash
-rg -n "Acceptance criterion or conformance check|Status|satisfied|blocked|not done|TDD evidence|TDD evidence gate passed|Review:|Review fallback:|Principles/ADR conformance:|Local-only SHA:|not remote-reachable because|local-only closeout is acceptable because|browser smoke|browser evidence|Final freshness delta|Fixed child inline close comment|Closeout gate passed: audit sink|Closeout body check passed" "$body"
+rg -n "Acceptance criterion or conformance check|Status|satisfied|blocked|not done|TDD evidence|TDD evidence gate passed|TDD closeout gate|Review:|Review fallback:|Principles/ADR conformance:|Local-only SHA:|not remote-reachable because|local-only closeout is acceptable because|browser smoke|browser evidence|Final freshness delta|Fixed child inline close comment|Closeout gate passed: audit sink|Closeout body check passed" "$body"
 ```
 
 If the body uses `Complete`, `PASS`, `OK`, checkmarks, or prose instead of literal `satisfied`, `blocked`, or `not done`, if any row hides multiple acceptance checkboxes without naming them, if an affected issue or parent PRD has a `## Principles` section but the body lacks the exact string `Principles/ADR conformance:`, if local-only closeout lacks the exact `Local-only SHA:` label and full explanatory sentence, or if the visible gate line lacks `Closeout gate passed: audit sink`, stop and repair the body before any tracker mutation.
@@ -334,7 +352,7 @@ Closeout command gate: do not run `gh issue close`, `glab issue close`, or equiv
 
 After checking every gate, write this literal line in the conversation or closeout audit before the first close command:
 
-`Closeout gate passed: audit sink <conversation/comment URL/issue reference/body file inspected pending parent rollup URL>; review evidence <line/reference>; TDD evidence <present/N/A>; final SHA <sha>; Principles/ADR conformance <present/N/A>; Local-only SHA <full explanatory sentence present/N/A>; child states verified <yes/N/A>; browser evidence <present/N/A/blocked>.`
+`Closeout gate passed: audit sink <conversation/comment URL/issue reference/body file inspected pending parent rollup URL>; review evidence <line/reference>; TDD evidence <present/N/A>; final SHA <sha>; Principles/ADR conformance <present/N/A>; Local-only SHA sentence <full explanatory sentence present/N/A>; child states verified <yes/N/A>; browser evidence <present/N/A/blocked>.`
 
 Use this compact pre-close audit shape unless the issue set needs more detail:
 

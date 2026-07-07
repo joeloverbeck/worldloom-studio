@@ -121,12 +121,13 @@ Sources reviewed: <exact issue/PRD/spec files, named Principles/ADRs when applic
 
 Findings: <none / bullets with quoted spec line>.
 
+TDD closeout gate: <TDD closeout preflight plus full fielded TDD evidence gate line present or explicitly linked: TDD evidence gate passed: durable sink <conversation/comment URL/issue reference/body file inspected pending tracker URL>; compact table/header <present after structural check/equivalent fields present after structural check>; seams accounted for <all listed / exceptions named>; CONTEXT.md status <present/absent/N/A>; ADRs/principles/docs status <present/N/A>; partial-red / red-first skip reasons <none/listed>; evidence-only rows <none/listed> / N/A because no tdd skill was invoked>.
+
 If findings were fixed before closeout, include this block before the axis summary:
 
 - **Findings found**: `<count and short titles>`
 - **Fixes made**: `<files/behavior changed, proof/coverage added>`
 - **TDD/review-fix evidence**: `<red command/failure per behavior-changing fix, partial red - wrong reason: <reason> plus follow-up intended red if applicable, coverage-only review fix reason, explicit red-first skipped because ..., or linked TDD review-fix addendum>`
-- **TDD closeout gate**: `<TDD closeout preflight plus full fielded TDD evidence gate line present or explicitly linked: TDD evidence gate passed: durable sink <conversation/comment URL/issue reference/body file inspected pending tracker URL>; compact table/header <present after structural check/equivalent fields present after structural check>; seams accounted for <all listed / exceptions named>; CONTEXT.md status <present/absent/N/A>; ADRs/principles/docs status <present/N/A>; partial-red / red-first skip reasons <none/listed>; evidence-only rows <none/listed> / N/A because no tdd skill was invoked>`
 - **Verification rerun**: `<commands and browser/manual checks>`
 - **Browser/manual evidence freshness**: `<rerun evidence on final tree / not affected because changed path is outside the earlier evidence route/action/API/fixture and targeted proof for changed path passed / explicit blocked or stale reason / N/A because no browser/manual evidence was used>`
 - **Commit handling**: `<unchanged implementation commit SHA / amended commit SHA / follow-up commit SHA / no commit yet>`
