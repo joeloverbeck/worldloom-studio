@@ -1771,6 +1771,10 @@ function App({
   const selectedTemplate = templates.find((template) => template.key === promptTemplateKey);
   const selectedAdmissionRecord = records.find((record) => record.id === Number(admissionRecordId));
   const activeFullGateContract = admissionDecision?.severity.gatePath === "full_gate" ? admissionDecision.fullGateContract ?? null : null;
+  const selectedGateAdvisoryArtifact = activeFullGateContract?.advisoryArtifacts.find((artifact) => String(artifact.id) === gateAdvisoryRecordId) ?? null;
+  const gateAdvisoryUsePreview = gateAdvisoryRecordId
+    ? `Selected advisory-use link: ${selectedGateAdvisoryArtifact ? `${selectedGateAdvisoryArtifact.shortId} ${selectedGateAdvisoryArtifact.title}` : `record ${gateAdvisoryRecordId}`}`
+    : "Selected advisory-use link: none";
   const fullGateValidationErrors = [
     ...(activeFullGateContract?.validationErrors ?? []),
     ...admissionValidationErrors
@@ -4405,6 +4409,7 @@ function App({
               <div>
                 <strong>What will be linked</strong>
                 {(admissionDecision?.writeIntent.willLink ?? ["Read-side trail links load with a selected decision point."]).map((item) => <p key={item}>{item}</p>)}
+                {activeFullGateContract && <p>{gateAdvisoryUsePreview}</p>}
               </div>
               <div>
                 <strong>What will be queued or left untouched</strong>

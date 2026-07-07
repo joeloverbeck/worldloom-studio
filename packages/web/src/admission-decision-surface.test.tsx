@@ -515,6 +515,7 @@ describe("Admission decision-point browser surface", () => {
     expect(html).toContain("Dependencies require steward-authored substance.");
     expect(html).toContain("Section failures preserve entered text and selections.");
     expect(html).toContain("gate_result report");
+    expect(html).toContain("Selected advisory-use link: none");
     expect(html).toContain("Read-side trail");
 
     expect(source).toContain("/api/admission/gate/complete");
