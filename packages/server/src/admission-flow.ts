@@ -428,23 +428,19 @@ const currentAdmissionStep = (worldFile: WorldFile, record: RecordRow, severityD
   return { runState: "not_started", currentStep: `record:${record.id}:queue-selection` };
 };
 
-const severityDefinitions = (severity: DeclaredSeverity): AdmissionDecisionPayload["severity"]["definitions"] => [
-  ...(severity.admissionLevel == null
-    ? []
-    : [{
-        key: "admission_level" as const,
-        term: severity.admissionLevel,
-        definition: ADMISSION_LEVEL_DEFINITIONS[severity.admissionLevel] ?? "Steward-declared admission-level term from 06.",
-        source: "docs/worldbuilding-system/06_canon_fact_admission_protocol.md"
-      }]),
-  ...(severity.workScale == null
-    ? []
-    : [{
-        key: "work_scale" as const,
-        term: severity.workScale,
-        definition: WORK_SCALE_DEFINITIONS[severity.workScale] ?? "Steward-declared work-scale term from 06.",
-        source: "docs/worldbuilding-system/06_canon_fact_admission_protocol.md"
-      }])
+const severityDefinitions = (_severity: DeclaredSeverity): AdmissionDecisionPayload["severity"]["definitions"] => [
+  ...Object.entries(ADMISSION_LEVEL_DEFINITIONS).map(([term, definition]) => ({
+    key: "admission_level" as const,
+    term,
+    definition,
+    source: "docs/worldbuilding-system/06_canon_fact_admission_protocol.md"
+  })),
+  ...Object.entries(WORK_SCALE_DEFINITIONS).map(([term, definition]) => ({
+    key: "work_scale" as const,
+    term,
+    definition,
+    source: "docs/worldbuilding-system/06_canon_fact_admission_protocol.md"
+  }))
 ];
 
 const admissionSourceLinks = (
@@ -594,10 +590,23 @@ const promptOutFor = (
   doctrineCitations: string[],
   cardValue: MethodCard
 ): AdmissionDecisionPayload["promptOut"] => {
+  const queueSeverity = gate == null;
   const fullGate = gate?.path === "full_gate";
-  const templateKey = fullGate ? "admission_constraint_challenge" : "admission_prerequisite_audit";
-  const stepKey = fullGate ? "admission:constraints" : "admission:dependencies";
-  const role = fullGate ? "Constraint challenger" : "Prerequisite auditor";
+  const templateKey = queueSeverity
+    ? "admission_queue_severity"
+    : fullGate
+      ? "admission_constraint_challenge"
+      : "admission_prerequisite_audit";
+  const stepKey = queueSeverity
+    ? "admission:queue-severity"
+    : fullGate
+      ? "admission:constraints"
+      : "admission:dependencies";
+  const role = queueSeverity
+    ? "Severity classification readiness"
+    : fullGate
+      ? "Constraint challenger"
+      : "Prerequisite auditor";
   const generated = PromptOut.generatePrompt(worldFile, {
     flowKey: "admission",
     templateKey,
@@ -608,6 +617,13 @@ const promptOutFor = (
   const sourceManifest = [
     `Record ${record.shortId}: ${record.title}`,
     ...sourceLinks.map((link) => `Source link ${link.linkTypeKey}: ${link.target ? `${link.target.shortId} ${link.target.title}` : `record ${link.toRecordId}`} (${link.note || "no note"})`),
+    `Prompt template: ${templateKey}`,
+    ...(queueSeverity
+      ? [
+          ...Object.entries(ADMISSION_LEVEL_DEFINITIONS).map(([term, definition]) => `Vocabulary admission_level ${term}: ${definition}`),
+          ...Object.entries(WORK_SCALE_DEFINITIONS).map(([term, definition]) => `Vocabulary work_scale ${term}: ${definition}`)
+        ]
+      : []),
     ...methodCardSourceManifest(cardValue),
     ...doctrineCitations.filter((citation) => !cardValue.packageSources.includes(citation)).map((citation) => `Related provenance: ${citation}`)
   ];
@@ -621,8 +637,8 @@ const promptOutFor = (
       stepKey,
       mode: "pressure" as const,
       label: role,
-      ...(record.admissionLevel ? { admissionLevel: record.admissionLevel } : {}),
-      ...(record.workScale ? { workScale: record.workScale } : {})
+      ...(queueSeverity || !record.admissionLevel ? {} : { admissionLevel: record.admissionLevel }),
+      ...(queueSeverity || !record.workScale ? {} : { workScale: record.workScale })
     }
   };
   const proposalStepRequest = {
@@ -635,8 +651,8 @@ const promptOutFor = (
       stepKey,
       mode: "proposal" as const,
       label: "Proposal mode",
-      ...(record.admissionLevel ? { admissionLevel: record.admissionLevel } : {}),
-      ...(record.workScale ? { workScale: record.workScale } : {})
+      ...(queueSeverity || !record.admissionLevel ? {} : { admissionLevel: record.admissionLevel }),
+      ...(queueSeverity || !record.workScale ? {} : { workScale: record.workScale })
     }
   };
   const modes: DecisionPointPromptMode[] = withPromptModeSummaries([
@@ -645,8 +661,10 @@ const promptOutFor = (
       label: "Proposal mode",
       available: true,
       blocker: null,
-      framing: "Request labeled candidate Admission material with alternatives and assumptions; Admission still governs canon standing.",
-      role: "Admission proposal",
+      framing: queueSeverity
+        ? "Ask for risks, dependencies, missing information, uncertainty, and candidate questions before the steward declares admission_level and work_scale."
+        : "Request labeled candidate Admission material with alternatives and assumptions; Admission still governs canon standing.",
+      role: queueSeverity ? "Severity classification readiness" : "Admission proposal",
       templateKey,
       stepKey,
       outputLabels: ADVISORY_OUTPUT_LABELS,
@@ -657,7 +675,9 @@ const promptOutFor = (
       label: "Pressure mode",
       available: Boolean(record.body.trim()),
       blocker: record.body.trim() ? null : "Pressure prompts require steward-authored material on the proposed fact.",
-      framing: "Ask for challenge, risks, alternatives, and questions on the proposed fact.",
+      framing: queueSeverity
+        ? "Challenge whether the proposed fact has enough source, vocabulary, and risk context for the steward to classify severity."
+        : "Ask for challenge, risks, alternatives, and questions on the proposed fact.",
       role,
       templateKey,
       stepKey,
@@ -677,7 +697,10 @@ const promptOutFor = (
       promptText: generated.prompt,
       sourceManifest,
       contextPreview: `${record.shortId} ${record.title}\n${record.body || "No body supplied."}`,
-      omissions: ["No hidden repository context is required; any unavailable world context must be named before copy-out."],
+      omissions: [
+        ...(queueSeverity ? ["Minor ledger completion omitted until severity is declared."] : []),
+        "No hidden repository context is required; any unavailable world context must be named before copy-out."
+      ],
       advisoryCanonWarning: "Prompt-out is optional advisory pressure. Pasted responses remain advisory artifacts and are not admitted canon."
     }
   };

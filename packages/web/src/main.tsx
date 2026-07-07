@@ -567,6 +567,7 @@ interface CanonWorkbenchDetail {
 
 interface AdmissionDecisionPoint {
   methodCard?: MethodCard;
+  sharedContract?: DecisionPointSharedContract;
   flow: {
     key: "admission";
     runState: string;
@@ -3485,6 +3486,168 @@ function App({
 
     const displayedWorkflowMap = workflowMap;
     const operatingCard = displayedWorkflowMap.methodCards?.operatingCard;
+    const admissionRoutedSurface = (
+      <section className="panel admission-decision">
+        <h2>Admission flow</h2>
+        <MethodCardPanel card={admissionDecision?.methodCard} />
+        <DecisionContractPanel title="Admission decision contract" contract={admissionDecision?.sharedContract} />
+        <div className="doctrine">
+          <strong>Admission method guidance</strong>
+          <span>{admissionDecision?.methodCard?.operativeRule ?? "Select a proposed fact and load server-returned Admission guidance before treating doctrine as loaded."}</span>
+          <span>{admissionDecision?.methodCard?.why ?? "Severity is steward-declared; sweeps propose and only Admission admits."}</span>
+        </div>
+        <section className="decision-point">
+          <h3>Decision point</h3>
+          <p><strong>{admissionDecision?.localDecision ?? "Choose which proposed fact enters Admission now."}</strong></p>
+          <p>Only Admission changes canon standing; proposed facts remain proposed until the steward completes this governed Admission flow.</p>
+          <p>No severity is selected by default. Existing severity values are displayed only when the server payload or steward selection supplies them.</p>
+          <div className="chips">
+            <span>Flow state: {admissionDecision?.flow.runState ?? "not started"}</span>
+            <span>Current step: {admissionDecision?.currentStep ?? "admission:queue-selection"}</span>
+            <span>Next/resume: {admissionDecision?.nextOrResumeState.nextStep ?? "select a proposed fact"}</span>
+          </div>
+          {admissionDecision?.selectedRecord && (
+            <div className="doctrine">
+              <strong>{admissionDecision.selectedRecord.shortId} · {admissionDecision.selectedRecord.title}</strong>
+              <span>{`${admissionDecision.selectedRecord.recordTypeKey} · ${admissionDecision.selectedRecord.truthLayer ?? "unset truth layer"} · ${admissionDecision.selectedRecord.canonStatus ?? "unset canon status"}`}</span>
+              <span>Source or origin links: {admissionDecision.selectedRecord.sourceLinks.map((link) => link.target ? `${link.target.shortId} ${link.target.title}` : `record ${link.toRecordId}`).join(", ") || "none returned"}</span>
+            </div>
+          )}
+          <div className="grid compact-grid">
+            <section className="subpanel">
+              <h3>Severity definitions</h3>
+              {admissionDecision?.severity.definitions.length ? admissionDecision.severity.definitions.map((definition) => (
+                <p key={`${definition.key}:${definition.term}`}><strong>{definition.key}</strong> {definition.term}: {definition.definition}</p>
+              )) : <p className="status">Declare admission_level and work_scale explicitly to load the server-owned severity path.</p>}
+              <p>{`Severity path: ${admissionDecision?.severity.gatePath ?? "undeclared"}`}</p>
+            </section>
+            <section className="subpanel">
+              <h3>Path obligations</h3>
+              <p>{(admissionDecision?.severity.obligations ?? ["Declare admission_level", "Declare work_scale"]).join(" · ")}</p>
+              <p>{admissionDecision?.nextOrResumeState.safeExit ?? "Safe exit leaves the fact in the Admission queue for later resume."}</p>
+            </section>
+          </div>
+          <div className="grid compact-grid">
+            <section className="subpanel work-list required-work">
+              <h3>Required work</h3>
+              {(admissionDecision?.work.required ?? ["Select a proposed fact", "Declare admission_level", "Declare work_scale"]).map((item) => <p key={item}>{item}</p>)}
+            </section>
+            <section className="subpanel work-list optional-work">
+              <h3>Optional work</h3>
+              {(admissionDecision?.work.optional ?? ["Prompt-out advisory pressure after steward-authored material exists"]).map((item) => <p key={item}>{item}</p>)}
+            </section>
+            <section className="subpanel work-list skippable-work">
+              <h3>Skippable work</h3>
+              {(admissionDecision?.work.skippable ?? ["Offered instruments write skip_record entries when declined"]).map((item) => <p key={item}>{item}</p>)}
+            </section>
+            <section className="subpanel work-list severity-work">
+              <h3>Severity-dependent work</h3>
+              {(admissionDecision?.work.severityDependent ?? ["Gate depth is unavailable until severity is declared"]).map((item) => <p key={item}>{item}</p>)}
+            </section>
+          </div>
+          <div className="grid compact-grid">
+            <section className="subpanel">
+              <h3>Minor ledger path</h3>
+              <p>Minor work stays batch-friendly: fact statement, scope, truth layer, canon status plus separated constraint tags, ordered admission operations, and one consequence check.</p>
+            </section>
+            <section className="subpanel">
+              <h3>Full gate path</h3>
+              <p>Full gates refuse checkbox-only completion.</p>
+              {admissionDecision?.blockers.length ? admissionDecision.blockers.map((blocker) => (
+                <p key={blocker.key}><strong>{blocker.label}</strong>: {blocker.message} Requires {blocker.requires}.</p>
+              )) : <p>Full-gate blockers are returned by the server after severity declaration.</p>}
+            </section>
+          </div>
+          <section className="subpanel">
+            <h3>Frontloaded seed audit</h3>
+            <p>{admissionDecision?.seedAudit.offered ? "Offered before first seed admission when relevant." : "Not currently offered for the selected record."}</p>
+            <p>{admissionDecision?.seedAudit.runWrites ?? "Running seed audit writes a gate_result when offered."}</p>
+            <p>{admissionDecision?.seedAudit.declineWrites ?? "Declining an offered instrument writes a governed skip_record."}</p>
+            <p>{admissionDecision?.seedAudit.nonMutation ?? "Seed audit does not mutate seed truth layer, canon status, tags, severity, or operations."}</p>
+            <details>
+              <summary>Seed audit provenance</summary>
+              {(admissionDecision?.seedAudit.doctrine ?? []).map((citation) => <p key={citation}>Provenance: {citation}</p>)}
+            </details>
+            <p>{`Reason required: ${admissionDecision?.skipRule.reasonRequired ? "yes" : "no"} · ${admissionDecision?.skipRule.reasonThreshold ?? "major-or-higher Admission work"} · ${admissionDecision?.skipRule.belowThresholdNote ?? "Reason not collected below major-fact threshold."}`}</p>
+            <p>Open canon debt warnings are non-blocking and remain steward judgment context.</p>
+          </section>
+          <PromptPacketPreview
+            title="Prompt packet preview"
+            roleLine={`${admissionDecision?.promptOut.role ?? "Admission Prompt-out role loads after selecting a record."} · ${admissionDecision?.promptOut.advisory ?? "optional"} advisory pressure`}
+            modes={admissionDecision?.promptOut.modes}
+            preview={admissionDecision?.promptOut.preview}
+            advisoryNote="Pasted advisory responses are stored as advisory_artifact records and remain visibly separate from canon fields."
+            action={<button onClick={loadAdmissionPromptStep} disabled={!openWorld || !admissionDecision}>Load Admission Prompt-out Step</button>}
+          />
+          <section className="subpanel">
+            <h3>Close preview</h3>
+            <div className="grid compact-grid">
+              <div>
+                <strong>What will be written</strong>
+                {(admissionDecision?.writeIntent.willWrite ?? ["No canon mutation until Admission completion."]).map((item) => <p key={item}>{item}</p>)}
+              </div>
+              <div>
+                <strong>What will be linked</strong>
+                {(admissionDecision?.writeIntent.willLink ?? ["Read-side trail links load with a selected decision point."]).map((item) => <p key={item}>{item}</p>)}
+              </div>
+              <div>
+                <strong>What will be queued or left untouched</strong>
+                {[...(admissionDecision?.writeIntent.willQueue ?? []), ...(admissionDecision?.writeIntent.willLeaveUntouched ?? [])].map((item) => <p key={item}>{item}</p>)}
+              </div>
+              <div>
+                <strong>What routes onward</strong>
+                {(admissionDecision?.writeIntent.willRouteOnward ?? ["Read-side views remain read-only."]).map((item) => <p key={item}>{item}</p>)}
+              </div>
+            </div>
+            <p>Before completion: {(admissionDecision?.closePreview.beforeCompletion ?? ["canon status change", "gate result", "resume state"]).join(" · ")}</p>
+            <p>After completion: {(admissionDecision?.closePreview.afterCompletion ?? ["Current Canon", "Audit Trail", "record detail"]).join(" · ")}</p>
+          </section>
+          <section className="subpanel">
+            <h3>Read-side trail</h3>
+            <p>Read-side views stay read-only; Admission mutation controls remain inside this flow.</p>
+            <div className="chips">
+              {(admissionDecision?.readSideTrail ?? [{ label: "Current Canon", href: "/api/canon-workbench/current" }, { label: "Audit Trail", href: "/api/canon-workbench/audit" }]).map((item) => <span key={`${item.label}:${item.href}`}>{item.label} · {item.href}</span>)}
+            </div>
+          </section>
+        </section>
+        <div className="grid">
+          <label>Record id<input value={admissionRecordId} onChange={(event) => setAdmissionRecordId(event.target.value)} /></label>
+          <label>Admission level<select value={admissionLevel} onChange={(event) => setAdmissionLevel(event.target.value)}><option></option>{admissionLevels.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+          <label>Work scale<select value={workScale} onChange={(event) => setWorkScale(event.target.value)}><option></option>{workScales.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+        </div>
+        <div className="row">
+          <button onClick={declareSeverity} disabled={!openWorld || !admissionRecordId || !admissionLevel || !workScale}>Declare Severity</button>
+          <button onClick={skipAdmissionInstrument} disabled={!openWorld}>Record Skip</button>
+        </div>
+        <label>Seed audit findings<textarea rows={3} value={seedAuditFindings} onChange={(event) => setSeedAuditFindings(event.target.value)} /></label>
+        <button onClick={runSeedAudit} disabled={!openWorld || !admissionRecordId || !seedAuditFindings}>Run Seed Audit</button>
+        <div className="subpanel">
+          <h3>Canon debt</h3>
+          <div className="row">
+            <input aria-label="Canon debt name" value={canonDebtName} onChange={(event) => setCanonDebtName(event.target.value)} placeholder="named debt" />
+            <button onClick={createDebt} disabled={!openWorld || !canonDebtName}>Create Debt</button>
+          </div>
+          {canonDebt.map((debt) => <button key={debt.id} onClick={() => closeDebt(debt)}>{debt.shortId} · {debt.title}</button>)}
+        </div>
+        <div className="records compact">
+          {admissionQueue.length === 0 ? <p className="status">No Admission work is queued.</p> : admissionQueue.map((row) => {
+            const queueSources = row.sourceLinks?.map((link) =>
+              link.target ? `${link.target.shortId} ${link.target.title}` : `record ${link.toRecordId}`
+            ).join(", ") || "none returned";
+            return (
+              <article key={row.id}>
+                <button onClick={() => { void selectAdmissionQueueRow(row); }}>Select</button>
+                <h3>{row.shortId} · {row.title}</h3>
+                <p className="meta">{`${row.recordTypeKey} · ${row.truthLayer ?? "unset truth layer"} · ${row.canonStatus ?? "unset canon status"}`}</p>
+                <p className="meta">level {row.admissionLevel ?? "unset"} · {row.workScale ?? "unset"} · tags {row.constraintTags.join(", ") || "none"}</p>
+                <p className="meta">Queue source or origin: {queueSources}</p>
+                <p className="meta">Open canon debt warning context: {canonDebt.length ? `${canonDebt.length} open item(s)` : "none currently loaded"}</p>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+    );
     const shellSurfaces = {
       creation: (
         <section className="panel creation-decision">
@@ -3682,27 +3845,7 @@ function App({
           </section>
         </section>
       ),
-      admission: (
-        <section className="panel">
-          <h2>Admission flow</h2>
-          <p>Admission is the only flow that changes canon standing.</p>
-          <MethodCardPanel card={admissionDecision?.methodCard} />
-          <section className="subpanel">
-            <h3>Queue</h3>
-            {admissionQueue.length === 0 ? <p className="status">No Admission work is queued.</p> : admissionQueue.map((record) => <p key={record.id}>{record.shortId} · {record.title}</p>)}
-          </section>
-          {admissionDecision && (
-            <section className="subpanel">
-              <h3>{admissionDecision.currentStep}</h3>
-              <p>{admissionDecision.localDecision}</p>
-              <details>
-                <summary>Provenance</summary>
-                <p>{admissionDecision.packageAuthority.primary}</p>
-              </details>
-            </section>
-          )}
-        </section>
-      ),
+      admission: admissionRoutedSurface,
       propagation: (
         <section className="panel">
           <h2>Propagation flow</h2>
@@ -4196,174 +4339,8 @@ function App({
           </div>
 
           <div className="panel">
-            <h2>Admission flow</h2>
-            <MethodCardPanel card={admissionDecision?.methodCard} />
-            <div className="doctrine">
-              <strong>Admission method guidance</strong>
-              <span>{admissionDecision?.methodCard?.operativeRule ?? "Select a proposed fact and load server-returned Admission guidance before treating doctrine as loaded."}</span>
-              <span>{admissionDecision?.methodCard?.why ?? "Severity is steward-declared; sweeps propose and only Admission admits."}</span>
-            </div>
-            <section className="decision-point">
-              <h3>Decision point</h3>
-              <p><strong>{admissionDecision?.localDecision ?? "Choose which proposed fact enters Admission now."}</strong></p>
-              <p>Only Admission changes canon standing; proposed facts remain proposed until the steward completes this governed Admission flow.</p>
-              <p>No severity is selected by default. Existing severity values are displayed only when the server payload or steward selection supplies them.</p>
-              <div className="chips">
-                <span>Flow state: {admissionDecision?.flow.runState ?? "not started"}</span>
-                <span>Current step: {admissionDecision?.currentStep ?? "admission:queue-selection"}</span>
-                <span>Next/resume: {admissionDecision?.nextOrResumeState.nextStep ?? "select a proposed fact"}</span>
-              </div>
-              {admissionDecision?.selectedRecord && (
-                <div className="doctrine">
-                  <strong>{admissionDecision.selectedRecord.shortId} · {admissionDecision.selectedRecord.title}</strong>
-                  <span>{admissionDecision.selectedRecord.recordTypeKey} · {admissionDecision.selectedRecord.truthLayer ?? "unset truth layer"} · {admissionDecision.selectedRecord.canonStatus ?? "unset canon status"}</span>
-                  <span>Source or origin links: {admissionDecision.selectedRecord.sourceLinks.map((link) => link.target ? `${link.target.shortId} ${link.target.title}` : `record ${link.toRecordId}`).join(", ") || "none returned"}</span>
-                </div>
-              )}
-              <div className="grid compact-grid">
-                <section className="subpanel">
-                  <h3>Severity definitions</h3>
-                  {admissionDecision?.severity.definitions.length ? admissionDecision.severity.definitions.map((definition) => (
-                    <p key={`${definition.key}:${definition.term}`}><strong>{definition.key}</strong> {definition.term}: {definition.definition}</p>
-                  )) : <p className="status">Declare admission_level and work_scale explicitly to load the server-owned severity path.</p>}
-                  <p>Severity path: {admissionDecision?.severity.gatePath ?? "undeclared"}</p>
-                </section>
-                <section className="subpanel">
-                  <h3>Path obligations</h3>
-                  <p>{(admissionDecision?.severity.obligations ?? ["Declare admission_level", "Declare work_scale"]).join(" · ")}</p>
-                  <p>{admissionDecision?.nextOrResumeState.safeExit ?? "Safe exit leaves the fact in the Admission queue for later resume."}</p>
-                </section>
-              </div>
-              <div className="grid compact-grid">
-                <section className="subpanel work-list required-work">
-                  <h3>Required work</h3>
-                  {(admissionDecision?.work.required ?? ["Select a proposed fact", "Declare admission_level", "Declare work_scale"]).map((item) => <p key={item}>{item}</p>)}
-                </section>
-                <section className="subpanel work-list optional-work">
-                  <h3>Optional work</h3>
-                  {(admissionDecision?.work.optional ?? ["Prompt-out advisory pressure after steward-authored material exists"]).map((item) => <p key={item}>{item}</p>)}
-                </section>
-                <section className="subpanel work-list skippable-work">
-                  <h3>Skippable work</h3>
-                  {(admissionDecision?.work.skippable ?? ["Offered instruments write skip_record entries when declined"]).map((item) => <p key={item}>{item}</p>)}
-                </section>
-                <section className="subpanel work-list severity-work">
-                  <h3>Severity-dependent work</h3>
-                  {(admissionDecision?.work.severityDependent ?? ["Gate depth is unavailable until severity is declared"]).map((item) => <p key={item}>{item}</p>)}
-                </section>
-              </div>
-              <div className="grid compact-grid">
-                <section className="subpanel">
-                  <h3>Minor ledger path</h3>
-                  <p>Minor work stays batch-friendly: fact statement, scope, truth layer, canon status plus separated constraint tags, ordered admission operations, and one consequence check.</p>
-                  <p>Native Tab/Enter form order is preserved by the existing form controls below.</p>
-                </section>
-                <section className="subpanel">
-                  <h3>Full gate path</h3>
-                  {admissionDecision?.blockers.length ? admissionDecision.blockers.map((blocker) => (
-                    <p key={blocker.key}><strong>{blocker.label}</strong>: {blocker.message} Requires {blocker.requires}.</p>
-                  )) : <p>Full-gate blockers are returned by the server after severity declaration.</p>}
-                </section>
-              </div>
-              <section className="subpanel">
-                <h3>Frontloaded seed audit</h3>
-                <p>{admissionDecision?.seedAudit.offered ? "Offered before first seed admission when relevant." : "Not currently offered for the selected record."}</p>
-                <p>{admissionDecision?.seedAudit.runWrites ?? "Running seed audit writes a gate_result when offered."}</p>
-                <p>{admissionDecision?.seedAudit.declineWrites ?? "Declining an offered instrument writes a governed skip_record."}</p>
-                <p>{admissionDecision?.seedAudit.nonMutation ?? "Seed audit does not mutate seed truth layer, canon status, tags, severity, or operations."}</p>
-                <details>
-                  <summary>Seed audit provenance</summary>
-                  {(admissionDecision?.seedAudit.doctrine ?? []).map((citation) => <p key={citation}>Provenance: {citation}</p>)}
-                </details>
-                <p>{`Reason required: ${admissionDecision?.skipRule.reasonRequired ? "yes" : "no"} · ${admissionDecision?.skipRule.reasonThreshold ?? "major-or-higher Admission work"} · ${admissionDecision?.skipRule.belowThresholdNote ?? "Reason not collected below major-fact threshold."}`}</p>
-                <p>Open canon debt warnings are non-blocking and remain steward judgment context.</p>
-              </section>
-              <PromptPacketPreview
-                title="Prompt packet preview"
-                roleLine={`${admissionDecision?.promptOut.role ?? "Admission Prompt-out role loads after selecting a record."} · ${admissionDecision?.promptOut.advisory ?? "optional"} advisory pressure`}
-                modes={admissionDecision?.promptOut.modes}
-                preview={admissionDecision?.promptOut.preview}
-                advisoryNote="Pasted advisory responses are stored as advisory_artifact records and remain visibly separate from canon fields."
-                action={<button onClick={loadAdmissionPromptStep} disabled={!openWorld || !admissionDecision}>Load Admission Prompt-out Step</button>}
-              />
-              <section className="subpanel">
-                <h3>Close preview</h3>
-                <div className="grid compact-grid">
-                  <div>
-                    <strong>What will be written</strong>
-                    {(admissionDecision?.writeIntent.willWrite ?? ["No canon mutation until Admission completion."]).map((item) => <p key={item}>{item}</p>)}
-                  </div>
-                  <div>
-                    <strong>What will be linked</strong>
-                    {(admissionDecision?.writeIntent.willLink ?? ["Read-side trail links load with a selected decision point."]).map((item) => <p key={item}>{item}</p>)}
-                  </div>
-                  <div>
-                    <strong>What will be queued or left untouched</strong>
-                    {[...(admissionDecision?.writeIntent.willQueue ?? []), ...(admissionDecision?.writeIntent.willLeaveUntouched ?? [])].map((item) => <p key={item}>{item}</p>)}
-                  </div>
-                  <div>
-                    <strong>What routes onward</strong>
-                    {(admissionDecision?.writeIntent.willRouteOnward ?? ["Read-side views remain read-only."]).map((item) => <p key={item}>{item}</p>)}
-                  </div>
-                </div>
-                <p>Before completion: {(admissionDecision?.closePreview.beforeCompletion ?? ["canon status change", "gate result", "resume state"]).join(" · ")}</p>
-                <p>After completion: {(admissionDecision?.closePreview.afterCompletion ?? ["Current Canon", "Audit Trail", "record detail"]).join(" · ")}</p>
-              </section>
-              <section className="subpanel">
-                <h3>Read-side trail</h3>
-                <p>Read-side views stay read-only; Admission mutation controls remain inside this flow.</p>
-                <div className="chips">
-                  {(admissionDecision?.readSideTrail ?? [{ label: "Current Canon", href: "/api/canon-workbench/current" }, { label: "Audit Trail", href: "/api/canon-workbench/audit" }]).map((item) => <span key={`${item.label}:${item.href}`}>{item.label} · {item.href}</span>)}
-                </div>
-              </section>
-            </section>
-            <div className="grid">
-              <label>Record id<input value={admissionRecordId} onChange={(event) => setAdmissionRecordId(event.target.value)} /></label>
-              <label>Admission level<select value={admissionLevel} onChange={(event) => setAdmissionLevel(event.target.value)}><option></option>{admissionLevels.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
-              <label>Work scale<select value={workScale} onChange={(event) => setWorkScale(event.target.value)}><option></option>{workScales.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
-            </div>
-            <div className="row">
-              <button onClick={declareSeverity} disabled={!openWorld || !admissionRecordId || !admissionLevel || !workScale}>Declare Severity</button>
-              <button onClick={startAdmission} disabled={!openWorld || !admissionRecordId}>Start Gate</button>
-              <button onClick={skipAdmissionInstrument} disabled={!openWorld}>Record Skip</button>
-            </div>
-            <div className="grid">
-              <label>Operation<select value={admissionOperation} onChange={(event) => setAdmissionOperation(event.target.value)}>{admissionOperations.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
-              <label>Quiet domain declaration<input value={gateQuietDomain} onChange={(event) => setGateQuietDomain(event.target.value)} /></label>
-              <label>N/A reason<input value={gateNotApplicable} onChange={(event) => setGateNotApplicable(event.target.value)} /></label>
-            </div>
-            <label>Consequence check<textarea rows={3} value={gateConsequence} onChange={(event) => setGateConsequence(event.target.value)} /></label>
-            <div className="row">
-              <button onClick={completeAdmission} disabled={!openWorld || !admissionRecordId || !(recordForm.truthLayer || selectedAdmissionRecord?.truthLayer) || !admissionOperation}>Complete Gate</button>
-              <button onClick={admitMinorBatch} disabled={!openWorld || !recordForm.title || !recordForm.truthLayer || !gateConsequence}>Admit Minor Row</button>
-            </div>
-            <label>Seed audit findings<textarea rows={3} value={seedAuditFindings} onChange={(event) => setSeedAuditFindings(event.target.value)} /></label>
-            <button onClick={runSeedAudit} disabled={!openWorld || !admissionRecordId || !seedAuditFindings}>Run Seed Audit</button>
-            <div className="subpanel">
-              <h3>Canon debt</h3>
-              <div className="row">
-                <input aria-label="Canon debt name" value={canonDebtName} onChange={(event) => setCanonDebtName(event.target.value)} placeholder="named debt" />
-                <button onClick={createDebt} disabled={!openWorld || !canonDebtName}>Create Debt</button>
-              </div>
-              {canonDebt.map((debt) => <button key={debt.id} onClick={() => closeDebt(debt)}>{debt.shortId} · {debt.title}</button>)}
-            </div>
-            <div className="records compact">
-              {admissionQueue.map((row) => {
-                const queueSources = row.sourceLinks?.map((link) =>
-                  link.target ? `${link.target.shortId} ${link.target.title}` : `record ${link.toRecordId}`
-                ).join(", ") || "none returned";
-                return (
-                  <article key={row.id}>
-                    <button onClick={() => { void selectAdmissionQueueRow(row); }}>Select</button>
-                    <h3>{row.shortId} · {row.title}</h3>
-                    <p className="meta">{`${row.recordTypeKey} · ${row.truthLayer ?? "unset truth layer"} · ${row.canonStatus ?? "unset canon status"}`}</p>
-                    <p className="meta">level {row.admissionLevel ?? "unset"} · {row.workScale ?? "unset"} · tags {row.constraintTags.join(", ") || "none"}</p>
-                    <p className="meta">Queue source or origin: {queueSources}</p>
-                    <p className="meta">Open canon debt warning context: {canonDebt.length ? `${canonDebt.length} open item(s)` : "none currently loaded"}</p>
-                  </article>
-                );
-              })}
-            </div>
+            <h2>Admission moved to workflow map</h2>
+            <p className="status">Use the routed Admission destination for queue selection, severity declaration, seed audit, and Prompt-out guidance.</p>
           </div>
 
           <div className="panel">

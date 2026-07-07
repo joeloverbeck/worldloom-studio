@@ -37,6 +37,13 @@ export const PROMPT_TEMPLATE_SEEDS: PromptTemplateSeed[] = [
     ]
   },
   {
+    key: "admission_queue_severity",
+    roleName: "Severity classification readiness",
+    packageSource: "docs/worldbuilding-system/20_ai_assisted_workflow.md",
+    text: "Use the sandwich packet to pressure-test this proposed fact before the steward declares Admission severity. Work from the fact, record type, truth layer, canon status, source links, source manifest, and Admission vocabulary definitions first, quote the lines your pressure rests on, then ask for risks, dependencies, missing information, uncertainty, and candidate questions that help the steward choose admission_level and work_scale. Do not assign final admission_level, final work_scale, canon standing, truth layer, status, admission operations, automatic admission, or hidden assumptions because queue/severity classification is steward-authored and only prepares the path selection.",
+    previousTexts: []
+  },
+  {
     key: "admission_prerequisite_audit",
     roleName: "Prerequisite auditor",
     packageSource: "docs/worldbuilding-system/20_ai_assisted_workflow.md",

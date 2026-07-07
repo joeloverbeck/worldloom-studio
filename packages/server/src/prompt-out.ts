@@ -338,6 +338,7 @@ const promptMethodCard = (input: PromptGenerationInput): MethodCard | null => {
     return methodCard(input.templateKey === "decomposition_pressure" ? "creation.seed-decomposition" : "creation.kernel");
   }
   if (input.flowKey === "admission") {
+    if (input.templateKey === "admission_queue_severity") return methodCard("admission.queue-severity");
     return methodCard(input.templateKey === "admission_prerequisite_audit" ? "admission.minor-ledger" : "admission.full-gate");
   }
   if (input.flowKey === "constraint_composition") {

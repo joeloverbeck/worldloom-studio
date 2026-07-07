@@ -457,18 +457,40 @@ describe("HTTP API", () => {
     const queuedDecision = await json<{
       decisionPoint: {
         localDecision: string;
+        methodCard: { key: string };
         selectedRecord: { id: number };
-        severity: { admissionLevel: string | null; workScale: string | null; gatePath: string | null };
+        severity: {
+          admissionLevel: string | null;
+          workScale: string | null;
+          gatePath: string | null;
+          definitions: Array<{ key: string; term: string; definition: string }>;
+        };
         work: { required: string[]; optional: string[]; skippable: string[]; severityDependent: string[] };
         skipRule: { reasonRequired: boolean; belowThresholdNote: string };
+        promptOut: {
+          templateKey: string;
+          stepKey: string;
+          role: string;
+          modes: Array<{ mode: string; availability: string; blocker: string | null }>;
+          preview: { promptText: string; sourceManifest: string[]; omissions: string[]; advisoryCanonWarning: string };
+        };
         writeIntent: { willWrite: string[]; willLink: string[]; willLeaveUntouched: string[] };
         readSideTrail: Array<{ label: string; href: string }>;
       };
     }>(await app.request(`/api/admission/records/${seed.record.id}/decision-point`));
     expect(queuedDecision.decisionPoint).toMatchObject({
       localDecision: "Choose and classify the proposed fact before Admission changes canon standing.",
+      methodCard: { key: "admission.queue-severity" },
       selectedRecord: { id: seed.record.id },
-      severity: { admissionLevel: null, workScale: null, gatePath: null },
+      severity: {
+        admissionLevel: null,
+        workScale: null,
+        gatePath: null,
+        definitions: expect.arrayContaining([
+          expect.objectContaining({ key: "admission_level", term: "0" }),
+          expect.objectContaining({ key: "work_scale", term: "minor" })
+        ])
+      },
       work: {
         required: expect.arrayContaining(["Declare admission_level", "Declare work_scale"]),
         optional: expect.arrayContaining(["Prompt-out advisory pressure after steward-authored material exists"]),
@@ -476,6 +498,26 @@ describe("HTTP API", () => {
         severityDependent: expect.arrayContaining(["Gate depth is unavailable until severity is declared"])
       },
       skipRule: { reasonRequired: false, belowThresholdNote: expect.stringContaining("Reason not collected") },
+      promptOut: {
+        templateKey: "admission_queue_severity",
+        stepKey: "admission:queue-severity",
+        role: "Severity classification readiness",
+        modes: expect.arrayContaining([
+          expect.objectContaining({ mode: "proposal", availability: "available", blocker: null }),
+          expect.objectContaining({ mode: "pressure", availability: "available", blocker: null })
+        ]),
+        preview: expect.objectContaining({
+          promptText: expect.stringContaining("classification readiness"),
+          sourceManifest: expect.arrayContaining([
+            expect.stringContaining("Method card: admission.queue-severity"),
+            expect.stringContaining("Prompt template: admission_queue_severity"),
+            expect.stringContaining("Vocabulary admission_level 0"),
+            expect.stringContaining("Vocabulary work_scale minor")
+          ]),
+          omissions: expect.arrayContaining([expect.stringContaining("Minor ledger")]),
+          advisoryCanonWarning: expect.stringContaining("advisory")
+        })
+      },
       writeIntent: {
         willWrite: expect.arrayContaining(["No canon mutation until the steward completes Admission"]),
         willLink: expect.arrayContaining(["Read-side trail links expose Current Canon, Audit Trail, record detail, advisory artifacts, skip records, canon debt, and export"]),
@@ -487,6 +529,14 @@ describe("HTTP API", () => {
         expect.objectContaining({ label: "Record detail" })
       ])
     });
+    expect(queuedDecision.decisionPoint.promptOut.preview.promptText).toContain("risks");
+    expect(queuedDecision.decisionPoint.promptOut.preview.promptText).toContain("dependencies");
+    expect(queuedDecision.decisionPoint.promptOut.preview.promptText).toContain("missing information");
+    expect(queuedDecision.decisionPoint.promptOut.preview.promptText).toContain("candidate questions");
+    expect(queuedDecision.decisionPoint.promptOut.preview.promptText).toContain("do not assign canon standing");
+    expect(queuedDecision.decisionPoint.promptOut.preview.promptText).toContain("do not assign truth layer");
+    expect(queuedDecision.decisionPoint.promptOut.preview.promptText).not.toContain("minor-ledger completion");
+    expect(queuedDecision.decisionPoint.promptOut.preview.promptText).not.toContain("admission_prerequisite_audit");
 
     const severity = await app.request(`/api/admission/records/${proposedJson.record.id}/severity`, {
       method: "POST",
@@ -661,6 +711,17 @@ describe("HTTP API", () => {
     }>(audit);
     expect(auditJson.report).toMatchObject({ recordTypeKey: "gate_result" });
     expect(auditJson.seeds).toEqual(expect.arrayContaining([expect.objectContaining({ canonStatus: "proposed" })]));
+    expect(await json(await app.request(`/api/links?recordId=${seed.record.id}`))).toMatchObject({
+      links: expect.arrayContaining([
+        expect.objectContaining({ fromRecordId: seed.record.id, linkTypeKey: "derived_from", note: "Frontloaded seed audit report" })
+      ])
+    });
+    expect(await json(await app.request(`/api/records/${seed.record.id}/facets`))).toMatchObject({
+      facets: expect.arrayContaining([
+        expect.objectContaining({ vocabulary: "admission_level", term: "1" }),
+        expect.objectContaining({ vocabulary: "work_scale", term: "minor" })
+      ])
+    });
     expect(auditJson.decisionPoints).toEqual(expect.arrayContaining([expect.objectContaining({
         seedAudit: expect.objectContaining({
           offered: true,

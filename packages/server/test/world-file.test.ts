@@ -146,6 +146,7 @@ describe("WorldFile", () => {
     expect(store.db.prepare("SELECT heading FROM record_section_headings WHERE record_type_key = 'pass_report' AND position = 2").get()).toMatchObject({ heading: "Coverage lenses" });
     expect(store.db.prepare("SELECT strict FROM pragma_table_list WHERE name = 'stage12_coverage'").get()).toMatchObject({ strict: 1 });
     expect(PromptOut.listPromptTemplates(store)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "admission_queue_severity" }),
       expect.objectContaining({ key: "admission_prerequisite_audit" }),
       expect.objectContaining({ key: "admission_constraint_challenge" }),
       expect.objectContaining({ key: "propagation_consequence_scout" }),
@@ -166,6 +167,7 @@ describe("WorldFile", () => {
 
     const reopened = WorldFile.open(path);
     expect(PromptOut.listPromptTemplates(reopened)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "admission_queue_severity" }),
       expect.objectContaining({ key: "admission_prerequisite_audit" }),
       expect.objectContaining({ key: "admission_constraint_challenge" })
     ]));
