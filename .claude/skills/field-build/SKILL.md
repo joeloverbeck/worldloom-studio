@@ -20,6 +20,8 @@ Three roles, kept honest:
 - **app-driver** — drives the running UI through browser automation (Puppeteer or Chrome DevTools MCP). Parity is settled in the running UI, never inferred from source or tests — the trap issues #109–#113 caught.
 - **cold LLM** — a newly spawned, fresh subagent handed ONLY the app's generated prompt text saved for that exact decision and mode. It never sees the world, the docs, or this conversation. Its answer is raw candidate material, never a decision. Record the subagent id or tool limitation in the live log, save its answer, then close or release it at closeout.
 
+**Cold-probe tooling rule:** if the session does not expose an obvious fresh-subagent tool, try the session's tool-discovery mechanism once before giving up. If discovery is unavailable, policy blocks subagents, or the available tool cannot create an uncontextualized worker, record `probe unavailable` with that operational reason. Do not simulate a cold probe with the main agent, an already-contextual subagent, or a self-authored answer.
+
 ## Step 1 — Take the seed and set up
 
 - **Get the essence.** The user's world seed *is* the world's essence — the generating tension the world exists to explore (`05` Phase 1). If the invocation carried no seed, ask for one before anything else; a one-line premise is enough (e.g. "sentient humanoid animals; a skill-and-grit sport resolves the disputes war doesn't"). Never proposal-mode the essence — `20` reserves it to the steward and the app refuses proposal on the kernel World premise; you author it from the user's words.
@@ -60,7 +62,11 @@ A **decision point** is one coherent block of material the method asks you to au
 
 Maintain a **prompt-out coverage ledger** in the live log for every reached decision point: `proposal` and `pressure` each get exactly one state — `exercised`, `refused`, `blocked by app`, `probe unavailable`, or `deferred because frontier moved` — plus the prompt packet path, cold-output path, cold-subagent id, or one-line reason. This keeps partial runs honest when a blocker stops the walk before every mode can be exercised.
 
+After every app action that claims to mutate world state, immediately perform a **post-mutation readback** before logging success or advancing. Read the affected app-owned truth through the active read-side surface when it exists, or through the app/API read endpoint when that endpoint is the only exposed read model, and compare the persisted state to the intended payload. Check the living card/report body, sections or facets, status/tags, links/history, debt or queue state, and any generated record the action should have touched. If the readback does not match, log the mismatch as a finding with the readback evidence; do not count the mutation as successful just because the UI accepted the click or returned a toast.
+
 **Drive the UI; never infer a flow works from its code or tests.** Screenshot each screen into `/tmp/worldloom-field-build/screenshots/`; name shots `field-build-<NN>-<shot>-<slug>.png` so they do not collide across runs, and record the names in the log. **Cold-LLM subagents get the saved packet and nothing else** — that isolation *is* the packet-context test; leaking world or doc context into them destroys the finding. Do not use an already-contextual subagent for a later cold probe. If a true fresh subagent/tool is unavailable, do not simulate the probe with the main agent's context; mark the prompt test `probe unavailable`, log Q if the packet exists but the probe is unavailable, log P if the app failed to supply the packet, and carry that limitation into the report.
+
+The driven surface is the **active, user-reachable workflow destination** named by the app navigation and flow specs. Hidden panels, legacy/full-workspace screens, source-only affordances, and direct API inspection can supply diagnostic evidence, but they do not satisfy parity for the workflow a steward actually reaches. If the active destination cannot carry the decision, stop continuing through an alternate surface as if the app passed; log the active-surface gap with the destination, the alternate surface you found, and whether the missing piece is P/R/F.
 
 ### The new-world-path crosswalk (verify against the live app + `docs/specs/workflow-map-and-navigation.md`)
 
@@ -116,8 +122,8 @@ For each `[P/R/M/F/V/Q]-NN` — one-line title. Severity: blocking | friction | 
 - What happened: <what you saw / what the cold LLM returned> — cite the screenshot + DOM/packet excerpt
 - What the methodology requires: <doc § reference>
 - The snag: <the break, one line>
-- Design verdict (required for R findings): <ok | local polish | redesign candidate> — <why the scope is local or structural>
-- Recommendation (required for R findings): <specific copy/layout/interaction fix, or the redesign direction the evidence points to>
+- Design verdict (required for R findings, redesign candidates, and structural F/P findings about missing or incorrect screen structure): <ok | local polish | redesign candidate> — <why the scope is local or structural>
+- Recommendation (required for R findings, redesign candidates, and structural F/P findings about missing or incorrect screen structure): <specific copy/layout/interaction fix, or the redesign direction the evidence points to>
 - Repro (required for blocking findings): <exact inputs / clicks / endpoint + payload that reproduce it, so a later run can replay it verbatim>
 - Fix direction: <app spec/component, or methodology file/wording>
 - Touches: <docs/specs/… , principle W-# , doc file, or issue #>
@@ -140,7 +146,7 @@ Per decision point, in walk order:
 - Obsolescence verdict: <docs-obsolete (V) — app carried it | docs still needed: what the app failed to carry → finding IDs>
 
 ## For the app (PRD seeds)
-Cluster the P/R/F findings into fixable scopes; name the likeliest spec/component; flag principle-reinforcement candidates (W-#). For every systemic R finding or repeated local R pattern, say whether the app work is local polish or redesign, and name the recommended UX direction before turning it into PRD seed material.
+Cluster the P/R/F findings into fixable scopes; name the likeliest spec/component; flag principle-reinforcement candidates (W-#). For every systemic R finding, repeated local R pattern, redesign candidate, or structural F/P finding about missing or incorrect screen structure, say whether the app work is local polish or redesign, and name the recommended UX direction before turning it into PRD seed material.
 
 ## For the methodology
 Cluster the M findings; name the doc file and the wording to revise. This is the field evidence the README's untested surfaces owe — `10`, `11`, `14`, `15`, `16`, `17`, and the proposal mode of `20`.
@@ -157,7 +163,7 @@ Before finalizing, run this checklist against the report. This is a hard closeou
 - **Findings** includes every P/R/M/F/V/Q from the live log.
 - **Regression of prior findings** is present with this exact heading when a prior canonical report existed, or intentionally omitted only when none existed.
 - Every blocking finding includes a concrete **Repro** line; if a blocking finding cannot be replayed, the line says exactly why.
-- Every R finding includes **Design verdict** and **Recommendation** lines, and redesign candidates say why local polish is insufficient.
+- Every R finding, every redesign candidate, and every structural F/P finding about missing or incorrect screen structure includes **Design verdict** and **Recommendation** lines, and redesign candidates say why local polish is insufficient.
 - **Decision-point log** includes every reached decision point, its prompt-out coverage ledger, and its required **UX/style verdict**.
 - **For the app**, **For the methodology**, and **Frontier** are present.
 - **Evidence paths** for screenshots, raw prompt packets, and cold-LLM outputs are cited when such artifacts exist.
