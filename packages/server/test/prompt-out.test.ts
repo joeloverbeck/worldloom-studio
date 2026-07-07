@@ -178,6 +178,47 @@ describe("Prompt-out module", () => {
     expect(admission.promptOut.packetIdentity.packetHash).toMatch(/^[a-f0-9]{64}$/);
     expect(admission.promptOut.packetIdentity.packetHash).not.toBe(creation.promptOut.packetIdentity.packetHash);
 
+    const admissionWithDraft = PromptOut.generatePrompt(store, {
+      flowKey: "admission",
+      templateKey: "admission_constraint_challenge",
+      recordId: fact.id,
+      stepKey: "admission:full_gate",
+      mode: "pressure",
+      admissionLevel: "4",
+      workScale: "severe",
+      admissionFullGateDraft: {
+        saved: false,
+        sectionKeys: ["fact_statement", "dependencies", "institutions_or_quiet_domain_declaration", "branch_implications"],
+        sections: [
+          { key: "fact_statement", label: "Fact statement", substance: "The toll bell charges every bridge crossing." },
+          { key: "dependencies", label: "Dependencies", substance: "Bridge charter, toll collectors, and bell maintenance." },
+          { key: "institutions_or_quiet_domain_declaration", label: "Institutions or quiet-domain declaration", quietDomainDeclaration: "The bridge ward is in scope; outer markets stay quiet." },
+          { key: "branch_implications", label: "Branch implications", notApplicableReason: "No branch implication in the current continuity." }
+        ],
+        consequenceText: "Markets now price crossings by bell debt.",
+        operations: ["constrain", "price"],
+        targetCanonStatus: "accepted with constraints",
+        constraintTags: ["cost-bound"],
+        followUpDebt: "Propagate bridge-toll economics.",
+        advisoryRecordId: 42
+      }
+    });
+    expect(admissionWithDraft.prompt).toContain("Admission full-gate draft status: current unsaved steward draft, not canon.");
+    expect(admissionWithDraft.prompt).toContain("Fact statement: The toll bell charges every bridge crossing.");
+    expect(admissionWithDraft.prompt).toContain("Dependencies: Bridge charter, toll collectors, and bell maintenance.");
+    expect(admissionWithDraft.prompt).toContain("Institutions or quiet-domain declaration quiet-domain declaration: The bridge ward is in scope; outer markets stay quiet.");
+    expect(admissionWithDraft.prompt).toContain("Branch implications N/A reason: No branch implication in the current continuity.");
+    expect(admissionWithDraft.prompt).toContain("Operation order draft: constrain, price");
+    expect(admissionWithDraft.prompt).toContain("Target canon status draft: accepted with constraints");
+    expect(admissionWithDraft.prompt).toContain("Constraint tags draft: cost-bound");
+    expect(admissionWithDraft.prompt).toContain("Follow-up debt draft: Propagate bridge-toll economics.");
+    expect(admissionWithDraft.prompt).toContain("Advisory-use selection draft: advisory record 42");
+    expect(admissionWithDraft.prompt).toContain("Omission: Missing full-gate draft substance: Branch implications");
+    expect(admissionWithDraft.promptOut.packetIdentity).toMatchObject({
+      admissionDraftHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      admissionSectionKeys: ["fact_statement", "dependencies", "institutions_or_quiet_domain_declaration", "branch_implications"]
+    });
+
     store.close();
   });
 

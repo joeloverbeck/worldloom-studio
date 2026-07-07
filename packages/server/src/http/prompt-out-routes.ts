@@ -31,6 +31,7 @@ export const registerPromptOutRoutes = (app: RouteApp, dependencies: RouteDepend
       selectedSectionHeading?: string;
       admissionLevel?: string;
       workScale?: string;
+      admissionFullGateDraft?: PromptOut.AdmissionFullGateDraftPayload;
     }>(c));
     return c.json({ prompt: result.prompt });
   })));
@@ -55,6 +56,7 @@ export const registerPromptOutRoutes = (app: RouteApp, dependencies: RouteDepend
       label?: string;
       admissionLevel?: string;
       workScale?: string;
+      admissionFullGateDraft?: PromptOut.AdmissionFullGateDraftPayload;
     }>(c)) })
   )));
 
@@ -97,6 +99,7 @@ export const registerPromptOutRoutes = (app: RouteApp, dependencies: RouteDepend
       selectedSectionHeading?: string;
       admissionLevel?: string;
       workScale?: string;
+      admissionFullGateDraft?: PromptOut.AdmissionFullGateDraftPayload;
     }>(c)))
   )));
 

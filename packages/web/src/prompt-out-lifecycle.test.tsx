@@ -644,6 +644,9 @@ describe("Prompt-out lifecycle web surface", () => {
 
     expect(creationPromptLoader).toContain("setLoadedPromptAndPacket");
     expect(admissionPromptLoader).toContain("setLoadedPromptAndPacket");
+    expect(admissionPromptLoader).toContain("buildAdmissionFullGateDraftPayload");
+    expect(admissionPromptLoader).toContain("admissionFullGateDraft");
+    expect(admissionPromptLoader).toContain("/api/prompt-out/generate");
     expect(currentOrigin).toContain("worldPath: openWorld");
     expect(currentOrigin).toContain("flowKey: \"creation\"");
     expect(currentOrigin).toContain("flowKey: \"admission\"");
@@ -651,8 +654,11 @@ describe("Prompt-out lifecycle web surface", () => {
     expect(currentOrigin).toContain("admissionDecision.selectedRecord.shortId");
     expect(currentOrigin).toContain("admissionDecision.severity.admissionLevel");
     expect(currentOrigin).toContain("admissionDecision.severity.workScale");
+    expect(currentOrigin).toContain("admissionDraftHash");
+    expect(currentOrigin).toContain("admissionSectionKeys");
     expect(currentOrigin).toContain("selectedSectionHeading");
     expect(currentOrigin).toContain("displayedCreationDecision.promptOut.stepKey");
+    expect(source).toContain("sameStringList");
     expect(promptPacketView).toContain("loadedPromptStatusView?.state === \"current\"");
     expect(promptPacketView).toContain("samePromptPacketOrigin");
     expect(storeAdvisory).toContain("canUseCurrentPromptPacket");

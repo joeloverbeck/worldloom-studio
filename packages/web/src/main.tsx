@@ -596,6 +596,59 @@ interface AdmissionFullGateContract {
   readSideTrail?: Array<{ label: string; href: string }>;
 }
 
+interface AdmissionFullGateSectionPayload {
+  key: string;
+  substance?: string;
+  notApplicableReason?: string;
+  quietDomainDeclaration?: string;
+}
+
+interface AdmissionGateCompletionPayload {
+  recordId: number;
+  title: string;
+  body: string;
+  truthLayer: string;
+  canonStatus: string;
+  constraintTags: string[];
+  operations: string[];
+  consequenceText: string;
+  sections: AdmissionFullGateSectionPayload[];
+  notApplicableReasons: string[];
+  quietDomainDeclarations: string[];
+  followUpDebt?: string;
+  advisoryRecordId?: number;
+}
+
+interface AdmissionFullGateDraftPayload {
+  saved: boolean;
+  draftHash: string;
+  sectionKeys: string[];
+  sections: Array<AdmissionFullGateSectionPayload & { label: string }>;
+  consequenceText: string;
+  operations: string[];
+  targetCanonStatus: string;
+  constraintTags: string[];
+  followUpDebt?: string;
+  advisoryRecordId?: number;
+}
+
+interface AdmissionFullGateReview {
+  identity: string;
+  reviewedAt: string;
+  payload: AdmissionGateCompletionPayload;
+}
+
+interface AdmissionCompletionReadback {
+  livingRecord?: Partial<RecordRow>;
+  gateResult?: Partial<RecordRow>;
+  operationEvents?: string[];
+  constraintTags?: string[];
+  followUpDebt?: Partial<RecordRow> | null;
+  advisoryUse?: { advisoryRecordId: number; linkTypes?: string[] } | null;
+  historyEvidence?: { previousTitle?: string; previousBody?: string };
+  readSideTrail?: Array<{ label: string; href: string }>;
+}
+
 interface AdmissionDecisionPoint {
   methodCard?: MethodCard;
   sharedContract?: DecisionPointSharedContract;
@@ -956,6 +1009,8 @@ interface LoadedPromptOrigin {
   createdAt: string;
   admissionLevel: string | null;
   workScale: string | null;
+  admissionDraftHash: string | null;
+  admissionSectionKeys: string[];
   packetHash: string | null;
 }
 
@@ -971,6 +1026,8 @@ interface PromptPacketIdentity {
   selectedSectionHeading: string | null;
   admissionLevel: string | null;
   workScale: string | null;
+  admissionDraftHash: string | null;
+  admissionSectionKeys: string[];
   decisionLabel: string;
   generatedAt: string | null;
   packetHash: string | null;
@@ -1099,6 +1156,20 @@ const originNumber = (value: unknown): number | null => {
   return null;
 };
 
+const sameStringList = (left: string[] = [], right: string[] = []): boolean =>
+  left.length === right.length && left.every((value, index) => value === right[index]);
+
+const admissionDraftIdentityFor = (input: {
+  worldPath: string | null;
+  recordId: number | null;
+  recordShortId: string | null;
+  currentStep: string | null;
+  admissionLevel: string | null;
+  workScale: string | null;
+  sectionKeys: string[];
+  draft?: unknown;
+}): string => JSON.stringify(input);
+
 const promptOriginsMatch = (left: LoadedPromptOrigin, right: LoadedPromptOrigin): boolean =>
   left.worldPath === right.worldPath
   && left.flowKey === right.flowKey
@@ -1111,7 +1182,9 @@ const promptOriginsMatch = (left: LoadedPromptOrigin, right: LoadedPromptOrigin)
   && left.mode === right.mode
   && left.templateKey === right.templateKey
   && left.admissionLevel === right.admissionLevel
-  && left.workScale === right.workScale;
+  && left.workScale === right.workScale
+  && (left.admissionDraftHash ?? null) === (right.admissionDraftHash ?? null)
+  && sameStringList(left.admissionSectionKeys ?? [], right.admissionSectionKeys ?? []);
 
 const samePromptPacketOrigin = (left: LoadedPromptOrigin, right: LoadedPromptOrigin): boolean =>
   promptOriginsMatch(left, right)
@@ -1133,7 +1206,9 @@ const describePromptOrigin = (origin: LoadedPromptOrigin): string => [
   `created ${origin.createdAt}`,
   `packet ${origin.packetHash ?? "none"}`,
   `admission_level ${origin.admissionLevel ?? "none"}`,
-  `work_scale ${origin.workScale ?? "none"}`
+  `work_scale ${origin.workScale ?? "none"}`,
+  `admission draft ${origin.admissionDraftHash ?? "none"}`,
+  `admission section keys ${origin.admissionSectionKeys?.length ? origin.admissionSectionKeys.join(",") : "none"}`
 ].join(" · ");
 
 function LoadedPromptStatusPanel({
@@ -1797,6 +1872,9 @@ function App({
   const [gateFollowUpDebt, setGateFollowUpDebt] = useState("");
   const [gateAdvisoryRecordId, setGateAdvisoryRecordId] = useState("");
   const [admissionValidationErrors, setAdmissionValidationErrors] = useState<AdmissionValidationError[]>([]);
+  const [gateDraftIdentity, setGateDraftIdentity] = useState("");
+  const [gateFinalReview, setGateFinalReview] = useState<AdmissionFullGateReview | null>(null);
+  const [admissionCompletionReadback, setAdmissionCompletionReadback] = useState<AdmissionCompletionReadback | null>(null);
   const [canonDebtName, setCanonDebtName] = useState("");
   const [seedAuditFindings, setSeedAuditFindings] = useState("");
   const [propagationFactId, setPropagationFactId] = useState("");
@@ -1858,6 +1936,90 @@ function App({
     ...(activeFullGateContract?.validationErrors ?? []),
     ...admissionValidationErrors
   ];
+  const activeFullGateSectionKeys = activeFullGateContract?.sections.map((section) => section.key) ?? [];
+  const admissionDraftIdentity = activeFullGateContract && admissionDecision
+    ? admissionDraftIdentityFor({
+      worldPath: openWorld,
+      recordId: admissionDecision.selectedRecord.id,
+      recordShortId: admissionDecision.selectedRecord.shortId,
+      currentStep: admissionDecision.currentStep,
+      admissionLevel: admissionDecision.severity.admissionLevel,
+      workScale: admissionDecision.severity.workScale,
+      sectionKeys: activeFullGateSectionKeys,
+      draft: {
+        title: recordForm.title || selectedAdmissionRecord?.title || admissionDecision.selectedRecord.title,
+        body: recordForm.body || selectedAdmissionRecord?.body || admissionDecision.selectedRecord.body,
+        truthLayer: recordForm.truthLayer || selectedAdmissionRecord?.truthLayer || admissionDecision.selectedRecord.truthLayer || "Objective canon",
+        canonStatus: gateCanonStatus || recordForm.canonStatus || selectedAdmissionRecord?.canonStatus || "accepted",
+        constraintTags: gateConstraintTags,
+        operation: admissionOperation,
+        consequence: gateConsequence,
+        sections: activeFullGateContract.sections.map((section) => ({
+          key: section.key,
+          substance: gateSectionSubstance[section.key] ?? "",
+          notApplicableReason: gateSectionNotApplicableReasons[section.key] ?? "",
+          quietDomainDeclaration: gateSectionQuietDeclarations[section.key] ?? ""
+        })),
+        notApplicable: gateNotApplicable,
+        quietDomain: gateQuietDomain,
+        followUpDebt: gateFollowUpDebt,
+        advisoryRecordId: gateAdvisoryRecordId
+      }
+    })
+    : "";
+  const gateFinalReviewIsCurrent = Boolean(activeFullGateContract && gateFinalReview?.identity === admissionDraftIdentity);
+
+  const buildAdmissionGateCompletionPayload = (canonStatusOverride?: string): AdmissionGateCompletionPayload => ({
+    recordId: Number(admissionRecordId || admissionDecision?.selectedRecord.id || 0),
+    title: recordForm.title || selectedAdmissionRecord?.title || admissionDecision?.selectedRecord.title || "",
+    body: recordForm.body || selectedAdmissionRecord?.body || admissionDecision?.selectedRecord.body || "",
+    truthLayer: recordForm.truthLayer || selectedAdmissionRecord?.truthLayer || admissionDecision?.selectedRecord.truthLayer || "Objective canon",
+    canonStatus: canonStatusOverride || gateCanonStatus || recordForm.canonStatus || selectedAdmissionRecord?.canonStatus || "accepted",
+    constraintTags: gateConstraintTags ? parseTextList(gateConstraintTags) : admissionDecision?.selectedRecord.constraintTags ?? [],
+    operations: [admissionOperation].filter(Boolean),
+    consequenceText: gateConsequence,
+    sections: activeFullGateContract?.sections.map((section) => ({
+      key: section.key,
+      substance: gateSectionSubstance[section.key] ?? "",
+      ...(gateSectionNotApplicableReasons[section.key] == null ? {} : { notApplicableReason: gateSectionNotApplicableReasons[section.key] }),
+      ...(gateSectionQuietDeclarations[section.key] == null ? {} : { quietDomainDeclaration: gateSectionQuietDeclarations[section.key] })
+    })) ?? [],
+    notApplicableReasons: gateNotApplicable ? [gateNotApplicable] : [],
+    quietDomainDeclarations: gateQuietDomain ? [gateQuietDomain] : [],
+    ...(gateFollowUpDebt ? { followUpDebt: gateFollowUpDebt } : {}),
+    ...(optionalNumber(gateAdvisoryRecordId) == null ? {} : { advisoryRecordId: optionalNumber(gateAdvisoryRecordId)! })
+  });
+
+  const buildAdmissionFullGateDraftPayload = (): AdmissionFullGateDraftPayload | null => {
+    if (!activeFullGateContract) return null;
+    const completionPayload = buildAdmissionGateCompletionPayload();
+    return {
+      saved: false,
+      draftHash: admissionDraftIdentity,
+      sectionKeys: activeFullGateSectionKeys,
+      sections: activeFullGateContract.sections.map((section) => ({
+        key: section.key,
+        label: section.label,
+        substance: gateSectionSubstance[section.key] ?? "",
+        ...(gateSectionNotApplicableReasons[section.key] == null ? {} : { notApplicableReason: gateSectionNotApplicableReasons[section.key] }),
+        ...(gateSectionQuietDeclarations[section.key] == null ? {} : { quietDomainDeclaration: gateSectionQuietDeclarations[section.key] })
+      })),
+      consequenceText: completionPayload.consequenceText,
+      operations: completionPayload.operations,
+      targetCanonStatus: completionPayload.canonStatus,
+      constraintTags: completionPayload.constraintTags,
+      ...(completionPayload.followUpDebt ? { followUpDebt: completionPayload.followUpDebt } : {}),
+      ...(completionPayload.advisoryRecordId == null ? {} : { advisoryRecordId: completionPayload.advisoryRecordId })
+    };
+  };
+
+  const buildAdmissionFullGateReview = (): AdmissionFullGateReview | null => activeFullGateContract
+    ? {
+      identity: admissionDraftIdentity,
+      reviewedAt: new Date().toISOString(),
+      payload: buildAdmissionGateCompletionPayload()
+    }
+    : null;
   const displayedCreationDecision = creationDecision ?? defaultCreationDecision;
   const creationDecisionHandoff = creationDecision ? creationDecision.handoff : displayedCreationDecision.handoff;
   const creationHandoffReady = displayedCreationDecision.handoff.parkedSeeds.length > 0;
@@ -1988,6 +2150,8 @@ function App({
         createdAt: loadedPromptStatus?.origin.createdAt ?? "",
         admissionLevel: admissionDecision.severity.admissionLevel,
         workScale: admissionDecision.severity.workScale,
+        admissionDraftHash: activeFullGateContract ? admissionDraftIdentity : null,
+        admissionSectionKeys: activeFullGateContract ? activeFullGateSectionKeys : [],
         packetHash: loadedPromptStatus?.origin.packetHash ?? null
       };
     }
@@ -2015,6 +2179,8 @@ function App({
         createdAt: loadedPromptStatus?.origin.createdAt ?? "",
         admissionLevel: null,
         workScale: null,
+        admissionDraftHash: null,
+        admissionSectionKeys: [],
         packetHash: loadedPromptStatus?.origin.packetHash ?? null
       };
     }
@@ -2035,6 +2201,8 @@ function App({
         createdAt: loadedPromptStatus?.origin.createdAt ?? "",
         admissionLevel: promptStep.severity.admissionLevel,
         workScale: promptStep.severity.workScale,
+        admissionDraftHash: promptStep.packetIdentity.admissionDraftHash,
+        admissionSectionKeys: promptStep.packetIdentity.admissionSectionKeys,
         packetHash: loadedPromptStatus?.origin.packetHash ?? null
       };
     }
@@ -2043,6 +2211,9 @@ function App({
   }, [
     activeDestination,
     admissionDecision,
+    activeFullGateContract,
+    admissionDraftIdentity,
+    activeFullGateSectionKeys,
     creationPromptOutBlockedByLocalSection,
     creationPromptStepRequest,
     displayedCreationDecision,
@@ -2286,18 +2457,62 @@ function App({
     setCanonAuditTrail(canonAuditPayload.spine);
   };
 
+  const resetAdmissionFullGateDraftState = (decision: AdmissionDecisionPoint | null = null) => {
+    setGateConsequence("");
+    setGateQuietDomain("");
+    setGateNotApplicable("");
+    setGateSectionSubstance({});
+    setGateSectionNotApplicableReasons({});
+    setGateSectionQuietDeclarations({});
+    setGateFollowUpDebt("");
+    setGateAdvisoryRecordId("");
+    setGateFinalReview(null);
+    setAdmissionCompletionReadback(null);
+    if (decision?.severity.gatePath === "full_gate" && decision.fullGateContract) {
+      setGateCanonStatus(decision.fullGateContract.allowedNextCanonStatuses.find((status) => status !== decision.selectedRecord.canonStatus) || decision.selectedRecord.canonStatus || "");
+      setGateConstraintTags(decision.selectedRecord.constraintTags.join(", "));
+      setAdmissionOperation(decision.fullGateContract.operationOptions[0] || "accept");
+      setAdmissionValidationErrors(decision.fullGateContract.validationErrors ?? []);
+    } else {
+      setGateCanonStatus("");
+      setGateConstraintTags("");
+      setAdmissionOperation("accept");
+      setAdmissionValidationErrors([]);
+    }
+  };
+
   const applyAdmissionDecision = (decision: AdmissionDecisionPoint | null) => {
     setAdmissionDecision(decision);
-    if (!decision) return;
+    if (!decision) {
+      setGateDraftIdentity("");
+      resetAdmissionFullGateDraftState(null);
+      return;
+    }
     setAdmissionRecordId(String(decision.selectedRecord.id));
     if (decision.severity.admissionLevel) setAdmissionLevel(decision.severity.admissionLevel);
     if (decision.severity.workScale) setWorkScale(decision.severity.workScale);
     if (decision.severity.gatePath === "full_gate" && decision.fullGateContract) {
-      setGateCanonStatus((current) => current || decision.fullGateContract?.allowedNextCanonStatuses.find((status) => status !== decision.selectedRecord.canonStatus) || decision.selectedRecord.canonStatus || "");
-      setGateConstraintTags((current) => current || decision.selectedRecord.constraintTags.join(", "));
-      setAdmissionOperation((current) => current || decision.fullGateContract?.operationOptions[0] || "accept");
-      setAdmissionValidationErrors(decision.fullGateContract.validationErrors ?? []);
+      const nextDraftIdentity = admissionDraftIdentityFor({
+        worldPath: openWorld,
+        recordId: decision.selectedRecord.id,
+        recordShortId: decision.selectedRecord.shortId,
+        currentStep: decision.currentStep,
+        admissionLevel: decision.severity.admissionLevel,
+        workScale: decision.severity.workScale,
+        sectionKeys: decision.fullGateContract.sections.map((section) => section.key)
+      });
+      if (nextDraftIdentity !== gateDraftIdentity) {
+        resetAdmissionFullGateDraftState(decision);
+        setGateDraftIdentity(nextDraftIdentity);
+      } else {
+        setGateCanonStatus((current) => current || decision.fullGateContract?.allowedNextCanonStatuses.find((status) => status !== decision.selectedRecord.canonStatus) || decision.selectedRecord.canonStatus || "");
+        setGateConstraintTags((current) => current || decision.selectedRecord.constraintTags.join(", "));
+        setAdmissionOperation((current) => current || decision.fullGateContract?.operationOptions[0] || "accept");
+        setAdmissionValidationErrors((current) => current.length ? current : decision.fullGateContract?.validationErrors ?? []);
+      }
     } else {
+      setGateDraftIdentity("");
+      resetAdmissionFullGateDraftState(decision);
       setAdmissionValidationErrors([]);
     }
     setPromptFlowKey("admission");
@@ -2367,6 +2582,15 @@ function App({
     gateConsequence,
     gateQuietDomain,
     gateNotApplicable,
+    Object.values(gateSectionSubstance).join("\n"),
+    Object.values(gateSectionNotApplicableReasons).join("\n"),
+    Object.values(gateSectionQuietDeclarations).join("\n"),
+    gateCanonStatus,
+    gateConstraintTags,
+    gateFollowUpDebt,
+    gateAdvisoryRecordId,
+    admissionValidationErrors.map((error) => `${error.key}:${error.message}`).join("\n"),
+    gateFinalReview ? JSON.stringify(gateFinalReview.payload) : "",
     canonDebtName,
     seedAuditFindings,
     propagationText,
@@ -2531,6 +2755,23 @@ function App({
     setPromptRecordId("");
     setPromptFlowKey("creation");
     setPromptTemplateKey("kernel_pressure");
+    setAdmissionLevel("");
+    setWorkScale("");
+    setAdmissionOperation("accept");
+    setGateConsequence("");
+    setGateQuietDomain("");
+    setGateNotApplicable("");
+    setGateSectionSubstance({});
+    setGateSectionNotApplicableReasons({});
+    setGateSectionQuietDeclarations({});
+    setGateCanonStatus("");
+    setGateConstraintTags("");
+    setGateFollowUpDebt("");
+    setGateAdvisoryRecordId("");
+    setAdmissionValidationErrors([]);
+    setGateDraftIdentity("");
+    setGateFinalReview(null);
+    setAdmissionCompletionReadback(null);
     setCreationPromptMode("proposal");
     setPromptStep(null);
     setPromptText("");
@@ -2833,6 +3074,8 @@ function App({
     createdAt: new Date().toISOString(),
     admissionLevel: step.severity.admissionLevel ?? fallback.admissionLevel ?? null,
     workScale: step.severity.workScale ?? fallback.workScale ?? null,
+    admissionDraftHash: step.packetIdentity.admissionDraftHash ?? fallback.admissionDraftHash ?? null,
+    admissionSectionKeys: step.packetIdentity.admissionSectionKeys ?? fallback.admissionSectionKeys ?? [],
     packetHash: fallback.packetHash ?? null
   });
 
@@ -2854,6 +3097,8 @@ function App({
     createdAt: identity.generatedAt ?? fallback.createdAt ?? new Date().toISOString(),
     admissionLevel: identity.admissionLevel ?? fallback.admissionLevel ?? null,
     workScale: identity.workScale ?? fallback.workScale ?? null,
+    admissionDraftHash: identity.admissionDraftHash ?? fallback.admissionDraftHash ?? null,
+    admissionSectionKeys: identity.admissionSectionKeys ?? fallback.admissionSectionKeys ?? [],
     packetHash: identity.packetHash ?? fallback.packetHash ?? null
   });
 
@@ -2894,16 +3139,26 @@ function App({
   const loadAdmissionPromptStep = async () => {
     if (!admissionDecision) return null;
     const request = admissionDecision.promptOut.stepRequest;
+    const admissionFullGateDraft = buildAdmissionFullGateDraftPayload();
+    const requestBody = admissionFullGateDraft
+      ? { ...request.body, admissionFullGateDraft }
+      : request.body;
     setPromptFlowKey("admission");
     setPromptTemplateKey(admissionDecision.promptOut.templateKey);
     setPromptRecordId(String(admissionDecision.promptOut.stepRequest.body.recordId));
     const payload = await api<{ step: PromptOutStep }>(request.href, {
       method: request.method,
-      body: JSON.stringify(request.body)
+      body: JSON.stringify(requestBody)
     });
     setPromptStep(payload.step);
+    const generated = admissionFullGateDraft
+      ? await api<{ prompt: string; promptOut: { packetIdentity: PromptPacketIdentity } }>("/api/prompt-out/generate", {
+        method: "POST",
+        body: JSON.stringify(requestBody)
+      })
+      : null;
     setLoadedPromptAndPacket(
-      promptOriginFromPacketIdentity(payload.step.packetIdentity, {
+      promptOriginFromPacketIdentity(generated?.promptOut.packetIdentity ?? payload.step.packetIdentity, {
         flowKey: "admission",
         recordId: admissionDecision.selectedRecord.id,
         mode: typeof request.body.mode === "string" ? request.body.mode : null,
@@ -2911,7 +3166,7 @@ function App({
         workScale: admissionDecision.severity.workScale,
         decisionLabel: admissionDecision.promptOut.preview.currentDecision || admissionDecision.localDecision
       }),
-      admissionDecision.promptOut.preview.promptText
+      generated?.prompt ?? admissionDecision.promptOut.preview.promptText
     );
     setMessage(`Loaded Admission Prompt-out step ${payload.step.label}`);
     return payload.step;
@@ -3256,30 +3511,29 @@ function App({
   const completeAdmission = async (canonStatusOverride?: string) => {
     if (!admissionRecordId) return;
     const contract = admissionDecision?.severity.gatePath === "full_gate" ? admissionDecision.fullGateContract ?? null : null;
+    if (contract && (!gateFinalReviewIsCurrent || !gateFinalReview)) {
+      setMessage("Final review required before completion.");
+      return;
+    }
+    const reviewedPayload = contract ? gateFinalReview?.payload ?? null : null;
+    if (contract && !reviewedPayload) {
+      setMessage("Final review required before completion.");
+      return;
+    }
+    if (contract && canonStatusOverride && reviewedPayload!.canonStatus !== canonStatusOverride) {
+      setMessage("Final review required before completion.");
+      return;
+    }
+    const completionPayload = reviewedPayload ?? buildAdmissionGateCompletionPayload(canonStatusOverride);
     try {
-      const payload = await api<{ decisionPoint: AdmissionDecisionPoint }>("/api/admission/gate/complete", {
+      const payload = await api<{ decisionPoint: AdmissionDecisionPoint; readback?: AdmissionCompletionReadback }>("/api/admission/gate/complete", {
         method: "POST",
-        body: JSON.stringify({
-          recordId: Number(admissionRecordId),
-          truthLayer: recordForm.truthLayer || selectedAdmissionRecord?.truthLayer || admissionDecision?.selectedRecord.truthLayer || "Objective canon",
-          canonStatus: canonStatusOverride || gateCanonStatus || recordForm.canonStatus || selectedAdmissionRecord?.canonStatus || "accepted",
-          constraintTags: gateConstraintTags ? parseTextList(gateConstraintTags) : admissionDecision?.selectedRecord.constraintTags ?? [],
-          operations: [admissionOperation].filter(Boolean),
-          consequenceText: gateConsequence,
-          sections: contract?.sections.map((section) => ({
-            key: section.key,
-            substance: gateSectionSubstance[section.key] ?? "",
-            ...(gateSectionNotApplicableReasons[section.key] == null ? {} : { notApplicableReason: gateSectionNotApplicableReasons[section.key] }),
-            ...(gateSectionQuietDeclarations[section.key] == null ? {} : { quietDomainDeclaration: gateSectionQuietDeclarations[section.key] })
-          })) ?? [],
-          notApplicableReasons: gateNotApplicable ? [gateNotApplicable] : [],
-          quietDomainDeclarations: gateQuietDomain ? [gateQuietDomain] : [],
-          followUpDebt: gateFollowUpDebt || undefined,
-          advisoryRecordId: optionalNumber(gateAdvisoryRecordId)
-        })
+        body: JSON.stringify(completionPayload)
       });
       setAdmissionValidationErrors([]);
+      setGateFinalReview(null);
       applyAdmissionDecision(payload.decisionPoint);
+      setAdmissionCompletionReadback(payload.readback ?? null);
       await loadWorldData();
     } catch (error) {
       if (error instanceof ApiError) {
@@ -4609,66 +4863,147 @@ function App({
                 {activeFullGateContract.sections.map((section) => (
                   <section key={section.key} className="subpanel">
                     <h4>{section.label}</h4>
-                    <p className="meta">{section.required ? "required" : "optional"}</p>
+                    <p className="meta">{section.required ? "required" : "optional"} · {section.canMarkNotApplicable ? "not-applicable allowed" : "substance required when applicable"} · {section.quietDomain ? "quiet-domain declaration allowed" : "no quiet-domain declaration"}</p>
                     <p>{section.guidance}</p>
-                    <label>{section.label}<textarea
+                    <label htmlFor={`gate-section-${section.key}-substance`}>{section.label} substance<textarea
+                      id={`gate-section-${section.key}-substance`}
+                      aria-label={`${section.label} substance`}
                       rows={3}
                       value={gateSectionSubstance[section.key] ?? ""}
-                      onChange={(event) => setGateSectionSubstance((current) => ({ ...current, [section.key]: event.target.value }))}
+                      onChange={(event) => {
+                        setGateFinalReview(null);
+                        setGateSectionSubstance((current) => ({ ...current, [section.key]: event.target.value }));
+                      }}
                     /></label>
                     {section.canMarkNotApplicable && (
                       <>
-                        <label><input
+                        <label htmlFor={`gate-section-${section.key}-not-applicable`}><input
+                          id={`gate-section-${section.key}-not-applicable`}
+                          aria-label={`Mark ${section.label} not applicable`}
                           type="checkbox"
                           checked={gateSectionNotApplicableReasons[section.key] != null}
                           onChange={(event) => setGateSectionNotApplicableReasons((current) => {
+                            setGateFinalReview(null);
                             const next = { ...current };
                             if (event.target.checked) next[section.key] = next[section.key] ?? "";
                             else delete next[section.key];
                             return next;
                           })}
-                        /> Mark not applicable</label>
-                        <label>N/A reason<input
+                        /> Mark {section.label} not applicable</label>
+                        <label htmlFor={`gate-section-${section.key}-not-applicable-reason`}>{section.label} not-applicable reason<input
+                          id={`gate-section-${section.key}-not-applicable-reason`}
+                          aria-label={`${section.label} not-applicable reason`}
                           value={gateSectionNotApplicableReasons[section.key] ?? ""}
-                          onChange={(event) => setGateSectionNotApplicableReasons((current) => ({ ...current, [section.key]: event.target.value }))}
+                          onChange={(event) => {
+                            setGateFinalReview(null);
+                            setGateSectionNotApplicableReasons((current) => ({ ...current, [section.key]: event.target.value }));
+                          }}
                         /></label>
                       </>
                     )}
                     {section.quietDomain && (
-                      <label>Quiet-domain declaration<textarea
+                      <label htmlFor={`gate-section-${section.key}-quiet-domain`}>{section.label} quiet-domain declaration<textarea
+                        id={`gate-section-${section.key}-quiet-domain`}
+                        aria-label={`${section.label} quiet-domain declaration`}
                         rows={2}
                         value={gateSectionQuietDeclarations[section.key] ?? ""}
-                        onChange={(event) => setGateSectionQuietDeclarations((current) => ({ ...current, [section.key]: event.target.value }))}
+                        onChange={(event) => {
+                          setGateFinalReview(null);
+                          setGateSectionQuietDeclarations((current) => ({ ...current, [section.key]: event.target.value }));
+                        }}
                       /></label>
                     )}
+                    {fullGateValidationErrors
+                      .filter((error) => error.key === section.key || error.key.startsWith(`${section.key}.`) || error.message.includes(section.label))
+                      .map((error) => <p key={`${section.key}:${error.key}:${error.message}`} className="status error">{error.message}</p>)}
                   </section>
                 ))}
               </div>
               <div className="grid compact-grid">
-                <label>Primary admission operation<select value={admissionOperation} onChange={(event) => setAdmissionOperation(event.target.value)}>
+                <label>Primary admission operation order<select value={admissionOperation} onChange={(event) => {
+                  setGateFinalReview(null);
+                  setAdmissionOperation(event.target.value);
+                }}>
                   {activeFullGateContract.operationOptions.map((operation) => <option key={operation} value={operation}>{operation}</option>)}
                 </select></label>
-                <label>Allowed canon status<select value={gateCanonStatus} onChange={(event) => setGateCanonStatus(event.target.value)}>
+                <label>Allowed canon status target<select value={gateCanonStatus} onChange={(event) => {
+                  setGateFinalReview(null);
+                  setGateCanonStatus(event.target.value);
+                }}>
                   <option></option>
                   {activeFullGateContract.allowedNextCanonStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
                 </select></label>
-                <label>Constraint tags<input
+                <label>Constraint tags for full gate<input
                   list="admission-constraint-tags"
                   value={gateConstraintTags}
-                  onChange={(event) => setGateConstraintTags(event.target.value)}
+                  onChange={(event) => {
+                    setGateFinalReview(null);
+                    setGateConstraintTags(event.target.value);
+                  }}
                 /></label>
                 <datalist id="admission-constraint-tags">
                   {activeFullGateContract.constraintTagOptions.map((tag) => <option key={tag} value={tag} />)}
                 </datalist>
               </div>
-              <label>Written consequence<textarea rows={3} value={gateConsequence} onChange={(event) => setGateConsequence(event.target.value)} /></label>
-              <label>Follow-up debt<textarea rows={2} value={gateFollowUpDebt} onChange={(event) => setGateFollowUpDebt(event.target.value)} /></label>
-              <label>Advisory use<select value={gateAdvisoryRecordId} onChange={(event) => setGateAdvisoryRecordId(event.target.value)}>
+              <label>Written consequence for full gate<textarea rows={3} value={gateConsequence} onChange={(event) => {
+                setGateFinalReview(null);
+                setGateConsequence(event.target.value);
+              }} /></label>
+              <label>Follow-up debt for full gate<textarea rows={2} value={gateFollowUpDebt} onChange={(event) => {
+                setGateFinalReview(null);
+                setGateFollowUpDebt(event.target.value);
+              }} /></label>
+              <label>Advisory use for full gate<select value={gateAdvisoryRecordId} onChange={(event) => {
+                setGateFinalReview(null);
+                setGateAdvisoryRecordId(event.target.value);
+              }}>
                 <option value="">No advisory-use link selected</option>
                 {activeFullGateContract.advisoryArtifacts.map((artifact) => (
                   <option key={artifact.id} value={artifact.id}>{`${artifact.shortId} · ${artifact.title}`}</option>
                 ))}
               </select></label>
+              <section className="subpanel final-review">
+                <h4>Exact final review</h4>
+                <p>Final review required before completion</p>
+                <button onClick={() => {
+                  const review = buildAdmissionFullGateReview();
+                  if (review) setGateFinalReview(review);
+                }}>Review exact full-gate payload</button>
+                {gateFinalReview && (
+                  <div>
+                    <p className={gateFinalReviewIsCurrent ? "status" : "status error"}>{gateFinalReviewIsCurrent ? "Review matches current full-gate draft." : "Review is stale; review the current draft again."}</p>
+                    <p>Reviewed at {gateFinalReview.reviewedAt}</p>
+                    <p>Living record title: {gateFinalReview.payload.title}</p>
+                    <p>Living record body: {gateFinalReview.payload.body}</p>
+                    <p>Truth layer: {gateFinalReview.payload.truthLayer}</p>
+                    <p>Canon standing transition: {admissionDecision?.selectedRecord.canonStatus ?? "unknown"} to {gateFinalReview.payload.canonStatus}</p>
+                    <p>Ordered operations: {gateFinalReview.payload.operations.join(", ") || "none"}</p>
+                    <p>Constraint tags: {gateFinalReview.payload.constraintTags.join(", ") || "none"}</p>
+                    <p>Written consequence: {gateFinalReview.payload.consequenceText || "missing"}</p>
+                    {activeFullGateContract.sections.map((section) => {
+                      const payloadSection = gateFinalReview.payload.sections.find((candidate) => candidate.key === section.key);
+                      return (
+                        <p key={`review-${section.key}`}>{section.label}: {payloadSection?.substance || payloadSection?.notApplicableReason || payloadSection?.quietDomainDeclaration || "not supplied"}</p>
+                      );
+                    })}
+                    <p>Advisory-use link: {gateFinalReview.payload.advisoryRecordId ?? "none"}</p>
+                    <p>Follow-up debt: {gateFinalReview.payload.followUpDebt ?? "none"}</p>
+                    <p>Read-side trail: {(activeFullGateContract.readSideTrail ?? admissionDecision?.readSideTrail ?? []).map((trail) => trail.label).join(" · ")}</p>
+                  </div>
+                )}
+                {admissionCompletionReadback && (
+                  <div>
+                    <h4>Completion readback comparison</h4>
+                    <p>Current canon: {admissionCompletionReadback.livingRecord?.title ?? "record returned"} · {admissionCompletionReadback.livingRecord?.canonStatus ?? "status returned"}</p>
+                    <p>Gate result: {admissionCompletionReadback.gateResult?.title ?? "gate_result returned"}</p>
+                    <p>Operation events: {(admissionCompletionReadback.operationEvents ?? []).join(", ") || "none"}</p>
+                    <p>Tags: {(admissionCompletionReadback.constraintTags ?? []).join(", ") || "none"}</p>
+                    <p>Debt: {admissionCompletionReadback.followUpDebt?.title ?? "none"}</p>
+                    <p>Advisory: {admissionCompletionReadback.advisoryUse?.advisoryRecordId ?? "none"}</p>
+                    <p>Audit/history evidence: {admissionCompletionReadback.historyEvidence?.previousBody ?? "history returned"}</p>
+                  </div>
+                )}
+              </section>
               <section className="subpanel">
                 <h4>Full-gate validation errors</h4>
                 {fullGateValidationErrors.length
@@ -4677,9 +5012,9 @@ function App({
                 <p>Section failures preserve entered text and selections.</p>
               </section>
               <div className="row">
-                <button onClick={() => completeAdmission()} disabled={!openWorld || !admissionRecordId}>Complete and update canon standing</button>
+                <button onClick={() => completeAdmission()} disabled={!openWorld || !admissionRecordId || !gateFinalReviewIsCurrent}>Complete and update canon standing</button>
                 <button onClick={startAdmission} disabled={!openWorld || !admissionRecordId}>Hold under review</button>
-                <button onClick={() => completeAdmission("rejected")} disabled={!openWorld || !admissionRecordId}>Reject through Admission</button>
+                <button onClick={() => completeAdmission("rejected")} disabled={!openWorld || !admissionRecordId || !gateFinalReviewIsCurrent}>Reject through Admission</button>
               </div>
             </section>
           )}

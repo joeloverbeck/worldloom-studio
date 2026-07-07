@@ -716,6 +716,63 @@ describe("HTTP API", () => {
       validationErrors: expect.arrayContaining([expect.objectContaining({ key: "branch_implications.notApplicableReason" })])
     });
 
+    const duplicateSectionGate = await postJson(app, "/api/admission/gate/complete", {
+      recordId: proposedJson.record.id,
+      truthLayer: "Objective canon",
+      canonStatus: "accepted",
+      operations: ["accept"],
+      consequenceText: "Markets now price crossings by bell debt.",
+      sections: [
+        ...gatePayload.decisionPoint.fullGateContract.sections.map((section) => ({
+          key: section.key,
+          substance: `${section.label} substance`,
+          quietDomainDeclaration: section.quietDomain ? "No quiet-domain omission; bridge wards are explicitly in scope." : ""
+        })),
+        {
+          key: gatePayload.decisionPoint.fullGateContract.sections[0].key,
+          substance: "Duplicate stale section from a prior draft."
+        }
+      ]
+    });
+    expect(duplicateSectionGate.status).toBe(400);
+    expect(await json(duplicateSectionGate)).toMatchObject({
+      validationErrors: expect.arrayContaining([expect.objectContaining({ key: "fact_statement.duplicate" })])
+    });
+
+    const mismatchedSectionOrderGate = await postJson(app, "/api/admission/gate/complete", {
+      recordId: proposedJson.record.id,
+      truthLayer: "Objective canon",
+      canonStatus: "accepted",
+      operations: ["accept"],
+      consequenceText: "Markets now price crossings by bell debt.",
+      sections: [...gatePayload.decisionPoint.fullGateContract.sections].reverse().map((section) => ({
+        key: section.key,
+        substance: `${section.label} substance`,
+        quietDomainDeclaration: section.quietDomain ? "No quiet-domain omission; bridge wards are explicitly in scope." : ""
+      }))
+    });
+    expect(mismatchedSectionOrderGate.status).toBe(400);
+    expect(await json(mismatchedSectionOrderGate)).toMatchObject({
+      validationErrors: expect.arrayContaining([expect.objectContaining({ key: "sections.0.key" })])
+    });
+
+    const blankQuietDomainGate = await postJson(app, "/api/admission/gate/complete", {
+      recordId: proposedJson.record.id,
+      truthLayer: "Objective canon",
+      canonStatus: "accepted",
+      operations: ["accept"],
+      consequenceText: "Markets now price crossings by bell debt.",
+      sections: gatePayload.decisionPoint.fullGateContract.sections.map((section) => ({
+        key: section.key,
+        substance: section.quietDomain ? "" : `${section.label} substance`,
+        quietDomainDeclaration: section.quietDomain ? " " : ""
+      }))
+    });
+    expect(blankQuietDomainGate.status).toBe(400);
+    expect(await json(blankQuietDomainGate)).toMatchObject({
+      validationErrors: expect.arrayContaining([expect.objectContaining({ key: "institutions_or_quiet_domain_declaration.quietDomainDeclaration" })])
+    });
+
     const debt = await json<{ debt: { id: number } }>(await app.request("/api/canon-debt", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -779,13 +836,31 @@ describe("HTTP API", () => {
       advisoryRecordId: gateAdvisory.record.id
     });
     expect(completedGate.status).toBe(201);
-    expect(await json(completedGate)).toMatchObject({
+    const completedGatePayload = await json(completedGate);
+    expect(completedGatePayload).toMatchObject({
       record: { canonStatus: "accepted with constraints" },
       gateResult: {
         recordTypeKey: "gate_result",
         body: expect.stringContaining("Gate sections:")
       },
       warnings: expect.arrayContaining([expect.objectContaining({ id: debt.debt.id })]),
+      readback: {
+        livingRecord: {
+          id: proposedJson.record.id,
+          title: "Toll bell",
+          body: "A bell charges each crossing",
+          canonStatus: "accepted with constraints"
+        },
+        gateResult: {
+          body: expect.stringContaining("Fact statement: Fact statement substance for bridge-toll admission.")
+        },
+        operationEvents: ["constrain", "price"],
+        constraintTags: ["cost-bound"],
+        followUpDebt: expect.objectContaining({ body: expect.stringContaining("Propagate bridge-toll economics.") }),
+        advisoryUse: expect.objectContaining({ advisoryRecordId: gateAdvisory.record.id }),
+        historyEvidence: expect.objectContaining({ previousBody: "A bell charges each crossing" }),
+        readSideTrail: expect.arrayContaining([expect.objectContaining({ label: "Current Canon" })])
+      },
       decisionPoint: {
         flow: { runState: "complete" },
         currentStep: `record:${proposedJson.record.id}:complete`,

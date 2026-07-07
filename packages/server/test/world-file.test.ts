@@ -720,7 +720,19 @@ describe("WorldFile", () => {
       operations: ["accept"],
       consequenceText: "Flood courts now need clerks.",
       sections: [{ key: "fact_statement", substance: "A governed writ redirects floodwater." }]
-    })).toThrow(/dependencies/);
+    })).toThrow(/Submitted full-gate section keys/);
+    expect(() => AdmissionFlow.completeAdmissionGate(store, {
+      recordId: fact.id,
+      truthLayer: "Objective canon",
+      canonStatus: "accepted",
+      operations: ["accept"],
+      consequenceText: "Flood courts now need clerks.",
+      sections: decisionPoint.fullGateContract!.sections.map((section) => ({
+        key: section.key,
+        substance: section.key === "dependencies" ? "" : `${section.label} substance for flood writ admission.`,
+        quietDomainDeclaration: section.quietDomain ? "No quiet-domain omission; flood courts are in scope." : ""
+      }))
+    })).toThrow(/Dependencies/);
 
     const gate = AdmissionFlow.completeAdmissionGate(store, {
       recordId: fact.id,

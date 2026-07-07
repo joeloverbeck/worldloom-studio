@@ -21,6 +21,7 @@ export interface PromptOutStepActionContext {
   selectedSectionHeading?: string | null;
   admissionLevel?: string;
   workScale?: string;
+  admissionFullGateDraft?: PromptOut.AdmissionFullGateDraftPayload | null;
 }
 
 export interface PromptOutStepOfferInput extends PromptOutStepActionContext {
@@ -192,7 +193,8 @@ export const buildPromptOutStep = (world: WorldFile, input: PromptOutStepOfferIn
       mode,
       selectedSectionHeading: input.selectedSectionHeading,
       admissionLevel: input.admissionLevel,
-      workScale: input.workScale
+      workScale: input.workScale,
+      admissionFullGateDraft: input.admissionFullGateDraft
     }),
     currentState: {
       promptText: null,
@@ -218,7 +220,8 @@ export const runPromptOutGenerateAction = (world: WorldFile, input: PromptOutSte
     mode: input.mode,
     selectedSectionHeading: input.selectedSectionHeading,
     admissionLevel: input.admissionLevel,
-    workScale: input.workScale
+    workScale: input.workScale,
+    admissionFullGateDraft: input.admissionFullGateDraft
   });
 
 export const runPromptOutStoreAdvisoryAction = (

@@ -1254,6 +1254,21 @@ export interface AdmissionGateCompletionInput {
   advisoryRecordId?: number;
 }
 
+export interface AdmissionGateCompletionReadback {
+  livingRecord: RecordRow;
+  gateResult: RecordRow;
+  operationEvents: string[];
+  constraintTags: string[];
+  followUpDebt: RecordRow | null;
+  advisoryUse: { advisoryRecordId: number; linkTypes: string[] } | null;
+  historyEvidence: {
+    previousTitle: string;
+    previousBody: string;
+    recordHistory: unknown[];
+  };
+  readSideTrail: AdmissionDecisionReference[];
+}
+
 const nonEmpty = (value?: string | null): string => value?.trim() ?? "";
 
 const admissionValidationFailure = (errors: AdmissionValidationError[]): Error & { validationErrors: AdmissionValidationError[] } => {
@@ -1277,11 +1292,34 @@ const validateFullGateSections = (
 ): AdmissionValidationError[] => {
   const errors: AdmissionValidationError[] = [];
   const knownKeys = new Set(contract.sections.map((section) => section.key));
-  const sectionsByKey = new Map((input.sections ?? []).map((section) => [section.key, section]));
+  const suppliedSections = input.sections ?? [];
+  const sectionsByKey = new Map(suppliedSections.map((section) => [section.key, section]));
+  const keyCounts = new Map<string, number>();
 
-  for (const supplied of input.sections ?? []) {
+  if (suppliedSections.length !== contract.sections.length) {
+    errors.push({
+      key: "sections",
+      message: "Submitted full-gate section keys must exactly match the active server contract."
+    });
+  }
+
+  for (const [index, supplied] of suppliedSections.entries()) {
+    keyCounts.set(supplied.key, (keyCounts.get(supplied.key) ?? 0) + 1);
     if (!knownKeys.has(supplied.key)) {
       errors.push({ key: supplied.key, message: `Unknown full-gate section: ${supplied.key}` });
+    }
+    const expected = contract.sections[index]?.key;
+    if (expected && supplied.key !== expected) {
+      errors.push({
+        key: `sections.${index}.key`,
+        message: `Full-gate section ${index + 1} must be ${expected}; received ${supplied.key}.`
+      });
+    }
+  }
+
+  for (const [key, count] of keyCounts.entries()) {
+    if (count > 1) {
+      errors.push({ key: `${key}.duplicate`, message: `Duplicate full-gate section submitted: ${key}.` });
     }
   }
 
@@ -1291,6 +1329,7 @@ const validateFullGateSections = (
     const notApplicableReason = nonEmpty(supplied?.notApplicableReason);
     const quietDomainDeclaration = nonEmpty(supplied?.quietDomainDeclaration);
     const nARequested = supplied?.notApplicableReason != null && !substance;
+    const quietDeclarationSupplied = supplied != null && Object.prototype.hasOwnProperty.call(supplied, "quietDomainDeclaration");
 
     if (nARequested && !notApplicableReason) {
       errors.push({
@@ -1303,6 +1342,20 @@ const validateFullGateSections = (
       errors.push({
         key: section.key,
         message: `${section.label} cannot be marked not applicable.`
+      });
+      continue;
+    }
+    if (section.quietDomain && quietDeclarationSupplied && !quietDomainDeclaration) {
+      errors.push({
+        key: `${section.key}.quietDomainDeclaration`,
+        message: `${section.label} quiet-domain declaration requires steward-authored text.`
+      });
+      if (!substance && !notApplicableReason) continue;
+    }
+    if (!section.quietDomain && quietDomainDeclaration) {
+      errors.push({
+        key: `${section.key}.quietDomainDeclaration`,
+        message: `${section.label} does not accept a quiet-domain declaration.`
       });
       continue;
     }
@@ -1392,7 +1445,7 @@ const fullGateSectionLines = (
 export const completeAdmissionGate = (
   worldFile: WorldFile,
   input: AdmissionGateCompletionInput
-): { record: RecordRow; gateResult: RecordRow; warnings: RecordRow[] } => {
+): { record: RecordRow; gateResult: RecordRow; warnings: RecordRow[]; readback: AdmissionGateCompletionReadback } => {
   const current = worldFile.getRecord(input.recordId);
   const severity = declaredSeverityFromFacets(worldFile.listFacets(input.recordId));
   const gate = admissionGatePolicy(severity);
@@ -1434,11 +1487,31 @@ export const completeAdmissionGate = (
         citationNote: "Verbatim admission advisory artifact consulted"
       });
     }
-    if (input.followUpDebt) {
-      worldFile.createCanonDebt({ name: `Propagation owed for ${record.shortId}`, scope: "propagation", assignee: "steward", body: input.followUpDebt });
-    }
+    const followUpDebt = input.followUpDebt
+      ? worldFile.createCanonDebt({ name: `Propagation owed for ${record.shortId}`, scope: "propagation", assignee: "steward", body: input.followUpDebt })
+      : null;
     worldFile.completeAdmissionFlowsForRecord(record.id);
-    return { record, gateResult, warnings };
+    return {
+      record,
+      gateResult,
+      warnings,
+      readback: {
+        livingRecord: record,
+        gateResult,
+        operationEvents: input.operations,
+        constraintTags: input.constraintTags ?? [],
+        followUpDebt,
+        advisoryUse: input.advisoryRecordId == null
+          ? null
+          : { advisoryRecordId: input.advisoryRecordId, linkTypes: ["derived_from", "cites_advisory_artifact"] },
+        historyEvidence: {
+          previousTitle: current.title,
+          previousBody: current.body,
+          recordHistory: worldFile.history(record.id)
+        },
+        readSideTrail: readSideTrailFor(record.id)
+      }
+    };
   });
 };
 

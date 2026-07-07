@@ -57,6 +57,28 @@ export interface PromptGenerationInput {
   selectedSectionHeading?: string | null;
   admissionLevel?: string | null;
   workScale?: string | null;
+  admissionFullGateDraft?: AdmissionFullGateDraftPayload | null;
+}
+
+export interface AdmissionFullGateDraftSection {
+  key: string;
+  label?: string;
+  substance?: string;
+  notApplicableReason?: string;
+  quietDomainDeclaration?: string;
+}
+
+export interface AdmissionFullGateDraftPayload {
+  saved?: boolean;
+  draftHash?: string;
+  sectionKeys?: string[];
+  sections?: AdmissionFullGateDraftSection[];
+  consequenceText?: string;
+  operations?: string[];
+  targetCanonStatus?: string;
+  constraintTags?: string[];
+  followUpDebt?: string;
+  advisoryRecordId?: number | null;
 }
 
 export interface PromptPacketIdentity {
@@ -71,6 +93,8 @@ export interface PromptPacketIdentity {
   selectedSectionHeading: string | null;
   admissionLevel: string | null;
   workScale: string | null;
+  admissionDraftHash: string | null;
+  admissionSectionKeys: string[];
   decisionLabel: string;
   generatedAt: string | null;
   packetHash: string | null;
@@ -161,6 +185,31 @@ const renderDocuments = (documents: PromptDocument[]): string =>
 
 const packetHash = (prompt: string): string =>
   createHash("sha256").update(prompt).digest("hex");
+
+const stableJson = (value: unknown): string => {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .filter(([, entryValue]) => entryValue !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entryValue]) => `${JSON.stringify(key)}:${stableJson(entryValue)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+};
+
+const admissionDraftSectionKeys = (draft?: AdmissionFullGateDraftPayload | null): string[] =>
+  draft?.sectionKeys?.length
+    ? draft.sectionKeys
+    : draft?.sections?.map((section) => section.key) ?? [];
+
+const admissionDraftHash = (draft?: AdmissionFullGateDraftPayload | null): string | null =>
+  draft ? draft.draftHash ?? packetHash(stableJson({
+    ...draft,
+    draftHash: undefined,
+    sectionKeys: admissionDraftSectionKeys(draft),
+    sections: draft.sections ?? []
+  })) : null;
 
 const quoteGrounding = "Quote-grounding pre-step: first quote the specific canon, doctrine, or source-record lines your candidates or critiques rest on before the main answer.";
 
@@ -394,6 +443,8 @@ export const promptPacketIdentity = (
     selectedSectionHeading: selectedSectionHeading ?? null,
     admissionLevel: input.admissionLevel ?? null,
     workScale: input.workScale ?? null,
+    admissionDraftHash: admissionDraftHash(input.admissionFullGateDraft),
+    admissionSectionKeys: admissionDraftSectionKeys(input.admissionFullGateDraft),
     decisionLabel: options.decisionLabel ?? selectedSectionHeading ?? record?.title ?? stepKey,
     generatedAt: options.generatedAt ?? null,
     packetHash: options.packetHash ?? null
@@ -472,6 +523,63 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
       `Temporal pass report: ${report.shortId} ${report.title}`,
       ...sections.map((section) => `Temporal report section: ${section.heading}`)
     ]
+  };
+};
+
+const draftText = (value?: string | null): string => value?.trim() ?? "";
+
+const admissionFullGateDraftContext = (input: PromptGenerationInput): {
+  lines: string[];
+  sourceDocuments: PromptDocument[];
+  sourceManifest: string[];
+  omissions: string[];
+} => {
+  const draft = input.admissionFullGateDraft;
+  if (input.flowKey !== "admission" || input.templateKey !== "admission_constraint_challenge" || !draft) {
+    return { lines: [], sourceDocuments: [], sourceManifest: [], omissions: [] };
+  }
+
+  const statusLine = draft.saved
+    ? "Admission full-gate draft status: saved steward draft, still not canon until Admission completion."
+    : "Admission full-gate draft status: current unsaved steward draft, not canon.";
+  const sectionLines: string[] = [];
+  const omissions: string[] = [];
+  const sections = draft.sections ?? [];
+
+  for (const section of sections) {
+    const label = draftText(section.label) || section.key;
+    const substance = draftText(section.substance);
+    const notApplicableReason = draftText(section.notApplicableReason);
+    const quietDomainDeclaration = draftText(section.quietDomainDeclaration);
+    if (substance) sectionLines.push(`${label}: ${substance}`);
+    else omissions.push(`Missing full-gate draft substance: ${label}`);
+    if (notApplicableReason) sectionLines.push(`${label} N/A reason: ${notApplicableReason}`);
+    if (quietDomainDeclaration) sectionLines.push(`${label} quiet-domain declaration: ${quietDomainDeclaration}`);
+  }
+
+  const sectionKeys = admissionDraftSectionKeys(draft);
+  const lines = [
+    statusLine,
+    ...(sectionKeys.length ? [`Draft section keys: ${sectionKeys.join(", ")}`] : []),
+    ...sectionLines,
+    ...(draftText(draft.consequenceText) ? [`Written consequence draft: ${draftText(draft.consequenceText)}`] : ["Written consequence draft: missing"]),
+    ...(draft.operations?.length ? [`Operation order draft: ${draft.operations.join(", ")}`] : ["Operation order draft: missing"]),
+    ...(draftText(draft.targetCanonStatus) ? [`Target canon status draft: ${draftText(draft.targetCanonStatus)}`] : []),
+    ...(draft.constraintTags?.length ? [`Constraint tags draft: ${draft.constraintTags.join(", ")}`] : []),
+    ...(draftText(draft.followUpDebt) ? [`Follow-up debt draft: ${draftText(draft.followUpDebt)}`] : []),
+    ...(draft.advisoryRecordId != null ? [`Advisory-use selection draft: advisory record ${draft.advisoryRecordId}`] : ["Advisory-use selection draft: none"]),
+    "Draft/canon boundary: this draft is pressure context only; it is not admitted canon and cannot assign final standing."
+  ];
+
+  return {
+    lines,
+    sourceDocuments: [{ source: "admission_full_gate_draft:current", content: lines.join("\n") }],
+    sourceManifest: [
+      `Admission full-gate draft: ${draft.saved ? "saved steward draft" : "current unsaved steward draft"}`,
+      ...(sectionKeys.length ? [`Admission full-gate draft section keys: ${sectionKeys.join(", ")}`] : []),
+      ...omissions.map((omission) => `Omission: ${omission}`)
+    ],
+    omissions
   };
 };
 
@@ -736,16 +844,19 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
   const cardValue = promptMethodCard(input);
   const doctrineLines = cardValue ? methodCardDoctrineSlots(cardValue) : [];
   const flowContext = temporalPromptContext(world, input);
+  const admissionDraftContext = admissionFullGateDraftContext(input);
   const sourceManifest = [
     `Prompt template: ${template.key} (${template.package_source})`,
     ...(cardValue ? methodCardSourceManifest(cardValue) : []),
     ...flowContext.sourceManifest,
+    ...admissionDraftContext.sourceManifest,
     selectedRecord == null ? "Selected record: none" : `Selected record: ${selectedRecord.shortId} ${selectedRecord.title}`,
     `Standing rulings: ${rulings.length}`,
     "Omissions: no hidden repository context; unavailable world context must be named before copy-out."
   ];
   const omissions = [
     ...(selectedRecord == null ? ["Selected record omitted: no record context was provided."] : []),
+    ...admissionDraftContext.omissions,
     "No hidden repository context is available to the external LLM.",
     "Unavailable world context must be named before copy-out rather than silently omitted."
   ];
@@ -769,14 +880,15 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
       "Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories.",
       "Label assumptions instruction: separate direct consequences from speculative assumptions and mark unadmitted assumptions plainly."
     ],
-    decisionMaterial: ["Record context:", recordContext],
+    decisionMaterial: ["Record context:", recordContext, ...admissionDraftContext.lines],
     sourceDocuments: [
       ...(selectedRecord
         ? [{ source: `selected_record:${selectedRecord.shortId}`, content: recordContext }]
         : []),
       ...(flowContext.lines.length
         ? [{ source: `flow_context:${input.flowKey ?? "unspecified"}:${stepKey}`, content: flowContext.lines.join("\n\n") }]
-        : [])
+        : []),
+      ...admissionDraftContext.sourceDocuments
     ],
     standingRulings: rulings.map((row) => `${row.disposition}: ${row.note}`),
     omissions,
