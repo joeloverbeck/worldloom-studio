@@ -670,6 +670,16 @@ describe("WorldFile", () => {
       currentStep: `record:${fact.id}:gate`,
       localDecision: "Complete the full canon fact gate with written substance.",
       severity: { admissionLevel: "3", workScale: "major", gatePath: "full_gate" },
+      fullGateContract: {
+        sections: expect.arrayContaining([
+          expect.objectContaining({ key: "fact_statement", required: true }),
+          expect.objectContaining({ key: "dependencies", canMarkNotApplicable: true }),
+          expect.objectContaining({ key: "institutions_or_quiet_domain_declaration", quietDomain: true })
+        ]),
+        allowedNextCanonStatuses: expect.arrayContaining(["accepted", "accepted with constraints", "rejected"]),
+        operationOptions: expect.arrayContaining(["accept", "institutionalize"]),
+        completionAction: { method: "POST", href: "/api/admission/gate/complete" }
+      },
       blockers: expect.arrayContaining([
         expect.objectContaining({ key: "written_consequence", requires: "written consequence text" })
       ]),
@@ -700,6 +710,14 @@ describe("WorldFile", () => {
       canonStatus: "accepted",
       operations: ["accept"]
     })).toThrow(/written consequence/);
+    expect(() => AdmissionFlow.completeAdmissionGate(store, {
+      recordId: fact.id,
+      truthLayer: "Objective canon",
+      canonStatus: "accepted",
+      operations: ["accept"],
+      consequenceText: "Flood courts now need clerks.",
+      sections: [{ key: "fact_statement", substance: "A governed writ redirects floodwater." }]
+    })).toThrow(/dependencies/);
 
     const gate = AdmissionFlow.completeAdmissionGate(store, {
       recordId: fact.id,
@@ -708,10 +726,17 @@ describe("WorldFile", () => {
       canonStatus: "accepted",
       operations: ["accept", "institutionalize"],
       consequenceText: "Flood courts now need clerks.",
+      sections: decisionPoint.fullGateContract!.sections.map((section) => ({
+        key: section.key,
+        substance: `${section.label} substance for flood writ admission.`,
+        quietDomainDeclaration: section.quietDomain ? "No quiet-domain omission; flood courts are in scope." : ""
+      })),
       quietDomainDeclarations: ["No household-level change."],
       notApplicableReasons: ["No branch implication."]
     });
     expect(gate.record).toMatchObject({ id: fact.id, canonStatus: "accepted" });
+    expect(gate.gateResult.body).toContain("Gate sections:");
+    expect(gate.gateResult.body).toContain("Dependencies: Dependencies substance for flood writ admission.");
     expect(store.history(fact.id)).toEqual(expect.arrayContaining([expect.objectContaining({ retired_body: "A writ redirects floodwater" })]));
     expect(store.db.prepare("SELECT admission_decision_operation FROM jurisdiction_events WHERE record_id = ? AND origin = 'admission' ORDER BY id").all(fact.id)).toEqual([
       { admission_decision_operation: "accept" },

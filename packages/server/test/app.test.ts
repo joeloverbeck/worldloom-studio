@@ -20,6 +20,13 @@ const explicitJudgment = {
 
 const json = async <T,>(response: Response): Promise<T> => response.json() as Promise<T>;
 
+const postJson = (app: ReturnType<typeof createApp>, path: string, payload?: unknown) =>
+  app.request(path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: payload === undefined ? undefined : JSON.stringify(payload)
+  });
+
 afterEach(() => {
   for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
   tempDirs = [];
@@ -538,11 +545,7 @@ describe("HTTP API", () => {
     expect(queuedDecision.decisionPoint.promptOut.preview.promptText).not.toContain("minor-ledger completion");
     expect(queuedDecision.decisionPoint.promptOut.preview.promptText).not.toContain("admission_prerequisite_audit");
 
-    const severity = await app.request(`/api/admission/records/${proposedJson.record.id}/severity`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ admissionLevel: "4", workScale: "severe" })
-    });
+    const severity = await postJson(app, `/api/admission/records/${proposedJson.record.id}/severity`, { admissionLevel: "4", workScale: "severe" });
     expect(severity.status).toBe(200);
     expect(await json(severity)).toMatchObject({
       gate: { path: "full_gate", steps: expect.arrayContaining(["shock-cone summary"]) },
@@ -577,14 +580,58 @@ describe("HTTP API", () => {
       }
     });
 
-    expect(await json(await app.request(`/api/admission/records/${proposedJson.record.id}/gate`))).toMatchObject({
+    const gatePayload = await json<{
+      gate: {
+        path: string;
+        executableContract: {
+          sections: Array<{ key: string; label: string; required: boolean; canMarkNotApplicable: boolean; quietDomain: boolean }>;
+          allowedNextCanonStatuses: string[];
+          operationOptions: string[];
+          constraintTagOptions: string[];
+          completionAction: { method: string; href: string };
+        };
+      };
+      decisionPoint: {
+        currentStep: string;
+        fullGateContract: {
+          sections: Array<{ key: string; label: string; required: boolean; canMarkNotApplicable: boolean; quietDomain: boolean }>;
+          allowedNextCanonStatuses: string[];
+          operationOptions: string[];
+          constraintTagOptions: string[];
+          validationErrors: Array<{ key: string; message: string }>;
+          completionAction: { method: string; href: string };
+          advisoryArtifacts: Array<{ id: number; shortId: string; title: string; stepKey: string }>;
+        };
+        writeIntent: { willWrite: string[] };
+      };
+    }>(await app.request(`/api/admission/records/${proposedJson.record.id}/gate`));
+    expect(gatePayload).toMatchObject({
+      gate: {
+        executableContract: {
+          allowedNextCanonStatuses: expect.arrayContaining(["under review", "accepted", "accepted with constraints", "localized", "contested", "quarantined", "branch-only", "rejected"]),
+          operationOptions: expect.arrayContaining(["accept", "constrain", "price"]),
+          constraintTagOptions: expect.arrayContaining(["cost-bound"]),
+          completionAction: { method: "POST", href: "/api/admission/gate/complete" }
+        }
+      },
       decisionPoint: {
         currentStep: `record:${proposedJson.record.id}:severity-declared`,
+        fullGateContract: {
+          sections: expect.arrayContaining([
+            expect.objectContaining({ key: "fact_statement", label: "Fact statement", required: true, canMarkNotApplicable: false }),
+            expect.objectContaining({ key: "dependencies", label: "Dependencies", required: true, canMarkNotApplicable: true }),
+            expect.objectContaining({ key: "institutions_or_quiet_domain_declaration", quietDomain: true })
+          ]),
+          validationErrors: [],
+          completionAction: { method: "POST", href: "/api/admission/gate/complete" }
+        },
         writeIntent: {
           willWrite: expect.arrayContaining(["gate_result report"])
         }
       }
     });
+    expect(gatePayload.decisionPoint.fullGateContract.operationOptions).toEqual(gatePayload.gate.executableContract.operationOptions);
+    expect(gatePayload.decisionPoint.fullGateContract.allowedNextCanonStatuses).toEqual(gatePayload.gate.executableContract.allowedNextCanonStatuses);
 
     const minorSeverity = await app.request(`/api/admission/records/${seed.record.id}/severity`, {
       method: "POST",
@@ -619,13 +666,55 @@ describe("HTTP API", () => {
     expect(prompt.prompt).toContain("Context preview:");
     expect(prompt.prompt).toContain("Advisory/canon warning:");
 
-    const badGate = await app.request("/api/admission/gate/complete", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ recordId: proposedJson.record.id, truthLayer: "Objective canon", canonStatus: "accepted", operations: ["accept"] })
-    });
+    const badGate = await postJson(app, "/api/admission/gate/complete", { recordId: proposedJson.record.id, truthLayer: "Objective canon", canonStatus: "accepted", operations: ["accept"] });
     expect(badGate.status).toBe(400);
-    expect(await json(badGate)).toMatchObject({ error: expect.stringContaining("written consequence") });
+    expect(await json(badGate)).toMatchObject({
+      error: expect.stringContaining("written consequence"),
+      validationErrors: expect.arrayContaining([expect.objectContaining({ key: "written_consequence" })])
+    });
+
+    const emptyOperationsGate = await postJson(app, "/api/admission/gate/complete", {
+      recordId: proposedJson.record.id,
+      truthLayer: "Objective canon",
+      canonStatus: "accepted",
+      operations: [],
+      consequenceText: "Markets now price crossings by bell debt."
+    });
+    expect(emptyOperationsGate.status).toBe(400);
+    expect(await json(emptyOperationsGate)).toMatchObject({
+      validationErrors: expect.arrayContaining([expect.objectContaining({ key: "operations" })])
+    });
+
+    const missingSectionGate = await postJson(app, "/api/admission/gate/complete", {
+      recordId: proposedJson.record.id,
+      truthLayer: "Objective canon",
+      canonStatus: "accepted",
+      operations: ["accept"],
+      consequenceText: "Markets now price crossings by bell debt.",
+      sections: [{ key: "fact_statement", substance: "A bell charges bridge crossings." }]
+    });
+    expect(missingSectionGate.status).toBe(400);
+    expect(await json(missingSectionGate)).toMatchObject({
+      validationErrors: expect.arrayContaining([expect.objectContaining({ key: "dependencies" })])
+    });
+
+    const blankStructuredReasonGate = await postJson(app, "/api/admission/gate/complete", {
+      recordId: proposedJson.record.id,
+      truthLayer: "Objective canon",
+      canonStatus: "accepted",
+      operations: ["accept"],
+      consequenceText: "Markets now price crossings by bell debt.",
+      sections: gatePayload.decisionPoint.fullGateContract.sections.map((section) => ({
+        key: section.key,
+        substance: section.key === "branch_implications" ? "" : `${section.label} substance`,
+        notApplicableReason: section.key === "branch_implications" ? " " : "",
+        quietDomainDeclaration: section.quietDomain ? "No quiet-domain omission; bridge wards are in scope." : ""
+      }))
+    });
+    expect(blankStructuredReasonGate.status).toBe(400);
+    expect(await json(blankStructuredReasonGate)).toMatchObject({
+      validationErrors: expect.arrayContaining([expect.objectContaining({ key: "branch_implications.notApplicableReason" })])
+    });
 
     const debt = await json<{ debt: { id: number } }>(await app.request("/api/canon-debt", {
       method: "POST",
@@ -646,25 +735,56 @@ describe("HTTP API", () => {
     expect(await json(await app.request("/api/propagation/queue"))).toMatchObject({
       queue: expect.arrayContaining([expect.objectContaining({ id: compatibilityDebt.debt.id })])
     });
-    const completedGate = await app.request("/api/admission/gate/complete", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
+    const gateStep = await json<{ step: { actions: Record<"generate" | "storeAdvisory" | "disposition", { method: "POST"; href: string }> } }>(
+      await postJson(app, "/api/prompt-out/steps", {
+        flowKey: "admission",
+        templateKey: "admission_constraint_challenge",
         recordId: proposedJson.record.id,
-        truthLayer: "Objective canon",
-        canonStatus: "accepted with constraints",
-        constraintTags: ["cost-bound"],
-        operations: ["constrain", "price"],
-        consequenceText: "Markets now price crossings by bell debt.",
-        notApplicableReasons: ["No branch implication in main continuity."],
-        quietDomainDeclarations: ["No spatial spread beyond bridge wards yet."],
-        followUpDebt: "Propagate bridge-toll economics."
+        stepKey: "admission:constraints",
+        mode: "pressure",
+        label: "Constraint challenger",
+        admissionLevel: "4",
+        workScale: "severe"
       })
+    );
+    const gatePrompt = await json<{ prompt: string }>(await postJson(app, gateStep.step.actions.generate.href));
+    const gateAdvisory = await json<{ record: { id: number; shortId: string } }>(await postJson(app, gateStep.step.actions.storeAdvisory.href, {
+      promptText: gatePrompt.prompt,
+      responseText: "Price the bell by crossing class and publish exemptions."
+    }));
+    expect(await json(await app.request(`/api/links?recordId=${proposedJson.record.id}`))).toMatchObject({
+      links: expect.not.arrayContaining([expect.objectContaining({ linkTypeKey: "cites_advisory_artifact", toRecordId: gateAdvisory.record.id })])
+    });
+    expect((await postJson(app, gateStep.step.actions.disposition.href, {
+      advisoryRecordId: gateAdvisory.record.id,
+      disposition: "adopted with steward revision",
+      note: "Use pricing pressure only after steward rewrite."
+    })).status).toBe(201);
+
+    const completedGate = await postJson(app, "/api/admission/gate/complete", {
+      recordId: proposedJson.record.id,
+      truthLayer: "Objective canon",
+      canonStatus: "accepted with constraints",
+      constraintTags: ["cost-bound"],
+      operations: ["constrain", "price"],
+      consequenceText: "Markets now price crossings by bell debt.",
+      sections: gatePayload.decisionPoint.fullGateContract.sections.map((section) => ({
+        key: section.key,
+        substance: `${section.label} substance for bridge-toll admission.`,
+        quietDomainDeclaration: section.quietDomain ? "No quiet-domain omission; bridge wards are explicitly in scope." : ""
+      })),
+      notApplicableReasons: ["No branch implication in main continuity."],
+      quietDomainDeclarations: ["No spatial spread beyond bridge wards yet."],
+      followUpDebt: "Propagate bridge-toll economics.",
+      advisoryRecordId: gateAdvisory.record.id
     });
     expect(completedGate.status).toBe(201);
     expect(await json(completedGate)).toMatchObject({
       record: { canonStatus: "accepted with constraints" },
-      gateResult: { recordTypeKey: "gate_result" },
+      gateResult: {
+        recordTypeKey: "gate_result",
+        body: expect.stringContaining("Gate sections:")
+      },
       warnings: expect.arrayContaining([expect.objectContaining({ id: debt.debt.id })]),
       decisionPoint: {
         flow: { runState: "complete" },
@@ -677,6 +797,11 @@ describe("HTTP API", () => {
           expect.objectContaining({ label: "Export" })
         ])
       }
+    });
+    expect(await json(await app.request(`/api/links?recordId=${proposedJson.record.id}`))).toMatchObject({
+      links: expect.arrayContaining([
+        expect.objectContaining({ linkTypeKey: "cites_advisory_artifact", toRecordId: gateAdvisory.record.id })
+      ])
     });
 
     const minorBatch = await app.request("/api/admission/minor-batch", {

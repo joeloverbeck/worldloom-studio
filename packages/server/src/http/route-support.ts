@@ -20,6 +20,11 @@ export const badRequest = (c: Context, error: unknown): Response =>
       typeof error === "object" && error !== null && "decisionPoint" in error
         ? { decisionPoint: (error as { decisionPoint: unknown }).decisionPoint }
         : {}
+    ),
+    ...(
+      typeof error === "object" && error !== null && "validationErrors" in error
+        ? { validationErrors: (error as { validationErrors: unknown }).validationErrors }
+        : {}
     )
   }, 400);
 

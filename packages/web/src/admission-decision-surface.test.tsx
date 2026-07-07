@@ -304,6 +304,52 @@ const admissionDecision = {
     beforeCompletion: ["canon status change", "gate result", "skip records", "resume state"],
     afterCompletion: ["Current Canon", "Audit Trail", "record detail", "advisory artifacts", "skip records", "canon debt", "export"]
   },
+  fullGateContract: {
+    sections: [
+      {
+        key: "fact_statement",
+        label: "Fact statement",
+        required: true,
+        canMarkNotApplicable: false,
+        quietDomain: false,
+        guidance: "State the smallest precise version the world must answer."
+      },
+      {
+        key: "dependencies",
+        label: "Dependencies",
+        required: true,
+        canMarkNotApplicable: true,
+        quietDomain: false,
+        guidance: "Name hard, soft, social, economic, epistemic, temporal, spatial, or aesthetic dependencies."
+      },
+      {
+        key: "institutions_or_quiet_domain_declaration",
+        label: "Institutions or quiet-domain declaration",
+        required: true,
+        canMarkNotApplicable: false,
+        quietDomain: true,
+        guidance: "Record affected institutions or explicitly declare the domain quiet."
+      },
+      {
+        key: "branch_implications",
+        label: "Branch implications",
+        required: false,
+        canMarkNotApplicable: true,
+        quietDomain: false,
+        guidance: "Name branch implications or give an n/a reason."
+      }
+    ],
+    allowedNextCanonStatuses: ["under review", "accepted", "accepted with constraints", "localized", "contested", "quarantined", "branch-only", "rejected"],
+    operationOptions: ["accept", "constrain", "price"],
+    constraintTagOptions: ["cost-bound", "seasonal"],
+    validationErrors: [
+      { key: "dependencies", message: "Dependencies require steward-authored substance." }
+    ],
+    completionAction: { method: "POST", href: "/api/admission/gate/complete" },
+    advisoryArtifacts: [
+      { id: 12, shortId: "ADV-12", title: "Advisory artifact: admission:constraints", stepKey: "admission:constraints" }
+    ]
+  },
   readSideTrail: [
     { label: "Current Canon", href: "/api/canon-workbench/current" },
     { label: "Audit Trail", href: "/api/canon-workbench/audit" },
@@ -420,5 +466,60 @@ describe("Admission decision-point browser surface", () => {
     expect(html).not.toContain("Admit Minor Row");
     expect(html).not.toContain("Run Seed Audit");
     expect(html).not.toContain("Load Admission Prompt-out Step");
+  });
+
+  it("renders an executable full-gate form, advisory-use selector, write preview, and server errors on the routed surface", () => {
+    const html = renderToString(<App
+      initialOpenWorld="/tmp/admission-decision.sqlite"
+      initialWorkflowMap={workflowMap as any}
+      initialDestination="admission"
+      initialAdmissionQueue={[{
+        id: 7,
+        shortId: "FAC-7",
+        recordTypeKey: "canon_fact",
+        title: "Toll bell law",
+        body: "The toll bell binds bridge crossings.",
+        truthLayer: "Objective canon",
+        canonStatus: "under review",
+        updatedAt: "2026-07-04T00:00:00.000Z",
+        admissionLevel: "4",
+        workScale: "severe",
+        constraintTags: ["cost-bound"],
+        sourceLinks: [],
+        decisionPointHref: "/api/admission/records/7/decision-point"
+      }]}
+      initialAdmissionDecision={admissionDecision as any}
+      initialRecords={[admissionDecision.selectedRecord as any]}
+    />);
+    const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
+
+    expect(html).toContain("Full-gate completion form");
+    expect(html).toContain("Fact statement");
+    expect(html).toContain("Dependencies");
+    expect(html).toContain("required");
+    expect(html).toContain("optional");
+    expect(html).toContain("Mark not applicable");
+    expect(html).toContain("N/A reason");
+    expect(html).toContain("Quiet-domain declaration");
+    expect(html).toContain("Primary admission operation");
+    expect(html).toContain("Allowed canon status");
+    expect(html).toContain("Constraint tags");
+    expect(html).toContain("Follow-up debt");
+    expect(html).toContain("Complete and update canon standing");
+    expect(html).toContain("Hold under review");
+    expect(html).toContain("Reject through Admission");
+    expect(html).toContain("Advisory use");
+    expect(html).toContain("ADV-12 · Advisory artifact: admission:constraints");
+    expect(html).toContain("No advisory-use link selected");
+    expect(html).toContain("Full-gate validation errors");
+    expect(html).toContain("Dependencies require steward-authored substance.");
+    expect(html).toContain("Section failures preserve entered text and selections.");
+    expect(html).toContain("gate_result report");
+    expect(html).toContain("Read-side trail");
+
+    expect(source).toContain("/api/admission/gate/complete");
+    expect(source).toContain("sections:");
+    expect(source).toContain("advisoryRecordId");
+    expect(source).not.toContain("admissionGatePolicy(");
   });
 });

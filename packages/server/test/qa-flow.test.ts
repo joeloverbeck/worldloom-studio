@@ -20,6 +20,23 @@ const explicitAccepted = {
 
 const json = async <T,>(response: Response): Promise<T> => response.json() as Promise<T>;
 
+const fullGateSections = async (app: ReturnType<typeof createApp>, recordId: number, context: string) => {
+  const response = await app.request(`/api/admission/records/${recordId}/gate`);
+  expect(response.status).toBe(200);
+  const payload = await json<{
+    decisionPoint: {
+      fullGateContract: {
+        sections: Array<{ key: string; label: string; quietDomain: boolean }>;
+      };
+    };
+  }>(response);
+  return payload.decisionPoint.fullGateContract.sections.map((section) => ({
+    key: section.key,
+    substance: `${section.label} substance for ${context}.`,
+    ...(section.quietDomain ? { quietDomainDeclaration: `No quiet-domain omission for ${context}.` } : {})
+  }));
+};
+
 afterEach(() => {
   for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
   tempDirs = [];
@@ -255,7 +272,8 @@ describe("QA flow HTTP seam", () => {
         truthLayer: "Objective canon",
         canonStatus: "accepted",
         operations: ["accept"],
-        consequenceText: "The new oath rite creates a standing court obligation."
+        consequenceText: "The new oath rite creates a standing court obligation.",
+        sections: await fullGateSections(app, proposed.record.id, "moon oath proposal")
       })
     });
     expect(admission.status).toBe(201);

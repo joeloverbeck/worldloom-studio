@@ -19,6 +19,51 @@ export interface AdmissionGatePolicy {
   steps: string[];
 }
 
+export interface AdmissionValidationError {
+  key: string;
+  message: string;
+}
+
+export interface AdmissionGateSection {
+  key: string;
+  label: string;
+  required: boolean;
+  canMarkNotApplicable: boolean;
+  quietDomain: boolean;
+  guidance: string;
+  doctrine: string;
+}
+
+export interface AdmissionFullGateSectionInput {
+  key: string;
+  substance?: string;
+  notApplicableReason?: string;
+  quietDomainDeclaration?: string;
+}
+
+export interface AdmissionAdvisoryArtifactRef {
+  id: number;
+  shortId: string;
+  title: string;
+  stepKey: string;
+}
+
+export interface AdmissionFullGateContract {
+  sections: AdmissionGateSection[];
+  allowedNextCanonStatuses: string[];
+  operationOptions: string[];
+  constraintTagOptions: string[];
+  validationErrors: AdmissionValidationError[];
+  completionAction: { method: "POST"; href: "/api/admission/gate/complete" };
+  advisoryArtifacts: AdmissionAdvisoryArtifactRef[];
+  writePreview: {
+    recordId: number;
+    writes: string[];
+    links: string[];
+  };
+  readSideTrail: AdmissionDecisionReference[];
+}
+
 export interface AdmissionQueueSortKey {
   workScaleRank: number;
   admissionLevelRank: number;
@@ -131,6 +176,7 @@ export interface AdmissionDecisionPayload {
     afterCompletion: string[];
   };
   readSideTrail: AdmissionDecisionReference[];
+  fullGateContract: AdmissionFullGateContract | null;
   sharedContract: DecisionPointSharedContract;
 }
 
@@ -233,6 +279,180 @@ const CATASTROPHIC_GATE_STEPS = [
   "explicit decision record",
   "rollback/branch plan"
 ];
+
+const FULL_GATE_SECTION_CONTRACTS: Record<string, AdmissionGateSection> = {
+  "fact statement": {
+    key: "fact_statement",
+    label: "Fact statement",
+    required: true,
+    canMarkNotApplicable: false,
+    quietDomain: false,
+    guidance: "State the fact being admitted in steward-authored wording.",
+    doctrine: "docs/worldbuilding-system/checklists/canon_fact_gate.md"
+  },
+  scope: {
+    key: "scope",
+    label: "Scope",
+    required: false,
+    canMarkNotApplicable: false,
+    quietDomain: false,
+    guidance: "Name the continuity scope when the record body does not already make it clear.",
+    doctrine: "docs/worldbuilding-system/06_canon_fact_admission_protocol.md"
+  },
+  type: {
+    key: "type",
+    label: "Type",
+    required: false,
+    canMarkNotApplicable: false,
+    quietDomain: false,
+    guidance: "Confirm what kind of canon record is being admitted.",
+    doctrine: "docs/worldbuilding-system/06_canon_fact_admission_protocol.md"
+  },
+  "truth layer": {
+    key: "truth_layer",
+    label: "Truth layer",
+    required: false,
+    canMarkNotApplicable: false,
+    quietDomain: false,
+    guidance: "Confirm the steward-selected truth layer; do not infer it from Prompt-out.",
+    doctrine: "docs/worldbuilding-system/06_canon_fact_admission_protocol.md"
+  },
+  "canon status": {
+    key: "canon_status",
+    label: "Canon status",
+    required: false,
+    canMarkNotApplicable: false,
+    quietDomain: false,
+    guidance: "Choose an allowed next canon status from the server contract.",
+    doctrine: "docs/worldbuilding-system/06_canon_fact_admission_protocol.md"
+  },
+  "constraint tags": {
+    key: "constraint_tags",
+    label: "Constraint tags",
+    required: false,
+    canMarkNotApplicable: false,
+    quietDomain: false,
+    guidance: "Keep tags separate from the canon status and only use steward-selected vocabulary terms.",
+    doctrine: "docs/worldbuilding-system/06_canon_fact_admission_protocol.md"
+  },
+  dependencies: {
+    key: "dependencies",
+    label: "Dependencies",
+    required: true,
+    canMarkNotApplicable: true,
+    quietDomain: false,
+    guidance: "Dependencies require steward-authored substance or an explicit not-applicable reason.",
+    doctrine: "docs/worldbuilding-system/checklists/canon_fact_gate.md"
+  },
+  "costs/access/bottlenecks": {
+    key: "costs_access_bottlenecks",
+    label: "Costs/access/bottlenecks",
+    required: true,
+    canMarkNotApplicable: true,
+    quietDomain: false,
+    guidance: "Name costs, access limits, and bottlenecks created by this admission.",
+    doctrine: "docs/worldbuilding-system/checklists/canon_fact_gate.md"
+  },
+  "shock-cone summary": {
+    key: "shock_cone_summary",
+    label: "Shock-cone summary",
+    required: true,
+    canMarkNotApplicable: false,
+    quietDomain: false,
+    guidance: "Summarize the expected ripple cone before canon standing changes.",
+    doctrine: "docs/worldbuilding-system/checklists/canon_fact_gate.md"
+  },
+  "institutions or quiet-domain declaration": {
+    key: "institutions_or_quiet_domain_declaration",
+    label: "Institutions or quiet-domain declaration",
+    required: true,
+    canMarkNotApplicable: false,
+    quietDomain: true,
+    guidance: "Name affected institutions or explicitly declare that no quiet domain is implicated.",
+    doctrine: "docs/worldbuilding-system/checklists/canon_fact_gate.md"
+  },
+  "evidence/belief note": {
+    key: "evidence_belief_note",
+    label: "Evidence/belief note",
+    required: true,
+    canMarkNotApplicable: true,
+    quietDomain: false,
+    guidance: "Record evidence, belief state, or why that evidence is not applicable.",
+    doctrine: "docs/worldbuilding-system/checklists/canon_fact_gate.md"
+  },
+  "contradiction and mystery risk": {
+    key: "contradiction_and_mystery_risk",
+    label: "Contradiction and mystery risk",
+    required: true,
+    canMarkNotApplicable: true,
+    quietDomain: false,
+    guidance: "Name contradiction or mystery risks before the fact is admitted.",
+    doctrine: "docs/worldbuilding-system/checklists/canon_fact_gate.md"
+  },
+  "follow-up debt": {
+    key: "follow_up_debt",
+    label: "Follow-up debt",
+    required: true,
+    canMarkNotApplicable: true,
+    quietDomain: false,
+    guidance: "Name follow-up debt or explain why none is owed.",
+    doctrine: "docs/worldbuilding-system/checklists/canon_fact_gate.md"
+  },
+  "temporal/spatial passes": {
+    key: "temporal_spatial_passes",
+    label: "Temporal/spatial passes",
+    required: true,
+    canMarkNotApplicable: true,
+    quietDomain: false,
+    guidance: "Run temporal and spatial pressure on foundational admissions.",
+    doctrine: "docs/worldbuilding-system/checklists/canon_fact_gate.md"
+  },
+  "branch implications": {
+    key: "branch_implications",
+    label: "Branch implications",
+    required: false,
+    canMarkNotApplicable: true,
+    quietDomain: false,
+    guidance: "Name branch implications or mark the section not applicable with a reason.",
+    doctrine: "docs/worldbuilding-system/checklists/canon_fact_gate.md"
+  },
+  "mystery/aesthetic checks": {
+    key: "mystery_aesthetic_checks",
+    label: "Mystery/aesthetic checks",
+    required: true,
+    canMarkNotApplicable: true,
+    quietDomain: false,
+    guidance: "Preserve intended mystery and aesthetic pressure before admitting foundational facts.",
+    doctrine: "docs/worldbuilding-system/checklists/canon_fact_gate.md"
+  },
+  "QA follow-up": {
+    key: "qa_follow_up",
+    label: "QA follow-up",
+    required: true,
+    canMarkNotApplicable: true,
+    quietDomain: false,
+    guidance: "Name QA follow-up owed by this admission or give a reason none is owed.",
+    doctrine: "docs/worldbuilding-system/checklists/canon_fact_gate.md"
+  },
+  "explicit decision record": {
+    key: "explicit_decision_record",
+    label: "Explicit decision record",
+    required: true,
+    canMarkNotApplicable: false,
+    quietDomain: false,
+    guidance: "Catastrophic admissions owe an explicit steward decision record.",
+    doctrine: "docs/worldbuilding-system/checklists/canon_fact_gate.md"
+  },
+  "rollback/branch plan": {
+    key: "rollback_branch_plan",
+    label: "Rollback/branch plan",
+    required: true,
+    canMarkNotApplicable: false,
+    quietDomain: false,
+    guidance: "Catastrophic admissions must name rollback or branch handling before completion.",
+    doctrine: "docs/worldbuilding-system/checklists/canon_fact_gate.md"
+  }
+};
 
 const declaredSeverityFromFacets = (facets: FacetRow[]): DeclaredSeverity => ({
   admissionLevel: facets.find((facet) => facet.vocabulary === "admission_level")?.term ?? null,
@@ -398,18 +618,87 @@ export const proposeRecordToAdmission = (
     provenanceFlowStep: "admission:propose-record"
   });
 
+const vocabularyTerms = (worldFile: WorldFile, vocabulary: string): string[] =>
+  (worldFile.vocabularies() as Array<{ vocabulary: string; term: string }>)
+    .filter((term) => term.vocabulary === vocabulary)
+    .map((term) => term.term);
+
+const allowedNextCanonStatuses = (worldFile: WorldFile, current: string | null): string[] =>
+  vocabularyTerms(worldFile, "canon_status").filter((status) => {
+    try {
+      worldFile.assertAllowedStatusTransition(current, status);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+
+const fullGateSectionsFor = (gate: AdmissionGatePolicy): AdmissionGateSection[] =>
+  gate.steps.map((step) => {
+    const section = FULL_GATE_SECTION_CONTRACTS[step];
+    if (!section) throw new Error(`unknown full gate step: ${step}`);
+    return section;
+  });
+
+const advisoryStepKeyFromBody = (body: string): string | null => {
+  const match = body.match(/^Step:\s*(.+)$/m);
+  return match?.[1]?.trim() ?? null;
+};
+
+const isAdmissionFullGateAdvisory = (record: RecordRow): boolean =>
+  record.recordTypeKey === "advisory_artifact"
+  && /^Flow:\s*admission$/m.test(record.body)
+  && /^Step:\s*admission:constraints$/m.test(record.body);
+
+const admissionFullGateAdvisoryArtifacts = (worldFile: WorldFile): AdmissionAdvisoryArtifactRef[] =>
+  worldFile.listRecords()
+    .filter(isAdmissionFullGateAdvisory)
+    .map((record) => ({
+      id: record.id,
+      shortId: record.shortId,
+      title: record.title,
+      stepKey: advisoryStepKeyFromBody(record.body) ?? "admission:constraints"
+    }));
+
+const fullGateContractFor = (
+  worldFile: WorldFile,
+  record: AdmissionQueueRow,
+  gate: AdmissionGatePolicy | null,
+  readSideTrail: AdmissionDecisionReference[]
+): AdmissionFullGateContract | null => {
+  if (gate?.path !== "full_gate") return null;
+  return {
+    sections: fullGateSectionsFor(gate),
+    allowedNextCanonStatuses: allowedNextCanonStatuses(worldFile, record.canonStatus),
+    operationOptions: vocabularyTerms(worldFile, "admission_decision_operation"),
+    constraintTagOptions: vocabularyTerms(worldFile, "constraint_tag"),
+    validationErrors: [],
+    completionAction: { method: "POST", href: "/api/admission/gate/complete" },
+    advisoryArtifacts: admissionFullGateAdvisoryArtifacts(worldFile),
+    writePreview: {
+      recordId: record.id,
+      writes: ["gate_result report", "ordered admission operation events", "steward-selected canon status change on completion"],
+      links: ["Admission gate result link", "advisory-use link only when explicitly selected"]
+    },
+    readSideTrail
+  };
+};
+
 export const gateComposition = (worldFile: WorldFile, recordId: number): unknown => {
   const record = worldFile.getRecord(recordId);
   const facets = worldFile.listFacets(recordId);
   const severity = declaredSeverityFromFacets(facets);
   const gate = admissionGatePolicy(severity);
+  const recordWithFacets = withAdmissionFacets(worldFile, record);
+  const executableContract = fullGateContractFor(worldFile, recordWithFacets, gate, readSideTrailFor(recordId));
   return {
     record,
     admissionLevel: severity.admissionLevel,
     workScale: severity.workScale,
     path: gate.path,
     doctrine: gate.doctrine,
-    steps: gate.steps
+    steps: gate.steps,
+    executableContract
   };
 };
 
@@ -756,6 +1045,7 @@ export const admissionDecisionPoint = (worldFile: WorldFile, recordId: number): 
     safeExit: "Leave the record at proposed or under review; resume from the same Admission record."
   };
   const readSideTrail = readSideTrailFor(recordId);
+  const fullGateContract = fullGateContractFor(worldFile, record, gate, readSideTrail);
   const sharedContract: DecisionPointSharedContract = {
     contractVersion: "decision-point/v1",
     methodCard: cardValue,
@@ -870,6 +1160,7 @@ export const admissionDecisionPoint = (worldFile: WorldFile, recordId: number): 
       ]
     },
     readSideTrail,
+    fullGateContract,
     sharedContract
   };
 };
@@ -947,31 +1238,168 @@ export const startAdmissionGate = (worldFile: WorldFile, recordId: number): unkn
     return flow;
   });
 
+export interface AdmissionGateCompletionInput {
+  recordId: number;
+  title?: string;
+  body?: string;
+  truthLayer: string;
+  canonStatus: string;
+  constraintTags?: string[];
+  operations: string[];
+  consequenceText?: string;
+  sections?: AdmissionFullGateSectionInput[];
+  notApplicableReasons?: string[];
+  quietDomainDeclarations?: string[];
+  followUpDebt?: string;
+  advisoryRecordId?: number;
+}
+
+const nonEmpty = (value?: string | null): string => value?.trim() ?? "";
+
+const admissionValidationFailure = (errors: AdmissionValidationError[]): Error & { validationErrors: AdmissionValidationError[] } => {
+  const first = errors[0];
+  const error = new Error(first ? `${first.key}: ${first.message}` : "admission gate validation failed") as Error & { validationErrors: AdmissionValidationError[] };
+  error.validationErrors = errors;
+  return error;
+};
+
+const sectionValidationError = (section: AdmissionGateSection): AdmissionValidationError => {
+  const verb = section.label === "Dependencies" ? "require" : "requires";
+  return {
+    key: section.key,
+    message: `${section.label} ${verb} steward-authored substance.`
+  };
+};
+
+const validateFullGateSections = (
+  contract: AdmissionFullGateContract,
+  input: AdmissionGateCompletionInput
+): AdmissionValidationError[] => {
+  const errors: AdmissionValidationError[] = [];
+  const knownKeys = new Set(contract.sections.map((section) => section.key));
+  const sectionsByKey = new Map((input.sections ?? []).map((section) => [section.key, section]));
+
+  for (const supplied of input.sections ?? []) {
+    if (!knownKeys.has(supplied.key)) {
+      errors.push({ key: supplied.key, message: `Unknown full-gate section: ${supplied.key}` });
+    }
+  }
+
+  for (const section of contract.sections) {
+    const supplied = sectionsByKey.get(section.key);
+    const substance = nonEmpty(supplied?.substance);
+    const notApplicableReason = nonEmpty(supplied?.notApplicableReason);
+    const quietDomainDeclaration = nonEmpty(supplied?.quietDomainDeclaration);
+    const nARequested = supplied?.notApplicableReason != null && !substance;
+
+    if (nARequested && !notApplicableReason) {
+      errors.push({
+        key: `${section.key}.notApplicableReason`,
+        message: `${section.label} is marked not applicable and requires a reason.`
+      });
+      continue;
+    }
+    if (notApplicableReason && !section.canMarkNotApplicable) {
+      errors.push({
+        key: section.key,
+        message: `${section.label} cannot be marked not applicable.`
+      });
+      continue;
+    }
+    if (section.required && !substance && !notApplicableReason && !(section.quietDomain && quietDomainDeclaration)) {
+      errors.push(sectionValidationError(section));
+    }
+  }
+
+  return errors;
+};
+
+const validateAdmissionGateCompletion = (
+  worldFile: WorldFile,
+  current: RecordRow,
+  input: AdmissionGateCompletionInput,
+  gate: AdmissionGatePolicy,
+  contract: AdmissionFullGateContract | null
+): AdmissionValidationError[] => {
+  const errors: AdmissionValidationError[] = [];
+  if (!input.operations?.length) {
+    errors.push({ key: "operations", message: "Admission gate requires at least one admission operation." });
+  }
+  if (gate.path === "full_gate" && !nonEmpty(input.consequenceText)) {
+    errors.push({ key: "written_consequence", message: "Full gate requires written consequence text." });
+  }
+  for (const [index, reason] of (input.notApplicableReasons ?? []).entries()) {
+    if (!nonEmpty(reason)) {
+      errors.push({ key: `notApplicableReasons.${index}`, message: "N/A gate items require a reason." });
+    }
+  }
+  for (const [index, declaration] of (input.quietDomainDeclarations ?? []).entries()) {
+    if (!nonEmpty(declaration)) {
+      errors.push({ key: `quietDomainDeclarations.${index}`, message: "Quiet domains require a declaration." });
+    }
+  }
+  try {
+    worldFile.assertAllowedStatusTransition(current.canonStatus, input.canonStatus);
+  } catch (error) {
+    errors.push({
+      key: "canon_status",
+      message: error instanceof Error ? error.message : String(error)
+    });
+  }
+  if (input.advisoryRecordId != null) {
+    try {
+      const advisory = worldFile.getRecord(input.advisoryRecordId);
+      if (!isAdmissionFullGateAdvisory(advisory)) {
+        errors.push({
+          key: "advisoryRecordId",
+          message: "Selected advisory artifact must come from the Admission full-gate Prompt-out step."
+        });
+      }
+    } catch (error) {
+      errors.push({
+        key: "advisoryRecordId",
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+  if (gate.path === "full_gate" && contract) {
+    errors.push(...validateFullGateSections(contract, input));
+  }
+  return errors;
+};
+
+const fullGateSectionLines = (
+  contract: AdmissionFullGateContract | null,
+  sections: AdmissionFullGateSectionInput[] | undefined
+): string[] => {
+  if (!contract) return [];
+  const sectionsByKey = new Map((sections ?? []).map((section) => [section.key, section]));
+  return [
+    "Gate sections:",
+    ...contract.sections.map((section) => {
+      const supplied = sectionsByKey.get(section.key);
+      const substance = nonEmpty(supplied?.substance);
+      const notApplicableReason = nonEmpty(supplied?.notApplicableReason);
+      const quietDomainDeclaration = nonEmpty(supplied?.quietDomainDeclaration);
+      if (substance) return `${section.label}: ${substance}`;
+      if (notApplicableReason) return `${section.label}: N/A - ${notApplicableReason}`;
+      if (quietDomainDeclaration) return `${section.label}: Quiet-domain declaration - ${quietDomainDeclaration}`;
+      return `${section.label}: not supplied`;
+    })
+  ];
+};
+
 export const completeAdmissionGate = (
   worldFile: WorldFile,
-  input: {
-    recordId: number;
-    title?: string;
-    body?: string;
-    truthLayer: string;
-    canonStatus: string;
-    constraintTags?: string[];
-    operations: string[];
-    consequenceText?: string;
-    notApplicableReasons?: string[];
-    quietDomainDeclarations?: string[];
-    followUpDebt?: string;
-    advisoryRecordId?: number;
-  }
+  input: AdmissionGateCompletionInput
 ): { record: RecordRow; gateResult: RecordRow; warnings: RecordRow[] } => {
   const current = worldFile.getRecord(input.recordId);
-  const gate = gateComposition(worldFile, input.recordId) as { path: string };
-  if (!input.operations.length) throw new Error("admission gate requires at least one admission operation");
-  if (gate.path === "full_gate") {
-    if (!input.consequenceText?.trim()) throw new Error("full gate requires written consequence text");
-    if ((input.notApplicableReasons ?? []).some((reason) => !reason.trim())) throw new Error("n/a gate items require a reason");
-    if ((input.quietDomainDeclarations ?? []).some((declaration) => !declaration.trim())) throw new Error("quiet domains require a declaration");
-  }
+  const severity = declaredSeverityFromFacets(worldFile.listFacets(input.recordId));
+  const gate = admissionGatePolicy(severity);
+  const currentWithFacets = withAdmissionFacets(worldFile, current);
+  const contract = fullGateContractFor(worldFile, currentWithFacets, gate, readSideTrailFor(input.recordId));
+  const validationErrors = validateAdmissionGateCompletion(worldFile, current, input, gate, contract);
+  if (validationErrors.length) throw admissionValidationFailure(validationErrors);
   worldFile.assertAllowedStatusTransition(current.canonStatus, input.canonStatus);
   return worldFile.atomicWrite(() => {
     const warnings = warnsForOpenCanonDebt(declaredSeverityFromFacets(worldFile.listFacets(input.recordId))) ? worldFile.listCanonDebt(true) : [];
@@ -993,6 +1421,7 @@ export const completeAdmissionGate = (
         `Consequence: ${input.consequenceText ?? "minor or not supplied"}`,
         `N/A reasons: ${(input.notApplicableReasons ?? []).join("; ") || "none"}`,
         `Quiet domains: ${(input.quietDomainDeclarations ?? []).join("; ") || "none"}`,
+        ...fullGateSectionLines(contract, input.sections),
         `Follow-up debt: ${input.followUpDebt ?? "none"}`
       ].join("\n"),
       truthLayer: "Objective canon",

@@ -35,6 +35,23 @@ const putJson = (app: ReturnType<typeof createApp>, path: string, payload: unkno
     body: JSON.stringify(payload)
   });
 
+const fullGateSections = async (app: ReturnType<typeof createApp>, recordId: number, context: string) => {
+  const response = await app.request(`/api/admission/records/${recordId}/gate`);
+  expect(response.status).toBe(200);
+  const payload = await json<{
+    decisionPoint: {
+      fullGateContract: {
+        sections: Array<{ key: string; label: string; quietDomain: boolean }>;
+      };
+    };
+  }>(response);
+  return payload.decisionPoint.fullGateContract.sections.map((section) => ({
+    key: section.key,
+    substance: `${section.label} substance for ${context}.`,
+    ...(section.quietDomain ? { quietDomainDeclaration: `No quiet-domain omission for ${context}.` } : {})
+  }));
+};
+
 const createWorld = async (app: ReturnType<typeof createApp>, name = "canon-workbench.sqlite") => {
   const response = await postJson(app, "/api/worlds/create", { path: tempPath(name) });
   expect(response.status).toBe(201);
@@ -217,6 +234,7 @@ describe("Canon Workbench HTTP API", () => {
       canonStatus: "accepted",
       operations: ["accept"],
       consequenceText: "Bridge tolls now affect legal access.",
+      sections: await fullGateSections(app, fact.id, "bridge law audit"),
       notApplicableReasons: ["No branch implication."],
       quietDomainDeclarations: ["No spatial spread yet."]
     });
@@ -277,6 +295,7 @@ describe("Canon Workbench HTTP API", () => {
       canonStatus: "accepted",
       operations: ["accept"],
       consequenceText: "Court tolls now affect legal access.",
+      sections: await fullGateSections(app, proposed.id, "bridge court proposal"),
       notApplicableReasons: ["No branch implication."],
       quietDomainDeclarations: ["No spatial spread yet."]
     }));

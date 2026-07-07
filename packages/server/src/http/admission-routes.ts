@@ -41,20 +41,7 @@ export const registerAdmissionRoutes = (app: RouteApp, dependencies: RouteDepend
   )));
 
   app.post("/api/admission/gate/complete", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () => {
-    const input = await readJson<{
-      recordId: number;
-      title?: string;
-      body?: string;
-      truthLayer: string;
-      canonStatus: string;
-      constraintTags?: string[];
-      operations: string[];
-      consequenceText?: string;
-      notApplicableReasons?: string[];
-      quietDomainDeclarations?: string[];
-      followUpDebt?: string;
-      advisoryRecordId?: number;
-    }>(c);
+    const input = await readJson<AdmissionFlow.AdmissionGateCompletionInput>(c);
     return c.json({
       ...AdmissionFlow.completeAdmissionGate(world, input),
       decisionPoint: AdmissionFlow.admissionDecisionPoint(world, input.recordId)
