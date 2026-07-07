@@ -73,7 +73,27 @@ describe("Prompt-out lifecycle web surface", () => {
           citations: ["docs/worldbuilding-system/20_ai_assisted_workflow.md"]
         },
         currentKernel: { id: 1, shortId: "KER-1", title: "World kernel" },
-        sectionPrompts: [],
+        sectionPrompts: [
+          {
+            heading: "World premise",
+            prompt: "What is the world, in one or two sentences?",
+            obligation: "required",
+            savedBody: "A harbor district where broadcast control allocates power.",
+            hasSavedBody: true,
+            emptyState: { kind: "saved_section_text", message: "Saved text is available for World premise." },
+            saveTarget: { flowId: 1, heading: "World premise" }
+          }
+        ],
+        selectedSection: {
+          heading: "World premise",
+          prompt: "What is the world, in one or two sentences?",
+          obligation: "required",
+          savedBody: "A harbor district where broadcast control allocates power.",
+          hasSavedBody: true,
+          emptyState: { kind: "saved_section_text", message: "Saved text is available for World premise." },
+          saveTarget: { flowId: 1, heading: "World premise" }
+        },
+        consequenceMode: { saved: "weird", status: "saved", source: "record facet: consequence_mode", blocker: null },
         work: { required: [], optional: [], allowedEmpty: [], skippable: [] },
         blockers: [],
         promptOut: {
@@ -166,9 +186,10 @@ describe("Prompt-out lifecycle web surface", () => {
     expect(creationPromptPanel).toContain("promptOut.modes");
     expect(html).toContain("Prompt mode");
     expect(html).toContain("Selected mode: Proposal mode - available");
-    expect(creationPromptButton).toContain("selectedCreationPromptMode?.stepRequest");
+    expect(creationPromptButton).toContain("!canLoadCreationPromptStep");
     expect(source).toContain("value={creationPromptMode}");
     expect(source).toContain("setCreationPromptMode");
+    expect(source).toContain("selectedCreationPromptMode?.stepRequest");
     expect(promptLoader).toContain("mode.stepRequest");
     expect(promptLoader).toContain("mode.mode === creationPromptMode");
     expect(promptLoader).toContain("selectedMode?.available");

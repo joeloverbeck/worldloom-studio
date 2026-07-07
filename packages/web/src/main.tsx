@@ -681,7 +681,38 @@ interface CreationDecisionPoint {
     heading: string;
     prompt: string;
     obligation: "required" | "optional" | "allowed-empty";
+    savedBody: string;
+    hasSavedBody: boolean;
+    emptyState: {
+      kind: "saved_section_text" | "no_saved_section_text";
+      message: string;
+    };
+    saveTarget: {
+      flowId: number;
+      heading: string;
+    };
   }>;
+  selectedSection: {
+    heading: string;
+    prompt: string;
+    obligation: "required" | "optional" | "allowed-empty";
+    savedBody: string;
+    hasSavedBody: boolean;
+    emptyState: {
+      kind: "saved_section_text" | "no_saved_section_text";
+      message: string;
+    };
+    saveTarget: {
+      flowId: number;
+      heading: string;
+    };
+  } | null;
+  consequenceMode: {
+    saved: string | null;
+    status: "saved" | "missing_saved_facet";
+    source: "record facet: consequence_mode";
+    blocker: string | null;
+  };
   work: {
     required: string[];
     optional: string[];
@@ -1119,6 +1150,28 @@ function DecisionContractPanel({ title, contract }: { title: string; contract?: 
   );
 }
 
+const defaultCreationSection = (
+  heading: string,
+  prompt: string,
+  obligation: "required" | "optional" | "allowed-empty"
+): CreationDecisionPoint["sectionPrompts"][number] => ({
+  heading,
+  prompt,
+  obligation,
+  savedBody: "",
+  hasSavedBody: false,
+  emptyState: {
+    kind: "no_saved_section_text",
+    message: `No saved text exists yet for ${heading}; the field should start empty for this section.`
+  },
+  saveTarget: {
+    flowId: 0,
+    heading
+  }
+});
+
+const kernelSectionDraftKeyFor = (recordId: number | null, heading: string) => `${recordId ?? "pending-kernel"}::${heading}`;
+
 const defaultCreationDecision: CreationDecisionPoint = {
   flow: {
     key: "creation",
@@ -1133,12 +1186,19 @@ const defaultCreationDecision: CreationDecisionPoint = {
   },
   currentKernel: null,
   sectionPrompts: [
-    { heading: "World premise", prompt: "What is the world, in one or two sentences?", obligation: "required" },
-    { heading: "Core promise", prompt: "What experience should the world reliably create?", obligation: "allowed-empty" },
-    { heading: "Starting scale", prompt: "Name where the world starts.", obligation: "required" },
-    { heading: "Genre, tone, and consequence-mode commitments", prompt: "Name consequence mode explicitly.", obligation: "required" },
-    { heading: "Initial mysteries and protected effects", prompt: "Name protected unknowns if they exist.", obligation: "allowed-empty" }
+    defaultCreationSection("World premise", "What is the world, in one or two sentences?", "required"),
+    defaultCreationSection("Core promise", "What experience should the world reliably create?", "allowed-empty"),
+    defaultCreationSection("Starting scale", "Name where the world starts.", "required"),
+    defaultCreationSection("Genre, tone, and consequence-mode commitments", "Name consequence mode explicitly.", "required"),
+    defaultCreationSection("Initial mysteries and protected effects", "Name protected unknowns if they exist.", "allowed-empty")
   ],
+  selectedSection: defaultCreationSection("World premise", "What is the world, in one or two sentences?", "required"),
+  consequenceMode: {
+    saved: null,
+    status: "missing_saved_facet",
+    source: "record facet: consequence_mode",
+    blocker: "Save the kernel step with an explicit steward-selected consequence mode before decomposition can treat it as applied."
+  },
   work: {
     required: [
       "Write steward-authored kernel material",
@@ -1581,7 +1641,11 @@ function App({
   const [kernelRecordId, setKernelRecordId] = useState<number | null>(null);
   const [kernelHeading, setKernelHeading] = useState("World premise");
   const [kernelBody, setKernelBody] = useState("");
+  const [kernelSectionDrafts, setKernelSectionDrafts] = useState<Record<string, string>>({});
   const [consequenceMode, setConsequenceMode] = useState("");
+  const [creationStartPending, setCreationStartPending] = useState(false);
+  const [creationStartError, setCreationStartError] = useState<string | null>(null);
+  const [creationAutoStartAttempted, setCreationAutoStartAttempted] = useState(false);
   const [seedTitle, setSeedTitle] = useState("");
   const [seedBody, setSeedBody] = useState("");
   const [seedTruthLayer, setSeedTruthLayer] = useState("");
@@ -1664,9 +1728,39 @@ function App({
   const creationDecisionHandoff = creationDecision ? creationDecision.handoff : displayedCreationDecision.handoff;
   const creationHandoffReady = displayedCreationDecision.handoff.parkedSeeds.length > 0;
   const creationPromptModes = displayedCreationDecision.promptOut.modes ?? [];
+  const selectedSectionContract = displayedCreationDecision.sectionPrompts.find((section) => section.heading === kernelHeading)
+    ?? displayedCreationDecision.selectedSection
+    ?? displayedCreationDecision.sectionPrompts[0]
+    ?? null;
+  const kernelDraftRecordId = kernelRecordId ?? displayedCreationDecision.currentKernel?.id ?? null;
+  const kernelSectionDraftKey = kernelSectionDraftKeyFor(kernelDraftRecordId, kernelHeading);
+  const selectedSectionDraft = kernelSectionDrafts[kernelSectionDraftKey];
+  const selectedSectionSavedBody = selectedSectionContract?.savedBody ?? "";
+  const selectedSectionHasHeldDraft = selectedSectionDraft !== undefined && selectedSectionDraft !== selectedSectionSavedBody;
+  const savedConsequenceMode = displayedCreationDecision.consequenceMode?.saved ?? "";
+  const consequenceModeDraftState = consequenceMode && consequenceMode !== savedConsequenceMode
+    ? "unsaved"
+    : savedConsequenceMode
+      ? "saved"
+      : "missing";
+  const creationAuthoringDisabled = flowId == null || creationStartPending;
+  const displayedDecompositionReadiness = (displayedCreationDecision.decompositionReadiness ?? defaultCreationDecision.decompositionReadiness).map((item) => {
+    if (item.key !== "consequence_mode" || consequenceModeDraftState !== "unsaved") return item;
+    return {
+      ...item,
+      status: "blocked" as const,
+      message: "Selected consequence mode is an unsaved draft; save the kernel step before decomposition can use it.",
+      remediation: "Save the kernel step to apply the selected consequence mode as server-owned world-file truth."
+    };
+  });
+  const decomposeDisabled = flowId == null || kernelRecordId == null || consequenceModeDraftState === "unsaved";
   const selectedCreationPromptMode = creationPromptModes.find((mode) => mode.mode === creationPromptMode)
     ?? creationPromptModes[0]
     ?? null;
+  const creationPromptOutBlockedByLocalSection = displayedCreationDecision.currentStep.startsWith("kernel:")
+    && (displayedCreationDecision.selectedSection?.heading !== kernelHeading || selectedSectionHasHeldDraft);
+  const creationPromptOutLocalSectionMessage = `Prompt-out waits for the selected section to be saved before it can use ${kernelHeading}.`;
+  const canLoadCreationPromptStep = Boolean(openWorld && selectedCreationPromptMode?.stepRequest && !creationPromptOutBlockedByLocalSection);
   const loadedCreationPromptMode = promptStep?.context.flowKey === "creation" && promptStep.context.stepKey === displayedCreationDecision.promptOut.stepKey
     ? promptStep.mode ?? null
     : null;
@@ -1698,6 +1792,7 @@ function App({
     }
 
     if (activeDestination === "creation") {
+      if (creationPromptOutBlockedByLocalSection) return null;
       const request = selectedCreationPromptMode?.stepRequest?.body ?? displayedCreationDecision.promptOut.stepRequest?.body ?? {};
       return {
         worldPath: openWorld,
@@ -1951,6 +2046,7 @@ function App({
     recordForm.title,
     recordForm.body,
     sections.map((section) => section.body).join("\n"),
+    Object.values(kernelSectionDrafts).join("\n"),
     draftTitle,
     draftBody,
     promptText,
@@ -2148,7 +2244,11 @@ function App({
     setKernelRecordId(null);
     setKernelHeading("World premise");
     setKernelBody("");
+    setKernelSectionDrafts({});
     setConsequenceMode("");
+    setCreationStartPending(false);
+    setCreationStartError(null);
+    setCreationAutoStartAttempted(false);
     setSeedTitle("");
     setSeedBody("");
     setSeedTruthLayer("");
@@ -2479,6 +2579,10 @@ function App({
   };
 
   const loadCreationPromptStep = async () => {
+    if (creationPromptOutBlockedByLocalSection) {
+      setMessage(creationPromptOutLocalSectionMessage);
+      return null;
+    }
     if (!creationDecision?.promptOut.stepRequest && !creationDecision?.promptOut.modes?.some((mode) => mode.stepRequest)) return null;
     const selectedMode = creationDecision.promptOut.modes?.find((mode) => mode.mode === creationPromptMode) ?? null;
     const request = selectedMode?.available && selectedMode.stepRequest
@@ -2546,11 +2650,72 @@ function App({
     setMessage(`Stored ${artifact.record.shortId}`);
   };
 
-  const startFlow = async () => {
-    const payload = await api<{ flow: { id: number; kernel_record_id?: number }; decisionPoint: CreationDecisionPoint }>("/api/flows/creation/start", { method: "POST" });
+  const applyCreationDecisionPayload = (
+    payload: { flow: { id: number; kernel_record_id?: number | null }; decisionPoint: CreationDecisionPoint }
+  ) => {
     setFlowId(payload.flow.id);
-    if (payload.flow.kernel_record_id) setKernelRecordId(payload.flow.kernel_record_id);
+    const nextKernelRecordId = payload.flow.kernel_record_id ?? payload.decisionPoint.currentKernel?.id ?? null;
+    if (nextKernelRecordId != null) setKernelRecordId(nextKernelRecordId);
+    const nextSection = payload.decisionPoint.selectedSection ?? payload.decisionPoint.sectionPrompts[0] ?? null;
+    if (nextSection) {
+      setKernelHeading(nextSection.heading);
+      setKernelBody(nextSection.savedBody);
+    }
+    setConsequenceMode(payload.decisionPoint.consequenceMode.saved ?? "");
     setCreationDecision(payload.decisionPoint);
+    setCreationStartError(null);
+  };
+
+  const startFlow = async () => {
+    try {
+      setCreationStartPending(true);
+      const payload = await api<{ flow: { id: number; kernel_record_id?: number }; decisionPoint: CreationDecisionPoint }>("/api/flows/creation/start", { method: "POST" });
+      applyCreationDecisionPayload(payload);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setCreationStartError(message);
+      setMessage(message);
+    } finally {
+      setCreationStartPending(false);
+    }
+  };
+
+  const autoStartCreationFlow = async () => {
+    try {
+      setCreationStartPending(true);
+      const payload = await api<{ flow: { id: number; kernel_record_id?: number }; decisionPoint: CreationDecisionPoint }>("/api/flows/creation/start", { method: "POST" });
+      applyCreationDecisionPayload(payload);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setCreationStartError(message);
+      setMessage(message);
+    } finally {
+      setCreationStartPending(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!openWorld || activeDestination !== "creation" || flowId != null || creationStartPending || creationAutoStartAttempted) return;
+    setCreationAutoStartAttempted(true);
+    void autoStartCreationFlow();
+  }, [activeDestination, creationAutoStartAttempted, creationStartPending, flowId, openWorld]);
+
+  const handleKernelHeadingChange = (nextHeading: string) => {
+    const currentSavedBody = selectedSectionContract?.savedBody ?? "";
+    let drafts = kernelSectionDrafts;
+    if (kernelBody !== currentSavedBody) {
+      drafts = { ...kernelSectionDrafts, [kernelSectionDraftKey]: kernelBody };
+      setKernelSectionDrafts(drafts);
+    }
+    const nextSection = displayedCreationDecision.sectionPrompts.find((section) => section.heading === nextHeading);
+    const nextKey = kernelSectionDraftKeyFor(kernelDraftRecordId, nextHeading);
+    setKernelHeading(nextHeading);
+    setKernelBody(drafts[nextKey] ?? nextSection?.savedBody ?? "");
+  };
+
+  const updateKernelBody = (body: string) => {
+    setKernelBody(body);
+    setKernelSectionDrafts((current) => ({ ...current, [kernelSectionDraftKey]: body }));
   };
 
   const saveKernelStep = async () => {
@@ -2561,6 +2726,14 @@ function App({
     });
     setKernelRecordId(payload.kernel.id);
     setCreationDecision(payload.decisionPoint);
+    setKernelSectionDrafts((current) => {
+      const next = { ...current };
+      delete next[kernelSectionDraftKeyFor(payload.kernel.id, kernelHeading)];
+      delete next[kernelSectionDraftKeyFor(kernelDraftRecordId, kernelHeading)];
+      return next;
+    });
+    setConsequenceMode(payload.decisionPoint.consequenceMode.saved ?? consequenceMode);
+    setKernelBody(payload.decisionPoint.selectedSection?.savedBody ?? kernelBody);
     await loadWorldData();
   };
 
@@ -4241,15 +4414,39 @@ function App({
           <section className="subpanel">
             <h3>Kernel authoring</h3>
             <p>Consequence mode is steward judgment; the app does not infer, default, or silently reuse it.</p>
+            {creationAuthoringDisabled && (
+              <p className="status">{creationStartPending
+                ? "Creation is starting or resuming before kernel fields become writable."
+                : "Creation must start or resume before kernel fields can be saved."}</p>
+            )}
+            {creationStartError && <p className="error">{`Creation start/resume failed: ${creationStartError}. Use Start or Resume Creation to retry; entered material is preserved.`}</p>}
+            <section className="subpanel">
+              <h4>Consequence mode draft/saved state</h4>
+              <p>{savedConsequenceMode ? `Saved consequence mode: ${savedConsequenceMode}.` : "No saved consequence mode yet."}</p>
+              <p>{consequenceModeDraftState === "unsaved"
+                ? `Unsaved draft consequence mode: ${consequenceMode}. Save the kernel step before decomposition can use it.`
+                : consequenceModeDraftState === "saved"
+                  ? "The visible consequence mode matches saved server state."
+                  : "A local selection will remain a draft until the kernel step is saved."}</p>
+              {displayedCreationDecision.consequenceMode?.blocker && <p className="meta">{displayedCreationDecision.consequenceMode.blocker}</p>}
+            </section>
+            <section className="subpanel">
+              <h4>Selected section state</h4>
+              <p>{selectedSectionContract?.emptyState.message ?? "No selected section contract loaded."}</p>
+              <p>{selectedSectionHasHeldDraft
+                ? `Unsaved draft held under its own heading key: ${kernelHeading}.`
+                : "No unsaved section draft is being transferred between headings."}</p>
+              <p className="meta">{selectedSectionContract ? `Save target: ${selectedSectionContract.saveTarget.heading}` : "Save target loads from the server contract."}</p>
+            </section>
             <div className="grid compact-grid">
-              <label>Kernel step<select value={kernelHeading} onChange={(event) => setKernelHeading(event.target.value)}>{displayedCreationDecision.sectionPrompts.map((prompt) => <option key={prompt.heading}>{prompt.heading}</option>)}</select></label>
-              <label>Consequence mode<select value={consequenceMode} onChange={(event) => setConsequenceMode(event.target.value)}><option></option>{consequenceModes.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
-              <label>Kernel section<textarea rows={4} value={kernelBody} onChange={(event) => setKernelBody(event.target.value)} placeholder={displayedCreationDecision.sectionPrompts.find((prompt) => prompt.heading === kernelHeading)?.prompt} /></label>
+              <label>Kernel step<select value={kernelHeading} onChange={(event) => handleKernelHeadingChange(event.target.value)} disabled={creationAuthoringDisabled}>{displayedCreationDecision.sectionPrompts.map((prompt) => <option key={prompt.heading}>{prompt.heading}</option>)}</select></label>
+              <label>Consequence mode<select value={consequenceMode} onChange={(event) => setConsequenceMode(event.target.value)} disabled={creationAuthoringDisabled}><option></option>{consequenceModes.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+              <label>Kernel section<textarea rows={4} value={kernelBody} onChange={(event) => updateKernelBody(event.target.value)} placeholder={selectedSectionContract?.prompt} disabled={creationAuthoringDisabled} /></label>
               {displayedCreationDecision.sectionPrompts.map((section) => (
-                <p key={section.heading} className="meta">{section.heading} · {section.obligation} · {section.prompt}</p>
+                <p key={section.heading} className="meta">{section.heading} · {section.obligation} · {section.prompt} · {section.hasSavedBody ? "saved body available" : "no saved section text"}</p>
               ))}
             </div>
-            <button onClick={saveKernelStep} disabled={flowId == null}>Save kernel step</button>
+            <button onClick={saveKernelStep} disabled={creationAuthoringDisabled}>Save kernel step</button>
           </section>
           <PromptPacketPreview
             title="Prompt-out preview"
@@ -4262,13 +4459,15 @@ function App({
                 <label>Prompt mode<select value={creationPromptMode} onChange={(event) => setCreationPromptMode(event.target.value as "proposal" | "pressure")}>
                   {creationPromptModes.map((mode) => <option key={mode.mode} value={mode.mode}>{mode.label}</option>)}
                 </select></label>
-                <p className="status">{selectedCreationPromptMode
+                <p className="status">{creationPromptOutBlockedByLocalSection
+                  ? creationPromptOutLocalSectionMessage
+                  : selectedCreationPromptMode
                   ? `Selected mode: ${selectedCreationPromptMode.label} - ${selectedCreationPromptMode.available ? "available" : selectedCreationPromptMode.blocker ?? "blocked"}`
                   : "Selected mode: loads from the server packet."}</p>
                 <p className="status">{loadedCreationPromptMode
                   ? `Loaded mode: ${loadedCreationPromptMode === "pressure" ? "Pressure mode" : "Proposal mode"}`
                   : "Loaded mode: none yet"}</p>
-                <button onClick={loadCreationPromptStep} disabled={!openWorld || !selectedCreationPromptMode?.stepRequest}>Load Creation Prompt-out Step</button>
+                <button onClick={loadCreationPromptStep} disabled={!canLoadCreationPromptStep}>Load Creation Prompt-out Step</button>
               </div>
             }
           />
@@ -4279,7 +4478,7 @@ function App({
             <section className="subpanel">
               <h4>Pre-submit readiness</h4>
               <div className="grid compact-grid">
-                {(displayedCreationDecision.decompositionReadiness ?? defaultCreationDecision.decompositionReadiness).map((item) => (
+                {(displayedDecompositionReadiness ?? defaultCreationDecision.decompositionReadiness).map((item) => (
                   <article key={item.key} className={`subpanel readiness ${item.status}`}>
                     <h3>{item.label}</h3>
                     <p>{item.message}</p>
@@ -4300,7 +4499,7 @@ function App({
             </div>
             <label>Granularity rationale<textarea rows={3} value={granularityRationale} onChange={(event) => setGranularityRationale(event.target.value)} /></label>
             <label className="inline-check"><input type="checkbox" checked={granularityConfirmed} onChange={(event) => setGranularityConfirmed(event.target.checked)} />Granularity confirmation</label>
-            <button onClick={decompose} disabled={flowId == null || kernelRecordId == null}>Decompose and Park Seed</button>
+            <button onClick={decompose} disabled={decomposeDisabled}>Decompose and Park Seed</button>
           </section>
           <section className="subpanel">
             <h3>Write preview</h3>
@@ -5679,9 +5878,32 @@ function App({
             <section className="subpanel">
               <h3>Kernel authoring</h3>
               <p>Consequence mode is steward judgment; the app does not infer, default, or silently reuse it.</p>
+              {creationAuthoringDisabled && (
+                <p className="status">{creationStartPending
+                  ? "Creation is starting or resuming before kernel fields become writable."
+                  : "Creation must start or resume before kernel fields can be saved."}</p>
+              )}
+              {creationStartError && <p className="error">{`Creation start/resume failed: ${creationStartError}. Use Start or Resume Creation to retry; entered material is preserved.`}</p>}
+              <section className="subpanel">
+                <h4>Consequence mode draft/saved state</h4>
+                <p>{savedConsequenceMode ? `Saved consequence mode: ${savedConsequenceMode}.` : "No saved consequence mode yet."}</p>
+                <p>{consequenceModeDraftState === "unsaved"
+                  ? `Unsaved draft consequence mode: ${consequenceMode}. Save the kernel step before decomposition can use it.`
+                  : consequenceModeDraftState === "saved"
+                    ? "The visible consequence mode matches saved server state."
+                    : "A local selection will remain a draft until the kernel step is saved."}</p>
+              </section>
+              <section className="subpanel">
+                <h4>Selected section state</h4>
+                <p>{selectedSectionContract?.emptyState.message ?? "No selected section contract loaded."}</p>
+                <p>{selectedSectionHasHeldDraft
+                  ? `Unsaved draft held under its own heading key: ${kernelHeading}.`
+                  : "No unsaved section draft is being transferred between headings."}</p>
+                <p className="meta">{selectedSectionContract ? `Save target: ${selectedSectionContract.saveTarget.heading}` : "Save target loads from the server contract."}</p>
+              </section>
               <div className="grid">
-                <label>Kernel step<select value={kernelHeading} onChange={(event) => setKernelHeading(event.target.value)}>{headings.filter((heading) => heading.record_type_key === "world_kernel").map((heading) => <option key={heading.heading}>{heading.heading}</option>)}</select></label>
-                <label>Consequence mode<select value={consequenceMode} onChange={(event) => setConsequenceMode(event.target.value)}><option></option>{consequenceModes.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+                <label>Kernel step<select value={kernelHeading} onChange={(event) => handleKernelHeadingChange(event.target.value)} disabled={creationAuthoringDisabled}>{headings.filter((heading) => heading.record_type_key === "world_kernel").map((heading) => <option key={heading.heading}>{heading.heading}</option>)}</select></label>
+                <label>Consequence mode<select value={consequenceMode} onChange={(event) => setConsequenceMode(event.target.value)} disabled={creationAuthoringDisabled}><option></option>{consequenceModes.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
               </div>
               <div className="grid compact-grid">
                 {displayedCreationDecision.sectionPrompts.map((section) => (
@@ -5692,13 +5914,13 @@ function App({
                   </div>
                 ))}
               </div>
-              <label>Kernel section<textarea rows={4} value={kernelBody} onChange={(event) => setKernelBody(event.target.value)} /></label>
+              <label>Kernel section<textarea rows={4} value={kernelBody} onChange={(event) => updateKernelBody(event.target.value)} disabled={creationAuthoringDisabled} /></label>
               <div className="subpanel">
                 <h3>Write preview</h3>
                 <p>{displayedCreationDecision.writeIntent.willWrite.join(" · ")}</p>
                 <p>{displayedCreationDecision.writeIntent.willLeaveUntouched.join(" · ")}</p>
               </div>
-              <button onClick={saveKernelStep} disabled={flowId == null}>Save Kernel Step</button>
+              <button onClick={saveKernelStep} disabled={creationAuthoringDisabled}>Save Kernel Step</button>
             </section>
             <PromptPacketPreview
               title="Prompt-out preview"
@@ -5711,13 +5933,15 @@ function App({
                   <label>Prompt mode<select value={creationPromptMode} onChange={(event) => setCreationPromptMode(event.target.value as "proposal" | "pressure")}>
                     {creationPromptModes.map((mode) => <option key={mode.mode} value={mode.mode}>{mode.label}</option>)}
                   </select></label>
-                  <p className="status">{selectedCreationPromptMode
+                  <p className="status">{creationPromptOutBlockedByLocalSection
+                    ? creationPromptOutLocalSectionMessage
+                    : selectedCreationPromptMode
                     ? `Selected mode: ${selectedCreationPromptMode.label} - ${selectedCreationPromptMode.available ? "available" : selectedCreationPromptMode.blocker ?? "blocked"}`
                     : "Selected mode: loads from the server packet."}</p>
                   <p className="status">{loadedCreationPromptMode
                     ? `Loaded mode: ${loadedCreationPromptMode === "pressure" ? "Pressure mode" : "Proposal mode"}`
                     : "Loaded mode: none yet"}</p>
-                  <button onClick={loadCreationPromptStep} disabled={!openWorld || !selectedCreationPromptMode?.stepRequest}>Load Creation Prompt-out Step</button>
+                  <button onClick={loadCreationPromptStep} disabled={!canLoadCreationPromptStep}>Load Creation Prompt-out Step</button>
                 </div>
               }
             />
@@ -5729,7 +5953,7 @@ function App({
               <section className="subpanel">
                 <h4>Pre-submit readiness</h4>
                 <div className="grid compact-grid">
-                  {(displayedCreationDecision.decompositionReadiness ?? defaultCreationDecision.decompositionReadiness).map((item) => (
+                  {(displayedDecompositionReadiness ?? defaultCreationDecision.decompositionReadiness).map((item) => (
                     <article key={item.key} className={`subpanel readiness ${item.status}`}>
                       <h3>{item.label}</h3>
                       <p>{item.message}</p>
@@ -5757,7 +5981,7 @@ function App({
                 <p>{displayedCreationDecision.writeIntent.willQueue.join(" · ")}</p>
                 <p>Admission handoff: {displayedCreationDecision.writeIntent.willRouteOnward.join(" · ")}</p>
               </div>
-              <button onClick={decompose} disabled={flowId == null || kernelRecordId == null}>Decompose and Park Seed</button>
+              <button onClick={decompose} disabled={decomposeDisabled}>Decompose and Park Seed</button>
             </section>
             <section className="subpanel">
               <h3>Read-side trail</h3>

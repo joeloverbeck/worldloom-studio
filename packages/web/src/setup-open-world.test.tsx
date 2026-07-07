@@ -76,6 +76,7 @@ describe("setup/open-world browser shell", () => {
     expect(resetBoundary).toContain("setFlowId(null)");
     expect(resetBoundary).toContain("setKernelRecordId(null)");
     expect(resetBoundary).toContain("setKernelBody(\"\")");
+    expect(resetBoundary).toContain("setKernelSectionDrafts({})");
     expect(resetBoundary).toContain("setSeedBody(\"\")");
     expect(resetBoundary).toContain("setDecompositionError(null)");
     expect(resetBoundary).toContain("setStage12Run(null)");

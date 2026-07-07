@@ -93,7 +93,7 @@ describe("Creation decision-point HTTP surface", () => {
     });
     expect(payload.decisionPoint.blockers).toEqual(expect.arrayContaining([
       expect.objectContaining({ key: "kernel_material", requires: "steward-authored kernel material" }),
-      expect.objectContaining({ key: "consequence_mode", requires: "explicit consequence mode" })
+      expect.objectContaining({ key: "consequence_mode", requires: "saved explicit consequence mode" })
     ]));
     expect(payload.decisionPoint.readSideTrail).toEqual(expect.arrayContaining([
       expect.objectContaining({ label: "Current Canon" }),
@@ -295,6 +295,119 @@ describe("Creation decision-point HTTP surface", () => {
       expect.objectContaining({ key: "seed_body", status: "blocked", remediation: expect.stringContaining("body") }),
       expect.objectContaining({ key: "truth_layer", status: "blocked", remediation: expect.stringContaining("truth layer") }),
       expect.objectContaining({ key: "granularity_confirmation", status: "blocked", remediation: expect.stringContaining("granularity") })
+    ]));
+  });
+
+  it("exposes saved consequence mode and selected-section contracts without browser-side inference", async () => {
+    const app = await openWorld();
+    const start = await json<{
+      flow: { id: number };
+      decisionPoint: {
+        consequenceMode: { saved: string | null; status: string; source: string; blocker: string | null };
+        selectedSection: { heading: string; savedBody: string; hasSavedBody: boolean; emptyState: { kind: string; message: string }; saveTarget: { flowId: number; heading: string } };
+      };
+    }>(await app.request("/api/flows/creation/start", { method: "POST" }));
+
+    expect(start.decisionPoint.consequenceMode).toMatchObject({
+      saved: null,
+      status: "missing_saved_facet",
+      source: "record facet: consequence_mode",
+      blocker: expect.stringContaining("Save the kernel step")
+    });
+    expect(start.decisionPoint.selectedSection).toMatchObject({
+      heading: "World premise",
+      savedBody: "",
+      hasSavedBody: false,
+      emptyState: {
+        kind: "no_saved_section_text",
+        message: expect.stringContaining("No saved text exists yet")
+      },
+      saveTarget: { flowId: start.flow.id, heading: "World premise" }
+    });
+
+    const savedScale = await json<{
+      kernel: { id: number };
+      sections: Array<{ heading: string; body: string }>;
+      decisionPoint: {
+        consequenceMode: { saved: string | null; status: string; blocker: string | null };
+        selectedSection: { heading: string; savedBody: string; hasSavedBody: boolean; emptyState: { kind: string; message: string }; saveTarget: { flowId: number; heading: string } };
+        sectionPrompts: Array<{ heading: string; savedBody: string; hasSavedBody: boolean; emptyState: { kind: string; message: string }; saveTarget: { flowId: number; heading: string } }>;
+        decompositionReadiness: Array<{ key: string; status: string; message: string; remediation: string }>;
+      };
+    }>(await app.request("/api/flows/creation/kernel-step", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        flowId: start.flow.id,
+        heading: "Starting scale",
+        body: "One river city and its drowned courthouse.",
+        consequenceMode: "weird"
+      })
+    }));
+
+    expect(savedScale.decisionPoint.consequenceMode).toMatchObject({
+      saved: "weird",
+      status: "saved",
+      blocker: null
+    });
+    expect(savedScale.decisionPoint.selectedSection).toMatchObject({
+      heading: "Starting scale",
+      savedBody: "One river city and its drowned courthouse.",
+      hasSavedBody: true,
+      saveTarget: { flowId: start.flow.id, heading: "Starting scale" }
+    });
+    expect(savedScale.decisionPoint.decompositionReadiness).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: "consequence_mode",
+        status: "satisfied",
+        message: expect.stringContaining("Saved")
+      })
+    ]));
+    expect(savedScale.decisionPoint.sectionPrompts).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        heading: "Core promise",
+        savedBody: "",
+        hasSavedBody: false,
+        emptyState: expect.objectContaining({
+          kind: "no_saved_section_text",
+          message: expect.stringContaining("No saved text exists yet")
+        }),
+        saveTarget: { flowId: start.flow.id, heading: "Core promise" }
+      })
+    ]));
+
+    const savedCorePromise = await json<{
+      sections: Array<{ heading: string; body: string }>;
+      decisionPoint: {
+        selectedSection: { heading: string; savedBody: string; hasSavedBody: boolean; emptyState: { kind: string } };
+        sectionPrompts: Array<{ heading: string; savedBody: string; hasSavedBody: boolean }>;
+      };
+    }>(await app.request("/api/flows/creation/kernel-step", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        flowId: start.flow.id,
+        heading: "Core promise",
+        body: ""
+      })
+    }));
+
+    expect(savedCorePromise.sections).toEqual(expect.arrayContaining([
+      expect.objectContaining({ heading: "Starting scale", body: "One river city and its drowned courthouse." }),
+      expect.objectContaining({ heading: "Core promise", body: "" })
+    ]));
+    expect(savedCorePromise.decisionPoint.selectedSection).toMatchObject({
+      heading: "Core promise",
+      savedBody: "",
+      hasSavedBody: false,
+      emptyState: { kind: "no_saved_section_text" }
+    });
+    expect(savedCorePromise.decisionPoint.sectionPrompts).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        heading: "Starting scale",
+        savedBody: "One river city and its drowned courthouse.",
+        hasSavedBody: true
+      })
     ]));
   });
 

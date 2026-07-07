@@ -59,7 +59,38 @@ interface CreationDecisionPayload {
     heading: string;
     prompt: string;
     obligation: "required" | "optional" | "allowed-empty";
+    savedBody: string;
+    hasSavedBody: boolean;
+    emptyState: {
+      kind: "saved_section_text" | "no_saved_section_text";
+      message: string;
+    };
+    saveTarget: {
+      flowId: number;
+      heading: string;
+    };
   }>;
+  selectedSection: {
+    heading: string;
+    prompt: string;
+    obligation: "required" | "optional" | "allowed-empty";
+    savedBody: string;
+    hasSavedBody: boolean;
+    emptyState: {
+      kind: "saved_section_text" | "no_saved_section_text";
+      message: string;
+    };
+    saveTarget: {
+      flowId: number;
+      heading: string;
+    };
+  } | null;
+  consequenceMode: {
+    saved: string | null;
+    status: "saved" | "missing_saved_facet";
+    source: "record facet: consequence_mode";
+    blocker: string | null;
+  };
   work: {
     required: string[];
     optional: string[];
@@ -182,9 +213,15 @@ const isWorldPremiseStep = (currentStep: string): boolean => currentStep === "ke
 const selectedKernelHeading = (currentStep: string): string | null =>
   currentStep.startsWith("kernel:") ? currentStep.slice("kernel:".length) : null;
 
-const sectionPrompts = (worldFile: WorldFile): CreationDecisionPayload["sectionPrompts"] =>
+const sectionPrompts = (
+  worldFile: WorldFile,
+  flowId: number,
+  sections: SectionRow[]
+): CreationDecisionPayload["sectionPrompts"] =>
   worldFile.sectionHeadings("world_kernel").map((row) => {
     const heading = String((row as { heading: string }).heading);
+    const savedBody = sections.find((section) => section.heading === heading)?.body.trim() ?? "";
+    const hasSavedBody = hasText(savedBody);
     return {
       heading,
       prompt: SECTION_PROMPTS[heading] ?? "Use the world-kernel template and keep prose steward-authored.",
@@ -192,20 +229,39 @@ const sectionPrompts = (worldFile: WorldFile): CreationDecisionPayload["sectionP
         ? "required"
         : OPTIONAL_KERNEL_SECTIONS.has(heading)
           ? "allowed-empty"
-      : "optional"
+      : "optional",
+      savedBody,
+      hasSavedBody,
+      emptyState: hasSavedBody
+        ? {
+            kind: "saved_section_text" as const,
+            message: `Saved text is available for ${heading}.`
+          }
+        : {
+            kind: "no_saved_section_text" as const,
+            message: `No saved text exists yet for ${heading}; the field should start empty for this section.`
+          },
+      saveTarget: {
+        flowId,
+        heading
+      }
     };
   });
 
-const selectedSectionContext = (worldFile: WorldFile, sections: SectionRow[], currentStep: string) => {
+const selectedSectionContext = (sectionContracts: CreationDecisionPayload["sectionPrompts"], currentStep: string) => {
   const heading = selectedKernelHeading(currentStep);
   if (!heading) return null;
-  const prompt = sectionPrompts(worldFile).find((item) => item.heading === heading);
-  if (!prompt) return null;
-  return {
-    ...prompt,
-    body: sections.find((section) => section.heading === heading)?.body.trim() ?? ""
-  };
+  return sectionContracts.find((item) => item.heading === heading) ?? null;
 };
+
+const consequenceModeState = (mode: string | null): CreationDecisionPayload["consequenceMode"] => ({
+  saved: mode,
+  status: mode ? "saved" : "missing_saved_facet",
+  source: "record facet: consequence_mode",
+  blocker: mode
+    ? null
+    : "Save the kernel step with an explicit steward-selected consequence mode before decomposition can treat it as applied."
+});
 
 const readiness = (
   mode: string | null,
@@ -213,11 +269,11 @@ const readiness = (
 ): CreationReadinessItem[] => {
   const firstSeed = input?.seeds?.[0];
   const granularitySatisfied = Boolean(input?.granularityRationale?.trim()) || Boolean(input?.seeds?.length && input.seeds.every((seed) => seed.granularityConfirmed));
-  const item = (key: string, label: string, satisfied: boolean, message: string, remediation: string): CreationReadinessItem => ({
+  const item = (key: string, label: string, satisfied: boolean, message: string, remediation: string, satisfiedMessage?: string): CreationReadinessItem => ({
     key,
     label,
     status: satisfied ? "satisfied" : "blocked",
-    message: satisfied ? `${label} ready.` : message,
+    message: satisfied ? (satisfiedMessage ?? `${label} ready.`) : message,
     remediation
   });
   return [
@@ -225,8 +281,9 @@ const readiness = (
       "consequence_mode",
       "Consequence mode",
       Boolean(mode),
-      "Seed decomposition is blocked until the steward explicitly selects consequence mode.",
-      "Select consequence mode in kernel authoring; the app must not infer it from prose."
+      "Seed decomposition is blocked until the steward saves an explicit consequence mode.",
+      "Select consequence mode in kernel authoring, then save the kernel step; the app must not infer it from prose or a local draft.",
+      "Saved consequence mode ready."
     ),
     item(
       "seed_title",
@@ -278,10 +335,11 @@ export const creationDecisionPoint = (
   const kernel = flow.kernel_record_id == null ? null : worldFile.getRecord(flow.kernel_record_id);
   const sections = sectionRows(worldFile, flow.kernel_record_id);
   const mode = consequenceMode(worldFile, flow.kernel_record_id);
+  const sectionContracts = sectionPrompts(worldFile, flow.id, sections);
   const materialPresent = kernelMaterialPresent(kernel, sections);
   const currentStep = flow.current_step;
   const decompositionStep = currentStep.startsWith("decomposition");
-  const selectedSection = selectedSectionContext(worldFile, sections, currentStep);
+  const selectedSection = selectedSectionContext(sectionContracts, currentStep);
   const handoff = creationHandoffContext(worldFile, kernel, output);
   const decompositionPromptReady = Boolean(handoff.seedDecompositionReport && handoff.parkedSeeds.length);
   const localDecision = decompositionStep
@@ -304,8 +362,8 @@ export const creationDecisionPoint = (
     blockers.push({
       key: "consequence_mode",
       label: "Consequence mode",
-      message: "Seed decomposition cannot proceed until the steward explicitly selects consequence mode.",
-      requires: "explicit consequence mode"
+      message: "Seed decomposition cannot proceed until the steward saves an explicit consequence mode.",
+      requires: "saved explicit consequence mode"
     });
   }
 
@@ -331,7 +389,7 @@ export const creationDecisionPoint = (
         selectedSection ? `Selected kernel section: ${selectedSection.heading}` : "",
         selectedSection ? `Section obligation: ${selectedSection.obligation}` : "",
         selectedSection ? `Section prompt: ${selectedSection.prompt}` : "",
-        selectedSection ? `Selected section material: ${selectedSection.body || "(empty)"}` : "",
+        selectedSection ? `Selected section material: ${selectedSection.savedBody || "(empty)"}` : "",
         kernel ? `Kernel record: ${kernel.shortId} ${kernel.title}` : "No kernel record yet.",
         kernelText(sections)
       ].filter(Boolean).join("\n");
@@ -556,7 +614,9 @@ export const creationDecisionPoint = (
       ]
     },
     currentKernel: kernel ? { id: kernel.id, shortId: kernel.shortId, title: kernel.title } : null,
-    sectionPrompts: sectionPrompts(worldFile),
+    sectionPrompts: sectionContracts,
+    selectedSection,
+    consequenceMode: consequenceModeState(mode),
     work: {
       required: [
         "Write steward-authored kernel material",
