@@ -116,6 +116,7 @@ interface CreationDecisionPayload {
         templateKey: "kernel_pressure" | "decomposition_pressure";
         stepKey: "creation:kernel_prompt" | "creation:decomposition_prompt";
         mode?: "proposal" | "pressure";
+        selectedSectionHeading?: string;
         label: string;
       };
     } | null;
@@ -370,7 +371,8 @@ export const creationDecisionPoint = (
   const templateKey = decompositionStep ? "decomposition_pressure" : "kernel_pressure";
   const stepKey = decompositionStep ? "creation:decomposition_prompt" : "creation:kernel_prompt";
   const role = decompositionStep ? "Prerequisite auditor" : "Consequence scout";
-  const promptAvailable = decompositionStep ? decompositionPromptReady : materialPresent && kernel != null;
+  const selectedKernelSectionHasMaterial = selectedSection ? selectedSection.hasSavedBody : materialPresent;
+  const pressureAvailable = decompositionStep ? decompositionPromptReady : selectedKernelSectionHasMaterial && kernel != null;
   const promptRecordId = decompositionStep ? handoff.seedDecompositionReport?.id : kernel?.id;
   const contextPreview = decompositionStep && decompositionPromptReady
     ? [
@@ -428,9 +430,10 @@ export const creationDecisionPoint = (
     templateKey,
     stepKey,
     mode: "pressure",
+    ...(!decompositionStep && selectedSection ? { selectedSectionHeading: selectedSection.heading } : {}),
     label: role
   };
-  const pressureStepRequest = promptAvailable && pressureRequestBody.recordId != null
+  const pressureStepRequest = pressureAvailable && pressureRequestBody.recordId != null
     ? {
         method: "POST" as const,
         href: "/api/prompt-out/steps" as const,
@@ -441,6 +444,7 @@ export const creationDecisionPoint = (
           templateKey: "kernel_pressure" | "decomposition_pressure";
           stepKey: "creation:kernel_prompt" | "creation:decomposition_prompt";
           mode: "pressure";
+          selectedSectionHeading?: string;
           label: string;
         }
       }
@@ -458,6 +462,7 @@ export const creationDecisionPoint = (
           templateKey,
           stepKey,
           mode: "proposal",
+          ...(!decompositionStep && selectedSection ? { selectedSectionHeading: selectedSection.heading } : {}),
           label: "Proposal mode"
         }
       }
@@ -482,12 +487,14 @@ export const creationDecisionPoint = (
     promptMode({
       mode: "pressure",
       label: "Pressure mode",
-      available: promptAvailable,
-      blocker: promptAvailable
+      available: pressureAvailable,
+      blocker: pressureAvailable
         ? null
         : decompositionStep
           ? "Pressure prompts require a seed-decomposition report and parked seed records."
-          : "Pressure prompts require steward-authored kernel material.",
+          : selectedSection
+            ? `Pressure prompts require steward-authored material for ${selectedSection.heading}.`
+            : "Pressure prompts require steward-authored kernel material.",
       framing: "Ask for challenge, risks, alternatives, and questions on steward-authored material.",
       role,
       templateKey,
@@ -504,7 +511,8 @@ export const creationDecisionPoint = (
         templateKey,
         recordId: promptRecordId,
         stepKey,
-        mode: previewMode
+        mode: previewMode,
+        selectedSectionHeading: !decompositionStep && selectedSection ? selectedSection.heading : undefined
       }).prompt
     : [
         `Role framing (${role}): ask for pressure, not answers.`,
@@ -634,12 +642,12 @@ export const creationDecisionPoint = (
     blockers,
     decompositionReadiness: readiness(mode, decompositionInput),
     promptOut: {
-      available: promptAvailable,
-      blocker: promptAvailable
+      available: modes.some((promptMode) => promptMode.available),
+      blocker: modes.some((promptMode) => promptMode.available)
         ? null
         : decompositionStep
           ? "Creation decomposition Prompt-out requires a seed-decomposition report and parked seed records."
-          : "Creation Prompt-out requires steward-authored kernel material and a current kernel record.",
+          : "Creation Prompt-out requires a current kernel record; Proposal needs a non-premise target, and Pressure requires steward-authored kernel material.",
       templateKey,
       stepKey,
       role,

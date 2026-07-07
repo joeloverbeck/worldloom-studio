@@ -41,6 +41,7 @@ export interface PromptOutStepContext {
   flowId?: number;
   stepKey: string;
   mode?: PromptMode;
+  selectedSectionHeading?: string | null;
   admissionLevel?: string | null;
   workScale?: string | null;
   reason?: string;
@@ -53,6 +54,7 @@ export interface PromptGenerationInput {
   recordId?: number;
   stepKey?: string;
   mode?: PromptMode;
+  selectedSectionHeading?: string | null;
   admissionLevel?: string | null;
   workScale?: string | null;
 }
@@ -98,9 +100,10 @@ export interface AdvisoryResponseInput {
   responseText: string;
 }
 
-const contextLines = (input: { flowKey?: PromptOutFlowKey; flowId?: number; stepKey: string }): string[] => [
+const contextLines = (input: { flowKey?: PromptOutFlowKey; flowId?: number; stepKey: string; selectedSectionHeading?: string | null }): string[] => [
   ...(input.flowKey ? [`Flow: ${input.flowKey}`] : []),
   ...(input.flowId == null ? [] : [`Flow id: ${input.flowId}`]),
+  ...(input.selectedSectionHeading ? [`Selected section heading: ${input.selectedSectionHeading}`] : []),
   `Step: ${input.stepKey}`
 ];
 
@@ -341,7 +344,11 @@ const CREATION_SECTION_PROMPTS: Record<string, string> = {
 const creationSelectedKernelSection = (world: WorldFile, input: PromptGenerationInput, record: RecordRow): { heading: string; prompt: string; body: string } => {
   const flow = input.flowId == null ? null : world.getFlowInstance(input.flowId, "creation");
   const currentStep = typeof flow?.current_step === "string" ? flow.current_step : "";
-  const heading = currentStep.startsWith("kernel:") ? currentStep.slice("kernel:".length) : "World premise";
+  const requestedHeading = input.selectedSectionHeading?.trim();
+  if (requestedHeading && !(requestedHeading in CREATION_SECTION_PROMPTS)) {
+    throw new Error(`Unknown Creation kernel target heading: ${requestedHeading}`);
+  }
+  const heading = requestedHeading || (currentStep.startsWith("kernel:") ? currentStep.slice("kernel:".length) : "World premise");
   const body = world.listSections(record.id).find((section) => section.heading === heading)?.body.trim() ?? "";
   return {
     heading,
@@ -370,9 +377,11 @@ export const promptPacketIdentity = (
     : options.record;
   const selectedSectionHeading = options.selectedSectionHeading !== undefined
     ? options.selectedSectionHeading
-    : input.flowKey === "creation" && input.templateKey === "kernel_pressure" && record?.recordTypeKey === "world_kernel"
-      ? creationSelectedKernelSection(world, input, world.getRecord(record.id)).heading
-      : null;
+    : input.selectedSectionHeading !== undefined
+      ? input.selectedSectionHeading
+      : input.flowKey === "creation" && input.templateKey === "kernel_pressure" && record?.recordTypeKey === "world_kernel"
+        ? creationSelectedKernelSection(world, input, world.getRecord(record.id)).heading
+        : null;
   return {
     flowKey: input.flowKey ?? null,
     flowId: input.flowId ?? null,
@@ -590,6 +599,12 @@ const creationKernelPrompt = (
   const cardValue = methodCard("creation.kernel");
   const rulings = standingRulingRows(world);
   const section = creationSelectedKernelSection(world, input, selectedRecord);
+  if (mode === "proposal" && section.heading === "World premise") {
+    throw new Error("Proposal prompts are refused for the World premise essence; select a non-premise kernel section or author the premise as steward-owned material.");
+  }
+  if (mode === "pressure" && !section.body.trim()) {
+    throw new Error(`Pressure prompts require steward-authored material for selected Creation kernel section ${section.heading}.`);
+  }
   const sections = world.listSections(selectedRecord.id);
   const fullKernelContext = [
     `${selectedRecord.shortId} ${selectedRecord.title}`,
@@ -599,7 +614,10 @@ const creationKernelPrompt = (
   const selectedMaterial = [
     `Current kernel section: ${section.heading}`,
     `Selected section prompt: ${section.prompt}`,
-    `Selected section material: ${section.body || "(empty)"}`
+    `Selected section material: ${section.body || "(empty)"}`,
+    ...(section.body
+      ? []
+      : ["Selected section empty-state context: no saved text exists yet; proposal may request candidates, while pressure remains unavailable until steward-authored material is saved."])
   ];
   const omissions = [
     "Frontloaded seed audit and first canon standing are omitted because Admission owns them.",
@@ -625,7 +643,7 @@ const creationKernelPrompt = (
         : `Provide pressure, risks, alternatives, and questions on the selected ${section.heading} section's steward-authored material.`,
       bearingContext: [
         ...modeLine(mode),
-        ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey }),
+        ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey, selectedSectionHeading: section.heading }),
         "Kernel authoring is a composite decision point; the active local unit is the selected section."
       ],
       packageDoctrine: [

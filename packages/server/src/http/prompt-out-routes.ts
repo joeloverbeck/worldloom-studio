@@ -28,6 +28,7 @@ export const registerPromptOutRoutes = (app: RouteApp, dependencies: RouteDepend
       templateKey: string;
       recordId?: number;
       stepKey?: string;
+      selectedSectionHeading?: string;
       admissionLevel?: string;
       workScale?: string;
     }>(c));
@@ -50,6 +51,7 @@ export const registerPromptOutRoutes = (app: RouteApp, dependencies: RouteDepend
       recordId?: number;
       stepKey: string;
       mode?: "proposal" | "pressure";
+      selectedSectionHeading?: string;
       label?: string;
       admissionLevel?: string;
       workScale?: string;
@@ -92,6 +94,7 @@ export const registerPromptOutRoutes = (app: RouteApp, dependencies: RouteDepend
       templateKey: string;
       recordId?: number;
       stepKey?: string;
+      selectedSectionHeading?: string;
       admissionLevel?: string;
       workScale?: string;
     }>(c)))
@@ -117,6 +120,7 @@ export const registerPromptOutRoutes = (app: RouteApp, dependencies: RouteDepend
       flowId?: number;
       recordId?: number;
       stepKey: string;
+      selectedSectionHeading?: string;
       admissionLevel?: string;
       workScale?: string;
       reason?: string;

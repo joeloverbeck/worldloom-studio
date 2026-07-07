@@ -42,7 +42,7 @@ describe("Creation decision-point web surface", () => {
     expect(source).toContain("CreationDecisionPoint");
     expect(source).toContain("setCreationDecision");
     expect(source).toContain("payload.decisionPoint");
-    expect(source).toContain("creationDecision.promptOut.stepRequest");
+    expect(source).toContain("creationPromptStepRequest");
     expect(source).toContain("granularityConfirmed");
     expect(source).toContain("seedTruthLayer");
     expect(decomposeAction).not.toContain("recordForm.canonStatus");
@@ -303,8 +303,10 @@ describe("Creation decision-point web surface", () => {
     expect(routedCreation).toContain("value={creationPromptMode}");
     expect(routedCreation).toContain("setCreationPromptMode");
     expect(source).toContain("selectedCreationPromptMode?.stepRequest");
-    expect(routedCreation).toContain("creationPromptOutBlockedByLocalSection");
-    expect(source).toContain("Prompt-out waits for the selected section to be saved");
+    expect(routedCreation).toContain("creationPromptModeStatus");
+    expect(routedCreation).toContain("creationPromptModesForDisplay");
+    expect(routedCreation).toContain("creationPromptPreviewForDisplay");
+    expect(source).toContain("Pressure Prompt-out waits for the selected section to be saved");
     expect(source).toContain("!creationPromptOutBlockedByLocalSection");
     expect(source).toContain("payload.step.mode");
     expect(source).toContain("setKernelSectionDrafts({})");
@@ -313,5 +315,29 @@ describe("Creation decision-point web surface", () => {
     expect(routedCreation).toContain("decompositionError");
     expect(routedCreation).toContain("decompositionReadiness");
     expect(routedCreation).toContain("section.prompt");
+  });
+
+  it("allows unsaved non-premise Proposal targeting while keeping Pressure and World premise guarded", () => {
+    const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
+    const promptSelection = snippetBetween(source, "const selectedCreationPromptMode =", "const loadedCreationPromptMode");
+    const currentOrigin = snippetBetween(source, "const currentLoadedPromptOrigin = useMemo", "const loadedPromptStatusView");
+    const creationPromptLoader = snippetBetween(source, "const loadCreationPromptStep = async () =>", "const ensurePromptStep = async");
+    const routedCreation = snippetBetween(source, '<h2>{"Creation decision point"}</h2>', "      admission:");
+
+    expect(promptSelection).toContain("creationPromptMode === \"proposal\"");
+    expect(promptSelection).toContain("kernelHeading !== \"World premise\"");
+    expect(promptSelection).toContain("creationLocalProposalRequest");
+    expect(promptSelection).toContain("selectedSectionHeading: kernelHeading");
+    expect(promptSelection).toContain("creationPromptMode !== \"proposal\"");
+    expect(promptSelection).toContain("creationPromptModesForDisplay");
+    expect(source).toContain("creationPromptPreviewForDisplay");
+    expect(promptSelection).toContain("available for selected");
+    expect(promptSelection).toContain("Proposal prompts are refused for the world's essence");
+    expect(currentOrigin).toContain("creationPromptStepRequest?.body");
+    expect(currentOrigin).toContain("selectedSectionHeading: typeof request.selectedSectionHeading === \"string\"");
+    expect(creationPromptLoader).toContain("const request = creationPromptStepRequest");
+    expect(creationPromptLoader).toContain("request.body.selectedSectionHeading");
+    expect(routedCreation).toContain("Load Creation Prompt-out Step");
+    expect(routedCreation).toContain("creationPromptModeStatus");
   });
 });

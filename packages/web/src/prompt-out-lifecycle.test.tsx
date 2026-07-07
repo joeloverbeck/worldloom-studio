@@ -416,9 +416,11 @@ describe("Prompt-out lifecycle web surface", () => {
     expect(source).toContain("value={creationPromptMode}");
     expect(source).toContain("setCreationPromptMode");
     expect(source).toContain("selectedCreationPromptMode?.stepRequest");
+    expect(source).toContain("serverCreationPromptRequest = selectedCreationPromptMode?.available");
+    expect(source).toContain("creationPromptStepRequest");
     expect(promptLoader).toContain("mode.stepRequest");
     expect(promptLoader).toContain("mode.mode === creationPromptMode");
-    expect(promptLoader).toContain("selectedMode?.available");
+    expect(promptLoader).toContain("const request = creationPromptStepRequest");
     expect(promptLoader.indexOf("setPromptFlowKey(\"creation\")")).toBeLessThan(promptLoader.indexOf("setPromptStep(payload.step)"));
     expect(promptLoader.indexOf("setPromptRecordId(String(request.body.recordId ?? \"\"))")).toBeLessThan(promptLoader.indexOf("setPromptStep(payload.step)"));
     expect(promptLoader).not.toContain('mode.mode === "proposal"');

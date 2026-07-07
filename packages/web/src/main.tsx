@@ -766,19 +766,7 @@ interface CreationDecisionPoint {
     stepKey: string;
     role: string;
     modes?: PromptOutMode[];
-    stepRequest: {
-      method: "POST";
-      href: string;
-      body: {
-        flowKey: "creation";
-        flowId: number;
-        recordId: number;
-        templateKey: string;
-        stepKey: string;
-        mode?: "proposal" | "pressure";
-        label: string;
-      };
-    } | null;
+    stepRequest: CreationPromptOutStepRequest | null;
     preview: {
       currentDecision: string;
       promptText: string;
@@ -858,6 +846,21 @@ interface CreationDecisionPoint {
       note: string;
     }>;
     doctrineAtPointOfUse: string[];
+  };
+}
+
+interface CreationPromptOutStepRequest {
+  method: "POST";
+  href: string;
+  body: {
+    flowKey: "creation";
+    flowId: number;
+    recordId: number;
+    templateKey: string;
+    stepKey: string;
+    mode?: "proposal" | "pressure";
+    selectedSectionHeading?: string;
+    label: string;
   };
 }
 
@@ -1395,6 +1398,22 @@ const defaultCreationDecision: CreationDecisionPoint = {
   }
 };
 
+const creationPromptOutStepRequest = (
+  request: PromptOutMode["stepRequest"] | CreationPromptOutStepRequest | null | undefined
+): CreationPromptOutStepRequest | null => {
+  if (!request) return null;
+  const body = request.body;
+  if (
+    body.flowKey !== "creation"
+    || typeof body.flowId !== "number"
+    || typeof body.recordId !== "number"
+    || typeof body.templateKey !== "string"
+    || typeof body.stepKey !== "string"
+    || typeof body.label !== "string"
+  ) return null;
+  return request as CreationPromptOutStepRequest;
+};
+
 const emptyQaProfile: QaProfileFields = {
   strongestDomain: "",
   weakestDomain: "",
@@ -1872,10 +1891,73 @@ function App({
   const selectedCreationPromptMode = creationPromptModes.find((mode) => mode.mode === creationPromptMode)
     ?? creationPromptModes[0]
     ?? null;
-  const creationPromptOutBlockedByLocalSection = displayedCreationDecision.currentStep.startsWith("kernel:")
+  const creationKernelPromptTargeting = displayedCreationDecision.currentStep.startsWith("kernel:");
+  const creationLocalSectionDiffers = creationKernelPromptTargeting
     && (displayedCreationDecision.selectedSection?.heading !== kernelHeading || selectedSectionHasHeldDraft);
-  const creationPromptOutLocalSectionMessage = `Prompt-out waits for the selected section to be saved before it can use ${kernelHeading}.`;
-  const canLoadCreationPromptStep = Boolean(openWorld && selectedCreationPromptMode?.stepRequest && !creationPromptOutBlockedByLocalSection);
+  const creationProposalBaseRequest = creationPromptOutStepRequest(selectedCreationPromptMode?.stepRequest)
+    ?? displayedCreationDecision.promptOut.stepRequest;
+  const creationLocalProposalRequest = creationKernelPromptTargeting
+    && creationPromptMode === "proposal"
+    && kernelHeading !== "World premise"
+    && creationProposalBaseRequest
+    ? {
+        ...creationProposalBaseRequest,
+        body: {
+          ...creationProposalBaseRequest.body,
+          mode: "proposal",
+          label: "Proposal mode",
+          selectedSectionHeading: kernelHeading
+        }
+      }
+    : null;
+  const serverCreationPromptRequest = selectedCreationPromptMode?.available && selectedCreationPromptMode.stepRequest
+    ? creationPromptOutStepRequest(selectedCreationPromptMode.stepRequest)
+    : selectedCreationPromptMode == null
+      ? displayedCreationDecision.promptOut.stepRequest
+      : null;
+  const creationPromptStepRequest = creationLocalProposalRequest ?? (serverCreationPromptRequest
+    ? {
+        ...serverCreationPromptRequest,
+        body: {
+          ...serverCreationPromptRequest.body,
+          ...(creationKernelPromptTargeting ? { selectedSectionHeading: kernelHeading } : {})
+        }
+      }
+    : null);
+  const creationPromptOutBlockedByLocalSection = creationLocalSectionDiffers
+    && (creationPromptMode !== "proposal" || !creationLocalProposalRequest);
+  const creationPressureLocalSectionMessage = `Pressure Prompt-out waits for the selected section to be saved with steward-authored material before it can use ${kernelHeading}.`;
+  const creationPromptOutLocalSectionMessage = creationPromptMode === "proposal" && kernelHeading === "World premise"
+    ? "Proposal prompts are refused for the world's essence; the AI-assisted workflow reserves the World premise to the steward."
+    : creationPressureLocalSectionMessage;
+  const creationPromptModesForDisplay = creationPromptModes.map((mode) => {
+    if (!creationLocalSectionDiffers) return mode;
+    if (mode.mode === "proposal" && creationLocalProposalRequest) {
+      return {
+        ...mode,
+        available: true,
+        availability: "available" as const,
+        blocker: null
+      };
+    }
+    if (mode.mode === "pressure") {
+      return {
+        ...mode,
+        available: false,
+        availability: "blocked" as const,
+        blocker: creationPressureLocalSectionMessage
+      };
+    }
+    return mode;
+  });
+  const creationPromptModeStatus = creationPromptOutBlockedByLocalSection
+    ? creationPromptOutLocalSectionMessage
+    : creationLocalProposalRequest
+      ? `Selected mode: Proposal mode - available for selected ${kernelHeading} via explicit target heading.`
+      : selectedCreationPromptMode
+        ? `Selected mode: ${selectedCreationPromptMode.label} - ${selectedCreationPromptMode.available ? "available" : selectedCreationPromptMode.blocker ?? "blocked"}`
+        : "Selected mode: loads from the server packet.";
+  const canLoadCreationPromptStep = Boolean(openWorld && creationPromptStepRequest && !creationPromptOutBlockedByLocalSection);
   const loadedCreationPromptMode = promptStep?.context.flowKey === "creation" && promptStep.context.stepKey === displayedCreationDecision.promptOut.stepKey
     ? promptStep.mode ?? null
     : null;
@@ -1912,7 +1994,8 @@ function App({
 
     if (activeDestination === "creation") {
       if (creationPromptOutBlockedByLocalSection) return null;
-      const request = selectedCreationPromptMode?.stepRequest?.body ?? displayedCreationDecision.promptOut.stepRequest?.body ?? {};
+      const request = creationPromptStepRequest?.body;
+      if (!request) return null;
       return {
         worldPath: openWorld,
         flowKey: "creation",
@@ -1920,9 +2003,11 @@ function App({
         recordId: originNumber(request.recordId) ?? kernelRecordId,
         recordShortId: displayedCreationDecision.currentKernel?.shortId ?? null,
         recordTypeKey: displayedCreationDecision.currentKernel ? "world_kernel" : null,
-        selectedSectionHeading: displayedCreationDecision.currentStep.startsWith("kernel:")
-          ? displayedCreationDecision.selectedSection?.heading ?? kernelHeading
-          : null,
+        selectedSectionHeading: typeof request.selectedSectionHeading === "string"
+          ? request.selectedSectionHeading
+          : displayedCreationDecision.currentStep.startsWith("kernel:")
+            ? displayedCreationDecision.selectedSection?.heading ?? kernelHeading
+            : null,
         stepKey: displayedCreationDecision.promptOut.stepKey,
         mode: typeof request.mode === "string" ? request.mode : selectedCreationPromptMode?.mode ?? null,
         templateKey: String(request.templateKey ?? displayedCreationDecision.promptOut.templateKey),
@@ -1958,8 +2043,11 @@ function App({
   }, [
     activeDestination,
     admissionDecision,
+    creationPromptOutBlockedByLocalSection,
+    creationPromptStepRequest,
     displayedCreationDecision,
     flowId,
+    kernelHeading,
     kernelRecordId,
     loadedPromptStatus,
     openWorld,
@@ -2027,6 +2115,41 @@ function App({
         : "substrate")}
     />
   ) : null;
+  const currentCreationPromptPacketText = activeDestination === "creation"
+    && promptPacketView?.state === "current"
+    && promptPacketOrigin?.flowKey === "creation"
+    ? promptText
+    : null;
+  const creationPromptPreviewForDisplay: PromptPreviewPayload = creationLocalProposalRequest && selectedSectionContract
+    ? {
+        ...displayedCreationDecision.promptOut.preview,
+        currentDecision: `Define the world's first governing kernel section: ${kernelHeading}.`,
+        promptText: currentCreationPromptPacketText ?? [
+          "Proposal mode selected target:",
+          kernelHeading,
+          `Selected section prompt: ${selectedSectionContract.prompt}`,
+          `Selected section material: ${selectedSectionContract.savedBody.trim() || "(empty)"}`,
+          selectedSectionContract.savedBody.trim()
+            ? "Selected section has saved steward material."
+            : "Selected section empty-state context: no saved text exists yet; proposal may request candidates, while pressure remains unavailable until steward-authored material is saved.",
+          "Mode request: draft labeled candidate material for this selected section; advisory material is not canon and saving kernel text remains a separate steward write."
+        ].join(" "),
+        sourceManifest: [
+          `Selected kernel section: ${kernelHeading}`,
+          `Section prompt: ${selectedSectionContract.prompt}`,
+          `Section obligation: ${selectedSectionContract.obligation}`,
+          `Prompt template: ${creationLocalProposalRequest.body.templateKey}`,
+          ...displayedCreationDecision.promptOut.preview.sourceManifest.filter((item) => item.startsWith("Method card:") || item.startsWith("Package source:") || item.startsWith("Omissions:"))
+        ],
+        contextPreview: [
+          `Selected kernel section: ${kernelHeading}`,
+          `Section obligation: ${selectedSectionContract.obligation}`,
+          `Section prompt: ${selectedSectionContract.prompt}`,
+          `Selected section material: ${selectedSectionContract.savedBody.trim() || "(empty)"}`
+        ].join(" "),
+        advisoryCanonWarning: displayedCreationDecision.promptOut.preview.advisoryCanonWarning
+      }
+    : displayedCreationDecision.promptOut.preview;
 
   useEffect(() => {
     api<HealthPayload>("/api/health")
@@ -2801,11 +2924,7 @@ function App({
     }
     if (!creationDecision?.promptOut.stepRequest && !creationDecision?.promptOut.modes?.some((mode) => mode.stepRequest)) return null;
     const selectedMode = creationDecision.promptOut.modes?.find((mode) => mode.mode === creationPromptMode) ?? null;
-    const request = selectedMode?.available && selectedMode.stepRequest
-      ? selectedMode.stepRequest
-      : selectedMode == null
-        ? creationDecision.promptOut.stepRequest
-        : null;
+    const request = creationPromptStepRequest;
     if (!request) {
       setMessage(`${selectedMode?.label ?? "Creation Prompt-out"} is blocked: ${selectedMode?.blocker ?? "server returned no step request"}`);
       return null;
@@ -2818,15 +2937,19 @@ function App({
       body: JSON.stringify(request.body)
     });
     setPromptStep(payload.step);
+    const generated = await api<{ prompt: string; promptOut: { packetIdentity: PromptPacketIdentity } }>(payload.step.actions.generate.href, {
+      method: payload.step.actions.generate.method
+    });
     setLoadedPromptAndPacket(
-      promptOriginFromPacketIdentity(payload.step.packetIdentity, {
+      promptOriginFromPacketIdentity(generated.promptOut.packetIdentity, {
         flowKey: "creation",
         flowId: originNumber(request.body.flowId),
         recordId: originNumber(request.body.recordId),
         mode: typeof request.body.mode === "string" ? request.body.mode : selectedMode?.mode ?? null,
+        selectedSectionHeading: typeof request.body.selectedSectionHeading === "string" ? request.body.selectedSectionHeading : kernelHeading,
         decisionLabel: creationDecision.promptOut.preview.currentDecision || creationDecision.localDecision
       }),
-      payload.step.currentState.promptText ?? creationDecision.promptOut.preview.promptText
+      generated.prompt
     );
     setMessage(`Loaded Creation Prompt-out step ${payload.step.label} (${payload.step.mode === "pressure" ? "Pressure mode" : "Proposal mode"})`);
     return payload.step;
@@ -4780,19 +4903,15 @@ function App({
           <PromptPacketPreview
             title="Prompt-out preview"
             roleLine={`${displayedCreationDecision.promptOut.role} · ${displayedCreationDecision.promptOut.available ? "available" : "blocked"}`}
-            modes={displayedCreationDecision.promptOut.modes}
-            preview={displayedCreationDecision.promptOut.preview}
+            modes={creationPromptModesForDisplay}
+            preview={creationPromptPreviewForDisplay}
             advisoryNote="Pasted responses remain advisory artifacts and do not mutate kernel sections, seed records, reports, or proposals without explicit steward use."
             action={
               <div className="grid compact-grid">
                 <label>Prompt mode<select value={creationPromptMode} onChange={(event) => setCreationPromptMode(event.target.value as "proposal" | "pressure")}>
                   {creationPromptModes.map((mode) => <option key={mode.mode} value={mode.mode}>{mode.label}</option>)}
                 </select></label>
-                <p className="status">{creationPromptOutBlockedByLocalSection
-                  ? creationPromptOutLocalSectionMessage
-                  : selectedCreationPromptMode
-                  ? `Selected mode: ${selectedCreationPromptMode.label} - ${selectedCreationPromptMode.available ? "available" : selectedCreationPromptMode.blocker ?? "blocked"}`
-                  : "Selected mode: loads from the server packet."}</p>
+                <p className="status">{creationPromptModeStatus}</p>
                 <p className="status">{loadedCreationPromptMode
                   ? `Loaded mode: ${loadedCreationPromptMode === "pressure" ? "Pressure mode" : "Proposal mode"}`
                   : "Loaded mode: none yet"}</p>
@@ -6272,19 +6391,15 @@ function App({
             <PromptPacketPreview
               title="Prompt-out preview"
               roleLine={`${displayedCreationDecision.promptOut.role} · ${displayedCreationDecision.promptOut.available ? "available" : "blocked"}`}
-              modes={displayedCreationDecision.promptOut.modes}
-              preview={displayedCreationDecision.promptOut.preview}
+              modes={creationPromptModesForDisplay}
+              preview={creationPromptPreviewForDisplay}
               advisoryNote="Pasted responses remain advisory artifacts and do not mutate kernel sections, seed records, reports, or proposals without explicit steward use."
               action={
                 <div className="grid compact-grid">
                   <label>Prompt mode<select value={creationPromptMode} onChange={(event) => setCreationPromptMode(event.target.value as "proposal" | "pressure")}>
                     {creationPromptModes.map((mode) => <option key={mode.mode} value={mode.mode}>{mode.label}</option>)}
                   </select></label>
-                  <p className="status">{creationPromptOutBlockedByLocalSection
-                    ? creationPromptOutLocalSectionMessage
-                    : selectedCreationPromptMode
-                    ? `Selected mode: ${selectedCreationPromptMode.label} - ${selectedCreationPromptMode.available ? "available" : selectedCreationPromptMode.blocker ?? "blocked"}`
-                    : "Selected mode: loads from the server packet."}</p>
+                  <p className="status">{creationPromptModeStatus}</p>
                   <p className="status">{loadedCreationPromptMode
                     ? `Loaded mode: ${loadedCreationPromptMode === "pressure" ? "Pressure mode" : "Proposal mode"}`
                     : "Loaded mode: none yet"}</p>

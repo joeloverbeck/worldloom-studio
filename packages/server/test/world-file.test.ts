@@ -183,6 +183,9 @@ describe("WorldFile", () => {
       body: "A city built on echoes.",
       ...explicitJudgment
     });
+    store.replaceSections(kernel.id, [
+      { heading: "World premise", body: "A city built on echoes.", position: 1 }
+    ]);
     const decomposition = store.createRecord({
       recordTypeKey: "seed_decomposition",
       title: "Echo seed split",

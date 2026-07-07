@@ -263,7 +263,9 @@ describe("method-card guidance layer", () => {
       flowKey: "creation",
       templateKey: "kernel_pressure",
       recordId: kernel.record.id,
-      stepKey: "creation:kernel_prompt"
+      stepKey: "creation:kernel_prompt",
+      mode: "proposal",
+      selectedSectionHeading: "Core promise"
     }));
 
     const kernelCard = methodCard("creation.kernel");

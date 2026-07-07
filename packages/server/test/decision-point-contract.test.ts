@@ -88,7 +88,7 @@ describe("shared decision-point contract", () => {
           expect.objectContaining({
             mode: "pressure",
             availability: "blocked",
-            blocker: expect.stringContaining("steward-authored kernel material")
+            blocker: expect.stringContaining("steward-authored material")
           })
         ])
       },

@@ -298,6 +298,128 @@ describe("Creation decision-point HTTP surface", () => {
     ]));
   });
 
+  it("generates Creation proposal packets for an explicit unsaved non-premise target while preserving essence and pressure gates", async () => {
+    const app = await openWorld();
+    const start = await json<{ flow: { id: number } }>(await app.request("/api/flows/creation/start", { method: "POST" }));
+    const savedPremise = await json<{
+      kernel: { id: number };
+      decisionPoint: {
+        currentStep: string;
+        promptOut: {
+          stepRequest: { method: "POST"; href: string; body: Record<string, unknown> };
+          modes: Array<{ mode: string; availability: string; blocker: string | null; stepRequest: unknown }>;
+        };
+      };
+    }>(await app.request("/api/flows/creation/kernel-step", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        flowId: start.flow.id,
+        heading: "World premise",
+        body: "Harbor law is enforced by bells that wake the dead.",
+        consequenceMode: "weird"
+      })
+    }));
+
+    expect(savedPremise.decisionPoint.currentStep).toBe("kernel:World premise");
+    expect(savedPremise.decisionPoint.promptOut.stepRequest.body).toMatchObject({
+      flowKey: "creation",
+      flowId: start.flow.id,
+      recordId: savedPremise.kernel.id,
+      templateKey: "kernel_pressure",
+      stepKey: "creation:kernel_prompt",
+      selectedSectionHeading: "World premise"
+    });
+    expect(savedPremise.decisionPoint.promptOut.modes.find((mode) => mode.mode === "proposal")).toMatchObject({
+      availability: "blocked",
+      blocker: expect.stringContaining("World premise")
+    });
+
+    const coreProposalStep = await json<{
+      step: {
+        packetIdentity: { selectedSectionHeading: string | null; decisionLabel: string };
+        actions: { generate: { method: "POST"; href: string } };
+      };
+    }>(await app.request(savedPremise.decisionPoint.promptOut.stepRequest.href, {
+      method: savedPremise.decisionPoint.promptOut.stepRequest.method,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ...savedPremise.decisionPoint.promptOut.stepRequest.body,
+        mode: "proposal",
+        label: "Proposal mode",
+        selectedSectionHeading: "Core promise"
+      })
+    }));
+    expect(coreProposalStep.step.packetIdentity).toMatchObject({
+      selectedSectionHeading: "Core promise",
+      decisionLabel: "Core promise"
+    });
+    const coreProposal = await json<{
+      prompt: string;
+      promptOut: { packetIdentity: { selectedSectionHeading: string | null; decisionLabel: string } };
+    }>(await app.request(coreProposalStep.step.actions.generate.href, {
+      method: coreProposalStep.step.actions.generate.method
+    }));
+    expect(coreProposal.promptOut.packetIdentity).toMatchObject({
+      selectedSectionHeading: "Core promise",
+      decisionLabel: "Core promise"
+    });
+    expect(coreProposal.prompt).toContain("Current kernel section: Core promise");
+    expect(coreProposal.prompt).toContain("Selected section material: (empty)");
+    expect(coreProposal.prompt).toContain("Selected section empty-state context: no saved text exists yet");
+    expect(coreProposal.prompt).toContain("Draft labeled candidate material for the selected Core promise section.");
+    expect(coreProposal.prompt).not.toContain("selected kernel section World premise");
+
+    const worldPremiseProposal = await app.request(savedPremise.decisionPoint.promptOut.stepRequest.href, {
+      method: savedPremise.decisionPoint.promptOut.stepRequest.method,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ...savedPremise.decisionPoint.promptOut.stepRequest.body,
+        mode: "proposal",
+        label: "Proposal mode",
+        selectedSectionHeading: "World premise"
+      })
+    });
+    expect(worldPremiseProposal.status).toBe(200);
+    const worldPremiseStep = await json<{ step: { actions: { generate: { method: "POST"; href: string } } } }>(worldPremiseProposal);
+    const refused = await app.request(worldPremiseStep.step.actions.generate.href, {
+      method: worldPremiseStep.step.actions.generate.method
+    });
+    expect(refused.status).toBe(400);
+    expect(await json<{ error: string }>(refused)).toMatchObject({
+      error: expect.stringContaining("World premise")
+    });
+
+    const corePressureStep = await json<{ step: { actions: { generate: { method: "POST"; href: string } } } }>(await app.request(savedPremise.decisionPoint.promptOut.stepRequest.href, {
+      method: savedPremise.decisionPoint.promptOut.stepRequest.method,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ...savedPremise.decisionPoint.promptOut.stepRequest.body,
+        mode: "pressure",
+        label: "Consequence scout",
+        selectedSectionHeading: "Core promise"
+      })
+    }));
+    const pressureBlocked = await app.request(corePressureStep.step.actions.generate.href, {
+      method: corePressureStep.step.actions.generate.method
+    });
+    expect(pressureBlocked.status).toBe(400);
+    expect(await json<{ error: string }>(pressureBlocked)).toMatchObject({
+      error: expect.stringContaining("Pressure prompts require steward-authored material")
+    });
+
+    const compatibilityStep = await json<{ step: { actions: { generate: { method: "POST"; href: string } } } }>(await app.request(savedPremise.decisionPoint.promptOut.stepRequest.href, {
+      method: savedPremise.decisionPoint.promptOut.stepRequest.method,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(savedPremise.decisionPoint.promptOut.stepRequest.body)
+    }));
+    const compatibility = await json<{ prompt: string; promptOut: { packetIdentity: { selectedSectionHeading: string | null } } }>(await app.request(compatibilityStep.step.actions.generate.href, {
+      method: compatibilityStep.step.actions.generate.method
+    }));
+    expect(compatibility.promptOut.packetIdentity.selectedSectionHeading).toBe("World premise");
+    expect(compatibility.prompt).toContain("Current kernel section: World premise");
+  });
+
   it("exposes saved consequence mode and selected-section contracts without browser-side inference", async () => {
     const app = await openWorld();
     const start = await json<{

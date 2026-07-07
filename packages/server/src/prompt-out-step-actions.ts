@@ -18,6 +18,7 @@ export interface PromptOutStepActionContext {
   recordId?: number;
   stepKey: string;
   mode?: PromptMode;
+  selectedSectionHeading?: string | null;
   admissionLevel?: string;
   workScale?: string;
 }
@@ -108,6 +109,7 @@ const actionHref = (action: "generate" | "store-advisory" | "disposition" | "ski
     recordId: input.recordId,
     stepKey: input.stepKey,
     mode: input.mode,
+    selectedSectionHeading: input.selectedSectionHeading ?? undefined,
     admissionLevel: input.admissionLevel,
     workScale: input.workScale
   };
@@ -141,6 +143,7 @@ export const promptOutActionContextFromQuery = (query: (key: string) => string |
   recordId: optionalNumber(query("recordId")),
   stepKey: query("stepKey") ?? "",
   mode: query("mode") === "proposal" ? "proposal" : "pressure",
+  selectedSectionHeading: query("selectedSectionHeading"),
   admissionLevel: query("admissionLevel"),
   workScale: query("workScale")
 });
@@ -187,6 +190,7 @@ export const buildPromptOutStep = (world: WorldFile, input: PromptOutStepOfferIn
       recordId: input.recordId,
       stepKey: input.stepKey,
       mode,
+      selectedSectionHeading: input.selectedSectionHeading,
       admissionLevel: input.admissionLevel,
       workScale: input.workScale
     }),
@@ -212,6 +216,7 @@ export const runPromptOutGenerateAction = (world: WorldFile, input: PromptOutSte
     recordId: input.recordId,
     stepKey: input.stepKey,
     mode: input.mode,
+    selectedSectionHeading: input.selectedSectionHeading,
     admissionLevel: input.admissionLevel,
     workScale: input.workScale
   });
