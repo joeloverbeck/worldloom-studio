@@ -28,6 +28,24 @@ For setup/open-world browser slices, acceptance should include:
 - an empty-world state that foregrounds Creation as the primary next path while unrelated flows show prerequisites or unavailable states;
 - confirmation that Prompt-out, Admission, Propagation, QA, Canon Workbench work, search, snapshot/export, and generic record/link tools are hidden or blocked before a world is open.
 
+## Field-Build Regression Closure Pattern
+
+When a PRD or issue claims to close a blocker found during a field build, acceptance evidence should map the original finding to proof of the exact active route that failed. A representative fixture, lower-level contract, generic substrate panel, legacy panel, or nearby controlled path can support the proof, but it does not by itself promote the active route to field-ready maturity.
+
+The closeout evidence should name:
+
+- the original field-build finding and the durable PRD or issue that summarizes it, without treating local session reports or temporary artifacts as stable citations;
+- the exact active route and action sequence that failed for the steward;
+- any representative fixture, controlled path, or component render used, plus what it proves and what it does not prove;
+- browser-visible state transitions on the active route, including current/stale state, blockers, entered material preservation, selected record or debt identity, and route-owned copy/store/export affordances when relevant;
+- API or readback proof when the fix writes or reads durable state, including the resulting record, report, queue entry, operation event, audit trail, or explicit non-mutation;
+- Prompt-out packet proof when the blocker involves Prompt-out: packet mode, status, visible body, copyable body, source manifest, omission text, advisory/canon warning, and cold external LLM packet relevance where that proof is in scope;
+- remaining caveats, follow-up PRDs, or intentionally unproven routes when the fix is partial.
+
+Coverage-ledger promotion should wait for corresponding active-route replay evidence. If a slice proves only a primitive, server contract, representative fixture, or API readback, the ledger should preserve that value while keeping active-route caveats explicit.
+
+This field-build closure pattern is additive reviewer guidance. It does not create a repo-wide browser automation gate, require a specific browser tool, introduce direct LLM integration, or amend the methodology package, principles, or ADRs.
+
 ## Cognitive Walkthrough Checklist
 
 For learnability-sensitive changes, run a lightweight naive-steward walkthrough:

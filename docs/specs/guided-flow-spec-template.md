@@ -66,6 +66,8 @@ At least one representative scenario must show:
 - prompt packet preview when prompt-out is in scope;
 - resulting record, link, queue item, report, audit item, or explicit non-mutation.
 
+For major guided-flow retrofits or field-build blocker closeouts, also follow the field-build regression closure pattern in `docs/specs/browser-visible-guidance-acceptance.md`: name the original finding, exact active route, representative fixture or controlled path, active browser state transitions, API/readback proof when state is written or read, Prompt-out packet/source/cold-packet proof when relevant, and remaining caveats.
+
 ## Naive-Steward Cognitive Walkthrough
 
 State the task a new steward is trying to complete, then answer:
@@ -81,6 +83,9 @@ State the task a new steward is trying to complete, then answer:
 
 - Field-trial evidence:
 - Real app-use evidence:
+- Field-build blocker replay, if applicable:
+- Representative fixture or controlled path limits, if applicable:
+- Remaining active-route caveats:
 - Untested package surfaces:
 - Coverage ledger update:
 
