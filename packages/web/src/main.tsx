@@ -813,6 +813,7 @@ interface AppProps {
   initialCreationDecision?: CreationDecisionPoint | null;
   initialMinimalViableWorld?: MinimalViableWorldState | null;
   initialQaScorecard?: QaScorecard | null;
+  initialLoadedPromptStatus?: LoadedPromptStatusState | null;
 }
 
 type PromptFlowKey = "creation" | "admission" | "propagation" | "contradiction" | "qa" | "institutional_economic_suppression" | "constraint_composition" | "temporal_timeline";
@@ -869,6 +870,30 @@ interface PromptOutStep {
     disposition: PromptOutActionLink;
     skip: PromptOutActionLink;
   };
+}
+
+interface LoadedPromptOrigin {
+  worldPath: string;
+  flowKey: string | null;
+  flowId: number | null;
+  recordId: number | null;
+  stepKey: string;
+  mode: string | null;
+  templateKey: string;
+  decisionLabel: string;
+  createdAt: string;
+  admissionLevel: string | null;
+  workScale: string | null;
+}
+
+interface LoadedPromptStatusState {
+  origin: LoadedPromptOrigin;
+}
+
+interface LoadedPromptStatusView {
+  origin: LoadedPromptOrigin;
+  state: "current" | "stale";
+  staleReason: string | null;
 }
 
 class ApiError extends Error {
@@ -971,6 +996,70 @@ function PromptPacketPreview({
       <p>{preview?.advisoryCanonWarning ?? "Pasted responses remain advisory artifacts and are not admitted canon."}</p>
       {advisoryNote && <p>{advisoryNote}</p>}
       {action}
+    </section>
+  );
+}
+
+const originNumber = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+const promptOriginsMatch = (left: LoadedPromptOrigin, right: LoadedPromptOrigin): boolean =>
+  left.worldPath === right.worldPath
+  && left.flowKey === right.flowKey
+  && left.flowId === right.flowId
+  && left.recordId === right.recordId
+  && left.stepKey === right.stepKey
+  && left.mode === right.mode
+  && left.templateKey === right.templateKey
+  && left.decisionLabel === right.decisionLabel
+  && left.admissionLevel === right.admissionLevel
+  && left.workScale === right.workScale;
+
+const describePromptOrigin = (origin: LoadedPromptOrigin): string => [
+  `world ${origin.worldPath}`,
+  `flow ${origin.flowKey ?? "none"}`,
+  `flow/run ${origin.flowId ?? "none"}`,
+  `record ${origin.recordId ?? "none"}`,
+  `step ${origin.stepKey}`,
+  `mode ${origin.mode ?? "none"}`,
+  `template ${origin.templateKey}`,
+  `decision ${origin.decisionLabel}`,
+  `created ${origin.createdAt}`,
+  `admission_level ${origin.admissionLevel ?? "none"}`,
+  `work_scale ${origin.workScale ?? "none"}`
+].join(" · ");
+
+function LoadedPromptStatusPanel({
+  view,
+  onClear,
+  onReturn
+}: {
+  view: LoadedPromptStatusView;
+  onClear: () => void;
+  onReturn: () => void;
+}) {
+  return (
+    <section className={`subpanel loaded-prompt-status ${view.state}`} role="status" aria-live="polite">
+      <h3>Loaded Prompt-out status</h3>
+      {view.state === "current" ? (
+        <p>Current origin: {describePromptOrigin(view.origin)}</p>
+      ) : (
+        <>
+          <p>Stale prior decision origin: {describePromptOrigin(view.origin)}</p>
+          <p>{view.staleReason}</p>
+          <p>This prior loaded status is shown as stale, so it never implies a match with the active decision.</p>
+        </>
+      )}
+      <div className="row">
+        <button onClick={onClear}>Clear loaded status</button>
+        {view.state === "stale" && <button onClick={onReturn}>Return to prior origin</button>}
+      </div>
     </section>
   );
 }
@@ -1315,7 +1404,8 @@ function App({
   initialAdmissionDecision = null,
   initialCreationDecision = null,
   initialMinimalViableWorld = null,
-  initialQaScorecard = null
+  initialQaScorecard = null,
+  initialLoadedPromptStatus = null
 }: AppProps = {}) {
   const [worldPath, setWorldPath] = useState("");
   const [openWorld, setOpenWorld] = useState<string | null>(initialOpenWorld);
@@ -1483,6 +1573,7 @@ function App({
   const [creationPromptMode, setCreationPromptMode] = useState<"proposal" | "pressure">("proposal");
   const [promptStep, setPromptStep] = useState<PromptOutStep | null>(null);
   const [promptText, setPromptText] = useState("");
+  const [loadedPromptStatus, setLoadedPromptStatus] = useState<LoadedPromptStatusState | null>(initialLoadedPromptStatus);
   const [templateEdit, setTemplateEdit] = useState("");
   const [responseText, setResponseText] = useState("");
   const [disposition, setDisposition] = useState("standing ruling");
@@ -1586,6 +1677,94 @@ function App({
     ? []
     : canonAuditTrail.filter((item) => item.affectedCurrentRecords.some((record) => record.id === selectedCanonRecordId)),
   [canonAuditTrail, selectedCanonRecordId]);
+  const currentLoadedPromptOrigin = useMemo<LoadedPromptOrigin | null>(() => {
+    if (!openWorld) return null;
+
+    if (activeDestination === "admission" && admissionDecision) {
+      const request = admissionDecision.promptOut.stepRequest.body;
+      return {
+        worldPath: openWorld,
+        flowKey: "admission",
+        flowId: null,
+        recordId: admissionDecision.selectedRecord.id,
+        stepKey: admissionDecision.promptOut.stepKey,
+        mode: typeof request.mode === "string" ? request.mode : null,
+        templateKey: admissionDecision.promptOut.templateKey,
+        decisionLabel: admissionDecision.promptOut.preview.currentDecision || admissionDecision.localDecision,
+        createdAt: loadedPromptStatus?.origin.createdAt ?? "",
+        admissionLevel: admissionDecision.severity.admissionLevel,
+        workScale: admissionDecision.severity.workScale
+      };
+    }
+
+    if (activeDestination === "creation") {
+      const request = selectedCreationPromptMode?.stepRequest?.body ?? displayedCreationDecision.promptOut.stepRequest?.body ?? {};
+      return {
+        worldPath: openWorld,
+        flowKey: "creation",
+        flowId: originNumber(request.flowId) ?? flowId,
+        recordId: originNumber(request.recordId) ?? kernelRecordId,
+        stepKey: displayedCreationDecision.promptOut.stepKey,
+        mode: typeof request.mode === "string" ? request.mode : selectedCreationPromptMode?.mode ?? null,
+        templateKey: String(request.templateKey ?? displayedCreationDecision.promptOut.templateKey),
+        decisionLabel: displayedCreationDecision.promptOut.preview.currentDecision || displayedCreationDecision.localDecision,
+        createdAt: loadedPromptStatus?.origin.createdAt ?? "",
+        admissionLevel: null,
+        workScale: null
+      };
+    }
+
+    if (activeDestination === "substrate" && promptStep) {
+      return {
+        worldPath: openWorld,
+        flowKey: promptStep.context.flowKey,
+        flowId: promptStep.context.flowId,
+        recordId: promptStep.selectedRecord?.id ?? originNumber(promptRecordId),
+        stepKey: promptStep.context.stepKey,
+        mode: promptStep.mode ?? null,
+        templateKey: promptStep.templateKey,
+        decisionLabel: promptStep.label,
+        createdAt: loadedPromptStatus?.origin.createdAt ?? "",
+        admissionLevel: promptStep.severity.admissionLevel,
+        workScale: promptStep.severity.workScale
+      };
+    }
+
+    return null;
+  }, [
+    activeDestination,
+    admissionDecision,
+    displayedCreationDecision,
+    flowId,
+    kernelRecordId,
+    loadedPromptStatus,
+    openWorld,
+    promptRecordId,
+    promptStep,
+    selectedCreationPromptMode
+  ]);
+  const loadedPromptStatusView = useMemo<LoadedPromptStatusView | null>(() => {
+    if (!loadedPromptStatus) return null;
+    if (currentLoadedPromptOrigin && promptOriginsMatch(loadedPromptStatus.origin, currentLoadedPromptOrigin)) {
+      return { origin: loadedPromptStatus.origin, state: "current", staleReason: null };
+    }
+    return {
+      origin: loadedPromptStatus.origin,
+      state: "stale",
+      staleReason: currentLoadedPromptOrigin
+        ? `Current decision changed to ${currentLoadedPromptOrigin.decisionLabel}.`
+        : "No active decision identity is available for the loaded prompt."
+    };
+  }, [currentLoadedPromptOrigin, loadedPromptStatus]);
+  const loadedPromptStatusPanel = loadedPromptStatusView ? (
+    <LoadedPromptStatusPanel
+      view={loadedPromptStatusView}
+      onClear={() => setLoadedPromptStatus(null)}
+      onReturn={() => setActiveDestination(loadedPromptStatusView.origin.flowKey === "creation" || loadedPromptStatusView.origin.flowKey === "admission"
+        ? loadedPromptStatusView.origin.flowKey
+        : "substrate")}
+    />
+  ) : null;
 
   useEffect(() => {
     api<HealthPayload>("/api/health")
@@ -1768,7 +1947,264 @@ function App({
     }
   };
 
+  const hasUnsavedWorldScopedBrowserBuffers = () => [
+    recordForm.title,
+    recordForm.body,
+    sections.map((section) => section.body).join("\n"),
+    draftTitle,
+    draftBody,
+    promptText,
+    responseText,
+    kernelBody,
+    consequenceMode,
+    seedTitle,
+    seedBody,
+    seedTruthLayer,
+    granularityRationale,
+    admissionIntent,
+    minimalDispositionSubstance,
+    minimalEvidenceRecordIds,
+    minimalProtectedRecordId,
+    minimalDebtName,
+    minimalProposalTitle,
+    minimalProposalBody,
+    admissionLevel,
+    workScale,
+    gateConsequence,
+    gateQuietDomain,
+    gateNotApplicable,
+    canonDebtName,
+    seedAuditFindings,
+    propagationText,
+    propagationBoundary,
+    stage12MaterialTitle,
+    stage12MaterialBody,
+    stage12CoverageBody,
+    constraintMaterialTitle,
+    constraintMaterialBody,
+    constraintSubject,
+    constraintCompositionBody,
+    temporalMaterialTitle,
+    temporalMaterialBody,
+    temporalSubject,
+    temporalCoverage.temporalQuestions,
+    temporalCoverage.firstTrueOrRelativeSequence,
+    temporalCoverage.firstKnownOrReason,
+    temporalCoverage.dateTypesAndGranularity,
+    temporalCoverage.latency,
+    temporalCoverage.residueByTimescale,
+    temporalCoverage.sequenceIntegrity,
+    temporalCoverage.retrospectiveInsertion,
+    temporalCoverage.temporalMysteryBoundaries,
+    temporalCoverage.outcomeDecision,
+    stage13Title,
+    stage13TriageBody,
+    stage13DispositionNote,
+    stage13RepairText,
+    stage13RepairTargetTitle,
+    stage13RepairTargetBody,
+    stage13RepairTargetNote,
+    stage13ProposalTitle,
+    stage13ProposalBody,
+    stage13PropagationDebtName,
+    stage13PropagationBody,
+    stage13PropagationReason,
+    stage13SkipReason,
+    stage13LedgerTitle,
+    stage13ChecklistBody,
+    stage13ChecklistSacredGuard,
+    qaNaReason,
+    qaNotes,
+    qaRequiredRepair
+  ].some((value) => value.trim().length > 0);
+
+  // One boundary for destination-local state when the active world file changes.
+  const resetWorldScopedBrowserState = () => {
+    setWorkflowMap(null);
+    setActiveDestination("map");
+    setRecords([]);
+    setLinks([]);
+    setHeadings([]);
+    setSections([]);
+    setFacets([]);
+    setDrafts([]);
+    setTemplates([]);
+    setAdmissionQueue([]);
+    setAdmissionDecision(null);
+    setCreationDecision(null);
+    setDecompositionError(null);
+    setMinimalViableWorld(null);
+    setCanonDebt([]);
+    setPropagationQueue([]);
+    setPropagationPlan(null);
+    setPropagationDecisionPoint(null);
+    setPropagationConsequences([]);
+    setPropagationDomains([]);
+    setPropagationDispositions([]);
+    setStage12Run(null);
+    setStage12FlowId(null);
+    setStage12SourceRecordId("");
+    setStage12SourceSection("");
+    setStage12MaterialTitle("");
+    setStage12MaterialBody("");
+    setStage12CoverageBody("");
+    setStage12ExistingCardId("");
+    setStage12CardRelation("");
+    setStage12AdvisoryRecordId("");
+    setStage12SkipUnresolved(false);
+    setConstraintRun(null);
+    setConstraintFlowId(null);
+    setConstraintSourceRecordId("");
+    setConstraintSourceSection("");
+    setConstraintMaterialTitle("");
+    setConstraintMaterialBody("");
+    setConstraintSubject("");
+    setConstraintInventory({ ...emptyConstraintInventory });
+    setConstraintCompositionBody("");
+    setConstraintLeakage({ ...emptyConstraintLeakage });
+    setConstraintResidue({ ...emptyConstraintResidue });
+    setConstraintInventoryId("");
+    setConstraintExistingCardId("");
+    setConstraintCardRelation("");
+    setConstraintAdvisoryRecordId("");
+    setConstraintSkipUnresolved(false);
+    setTemporalRun(null);
+    setTemporalFlowId(null);
+    setTemporalSourceRecordId("");
+    setTemporalMaterialTitle("");
+    setTemporalMaterialBody("");
+    setTemporalSubject("");
+    setTemporalCoverage({ ...emptyTemporalCoverage });
+    setTemporalExistingCardId("");
+    setTemporalCardRelation("");
+    setTemporalAdvisoryRecordId("");
+    setTemporalSkipUnresolved(false);
+    setStage13Run(null);
+    setStage13FlowId(null);
+    setStage13SourceRecordId("");
+    setStage13ImplicatedRecordIds("");
+    setStage13Title("");
+    setStage13TriageBody("");
+    setStage13WorkScale("");
+    setStage13DispositionNote("");
+    setStage13RepairOperationOrder("");
+    setStage13RepairText("");
+    setStage13RepairTargetRecordId("");
+    setStage13RepairTargetStatus("");
+    setStage13RepairTargetTitle("");
+    setStage13RepairTargetBody("");
+    setStage13RepairTargetNote("");
+    setStage13RepairAdvisoryRecordId("");
+    setStage13ProposalTitle("");
+    setStage13ProposalBody("");
+    setStage13RetconCostTexts({ ...emptyStage13RetconCosts });
+    setStage13PropagationDebtName("");
+    setStage13PropagationBody("");
+    setStage13PropagationReason("");
+    setStage13SkipReason("");
+    setStage13OwedBoundaries([]);
+    setStage13LedgerRecordId("");
+    setStage13LedgerTitle("");
+    setStage13ProtectedRecordId("");
+    setStage13PropagationReportRecordId("");
+    setStage13PropagationDispositionId("");
+    setStage13MysterySections({ ...emptyStage13MysterySections });
+    setStage13ChecklistBody("");
+    setStage13ChecklistSacredGuard("");
+    setQaFlowId(null);
+    setQaPassId(null);
+    setQaSubjectRecordId("");
+    setQaScorecard(null);
+    setQaScores([]);
+    setQaBand(null);
+    setQaNaReason("");
+    setQaNotes("");
+    setQaRequiredRepair("");
+    setQaLoadBearing(false);
+    setQaRepairRouted(false);
+    setQaProfile({ ...emptyQaProfile });
+    setQaFloorConditions({ ...emptyQaFloorConditions });
+    setQaFloorOverride(false);
+    setQaFloorOverrideReason("");
+    setSearch("");
+    setExportedMarkdown("");
+    setRecordForm(emptyRecordForm);
+    setEditingId(null);
+    setDraftTitle("");
+    setDraftBody("");
+    setFromRecordId("");
+    setToRecordId("");
+    setPromptRecordId("");
+    setPromptFlowKey("creation");
+    setPromptTemplateKey("kernel_pressure");
+    setCreationPromptMode("proposal");
+    setPromptStep(null);
+    setPromptText("");
+    setLoadedPromptStatus(null);
+    setTemplateEdit("");
+    setResponseText("");
+    setDisposition("standing ruling");
+    setFlowId(null);
+    setKernelRecordId(null);
+    setKernelHeading("World premise");
+    setKernelBody("");
+    setConsequenceMode("");
+    setSeedTitle("");
+    setSeedBody("");
+    setSeedTruthLayer("");
+    setGranularityRationale("");
+    setGranularityConfirmed(false);
+    setMinimalSeedRecordId("");
+    setMinimalDimensionKey("");
+    setMinimalDisposition("covered");
+    setMinimalDispositionSubstance("");
+    setMinimalEvidenceRecordIds("");
+    setMinimalProtectedRecordId("");
+    setMinimalDeferralKind("none");
+    setMinimalDebtName("");
+    setMinimalProposalSeedRecordId("");
+    setMinimalProposalTitle("");
+    setMinimalProposalBody("");
+    setAdmissionIntent("");
+    setAdmissionRecordId("");
+    setAdmissionLevel("");
+    setWorkScale("");
+    setGateConsequence("");
+    setGateQuietDomain("");
+    setGateNotApplicable("");
+    setCanonDebtName("");
+    setSeedAuditFindings("");
+    setPropagationFactId("");
+    setPropagationDebtId("");
+    setPropagationFlowId(null);
+    setPropagationDomainName("");
+    setPropagationText("");
+    setPropagationConsequenceId("");
+    setPropagationBoundary("");
+    setCanonCurrentRows([]);
+    setCanonAuditTrail([]);
+    setCanonDetail(null);
+    setSelectedCanonRecordId(null);
+    setSelectedAuditReportId(null);
+    setCanonWorkbenchQuery("");
+    setCanonWorkbenchRecordType("");
+    setCanonWorkbenchTruthLayer("");
+    setCanonWorkbenchStatus("");
+    setCanonWorkbenchConsequenceMode("");
+    setCanonWorkbenchScope("");
+    setCanonWorkbenchOpenDebt(false);
+    setCanonWorkbenchBranchRelevant(false);
+  };
+
   const createOrOpen = async (mode: "create" | "open", selectedPath = worldPath) => {
+    const switchingWorlds = Boolean(openWorld && selectedPath && selectedPath !== openWorld);
+    if (switchingWorlds && hasUnsavedWorldScopedBrowserBuffers()) {
+      const shouldContinue = typeof window === "undefined" || window.confirm("Switching worlds clears current-world browser drafts, Prompt-out status, selections, and flow buffers before the new world renders. Continue?");
+      if (!shouldContinue) {
+        setMessage("World switch canceled; current browser buffers were preserved.");
+        return;
+      }
+    }
     try {
       const payload = await api<{
         path: string;
@@ -1778,6 +2214,7 @@ function App({
         method: "POST",
         body: JSON.stringify({ path: selectedPath })
       });
+      if (payload.path !== openWorld) resetWorldScopedBrowserState();
       setOpenWorld(payload.path);
       setWorldPath(payload.path);
       setRecords(payload.records);
@@ -1978,6 +2415,24 @@ function App({
                   ? optionalNumber(stage13SourceRecordId)
                   : undefined);
 
+  const promptOriginFromStep = (
+    step: PromptOutStep,
+    decisionLabel: string,
+    fallback: Partial<LoadedPromptOrigin> = {}
+  ): LoadedPromptOrigin => ({
+    worldPath: openWorld ?? fallback.worldPath ?? "",
+    flowKey: step.context.flowKey ?? fallback.flowKey ?? null,
+    flowId: step.context.flowId ?? fallback.flowId ?? null,
+    recordId: step.selectedRecord?.id ?? fallback.recordId ?? null,
+    stepKey: step.context.stepKey,
+    mode: step.mode ?? fallback.mode ?? null,
+    templateKey: step.templateKey,
+    decisionLabel,
+    createdAt: new Date().toISOString(),
+    admissionLevel: step.severity.admissionLevel ?? fallback.admissionLevel ?? null,
+    workScale: step.severity.workScale ?? fallback.workScale ?? null
+  });
+
   const loadPromptStep = async () => {
     const payload = await api<{ step: PromptOutStep }>("/api/prompt-out/steps", {
       method: "POST",
@@ -1993,6 +2448,7 @@ function App({
       })
     });
     setPromptStep(payload.step);
+    setLoadedPromptStatus({ origin: promptOriginFromStep(payload.step, payload.step.label, { recordId: promptStepRecordId() ?? null }) });
     setMessage(`Loaded Prompt-out step ${payload.step.label}`);
     return payload.step;
   };
@@ -2008,6 +2464,15 @@ function App({
       body: JSON.stringify(request.body)
     });
     setPromptStep(payload.step);
+    setLoadedPromptStatus({
+      origin: promptOriginFromStep(payload.step, admissionDecision.promptOut.preview.currentDecision || admissionDecision.localDecision, {
+        flowKey: "admission",
+        recordId: admissionDecision.selectedRecord.id,
+        mode: typeof request.body.mode === "string" ? request.body.mode : null,
+        admissionLevel: admissionDecision.severity.admissionLevel,
+        workScale: admissionDecision.severity.workScale
+      })
+    });
     setPromptText(admissionDecision.promptOut.preview.promptText);
     setMessage(`Loaded Admission Prompt-out step ${payload.step.label}`);
     return payload.step;
@@ -2033,6 +2498,14 @@ function App({
       body: JSON.stringify(request.body)
     });
     setPromptStep(payload.step);
+    setLoadedPromptStatus({
+      origin: promptOriginFromStep(payload.step, creationDecision.promptOut.preview.currentDecision || creationDecision.localDecision, {
+        flowKey: "creation",
+        flowId: originNumber(request.body.flowId),
+        recordId: originNumber(request.body.recordId),
+        mode: typeof request.body.mode === "string" ? request.body.mode : selectedMode?.mode ?? null
+      })
+    });
     setPromptText(payload.step.currentState.promptText ?? creationDecision.promptOut.preview.promptText);
     setMessage(`Loaded Creation Prompt-out step ${payload.step.label} (${payload.step.mode === "pressure" ? "Pressure mode" : "Proposal mode"})`);
     return payload.step;
@@ -2168,6 +2641,13 @@ function App({
       body: JSON.stringify(request.body)
     });
     setPromptStep(payload.step);
+    setLoadedPromptStatus({
+      origin: promptOriginFromStep(payload.step, checkpointState.decisionPoint.sharedContract.step.localDecision, {
+        flowKey: "creation",
+        recordId: originNumber(request.body.recordId),
+        mode: typeof request.body.mode === "string" ? request.body.mode : null
+      })
+    });
     setPromptText(checkpointState.decisionPoint.sharedContract.bearingContext.displayed.join("\n"));
     setMessage(`Loaded Minimal Viable World Prompt-out step ${payload.step.label}`);
     return payload.step;
@@ -4031,7 +4511,12 @@ function App({
           activeDestination={activeDestination}
           setupControls={setupPanel(true)}
           surfaces={shellSurfaces}
-          status={message ? <p className="status">{message}</p> : null}
+          status={loadedPromptStatusPanel || message ? (
+            <>
+              {loadedPromptStatusPanel}
+              {message && <p className="status">{message}</p>}
+            </>
+          ) : null}
           onNavigate={setActiveDestination}
         />
       </main>
@@ -4073,6 +4558,7 @@ function App({
             <span>{workflowMap?.methodCards?.operatingCard.operativeRule ?? "Server-owned operating-card content loads with the workflow map."}</span>
             {workflowMap?.methodCards?.operatingCard && <span>Provenance: {workflowMap.methodCards.operatingCard.packageSources.join(" · ")}</span>}
           </div>
+          {loadedPromptStatusPanel}
 
           {creationHandoffReady && (
             <div className="panel method-frontier">

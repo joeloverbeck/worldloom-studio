@@ -12,6 +12,26 @@ const snippetBetween = (source: string, startMarker: string, endMarker: string) 
   return source.slice(start, end);
 };
 
+const workflowMap = {
+  readOnly: true,
+  world: { path: "/tmp/prompt-identity.sqlite" },
+  stages: [
+    { key: "creation", label: "Creation", state: "active", summary: "Start with the world kernel.", destinationKey: "creation" }
+  ],
+  queues: [],
+  nextDecision: {
+    destinationKey: "creation",
+    label: "Start Creation",
+    reason: "No world kernel exists yet.",
+    href: "/api/flows/creation/start"
+  },
+  destinations: [
+    { key: "creation", label: "Creation", kind: "guided-flow", summary: "Create the world kernel.", state: "active" },
+    { key: "admission", label: "Admission", kind: "guided-flow", summary: "Govern proposed facts.", state: "not_yet_earned" },
+    { key: "substrate", label: "Substrate", kind: "substrate", summary: "Generic record, link, search, draft, and Prompt-out admin tools.", state: "available" }
+  ]
+};
+
 describe("Prompt-out lifecycle web surface", () => {
   it("renders server-returned Prompt-out steps and submits returned action URLs", () => {
     const html = renderToString(<App initialOpenWorld="/tmp/prompt-step.sqlite" />);
@@ -274,5 +294,111 @@ describe("Prompt-out lifecycle web surface", () => {
     expect(source).toContain("PromptPacketPreview");
     expect(source).toContain("promptOut.preview.promptText");
     expect(source).not.toContain("promptOut.preview.promptText.split");
+  });
+
+  it("binds loaded Prompt-out status to exact origin identity and marks prior decisions stale", () => {
+    const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
+    const creationPromptLoader = snippetBetween(source, "const loadCreationPromptStep = async () =>", "const ensurePromptStep = async");
+    const admissionPromptLoader = snippetBetween(source, "const loadAdmissionPromptStep = async () =>", "const loadCreationPromptStep = async");
+    const currentOrigin = snippetBetween(source, "const currentLoadedPromptOrigin = useMemo", "const loadedPromptStatusView");
+    const html = renderToString(<App
+      initialOpenWorld="/tmp/prompt-identity.sqlite"
+      initialWorkflowMap={workflowMap as any}
+      initialDestination="creation"
+      initialLoadedPromptStatus={{
+        origin: {
+          worldPath: "/tmp/prompt-identity.sqlite",
+          flowKey: "creation",
+          flowId: 1,
+          recordId: 1,
+          stepKey: "creation:kernel_prompt",
+          mode: "proposal",
+          templateKey: "kernel_pressure",
+          decisionLabel: "Name where the world starts.",
+          createdAt: "2026-07-07T00:00:00.000Z",
+          admissionLevel: null,
+          workScale: null
+        }
+      }}
+      initialCreationDecision={{
+        flow: { key: "creation", runState: "in_progress" },
+        currentStep: "decomposition",
+        localDecision: "Park decomposed seeds.",
+        packageAuthority: {
+          primary: "docs/worldbuilding-system/05_creation_protocol.md",
+          why: "Phase 2 owns seed decomposition.",
+          citations: ["docs/worldbuilding-system/20_ai_assisted_workflow.md"]
+        },
+        currentKernel: { id: 1, shortId: "KER-1", title: "World kernel" },
+        sectionPrompts: [],
+        work: { required: [], optional: [], allowedEmpty: [], skippable: [] },
+        blockers: [],
+        decompositionReadiness: [],
+        promptOut: {
+          available: true,
+          blocker: null,
+          templateKey: "decomposition_pressure",
+          stepKey: "creation:decomposition_prompt",
+          role: "Decomposition pressure",
+          stepRequest: {
+            method: "POST",
+            href: "/api/prompt-out/steps",
+            body: {
+              flowKey: "creation",
+              flowId: 1,
+              recordId: 2,
+              templateKey: "decomposition_pressure",
+              stepKey: "creation:decomposition_prompt",
+              mode: "pressure",
+              label: "Decomposition pressure"
+            }
+          },
+          modes: [],
+          preview: {
+            currentDecision: "Park decomposed seeds.",
+            promptText: "Seed decomposition packet",
+            contextPreview: "Seed FAC-2",
+            sourceManifest: ["Seed FAC-2"],
+            omissions: [],
+            advisoryCanonWarning: "Pasted responses remain advisory."
+          }
+        },
+        writeIntent: { willWrite: [], willLink: [], willQueue: [], willRouteOnward: [], willLeaveUntouched: [] },
+        nextOrResumeState: { currentStep: "decomposition", nextStep: "Admission queue", safeExit: "Safe exit." },
+        readSideTrail: [],
+        handoffs: [],
+        handoff: {
+          seedDecompositionReport: null,
+          reportSections: [],
+          parkedSeeds: [],
+          supportingKernel: null,
+          kernelSections: [],
+          granularityRationale: null,
+          admissionIntent: null,
+          admissionQueueRoute: "/api/admission/queue",
+          currentStatus: "proposed",
+          nextStep: "Admission queue selection",
+          sourceLinks: [],
+          doctrineAtPointOfUse: []
+        }
+      } as any}
+    />);
+
+    expect(creationPromptLoader).toContain("setLoadedPromptStatus");
+    expect(admissionPromptLoader).toContain("setLoadedPromptStatus");
+    expect(currentOrigin).toContain("worldPath: openWorld");
+    expect(currentOrigin).toContain("flowKey: \"creation\"");
+    expect(currentOrigin).toContain("flowKey: \"admission\"");
+    expect(currentOrigin).toContain("admissionDecision.selectedRecord.id");
+    expect(currentOrigin).toContain("admissionDecision.severity.admissionLevel");
+    expect(currentOrigin).toContain("admissionDecision.severity.workScale");
+    expect(currentOrigin).toContain("displayedCreationDecision.promptOut.stepKey");
+    expect(html).toContain("Loaded Prompt-out status");
+    expect(html).toContain("Stale prior decision origin");
+    expect(html).toContain("creation:kernel_prompt");
+    expect(html).toContain("Name where the world starts.");
+    expect(html).toContain("Current decision changed to Park decomposed seeds.");
+    expect(html).toContain("Clear loaded status");
+    expect(html).not.toContain("looks current");
   });
 });

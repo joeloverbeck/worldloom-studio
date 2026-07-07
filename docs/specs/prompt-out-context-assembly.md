@@ -88,6 +88,12 @@ For `decomposition_pressure`, missing or incomplete decomposition material is a 
 7. Only explicit steward use creates `cites_advisory_artifact` or equivalent derivation links.
 8. Canon-changing material still routes through Admission.
 
+## Loaded Prompt Status Identity
+
+A loaded or copied Prompt-out status is scoped to the exact prompt packet origin, not merely to the fact that a prompt was loaded somewhere in the browser. The status carries enough identity to compare it with the active decision: world path, flow key, flow/run identifier where available, selected record identifier where available, step key, mode, decision label, and creation time or packet hash where useful. Admission status also carries the severity context that can change the active packet, such as `admission_level` and `work_scale`.
+
+The loaded status remains current only while that origin matches the active decision and packet identity. It clears or renders as stale with its prior-decision origin when the active decision changes, the selected record changes, the step changes, the prompt mode changes to a different packet, the prompt packet changes, Creation seed parking moves the active preview to decomposition, or the world switches. A stale status labels the prior origin and offers a safe clear or return action; it must not silently imply that the old loaded packet matches the current copy-out material. The status text must carry equivalent context for visual and assistive-technology users without relying on screen position alone.
+
 ## Cold External LLM Test
 
 A proposal packet passes when a model with no prior world or repository context can draft labeled candidate material with alternatives and assumptions while still respecting the advisory/canon boundary and forbidden labels. A pressure packet passes when that same model can give useful pressure, risks, alternatives, or questions without being asked to author final canon. Both tests fail if the steward must manually add doctrine, source records, vocabulary guardrails, output-label rules, or advisory/canon boundaries before the prompt is usable.

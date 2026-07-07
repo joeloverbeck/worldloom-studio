@@ -4,6 +4,14 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { App } from "./main";
 
+const snippetBetween = (source: string, startMarker: string, endMarker: string) => {
+  const start = source.indexOf(startMarker);
+  const end = source.indexOf(endMarker, start);
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  return source.slice(start, end);
+};
+
 describe("setup/open-world browser shell", () => {
   it("renders a token-free setup-only shell before a world is open", () => {
     const html = renderToString(<App
@@ -49,5 +57,39 @@ describe("setup/open-world browser shell", () => {
     expect(html).toContain("Prerequisites before other flows");
     expect(html).toContain("New record");
     expect(html).toContain("Canon Workbench");
+  });
+
+  it("routes successful world switches through one world-scoped browser reset boundary", () => {
+    const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
+    const resetBoundary = snippetBetween(source, "const resetWorldScopedBrowserState = () =>", "const createOrOpen = async");
+    const createOrOpen = snippetBetween(source, "const createOrOpen = async", "const resetRecordForm = () =>");
+    const failureHandler = snippetBetween(createOrOpen, "} catch (error) {", "  };\n");
+
+    expect(resetBoundary).toContain("setWorkflowMap(null)");
+    expect(resetBoundary).toContain("setAdmissionDecision(null)");
+    expect(resetBoundary).toContain("setAdmissionQueue([])");
+    expect(resetBoundary).toContain("setCreationDecision(null)");
+    expect(resetBoundary).toContain("setMinimalViableWorld(null)");
+    expect(resetBoundary).toContain("setPromptStep(null)");
+    expect(resetBoundary).toContain("setPromptText(\"\")");
+    expect(resetBoundary).toContain("setLoadedPromptStatus(null)");
+    expect(resetBoundary).toContain("setFlowId(null)");
+    expect(resetBoundary).toContain("setKernelRecordId(null)");
+    expect(resetBoundary).toContain("setKernelBody(\"\")");
+    expect(resetBoundary).toContain("setSeedBody(\"\")");
+    expect(resetBoundary).toContain("setDecompositionError(null)");
+    expect(resetBoundary).toContain("setStage12Run(null)");
+    expect(resetBoundary).toContain("setConstraintRun(null)");
+    expect(resetBoundary).toContain("setTemporalRun(null)");
+    expect(resetBoundary).toContain("setStage13Run(null)");
+    expect(resetBoundary).toContain("setQaScorecard(null)");
+    expect(resetBoundary).toContain("setCanonDetail(null)");
+
+    expect(createOrOpen).toContain("hasUnsavedWorldScopedBrowserBuffers()");
+    expect(createOrOpen).toContain("window.confirm");
+    expect(createOrOpen.indexOf("resetWorldScopedBrowserState()")).toBeGreaterThanOrEqual(0);
+    expect(createOrOpen.indexOf("resetWorldScopedBrowserState()")).toBeLessThan(createOrOpen.indexOf("setOpenWorld(payload.path)"));
+    expect(createOrOpen.indexOf("resetWorldScopedBrowserState()")).toBeLessThan(createOrOpen.indexOf("await loadWorldData()"));
+    expect(failureHandler).not.toContain("resetWorldScopedBrowserState");
   });
 });

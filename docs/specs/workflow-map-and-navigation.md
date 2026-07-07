@@ -27,6 +27,8 @@ The setup shell has no manual token input and does not require a copied terminal
 
 Create/open policy remains server-owned. The browser shows server-returned path, wrong-file, future-schema, migration/backup, integrity, filesystem, and open/create failures next to the setup controls while preserving the entered path for correction. A successful create/open names the world file, updates recent worlds, and reveals the workspace.
 
+Successful create/open of a different world is a world-scoped reset boundary. Before the new workspace renders, the browser clears or remounts all world-scoped guided-flow state: active destination-local payloads, flow/run identifiers, selected records, decision payloads, Creation kernel and seed draft buffers, consequence-mode and decomposition state, Minimal Viable World state, Admission queue selection and loaded decision state, Prompt-out preview and loaded status, advisory/lifecycle UI state, Canon Workbench selections, destination-local caches, and flow/action errors. The visible invariant is that the displayed world path matches the world file behind every visible flow record, prompt state, queue state, draft buffer, selected record, decision payload, and flow/action error. Failed create/open attempts preserve the current open world's workspace state while showing setup/open recovery near the setup controls. When current-world unsaved browser buffers would be discarded by a switch, the steward is warned before the successful switch continues.
+
 After a world is open, setup controls become secondary and the workflow map becomes the home surface. A world with no `world_kernel` foregrounds Creation start/resume from the map as the primary active guided path; unrelated flows show prerequisite or not-yet-ready states until the kernel prerequisite exists. A world that has just parked Creation seeds foregrounds the Creation-to-Admission handoff and the Admission queue route: parked proposed seeds, seed-decomposition report, source links, granularity rationale, optional decomposition Prompt-out, and Admission queue route. Unrelated advanced flows remain available as substrate or later work, but they are visually secondary to the immediate handoff where this state is in scope.
 
 ## Map-as-Home Rule
@@ -141,6 +143,7 @@ A browser workflow slice that changes navigation must show:
 - an exit/resume path;
 - the resulting read-side trail or explicit reason none exists yet.
 - for setup/open-world changes, a walkthrough from no-world setup through create/open success and the empty-world Creation prerequisite state.
+- for world-switch reset changes, a same-runtime browser walkthrough that starts in world A with loaded Creation, Admission, Prompt-out, draft/buffer, selected-record, queue, decision, and error state where available; switches to world B without refreshing; and verifies no world A short IDs, titles, prompt packets, loaded statuses, draft text, selected records, queue selections, decision payloads, or flow/action errors render under world B's displayed path.
 - for Creation-to-Admission handoff changes, a walkthrough from open early-world state through seed parking, prompt preview or governed skip, and Admission handoff, with unrelated advanced flows presented as not-current or prerequisite surfaces where the slice touches them.
 
 ## Principles
