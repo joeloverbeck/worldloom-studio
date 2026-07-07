@@ -45,6 +45,22 @@ interface PromptOutStepDto {
     admissionLevel: string | null;
     workScale: string | null;
   };
+  packetIdentity: {
+    flowKey: string | null;
+    flowId: number | null;
+    stepKey: string;
+    mode: string;
+    templateKey: string;
+    recordId: number | null;
+    recordShortId: string | null;
+    recordTypeKey: string | null;
+    selectedSectionHeading: string | null;
+    admissionLevel: string | null;
+    workScale: string | null;
+    decisionLabel: string;
+    generatedAt: string | null;
+    packetHash: string | null;
+  };
   currentState: {
     promptText: string | null;
     advisoryRecordId: number | null;
@@ -86,6 +102,22 @@ describe("Prompt-out step lifecycle", () => {
       context: { flowKey: "admission", flowId: null, stepKey: "admission:dependencies" },
       selectedRecord: { id: fact.record.id, title: "Toll ghosts", recordTypeKey: "canon_fact" },
       severity: { admissionLevel: "1", workScale: "minor" },
+      packetIdentity: {
+        flowKey: "admission",
+        flowId: null,
+        stepKey: "admission:dependencies",
+        mode: "pressure",
+        templateKey: "admission_prerequisite_audit",
+        recordId: fact.record.id,
+        recordShortId: fact.record.shortId,
+        recordTypeKey: "canon_fact",
+        selectedSectionHeading: null,
+        admissionLevel: "1",
+        workScale: "minor",
+        decisionLabel: "Toll ghosts",
+        generatedAt: null,
+        packetHash: null
+      },
       currentState: { promptText: null, advisoryRecordId: null, disposition: null }
     });
     expect(admissionStep.step.actions.generate.href).toContain("/api/prompt-out/steps/actions/generate?");
@@ -93,10 +125,15 @@ describe("Prompt-out step lifecycle", () => {
     expect(admissionStep.step.actions.disposition.href).toContain("/api/prompt-out/steps/actions/disposition?");
     expect(admissionStep.step.actions.skip.href).toContain("/api/prompt-out/steps/actions/skip?");
 
-    const generated = await json<{ prompt: string; promptOut: { flowKey: string; stepKey: string; recordId: number } }>(
+    const generated = await json<{ prompt: string; promptOut: { flowKey: string; stepKey: string; recordId: number; packetIdentity: PromptOutStepDto["packetIdentity"] } }>(
       await postJson(app, admissionStep.step.actions.generate.href)
     );
     expect(generated.promptOut).toMatchObject({ flowKey: "admission", stepKey: "admission:dependencies", recordId: fact.record.id });
+    expect(generated.promptOut.packetIdentity).toMatchObject({
+      ...admissionStep.step.packetIdentity,
+      generatedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+      packetHash: expect.stringMatching(/^[a-f0-9]{64}$/)
+    });
     expect(generated.prompt).toContain("Prerequisite auditor");
     expect(generated.prompt).toContain("Toll ghosts");
 

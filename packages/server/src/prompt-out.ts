@@ -5,6 +5,7 @@ import { PROMPT_TEMPLATE_SEEDS } from "./prompt-out-defaults.js";
 import type { PromptMode } from "./decision-point-contract.js";
 import type { MethodCard } from "@worldloom/shared";
 import type { RecordInput, RecordRow, WorldFile } from "./world-file.js";
+import { createHash } from "node:crypto";
 
 export type PromptOutFlowKey = "creation" | "admission" | "propagation" | "contradiction" | "qa" | string;
 
@@ -52,7 +53,28 @@ export interface PromptGenerationInput {
   recordId?: number;
   stepKey?: string;
   mode?: PromptMode;
+  admissionLevel?: string | null;
+  workScale?: string | null;
 }
+
+export interface PromptPacketIdentity {
+  flowKey: PromptOutFlowKey | null;
+  flowId: number | null;
+  stepKey: string;
+  mode: PromptMode;
+  templateKey: string;
+  recordId: number | null;
+  recordShortId: string | null;
+  recordTypeKey: string | null;
+  selectedSectionHeading: string | null;
+  admissionLevel: string | null;
+  workScale: string | null;
+  decisionLabel: string;
+  generatedAt: string | null;
+  packetHash: string | null;
+}
+
+type PromptIdentityRecord = Pick<RecordRow, "id" | "shortId" | "recordTypeKey" | "title">;
 
 export interface PromptGenerationResult {
   prompt: string;
@@ -63,6 +85,7 @@ export interface PromptGenerationResult {
     mode: PromptMode;
     templateKey: string;
     recordId: number | null;
+    packetIdentity: PromptPacketIdentity;
   };
 }
 
@@ -132,6 +155,9 @@ const renderDocuments = (documents: PromptDocument[]): string =>
     inlineTag("source", document.source),
     tagBlock("document_content", document.content || "(empty)")
   ].join("\n"))).join("\n\n") || "(none)");
+
+const packetHash = (prompt: string): string =>
+  createHash("sha256").update(prompt).digest("hex");
 
 const quoteGrounding = "Quote-grounding pre-step: first quote the specific canon, doctrine, or source-record lines your candidates or critiques rest on before the main answer.";
 
@@ -324,6 +350,59 @@ const creationSelectedKernelSection = (world: WorldFile, input: PromptGeneration
   };
 };
 
+export const promptPacketIdentity = (
+  world: WorldFile,
+  input: PromptGenerationInput,
+  options: {
+    mode?: PromptMode;
+    stepKey?: string;
+    record?: PromptIdentityRecord | null;
+    selectedSectionHeading?: string | null;
+    decisionLabel?: string;
+    generatedAt?: string | null;
+    packetHash?: string | null;
+  } = {}
+): PromptPacketIdentity => {
+  const stepKey = options.stepKey ?? input.stepKey ?? input.templateKey;
+  const mode = options.mode ?? input.mode ?? "pressure";
+  const record = options.record === undefined
+    ? (input.recordId == null ? null : world.getRecord(input.recordId))
+    : options.record;
+  const selectedSectionHeading = options.selectedSectionHeading !== undefined
+    ? options.selectedSectionHeading
+    : input.flowKey === "creation" && input.templateKey === "kernel_pressure" && record?.recordTypeKey === "world_kernel"
+      ? creationSelectedKernelSection(world, input, world.getRecord(record.id)).heading
+      : null;
+  return {
+    flowKey: input.flowKey ?? null,
+    flowId: input.flowId ?? null,
+    stepKey,
+    mode,
+    templateKey: input.templateKey,
+    recordId: record?.id ?? input.recordId ?? null,
+    recordShortId: record?.shortId ?? null,
+    recordTypeKey: record?.recordTypeKey ?? null,
+    selectedSectionHeading: selectedSectionHeading ?? null,
+    admissionLevel: input.admissionLevel ?? null,
+    workScale: input.workScale ?? null,
+    decisionLabel: options.decisionLabel ?? selectedSectionHeading ?? record?.title ?? stepKey,
+    generatedAt: options.generatedAt ?? null,
+    packetHash: options.packetHash ?? null
+  };
+};
+
+const generatedPacketIdentity = (
+  world: WorldFile,
+  input: PromptGenerationInput,
+  prompt: string,
+  options: Parameters<typeof promptPacketIdentity>[2] = {}
+): PromptPacketIdentity =>
+  promptPacketIdentity(world, input, {
+    ...options,
+    generatedAt: new Date().toISOString(),
+    packetHash: packetHash(prompt)
+  });
+
 const standingRulingRows = (world: WorldFile): Array<{ disposition: string; note: string }> =>
   world.db.prepare("SELECT disposition, note FROM advisory_dispositions WHERE standing_ruling = 1 ORDER BY id")
     .all()
@@ -428,8 +507,7 @@ const creationDecompositionPrompt = (
     ...omissions.map((omission) => `Omission: ${omission}`)
   ];
 
-  return {
-    prompt: renderPromptPacket({
+  const prompt = renderPromptPacket({
       mode: "pressure",
       roleName: template.role_name,
       templateText: template.current_text,
@@ -479,14 +557,24 @@ const creationDecompositionPrompt = (
       sourceManifest,
       advisoryWarning: "This prompt asks for optional pressure only. Pasted responses stay advisory artifacts until the steward authors and admits canon through the governed flow.",
       outputLabels: ["bundled seed", "missing prerequisite", "admission concern", "risk", "alternative", "question", "standing-ruling candidate", "irrelevant omission"]
-    }),
+    });
+
+  return {
+    prompt,
     promptOut: {
       flowKey: input.flowKey ?? null,
       flowId: input.flowId ?? null,
       stepKey,
       mode: "pressure",
       templateKey: input.templateKey,
-      recordId: report.id
+      recordId: report.id,
+      packetIdentity: generatedPacketIdentity(world, { ...input, recordId: report.id, mode: "pressure", stepKey }, prompt, {
+        mode: "pressure",
+        stepKey,
+        record: report,
+        selectedSectionHeading: null,
+        decisionLabel: report.title
+      })
     }
   };
 };
@@ -527,8 +615,7 @@ const creationKernelPrompt = (
     ...omissions.map((omission) => `Omission: ${omission}`)
   ];
 
-  return {
-    prompt: renderPromptPacket({
+  const prompt = renderPromptPacket({
       mode,
       roleName: mode === "proposal" ? "Decision proposal" : template.role_name,
       templateText: template.current_text,
@@ -568,14 +655,24 @@ const creationKernelPrompt = (
       sourceManifest,
       advisoryWarning: "This prompt is optional advisory support. Pasted responses stay advisory artifacts until the steward authors and admits canon through the governed flow.",
       outputLabels: ["candidate", "assumption", "risk", "alternative", "question", "standing-ruling candidate", "off-section"]
-    }),
+    });
+
+  return {
+    prompt,
     promptOut: {
       flowKey: input.flowKey ?? null,
       flowId: input.flowId ?? null,
       stepKey,
       mode,
       templateKey: input.templateKey,
-      recordId: selectedRecord.id
+      recordId: selectedRecord.id,
+      packetIdentity: generatedPacketIdentity(world, { ...input, mode, stepKey, recordId: selectedRecord.id }, prompt, {
+        mode,
+        stepKey,
+        record: selectedRecord,
+        selectedSectionHeading: section.heading,
+        decisionLabel: section.heading
+      })
     }
   };
 };
@@ -636,46 +733,55 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
   ];
   const advisoryWarning = "This prompt is optional advisory support. Pasted responses stay advisory artifacts until the steward authors and admits canon through the governed flow.";
 
+  const prompt = renderPromptPacket({
+    mode,
+    roleName: template.role_name,
+    templateText: template.current_text,
+    currentDecision: `Flow ${input.flowKey ?? "unspecified"}, step ${stepKey}; selected record ${selectedRecord ? `${selectedRecord.shortId} ${selectedRecord.title}` : "none"}.`,
+    modeRequest: mode === "proposal"
+      ? "Draft labeled candidate material with alternatives, assumptions, risks, and questions. Recommend with reasons, never assign canon standing or separated labels."
+      : "Provide pressure, risks, alternatives, and questions on steward-authored material. Do not author final canon.",
+    bearingContext: [
+      ...modeLine(mode),
+      ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey }),
+      ...(flowContext.lines.length ? flowContext.lines : [])
+    ],
+    packageDoctrine: [
+      ...doctrineLines,
+      "Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories.",
+      "Label assumptions instruction: separate direct consequences from speculative assumptions and mark unadmitted assumptions plainly."
+    ],
+    decisionMaterial: ["Record context:", recordContext],
+    sourceDocuments: [
+      ...(selectedRecord
+        ? [{ source: `selected_record:${selectedRecord.shortId}`, content: recordContext }]
+        : []),
+      ...(flowContext.lines.length
+        ? [{ source: `flow_context:${input.flowKey ?? "unspecified"}:${stepKey}`, content: flowContext.lines.join("\n\n") }]
+        : [])
+    ],
+    standingRulings: rulings.map((row) => `${row.disposition}: ${row.note}`),
+    omissions,
+    sourceManifest,
+    advisoryWarning
+  });
+
   return {
-    prompt: renderPromptPacket({
-      mode,
-      roleName: template.role_name,
-      templateText: template.current_text,
-      currentDecision: `Flow ${input.flowKey ?? "unspecified"}, step ${stepKey}; selected record ${selectedRecord ? `${selectedRecord.shortId} ${selectedRecord.title}` : "none"}.`,
-      modeRequest: mode === "proposal"
-        ? "Draft labeled candidate material with alternatives, assumptions, risks, and questions. Recommend with reasons, never assign canon standing or separated labels."
-        : "Provide pressure, risks, alternatives, and questions on steward-authored material. Do not author final canon.",
-      bearingContext: [
-        ...modeLine(mode),
-        ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey }),
-        ...(flowContext.lines.length ? flowContext.lines : [])
-      ],
-      packageDoctrine: [
-        ...doctrineLines,
-        "Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories.",
-        "Label assumptions instruction: separate direct consequences from speculative assumptions and mark unadmitted assumptions plainly."
-      ],
-      decisionMaterial: ["Record context:", recordContext],
-      sourceDocuments: [
-        ...(selectedRecord
-          ? [{ source: `selected_record:${selectedRecord.shortId}`, content: recordContext }]
-          : []),
-        ...(flowContext.lines.length
-          ? [{ source: `flow_context:${input.flowKey ?? "unspecified"}:${stepKey}`, content: flowContext.lines.join("\n\n") }]
-          : [])
-      ],
-      standingRulings: rulings.map((row) => `${row.disposition}: ${row.note}`),
-      omissions,
-      sourceManifest,
-      advisoryWarning
-    }),
+    prompt,
     promptOut: {
       flowKey: input.flowKey ?? null,
       flowId: input.flowId ?? null,
       stepKey,
       mode,
       templateKey: input.templateKey,
-      recordId: input.recordId ?? null
+      recordId: input.recordId ?? null,
+      packetIdentity: generatedPacketIdentity(world, { ...input, mode, stepKey }, prompt, {
+        mode,
+        stepKey,
+        record: selectedRecord,
+        selectedSectionHeading: null,
+        decisionLabel: selectedRecord?.title ?? stepKey
+      })
     }
   };
 };

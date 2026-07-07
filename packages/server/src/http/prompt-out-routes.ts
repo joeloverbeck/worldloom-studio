@@ -24,7 +24,13 @@ export const registerPromptOutRoutes = (app: RouteApp, dependencies: RouteDepend
   )));
 
   app.post("/api/prompts/generate", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () => {
-    const result = PromptOut.generatePrompt(world, await readJson<{ templateKey: string; recordId?: number; stepKey?: string }>(c));
+    const result = PromptOut.generatePrompt(world, await readJson<{
+      templateKey: string;
+      recordId?: number;
+      stepKey?: string;
+      admissionLevel?: string;
+      workScale?: string;
+    }>(c));
     return c.json({ prompt: result.prompt });
   })));
 
@@ -86,6 +92,8 @@ export const registerPromptOutRoutes = (app: RouteApp, dependencies: RouteDepend
       templateKey: string;
       recordId?: number;
       stepKey?: string;
+      admissionLevel?: string;
+      workScale?: string;
     }>(c)))
   )));
 

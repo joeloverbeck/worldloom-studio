@@ -877,6 +877,8 @@ interface AppProps {
   initialMinimalViableWorld?: MinimalViableWorldState | null;
   initialQaScorecard?: QaScorecard | null;
   initialLoadedPromptStatus?: LoadedPromptStatusState | null;
+  initialPromptText?: string;
+  initialPromptPacketOrigin?: LoadedPromptOrigin | null;
 }
 
 type PromptFlowKey = "creation" | "admission" | "propagation" | "contradiction" | "qa" | "institutional_economic_suppression" | "constraint_composition" | "temporal_timeline";
@@ -922,6 +924,7 @@ interface PromptOutStep {
     admissionLevel: string | null;
     workScale: string | null;
   };
+  packetIdentity: PromptPacketIdentity;
   currentState: {
     promptText: string | null;
     advisoryRecordId: number | null;
@@ -940,6 +943,9 @@ interface LoadedPromptOrigin {
   flowKey: string | null;
   flowId: number | null;
   recordId: number | null;
+  recordShortId: string | null;
+  recordTypeKey: string | null;
+  selectedSectionHeading: string | null;
   stepKey: string;
   mode: string | null;
   templateKey: string;
@@ -947,6 +953,24 @@ interface LoadedPromptOrigin {
   createdAt: string;
   admissionLevel: string | null;
   workScale: string | null;
+  packetHash: string | null;
+}
+
+interface PromptPacketIdentity {
+  flowKey: string | null;
+  flowId: number | null;
+  stepKey: string;
+  mode: string | null;
+  templateKey: string;
+  recordId: number | null;
+  recordShortId: string | null;
+  recordTypeKey: string | null;
+  selectedSectionHeading: string | null;
+  admissionLevel: string | null;
+  workScale: string | null;
+  decisionLabel: string;
+  generatedAt: string | null;
+  packetHash: string | null;
 }
 
 interface LoadedPromptStatusState {
@@ -1077,23 +1101,34 @@ const promptOriginsMatch = (left: LoadedPromptOrigin, right: LoadedPromptOrigin)
   && left.flowKey === right.flowKey
   && left.flowId === right.flowId
   && left.recordId === right.recordId
+  && left.recordShortId === right.recordShortId
+  && left.recordTypeKey === right.recordTypeKey
+  && left.selectedSectionHeading === right.selectedSectionHeading
   && left.stepKey === right.stepKey
   && left.mode === right.mode
   && left.templateKey === right.templateKey
-  && left.decisionLabel === right.decisionLabel
   && left.admissionLevel === right.admissionLevel
   && left.workScale === right.workScale;
+
+const samePromptPacketOrigin = (left: LoadedPromptOrigin, right: LoadedPromptOrigin): boolean =>
+  promptOriginsMatch(left, right)
+  && left.createdAt === right.createdAt
+  && left.packetHash === right.packetHash;
 
 const describePromptOrigin = (origin: LoadedPromptOrigin): string => [
   `world ${origin.worldPath}`,
   `flow ${origin.flowKey ?? "none"}`,
   `flow/run ${origin.flowId ?? "none"}`,
   `record ${origin.recordId ?? "none"}`,
+  `record short id ${origin.recordShortId ?? "none"}`,
+  `record type ${origin.recordTypeKey ?? "none"}`,
+  `section ${origin.selectedSectionHeading ?? "none"}`,
   `step ${origin.stepKey}`,
   `mode ${origin.mode ?? "none"}`,
   `template ${origin.templateKey}`,
   `decision ${origin.decisionLabel}`,
   `created ${origin.createdAt}`,
+  `packet ${origin.packetHash ?? "none"}`,
   `admission_level ${origin.admissionLevel ?? "none"}`,
   `work_scale ${origin.workScale ?? "none"}`
 ].join(" · ");
@@ -1123,6 +1158,28 @@ function LoadedPromptStatusPanel({
         <button onClick={onClear}>Clear loaded status</button>
         {view.state === "stale" && <button onClick={onReturn}>Return to prior origin</button>}
       </div>
+    </section>
+  );
+}
+
+function PromptPacketBodyStatus({
+  promptText,
+  state,
+  reason,
+  origin
+}: {
+  promptText: string;
+  state: "current" | "stale" | "unbound";
+  reason: string;
+  origin: LoadedPromptOrigin | null;
+}) {
+  if (!promptText) return null;
+  return (
+    <section className={`subpanel prompt-packet-body-status ${state}`} role="status" aria-live="polite">
+      <h3>{state === "current" ? "Current prompt packet body" : state === "stale" ? "Stale prompt packet body" : "Unbound prompt packet body"}</h3>
+      <p>{reason}</p>
+      {origin && <p>Prior packet origin: {describePromptOrigin(origin)}</p>}
+      <pre className="prompt-packet-text">{promptText}</pre>
     </section>
   );
 }
@@ -1503,7 +1560,9 @@ function App({
   initialCreationDecision = null,
   initialMinimalViableWorld = null,
   initialQaScorecard = null,
-  initialLoadedPromptStatus = null
+  initialLoadedPromptStatus = null,
+  initialPromptText = "",
+  initialPromptPacketOrigin = null
 }: AppProps = {}) {
   const [worldPath, setWorldPath] = useState("");
   const [openWorld, setOpenWorld] = useState<string | null>(initialOpenWorld);
@@ -1670,7 +1729,8 @@ function App({
   const [promptFlowKey, setPromptFlowKey] = useState<PromptFlowKey>("creation");
   const [creationPromptMode, setCreationPromptMode] = useState<"proposal" | "pressure">("proposal");
   const [promptStep, setPromptStep] = useState<PromptOutStep | null>(null);
-  const [promptText, setPromptText] = useState("");
+  const [promptText, setPromptText] = useState(initialPromptText);
+  const [promptPacketOrigin, setPromptPacketOrigin] = useState<LoadedPromptOrigin | null>(initialPromptPacketOrigin);
   const [loadedPromptStatus, setLoadedPromptStatus] = useState<LoadedPromptStatusState | null>(initialLoadedPromptStatus);
   const [templateEdit, setTemplateEdit] = useState("");
   const [responseText, setResponseText] = useState("");
@@ -1836,13 +1896,17 @@ function App({
         flowKey: "admission",
         flowId: null,
         recordId: admissionDecision.selectedRecord.id,
+        recordShortId: admissionDecision.selectedRecord.shortId,
+        recordTypeKey: admissionDecision.selectedRecord.recordTypeKey,
+        selectedSectionHeading: null,
         stepKey: admissionDecision.promptOut.stepKey,
         mode: typeof request.mode === "string" ? request.mode : null,
         templateKey: admissionDecision.promptOut.templateKey,
         decisionLabel: admissionDecision.promptOut.preview.currentDecision || admissionDecision.localDecision,
         createdAt: loadedPromptStatus?.origin.createdAt ?? "",
         admissionLevel: admissionDecision.severity.admissionLevel,
-        workScale: admissionDecision.severity.workScale
+        workScale: admissionDecision.severity.workScale,
+        packetHash: loadedPromptStatus?.origin.packetHash ?? null
       };
     }
 
@@ -1854,13 +1918,19 @@ function App({
         flowKey: "creation",
         flowId: originNumber(request.flowId) ?? flowId,
         recordId: originNumber(request.recordId) ?? kernelRecordId,
+        recordShortId: displayedCreationDecision.currentKernel?.shortId ?? null,
+        recordTypeKey: displayedCreationDecision.currentKernel ? "world_kernel" : null,
+        selectedSectionHeading: displayedCreationDecision.currentStep.startsWith("kernel:")
+          ? displayedCreationDecision.selectedSection?.heading ?? kernelHeading
+          : null,
         stepKey: displayedCreationDecision.promptOut.stepKey,
         mode: typeof request.mode === "string" ? request.mode : selectedCreationPromptMode?.mode ?? null,
         templateKey: String(request.templateKey ?? displayedCreationDecision.promptOut.templateKey),
         decisionLabel: displayedCreationDecision.promptOut.preview.currentDecision || displayedCreationDecision.localDecision,
         createdAt: loadedPromptStatus?.origin.createdAt ?? "",
         admissionLevel: null,
-        workScale: null
+        workScale: null,
+        packetHash: loadedPromptStatus?.origin.packetHash ?? null
       };
     }
 
@@ -1870,13 +1940,17 @@ function App({
         flowKey: promptStep.context.flowKey,
         flowId: promptStep.context.flowId,
         recordId: promptStep.selectedRecord?.id ?? originNumber(promptRecordId),
+        recordShortId: promptStep.selectedRecord?.shortId ?? null,
+        recordTypeKey: promptStep.selectedRecord?.recordTypeKey ?? null,
+        selectedSectionHeading: promptStep.packetIdentity.selectedSectionHeading,
         stepKey: promptStep.context.stepKey,
         mode: promptStep.mode ?? null,
         templateKey: promptStep.templateKey,
         decisionLabel: promptStep.label,
         createdAt: loadedPromptStatus?.origin.createdAt ?? "",
         admissionLevel: promptStep.severity.admissionLevel,
-        workScale: promptStep.severity.workScale
+        workScale: promptStep.severity.workScale,
+        packetHash: loadedPromptStatus?.origin.packetHash ?? null
       };
     }
 
@@ -1906,10 +1980,48 @@ function App({
         : "No active decision identity is available for the loaded prompt."
     };
   }, [currentLoadedPromptOrigin, loadedPromptStatus]);
+  const promptPacketView = useMemo(() => {
+    if (!promptText) return null;
+    if (!promptPacketOrigin) {
+      return {
+        state: "unbound" as const,
+        reason: "This prompt packet body has no server-returned identity, so it cannot be copied, exported, or stored as current.",
+        origin: null
+      };
+    }
+    if (
+      loadedPromptStatusView?.state === "current"
+      && loadedPromptStatus
+      && samePromptPacketOrigin(promptPacketOrigin, loadedPromptStatus.origin)
+    ) {
+      return {
+        state: "current" as const,
+        reason: "This prompt packet body matches the active loaded Prompt-out origin.",
+        origin: promptPacketOrigin
+      };
+    }
+    return {
+      state: "stale" as const,
+      reason: "This prompt packet body belongs to a prior origin and cannot be copied, exported, or stored as the active decision's current packet.",
+      origin: promptPacketOrigin
+    };
+  }, [loadedPromptStatus, loadedPromptStatusView, promptPacketOrigin, promptText]);
+  const canUseCurrentPromptPacket = Boolean(promptText && promptPacketView?.state === "current");
+  const promptPacketStatusPanel = promptPacketView ? (
+    <PromptPacketBodyStatus
+      promptText={promptText}
+      state={promptPacketView.state}
+      reason={promptPacketView.reason}
+      origin={promptPacketView.origin}
+    />
+  ) : null;
   const loadedPromptStatusPanel = loadedPromptStatusView ? (
     <LoadedPromptStatusPanel
       view={loadedPromptStatusView}
-      onClear={() => setLoadedPromptStatus(null)}
+      onClear={() => {
+        setLoadedPromptStatus(null);
+        clearPromptPacketBody();
+      }}
       onReturn={() => setActiveDestination(loadedPromptStatusView.origin.flowKey === "creation" || loadedPromptStatusView.origin.flowKey === "admission"
         ? loadedPromptStatusView.origin.flowKey
         : "substrate")}
@@ -2299,6 +2411,7 @@ function App({
     setCreationPromptMode("proposal");
     setPromptStep(null);
     setPromptText("");
+    setPromptPacketOrigin(null);
     setLoadedPromptStatus(null);
     setTemplateEdit("");
     setResponseText("");
@@ -2587,14 +2700,52 @@ function App({
     flowKey: step.context.flowKey ?? fallback.flowKey ?? null,
     flowId: step.context.flowId ?? fallback.flowId ?? null,
     recordId: step.selectedRecord?.id ?? fallback.recordId ?? null,
+    recordShortId: step.selectedRecord?.shortId ?? fallback.recordShortId ?? step.packetIdentity.recordShortId ?? null,
+    recordTypeKey: step.selectedRecord?.recordTypeKey ?? fallback.recordTypeKey ?? step.packetIdentity.recordTypeKey ?? null,
+    selectedSectionHeading: step.packetIdentity.selectedSectionHeading ?? fallback.selectedSectionHeading ?? null,
     stepKey: step.context.stepKey,
     mode: step.mode ?? fallback.mode ?? null,
     templateKey: step.templateKey,
     decisionLabel,
     createdAt: new Date().toISOString(),
     admissionLevel: step.severity.admissionLevel ?? fallback.admissionLevel ?? null,
-    workScale: step.severity.workScale ?? fallback.workScale ?? null
+    workScale: step.severity.workScale ?? fallback.workScale ?? null,
+    packetHash: fallback.packetHash ?? null
   });
+
+  const promptOriginFromPacketIdentity = (
+    identity: PromptPacketIdentity,
+    fallback: Partial<LoadedPromptOrigin> = {}
+  ): LoadedPromptOrigin => ({
+    worldPath: openWorld ?? fallback.worldPath ?? "",
+    flowKey: identity.flowKey ?? fallback.flowKey ?? null,
+    flowId: identity.flowId ?? fallback.flowId ?? null,
+    recordId: identity.recordId ?? fallback.recordId ?? null,
+    recordShortId: identity.recordShortId ?? fallback.recordShortId ?? null,
+    recordTypeKey: identity.recordTypeKey ?? fallback.recordTypeKey ?? null,
+    selectedSectionHeading: identity.selectedSectionHeading ?? fallback.selectedSectionHeading ?? null,
+    stepKey: identity.stepKey,
+    mode: identity.mode ?? fallback.mode ?? null,
+    templateKey: identity.templateKey,
+    decisionLabel: identity.decisionLabel || fallback.decisionLabel || identity.selectedSectionHeading || identity.stepKey,
+    createdAt: identity.generatedAt ?? fallback.createdAt ?? new Date().toISOString(),
+    admissionLevel: identity.admissionLevel ?? fallback.admissionLevel ?? null,
+    workScale: identity.workScale ?? fallback.workScale ?? null,
+    packetHash: identity.packetHash ?? fallback.packetHash ?? null
+  });
+
+  const setLoadedPromptAndPacket = (origin: LoadedPromptOrigin, text?: string | null) => {
+    setLoadedPromptStatus({ origin });
+    if (text != null) {
+      setPromptText(text);
+      setPromptPacketOrigin(origin);
+    }
+  };
+
+  const clearPromptPacketBody = () => {
+    setPromptText("");
+    setPromptPacketOrigin(null);
+  };
 
   const loadPromptStep = async () => {
     const payload = await api<{ step: PromptOutStep }>("/api/prompt-out/steps", {
@@ -2612,6 +2763,7 @@ function App({
     });
     setPromptStep(payload.step);
     setLoadedPromptStatus({ origin: promptOriginFromStep(payload.step, payload.step.label, { recordId: promptStepRecordId() ?? null }) });
+    setPromptPacketOrigin(null);
     setMessage(`Loaded Prompt-out step ${payload.step.label}`);
     return payload.step;
   };
@@ -2627,16 +2779,17 @@ function App({
       body: JSON.stringify(request.body)
     });
     setPromptStep(payload.step);
-    setLoadedPromptStatus({
-      origin: promptOriginFromStep(payload.step, admissionDecision.promptOut.preview.currentDecision || admissionDecision.localDecision, {
+    setLoadedPromptAndPacket(
+      promptOriginFromPacketIdentity(payload.step.packetIdentity, {
         flowKey: "admission",
         recordId: admissionDecision.selectedRecord.id,
         mode: typeof request.body.mode === "string" ? request.body.mode : null,
         admissionLevel: admissionDecision.severity.admissionLevel,
-        workScale: admissionDecision.severity.workScale
-      })
-    });
-    setPromptText(admissionDecision.promptOut.preview.promptText);
+        workScale: admissionDecision.severity.workScale,
+        decisionLabel: admissionDecision.promptOut.preview.currentDecision || admissionDecision.localDecision
+      }),
+      admissionDecision.promptOut.preview.promptText
+    );
     setMessage(`Loaded Admission Prompt-out step ${payload.step.label}`);
     return payload.step;
   };
@@ -2665,15 +2818,16 @@ function App({
       body: JSON.stringify(request.body)
     });
     setPromptStep(payload.step);
-    setLoadedPromptStatus({
-      origin: promptOriginFromStep(payload.step, creationDecision.promptOut.preview.currentDecision || creationDecision.localDecision, {
+    setLoadedPromptAndPacket(
+      promptOriginFromPacketIdentity(payload.step.packetIdentity, {
         flowKey: "creation",
         flowId: originNumber(request.body.flowId),
         recordId: originNumber(request.body.recordId),
-        mode: typeof request.body.mode === "string" ? request.body.mode : selectedMode?.mode ?? null
-      })
-    });
-    setPromptText(payload.step.currentState.promptText ?? creationDecision.promptOut.preview.promptText);
+        mode: typeof request.body.mode === "string" ? request.body.mode : selectedMode?.mode ?? null,
+        decisionLabel: creationDecision.promptOut.preview.currentDecision || creationDecision.localDecision
+      }),
+      payload.step.currentState.promptText ?? creationDecision.promptOut.preview.promptText
+    );
     setMessage(`Loaded Creation Prompt-out step ${payload.step.label} (${payload.step.mode === "pressure" ? "Pressure mode" : "Proposal mode"})`);
     return payload.step;
   };
@@ -2682,8 +2836,10 @@ function App({
 
   const generatePrompt = async () => {
     const promptStep = await ensurePromptStep();
-    const payload = await api<{ prompt: string }>(promptStep.actions.generate.href, { method: promptStep.actions.generate.method });
-    setPromptText(payload.prompt);
+    const payload = await api<{ prompt: string; promptOut: { packetIdentity: PromptPacketIdentity } }>(promptStep.actions.generate.href, { method: promptStep.actions.generate.method });
+    setLoadedPromptAndPacket(promptOriginFromPacketIdentity(payload.promptOut.packetIdentity, {
+      decisionLabel: promptStep.label
+    }), payload.prompt);
   };
 
   const savePromptTemplate = async () => {
@@ -2700,6 +2856,10 @@ function App({
   };
 
   const storeAdvisory = async () => {
+    if (!canUseCurrentPromptPacket) {
+      setMessage("Prompt packet body is stale or unbound; load or generate the current packet before storing advisory material.");
+      return;
+    }
     const promptStep = await ensurePromptStep();
     const artifact = await api<{ record: RecordRow }>(promptStep.actions.storeAdvisory.href, {
       method: promptStep.actions.storeAdvisory.method,
@@ -2877,14 +3037,15 @@ function App({
       body: JSON.stringify(request.body)
     });
     setPromptStep(payload.step);
-    setLoadedPromptStatus({
-      origin: promptOriginFromStep(payload.step, checkpointState.decisionPoint.sharedContract.step.localDecision, {
+    setLoadedPromptAndPacket(
+      promptOriginFromPacketIdentity(payload.step.packetIdentity, {
         flowKey: "creation",
         recordId: originNumber(request.body.recordId),
-        mode: typeof request.body.mode === "string" ? request.body.mode : null
-      })
-    });
-    setPromptText(checkpointState.decisionPoint.sharedContract.bearingContext.displayed.join("\n"));
+        mode: typeof request.body.mode === "string" ? request.body.mode : null,
+        decisionLabel: checkpointState.decisionPoint.sharedContract.step.localDecision
+      }),
+      checkpointState.decisionPoint.sharedContract.bearingContext.displayed.join("\n")
+    );
     setMessage(`Loaded Minimal Viable World Prompt-out step ${payload.step.label}`);
     return payload.step;
   };
@@ -4878,9 +5039,10 @@ function App({
           activeDestination={activeDestination}
           setupControls={setupPanel(true)}
           surfaces={shellSurfaces}
-          status={loadedPromptStatusPanel || message ? (
+          status={loadedPromptStatusPanel || promptPacketStatusPanel || message ? (
             <>
               {loadedPromptStatusPanel}
+              {promptPacketStatusPanel}
               {message && <p className="status">{message}</p>}
             </>
           ) : null}
@@ -5181,11 +5343,28 @@ function App({
                 <span>{promptStep?.selectedRecord ? `${promptStep.selectedRecord.shortId} · ${promptStep.selectedRecord.title}` : "No selected record context loaded."}</span>
               </div>
               <button onClick={generatePrompt} disabled={!openWorld}>Generate Prompt</button>
-              <textarea rows={7} value={promptText} onChange={(event) => setPromptText(event.target.value)} />
+              {promptPacketStatusPanel}
+              <div className="row">
+                <button
+                  onClick={() => {
+                    if (!canUseCurrentPromptPacket) {
+                      setMessage("Prompt packet body is stale or unbound; load or generate the current packet before copying.");
+                      return;
+                    }
+                    void navigator.clipboard?.writeText(promptText);
+                    setMessage("Current prompt packet copied.");
+                  }}
+                  disabled={!canUseCurrentPromptPacket}
+                >Copy Current Packet</button>
+              </div>
+              <textarea rows={7} value={promptText} onChange={(event) => {
+                setPromptText(event.target.value);
+                setPromptPacketOrigin(null);
+              }} />
               <label>Pasted response<textarea rows={5} value={responseText} onChange={(event) => setResponseText(event.target.value)} /></label>
               <label>Disposition<select value={disposition} onChange={(event) => setDisposition(event.target.value)}>{advisoryDispositions.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
               <div className="row">
-                <button onClick={storeAdvisory} disabled={!promptText || !responseText}>Store Advisory</button>
+                <button onClick={storeAdvisory} disabled={!canUseCurrentPromptPacket || !responseText}>Store Advisory</button>
                 <button onClick={skipPrompt} disabled={!openWorld}>Skip Prompt</button>
               </div>
             </section>

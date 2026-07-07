@@ -56,6 +56,7 @@ export interface PromptOutStepDto {
     admissionLevel: string | null;
     workScale: string | null;
   };
+  packetIdentity: PromptOut.PromptPacketIdentity;
   currentState: {
     promptText: string | null;
     advisoryRecordId: number | null;
@@ -179,6 +180,16 @@ export const buildPromptOutStep = (world: WorldFile, input: PromptOutStepOfferIn
       admissionLevel: input.admissionLevel ?? null,
       workScale: input.workScale ?? null
     },
+    packetIdentity: PromptOut.promptPacketIdentity(world, {
+      flowKey: input.flowKey,
+      flowId: input.flowId,
+      templateKey: input.templateKey,
+      recordId: input.recordId,
+      stepKey: input.stepKey,
+      mode,
+      admissionLevel: input.admissionLevel,
+      workScale: input.workScale
+    }),
     currentState: {
       promptText: null,
       advisoryRecordId: null,
@@ -200,7 +211,9 @@ export const runPromptOutGenerateAction = (world: WorldFile, input: PromptOutSte
     templateKey: input.templateKey ?? "",
     recordId: input.recordId,
     stepKey: input.stepKey,
-    mode: input.mode
+    mode: input.mode,
+    admissionLevel: input.admissionLevel,
+    workScale: input.workScale
   });
 
 export const runPromptOutStoreAdvisoryAction = (

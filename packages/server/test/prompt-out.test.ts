@@ -100,6 +100,87 @@ describe("Prompt-out module", () => {
     store.close();
   });
 
+  it("returns packet identity metadata for Creation and Admission generated packets", () => {
+    const store = WorldFile.create(tempPath("packet-identity.sqlite"));
+    const kernel = store.createRecord({
+      recordTypeKey: "world_kernel",
+      title: "Broadcast harbor kernel",
+      body: "A harbor city whose bells govern power.",
+      ...explicitJudgment
+    });
+    store.replaceSections(kernel.id, [
+      { heading: "World premise", body: "Bells govern power allocation.", position: 1 },
+      { heading: "Core promise", body: "Every public act has a visible cost.", position: 2 }
+    ]);
+    const creationFlow = store.createFlowInstance({
+      flowKey: "creation",
+      currentStep: "kernel:Core promise",
+      kernelRecordId: kernel.id
+    });
+
+    const creation = PromptOut.generatePrompt(store, {
+      flowKey: "creation",
+      flowId: Number(creationFlow.id),
+      templateKey: "kernel_pressure",
+      recordId: kernel.id,
+      stepKey: "creation:kernel_prompt",
+      mode: "proposal"
+    });
+
+    expect(creation.promptOut.packetIdentity).toMatchObject({
+      flowKey: "creation",
+      flowId: Number(creationFlow.id),
+      stepKey: "creation:kernel_prompt",
+      mode: "proposal",
+      templateKey: "kernel_pressure",
+      recordId: kernel.id,
+      recordShortId: kernel.shortId,
+      recordTypeKey: "world_kernel",
+      selectedSectionHeading: "Core promise",
+      admissionLevel: null,
+      workScale: null,
+      decisionLabel: "Core promise"
+    });
+    expect(creation.promptOut.packetIdentity.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(creation.promptOut.packetIdentity.packetHash).toMatch(/^[a-f0-9]{64}$/);
+
+    const fact = store.createRecord({
+      recordTypeKey: "canon_fact",
+      title: "Bell tax",
+      body: "Every bridge crossing rings a tax bell.",
+      ...explicitJudgment
+    });
+    const admission = PromptOut.generatePrompt(store, {
+      flowKey: "admission",
+      templateKey: "admission_constraint_challenge",
+      recordId: fact.id,
+      stepKey: "admission:full_gate",
+      mode: "pressure",
+      admissionLevel: "4",
+      workScale: "severe"
+    });
+
+    expect(admission.promptOut.packetIdentity).toMatchObject({
+      flowKey: "admission",
+      flowId: null,
+      stepKey: "admission:full_gate",
+      mode: "pressure",
+      templateKey: "admission_constraint_challenge",
+      recordId: fact.id,
+      recordShortId: fact.shortId,
+      recordTypeKey: "canon_fact",
+      selectedSectionHeading: null,
+      admissionLevel: "4",
+      workScale: "severe",
+      decisionLabel: fact.title
+    });
+    expect(admission.promptOut.packetIdentity.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(admission.promptOut.packetIdentity.packetHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(admission.promptOut.packetIdentity.packetHash).not.toBe(creation.promptOut.packetIdentity.packetHash);
+
+    store.close();
+  });
+
   it("renders decomposition pressure packets with source documents, rationalized constraints, and one skeleton", () => {
     const store = WorldFile.create(tempPath("sandwich-decomposition.sqlite"));
     const kernel = store.createRecord({
