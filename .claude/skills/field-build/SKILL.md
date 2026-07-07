@@ -53,9 +53,9 @@ A **decision point** is one coherent block of material the method asks you to au
 1. **Author (docs-first).** Read the governing protocol for this decision point. Author the material yourself from the essence and the current world state — your draft, *before* the app says anything. This is the steward judgment the whole loop serves.
 2. **Propose.** In the app, reach this decision point and find its prompt-out. Generate the **proposal** prompt (draft-candidate mode). *Confirm the preview renders* — the `Prompt-out preview` panel showing the packet text (anchor `pre.prompt-packet-text`, or the admin panel's textarea). **No visible preview is an app failure — log P.** Copy the packet verbatim into `/tmp/worldloom-field-build/cold-llm/field-build-<NN>-<decision-slug>-proposal-prompt.md`; then hand that exact saved packet to a newly spawned **cold LLM** subagent (only the packet, no other context), record the subagent id in the live log, and read the answer: fitting for *this* world's current state, or generic/off-tone? Save the raw cold answer verbatim at `/tmp/worldloom-field-build/cold-llm/field-build-<NN>-<decision-slug>-proposal.md` and cite both paths in the live log. If the exact packet cannot be extracted, or a fresh subagent is unavailable, record `probe unavailable` with the reason instead of summarizing the packet yourself; if the app refuses proposal correctly, record `refused` instead of creating an artifact. Then, as steward, select/edit/discard and author the surviving material into the real field — adoption is authorship; never paste a raw answer into a canon field. *(Essence exception: at the kernel World premise the app refuses proposal — that refusal is correct; log it a V and go to Pressure.)*
 3. **Pressure.** With the field now authored, generate the **pressure** prompt (challenge mode) on that material and confirm its preview. Save the packet verbatim at `/tmp/worldloom-field-build/cold-llm/field-build-<NN>-<decision-slug>-pressure-prompt.md`; then hand that exact saved packet to a newly spawned fresh cold LLM and record the subagent id. Save the raw cold answer verbatim at `/tmp/worldloom-field-build/cold-llm/field-build-<NN>-<decision-slug>-pressure.md` and cite both paths in the live log. Read the challenge — missing prerequisites, contradictions, off-tone drift, mystery damage — and revise the field where the challenge earns it. If the exact packet cannot be extracted or a fresh subagent is unavailable, record `probe unavailable` with the reason; if the app offers no pressure mode where authored material exists, log P and record `blocked by app` in the coverage ledger.
-4. **Present.** Compare the screen to the protocol: does the app surface *exactly* the material this decision needs — no less (missing guidance or fields) and no more (dumping the whole protocol) — and present it attractively and in a followable order? Snags here are R.
+4. **Present.** Compare the screen to the protocol and to the steward's experience: does the app surface *exactly* the material this decision needs — no less (missing guidance or fields) and no more (dumping the whole protocol) — and present it attractively, calmly, and in a followable order? Judge style as part of the evidence, not as a side impression: if the surface feels unpleasant, confusing, overwhelming, confidence-eroding, visually noisy, tonally mismatched to the decision, or harder to use than the docs, log R. Distinguish **local polish** (copy, ordering, spacing, affordance clarity) from a **redesign candidate** (the screen's structure, hierarchy, or interaction model makes the decision hard even if individual controls work), and record why plus a recommendation.
 5. **Source.** Ask of the *markdown itself*: at this decision point, is there something the methodology should let you do but can't, or that confused you as its reader? Methodology-source friction is M.
-6. **Log.** Write the decision point to the live log: your docs-first draft, the cold LLM artifact paths or refusal/blocker states, the final field content you committed, each typed finding with its screenshot/DOM evidence, and the **obsolescence verdict** — could a steward with the docs *closed* have authored this decision as well from the app screens alone? If yes, the point is doc-obsolete (a V); if no, name exactly what the open docs supplied that the app didn't — that gap *is* the P/R/F finding.
+6. **Log.** Write the decision point to the live log: your docs-first draft, the cold LLM artifact paths or refusal/blocker states, the final field content you committed, each typed finding with its screenshot/DOM evidence, the required `UX/style verdict: ok | local R | redesign candidate — why + recommendation`, and the **obsolescence verdict** — could a steward with the docs *closed* have authored this decision as well from the app screens alone? If yes, the point is doc-obsolete (a V); if no, name exactly what the open docs supplied that the app didn't — that gap *is* the P/R/F finding.
 7. **Advance** to the next decision point.
 
 Maintain a **prompt-out coverage ledger** in the live log for every reached decision point: `proposal` and `pressure` each get exactly one state — `exercised`, `refused`, `blocked by app`, `probe unavailable`, or `deferred because frontier moved` — plus the prompt packet path, cold-output path, cold-subagent id, or one-line reason. This keeps partial runs honest when a blocker stops the walk before every mode can be exercised.
@@ -87,7 +87,7 @@ Every P, R, and F marks a place the app still needs the docs open; every V marks
 | Type | Axis it guards | Fires when |
 |---|---|---|
 | **P** prompt-out | the app generates a self-contained, useful prompt in both modes | preview missing; a mode absent where it's owed; the packet omits needed context or drags in noise; a cold LLM answers it poorly |
-| **R** presentation | the app shows exactly the decision's material, attractively and followably | the screen shows too much or too little versus the protocol, or is hard to follow / unattractive |
+| **R** presentation | the app shows exactly the decision's material, attractively and followably | the screen shows too much or too little versus the protocol, is hard to follow / unattractive, feels unpleasant, confusing, overwhelming, confidence-eroding, visually noisy, tonally mismatched, or looks like a redesign candidate rather than local polish |
 | **M** methodology-source | the markdown methodology itself is complete and actionable | you want to do something the docs should support but can't, or the source confused you |
 | **F** friction | building through the app runs without snags | filling, saving, or navigating snags; a bug; a broken affordance |
 | **V** validation | — | the app carried the whole decision — the docs, though open, added nothing (the obsolescence signal; record it — the report isn't all-negative) |
@@ -116,6 +116,8 @@ For each `[P/R/M/F/V/Q]-NN` — one-line title. Severity: blocking | friction | 
 - What happened: <what you saw / what the cold LLM returned> — cite the screenshot + DOM/packet excerpt
 - What the methodology requires: <doc § reference>
 - The snag: <the break, one line>
+- Design verdict (required for R findings): <ok | local polish | redesign candidate> — <why the scope is local or structural>
+- Recommendation (required for R findings): <specific copy/layout/interaction fix, or the redesign direction the evidence points to>
 - Repro (required for blocking findings): <exact inputs / clicks / endpoint + payload that reproduce it, so a later run can replay it verbatim>
 - Fix direction: <app spec/component, or methodology file/wording>
 - Touches: <docs/specs/… , principle W-# , doc file, or issue #>
@@ -134,10 +136,11 @@ Per decision point, in walk order:
 - Cold LLM (proposal): <raw answer when short; otherwise faithful excerpt/summary + artifact path, or "refused — essence">
 - Cold LLM (pressure): <raw challenge when short; otherwise faithful excerpt/summary + artifact path>
 - Committed: <final field content>
+- UX/style verdict: <ok | local R | redesign candidate — why + recommendation>
 - Obsolescence verdict: <docs-obsolete (V) — app carried it | docs still needed: what the app failed to carry → finding IDs>
 
 ## For the app (PRD seeds)
-Cluster the P/R/F findings into fixable scopes; name the likeliest spec/component; flag principle-reinforcement candidates (W-#).
+Cluster the P/R/F findings into fixable scopes; name the likeliest spec/component; flag principle-reinforcement candidates (W-#). For every systemic R finding or repeated local R pattern, say whether the app work is local polish or redesign, and name the recommended UX direction before turning it into PRD seed material.
 
 ## For the methodology
 Cluster the M findings; name the doc file and the wording to revise. This is the field evidence the README's untested surfaces owe — `10`, `11`, `14`, `15`, `16`, `17`, and the proposal mode of `20`.
@@ -154,7 +157,8 @@ Before finalizing, run this checklist against the report. This is a hard closeou
 - **Findings** includes every P/R/M/F/V/Q from the live log.
 - **Regression of prior findings** is present with this exact heading when a prior canonical report existed, or intentionally omitted only when none existed.
 - Every blocking finding includes a concrete **Repro** line; if a blocking finding cannot be replayed, the line says exactly why.
-- **Decision-point log** includes every reached decision point and its prompt-out coverage ledger.
+- Every R finding includes **Design verdict** and **Recommendation** lines, and redesign candidates say why local polish is insufficient.
+- **Decision-point log** includes every reached decision point, its prompt-out coverage ledger, and its required **UX/style verdict**.
 - **For the app**, **For the methodology**, and **Frontier** are present.
 - **Evidence paths** for screenshots, raw prompt packets, and cold-LLM outputs are cited when such artifacts exist.
 - After any resume, compaction, or interruption, the live log has been reconciled through the final frontier and stop reason.

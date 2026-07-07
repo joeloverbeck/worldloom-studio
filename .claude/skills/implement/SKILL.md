@@ -24,7 +24,7 @@ Before editing code, identify the authoritative work items.
 
 Use this compact ledger shape unless the issue set needs more detail:
 
-If related tracker items exist outside the requested scope, include this line immediately before the table:
+If related tracker items exist outside the requested scope, include this line immediately before the table. Omit zero-count categories, and omit the whole line when no true related items exist outside scope:
 
 `Related tracker items outside requested scope: #N closed / #N enabling prerequisite / #N blocking / #N contextual non-blocking backlog / #N intentionally excluded / #N not actually related because ...`
 
@@ -55,7 +55,7 @@ For each issue:
 - For browser-consumed API-only changes with no rendered UI change, a real browser page executing the route sequence via `fetch` qualifies as the browser smoke when the evidence records the route, action path, observed HTTP status or JSON, and server/browser cleanup. When fetching localhost APIs from a browser page, navigate to a same-origin localhost route first, such as `/api/health` or the app shell; avoid `data:` or `about:blank` origins because browser private-network/CORS policy may block loopback fetches.
 - When a UI browser smoke requires starting a dev server, record the server URL and whether the server was stopped or intentionally left running. Include that URL or cleanup note in closeout/final evidence so no background session is left ambiguous.
 - For dense app screens or long single-page snapshots, keep browser-smoke evidence bounded: prefer targeted DOM/text assertions, concise excerpts, and screenshots over full-page snapshot dumps. The closeout still needs route, action path, and observed outcome; the raw browser transcript does not need to include the whole page.
-- If any later behavior-changing edit touches the UI, route handlers, browser-consumed API shapes, fixture/data setup, or action path covered by a browser/manual smoke, treat the earlier smoke as preliminary and rerun it on the final tree before closeout, or record why rerun is blocked. If the later edit is non-semantic formatting, comment wording, documentation, or closeout text in a UI-adjacent file, inspect the diff and record `not affected` with the reason instead of rerunning a browser smoke.
+- If any later behavior-changing edit touches the UI, route handlers, browser-consumed API shapes, fixture/data setup, or action path covered by a browser/manual smoke, treat the earlier smoke as preliminary and rerun it on the final tree before closeout, or record why rerun is blocked. If the later behavior-changing UI edit is outside the smoked route/action path, you may record `not affected` only when the closeout names the changed path, explains why the smoked route/action path and browser-consumed API/fixtures were untouched, and reruns targeted proof for the changed path. If the later edit is non-semantic formatting, comment wording, documentation, or closeout text in a UI-adjacent file, inspect the diff and record `not affected` with the reason instead of rerunning a browser smoke.
 - Before final closeout, if browser/manual evidence exists, compare it against the final touched-file set after implementation, review, verification, and documentation edits. Record files changed since the smoke, whether they affect UI/routes/browser-consumed API/fixtures/action path, and whether the evidence was rerun, not affected, or blocked.
 
 If the session resumes, compacts, or is interrupted during implementation or browser/manual proof before closeout, perform a mid-work revalidation before continuing: rerun `git status --short`, revalidate any active dev server, browser session, Playwright page, in-flight command, or generated proof artifact that the next step depends on, and restate the next exact issue/evidence action. Treat browser/manual evidence as preliminary until this check confirms the route/action state is still current, or rerun the proof if the state cannot be trusted.
@@ -86,7 +86,7 @@ The repo's code-review skill expects a fixed point. Use one of these routes:
 - If review finds no issues after the implementation commit, keep that commit as the final SHA; no second commit is needed. If review fixes happen after the implementation commit, stage only implementation-owned files and intentionally either amend the implementation commit or create a follow-up commit. Refresh the final SHA after the last commit, rerun required gates on the final tree, and use that final SHA in closeout comments.
 - If review fixes create a follow-up commit instead of amending the implementation commit, keep the final review and closeout frame anchored at the original implementation fixed point through final `HEAD`. Do not default closeout review evidence to `HEAD~1` when that would cover only the review-fix commit.
 - For behavior-changing review fixes, red-first evidence must fail for the intended review finding, not merely for a nearby or generic reason. If the first red command fails because of a missing test file, a generic invariant, an unrelated assertion, or any reason that does not prove the reviewed behavior is wrong, record it as `partial red - wrong reason: <reason>`, then add or adjust the smallest assertion that fails for the intended behavior and run that before patching. If a true intended-behavior red is impossible, record `red-first skipped because <specific reason>`.
-- After any review-fix commit, decide whether the fix touches UI, route handlers, browser-consumed API shapes, fixture/data setup, or an action path covered by an earlier browser/manual smoke. If it does, rerun the smoke on the final tree before closeout, or record an explicit blocked reason in the closeout evidence.
+- After any review-fix commit, decide whether the fix touches UI, route handlers, browser-consumed API shapes, fixture/data setup, or an action path covered by an earlier browser/manual smoke. If it does, rerun the smoke on the final tree before closeout, or record an explicit blocked reason in the closeout evidence. If the fix is a behavior-changing UI edit outside the smoked route/action path, `not affected` is acceptable only when you name the changed path, explain why the smoked route/action path and browser-consumed API/fixtures were untouched, and rerun targeted proof for the changed path.
 - After any review-fix commit, complete this browser/manual freshness mini-gate before drafting closeout artifacts:
   - `Files touched since browser/manual smoke: <paths or none>`
   - `Affects UI/routes/browser-consumed API/fixtures/action path? <yes/no and why>`
@@ -145,6 +145,18 @@ Before the implementation commit or any review-fix commit, rerun `git status --s
 
 Before declaring completion, closing issues, or closing a parent PRD:
 
+Final tracker mutation gate:
+
+- Immediately before the first `gh issue comment`, `gh issue close`, `glab issue close`, or equivalent tracker mutation, produce the exact `Closeout preflight:` block and exact `Closeout gate passed: audit sink ...` line from this section in the conversation or durable audit sink. This is required even when the detailed audit is in a parent rollup body.
+- If the final SHA is not remote-reachable, the durable rollup or closeout comment must contain a line that starts exactly `Local-only SHA:` and follows the full copy-ready sentence. Reject `Local-only SHA status:`, `local-only reachability note`, or any other paraphrase.
+- Run the closeout body validator when a local checkout has it available, then still visually inspect grouped criteria and literal statuses:
+
+```bash
+node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body" --closing --principles --local-only --fixed-child-pending --review-fallback
+```
+
+Use only the flags that apply to the current closeout: `--principles` when any in-scope issue or parent PRD has a `## Principles` section, `--local-only` when the final SHA is not remote-reachable, `--fixed-child-pending` when validating a parent rollup before its tracker comment URL exists and the fixed-template child closeout alternate will be used, `--fixed-child` only after the parent rollup URL exists and the body contains the exact child close comment with that real URL, and `--review-fallback` when local code-review fallback was used. Passing the validator is an aid, not a substitute for checking that every acceptance checkbox is named explicitly.
+
 Tracker mutation hard-stop checklist:
 
 - Exact pre-close audit exists in an allowed durable sink or inspected body, with columns `Acceptance criterion or conformance check` and `Status`.
@@ -176,13 +188,13 @@ Non-bypassable closeout gate:
 - Closeout execution order for 4+ in-scope child issues defaults to: post the parent PRD rollup/audit comment first, capture its URL or exact comment reference, cite that rollup from each child closeout comment, close child issues, verify child states by exact issue number, then close the parent. Use per-child full audit comments instead only when no parent rollup is used.
 - For 4+ in-scope child issues, follow this command sequence unless you explicitly choose and state a different durable audit sink:
   1. Draft the parent rollup/audit body under `/tmp`.
-  2. Inspect that exact parent body and confirm it contains the audit table, final SHA, verification evidence, TDD evidence or N/A, review evidence, `Principles/ADR conformance:`, the full `Local-only SHA: <sha> is not remote-reachable because <reason>; local-only closeout is acceptable because <reason>.` sentence when applicable, and browser evidence or N/A/blocked wording with the final post-commit freshness delta.
+  2. Inspect that exact parent body and confirm it contains the audit table, final SHA, verification evidence, TDD evidence or N/A, review evidence, `Principles/ADR conformance:`, the full `Local-only SHA: <sha> is not remote-reachable because <reason>; local-only closeout is acceptable because <reason>.` sentence when applicable, browser evidence or N/A/blocked wording with the final post-commit freshness delta, and a child state snapshot before child closeout.
   3. Post the parent rollup with `gh issue comment <parent> --body-file <parent-body>`.
   4. Capture the returned parent comment URL.
   5. Draft or patch every child closeout body so it cites the parent rollup URL.
   6. Inspect every child body before posting.
   7. Post each child closeout with `gh issue comment <child> --body-file <child-body>`, capture the returned child comment URL, then close with `gh issue close <child> --reason completed --comment "Completed; evidence: <child-comment-url>"`. Never use `--comment-file` with `gh issue close`; this GitHub command accepts inline `--comment` only.
-  8. Verify each child state by exact issue number, then comment on and close the parent.
+  8. Verify each child state by exact issue number, then comment on or patch the parent rollup with post-child closure verification before closing the parent.
 - Fixed-template child closeout alternate: if every child closeout is the same short inline comment that only cites an inspected parent rollup URL, separate child body files and child comment URLs are not required. Inspecting a body file does not count unless that exact text is posted unchanged. Use this explicit sequence instead:
   1. Before the parent rollup is posted, draft and inspect the inline `--comment` template with the parent URL still pending, for example `Completed by <sha>. Evidence: <parent-rollup-url pending>`.
   2. After the parent rollup is posted and the real URL is captured, substitute the URL and inspect the exact final inline `--comment` string once before the first child close command. Prefer assigning it to a shell variable and echoing that variable before use so the inspected text is the posted text; otherwise paste the exact final text into the durable sink before using it.
@@ -190,6 +202,9 @@ Non-bypassable closeout gate:
   4. Close each child with `gh issue close <child> --reason completed --comment "<inspected exact inline string>"`; do not shorten, reword, or replace it at the command line.
   5. Verify each child state by exact issue number before commenting on or closing the parent.
   Any child-specific evidence, wording, or variation still needs its own inspected child body or full inline comment before posting.
+- Self-referential parent rollup URL path: if the parent rollup body itself needs to contain the final child inline close comment with the parent rollup comment URL, choose one of these approaches before the first child close command:
+  - Prefer wording in the body that is true before posting and after posting, such as `Evidence: this parent rollup comment URL`, then use the captured real URL in child close comments.
+  - Or post the parent body with a unique placeholder, capture the returned parent comment URL, replace the placeholder in the local body, verify no placeholder remains, and patch the posted comment with `gh api repos/{owner}/{repo}/issues/comments/<comment-id> --method PATCH -F body=@<body-file>`. After patching, run the body-check grep or validator again against the patched local body using `--fixed-child` when that flag applies, and inspect the exact child inline comment with the real URL.
 - Produce a pre-close per-issue audit before closing any issue: every acceptance criterion and required principles/ADR conformance check mapped to concrete evidence, with status `satisfied`, `blocked`, or `not done`. Default to one row per acceptance criterion or conformance check; do not group acceptance checkboxes into one prose row unless the row names each checkbox explicitly. Capture the audit in one durable sink before closeout: the conversation, a tracker comment on the issue or parent PRD, or another durable tracker artifact. For large child-issue families where the explicit row table would be unwieldy in conversation, prefer one parent PRD tracker comment when practical, then link or cite that durable audit sink from each child closeout comment. If the audit is not in the conversation, each affected closeout comment must link the durable audit sink.
 - For 4+ in-scope child issues, choose and state the durable audit sink before closing any issue: conversation, parent PRD tracker comment, child issue comments, or another durable tracker artifact. If using a parent PRD tracker rollup, post that comment before child closeout, capture its URL or exact issue/comment reference, and cite it from each affected child closeout comment instead of relying on unstated conversation context.
 - If a complete criterion-level audit was already posted before commit and no rows change after commit, review, or verification reruns, post a final addendum with the final SHA, review result, verification reruns, and a statement that all prior rows remain satisfied. Repost or expand only rows that changed, were incomplete, or were not preserved clearly enough after resume or compaction.
@@ -233,7 +248,8 @@ Browser evidence:
 - Route/action/outcome: <route and observed result / N/A because ... / blocked because ...>
 - Final freshness delta: files touched since the last browser/manual smoke after final commit and verification edits <paths or none>; affects UI/routes/browser-consumed API/fixtures/action path <yes/no per path/group and why>; smoke freshness <rerun/not affected/blocked>
 Fixed child inline close comment: <exact final text inspected / template inspected with parent URL pending / N/A>
-Child state verification before parent closeout: <exact issue numbers and states>
+Child state snapshot before child closeout: <exact issue numbers and states before closing children / N/A>
+Post-child closure verification before parent closeout: <exact issue numbers and CLOSED states, or pending later parent comment/patch before parent closeout>
 
 | Issue | Acceptance criterion or conformance check | Evidence | Status |
 |---|---|---|---|
