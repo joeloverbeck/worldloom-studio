@@ -71,7 +71,7 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 Non-bypassable review fallback gate:
 
 - When local fallback is used during repo `implement` closeout, the full mandatory fallback block below must be present in the durable closeout sink, or in an explicitly linked adjacent durable sink, before the implementation pre-close audit or any tracker closeout.
-- The one-line `Review fallback:` evidence line is not enough by itself. The durable sink must also include the review frame, `## Standards`, `## Spec`, `Smell baseline applied:`, the PRD child coverage table when applicable, the immediate-fix block when findings were fixed before closeout, the axis summary, and the literal `Review fallback gate passed:` line.
+- The one-line `Review fallback:` evidence line is not enough by itself. The durable sink must also include the review frame, delegation policy source, `## Standards`, `## Spec`, `Smell baseline applied:`, the PRD child coverage table when applicable, the immediate-fix block when findings were fixed before closeout, the axis summary, and the literal `Review fallback gate passed:` line.
 - If a behavior-changing review fix invokes the repo `tdd` skill, the same durable sink must also include or explicitly link the `TDD closeout preflight` block and the full fielded `TDD evidence gate passed: durable sink ...` line, including `compact table/header`, `seams accounted for`, `context/doctrine read status`, `partial-red / red-first skip reasons`, and `evidence-only rows` fields. The `TDD/review-fix evidence` row records the review fix; it is not a substitute for the TDD closeout gate.
 - If any fallback field is missing or only implied, stop and fill it before handing back to `implement` closeout.
 
@@ -79,7 +79,7 @@ Use the available sub-agent mechanism, if permitted, with two independent read-o
 
 **Local fallback checklist** — use this when sub-agents cannot run:
 
-- State why fallback was used, such as unavailable tooling or policy-blocked delegation.
+- State why fallback was used, such as unavailable tooling or policy-blocked delegation, and name the policy/tool source inspected when delegation is policy-blocked.
 - Reuse the same Standards and Spec inputs below, including standards-source files, spec sources, principle/ADR material, the diff command or WIP diff inputs, commit list, and the smell baseline.
 - Keep the outputs separated under `## Standards` and `## Spec`.
 - For PRD child issue families, include the compact per-child coverage table `Issue | Acceptance source | Evidence reviewed | Findings/residuals` before reporting zero residual Spec findings.
@@ -91,8 +91,8 @@ Use the available sub-agent mechanism, if permitted, with two independent read-o
 - In the Standards output, include a dedicated `Smell baseline applied: <yes / skipped because ...>.` line before findings, so a zero-finding fallback still proves the baseline was considered.
 - End with the required axis summary: `Standards <count/worst>, Spec <count/worst>`.
 - If any finding is fixed before closeout, distinguish `Findings found` from `Residual findings` in the fallback report or immediate-fix block. The final axis count may be zero residual, but the found-and-fixed item must remain visible.
-- Before leaving local fallback, perform a fallback shape hard stop: confirm the output contains the review frame, `## Standards`, `## Spec`, `Smell baseline applied:`, the PRD child coverage table when reviewing a child-issue family, the axis summary, the immediate-fix block when findings were fixed before closeout, the full fielded TDD closeout gate line or link when the repo `tdd` skill was invoked, and the exact `Review fallback:` closeout-ready line when invoked by `implement`. If any required piece is missing, stop and fill it before moving to the implementation pre-close audit or issue closeout.
-- Emit this literal gate line after the hard stop: `Review fallback gate passed: frame <yes/no>; Standards <yes/no>; Spec <yes/no>; child table <yes/N/A>; smell baseline <yes/no>; found-vs-residual <yes/N/A>; closeout line <yes/N/A>; immediate-fix block <yes/N/A>; tdd fielded closeout gate <yes/N/A>; verification/browser freshness <yes/N/A>.`
+- Before leaving local fallback, perform a fallback shape hard stop: confirm the output contains the review frame, delegation policy source, `## Standards`, `## Spec`, `Smell baseline applied:`, the PRD child coverage table when reviewing a child-issue family, the axis summary, the immediate-fix block when findings were fixed before closeout, the full fielded TDD closeout gate line or link when the repo `tdd` skill was invoked, and the exact `Review fallback:` closeout-ready line when invoked by `implement`. If any required piece is missing, stop and fill it before moving to the implementation pre-close audit or issue closeout.
+- Emit this literal gate line after the hard stop: `Review fallback gate passed: frame <yes/no>; delegation policy source <yes/no>; Standards <yes/no>; Spec <yes/no>; child table <yes/N/A>; smell baseline <yes/no>; found-vs-residual <yes/N/A>; closeout line <yes/N/A>; immediate-fix block <yes/N/A>; tdd fielded closeout gate <yes/N/A>; verification/browser freshness <yes/N/A>.`
 - When invoked by `implement`, the full mandatory fallback block must be embedded in the durable closeout artifact, or placed in an adjacent durable sink with an explicit link from the closeout artifact. The one-line `Review fallback:` closeout-ready evidence line is still required, but it does not substitute for the full fallback block.
 
 Mandatory local fallback output — paste this shape even when both axes have zero findings:
@@ -103,6 +103,7 @@ Review frame: fixed point <ref>; diff command `git diff <fixed-point>...HEAD`; c
 ## Standards
 
 Fallback used: <unavailable tooling / policy-blocked delegation / other reason>.
+Delegation policy source: <tool metadata/policy inspected / no sub-agent surface found / N/A because fallback was not delegation-related>.
 Sources reviewed: <exact standards-source files or issue numbers; root agent instructions; smell baseline; named Principles/ADRs only when they state coding/workflow conventions>.
 Smell baseline applied: <yes / skipped because ...>.
 Findings: <none / bullets with file+hunk and standard or smell label>.
@@ -130,7 +131,7 @@ If findings were fixed before closeout, include this block before the axis summa
 
 Axis summary: Standards <count/worst>, Spec <count/worst>
 
-Review fallback gate passed: frame <yes/no>; Standards <yes/no>; Spec <yes/no>; child table <yes/N/A>; smell baseline <yes/no>; found-vs-residual <yes/N/A>; closeout line <yes/N/A>; immediate-fix block <yes/N/A>; tdd fielded closeout gate <yes/N/A>; verification/browser freshness <yes/N/A>.
+Review fallback gate passed: frame <yes/no>; delegation policy source <yes/no>; Standards <yes/no>; Spec <yes/no>; child table <yes/N/A>; smell baseline <yes/no>; found-vs-residual <yes/N/A>; closeout line <yes/N/A>; immediate-fix block <yes/N/A>; tdd fielded closeout gate <yes/N/A>; verification/browser freshness <yes/N/A>.
 Review fallback: <required when invoked by implement: why code-review could not run; standards/spec result <...>; fixes <none / SHA ...>; verification rerun <commands> / N/A when not invoked by implement>.
 ```
 
@@ -167,7 +168,7 @@ If the spec is missing, skip the Spec sub-agent and note this in the final repor
 
 Present the two reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings — the two axes are deliberately separate (see _Why two axes_). Do not omit these two-axis headings just because findings were fixed immediately; if time is short, use compact content under `## Standards` and `## Spec`.
 
-If local fallback was used during implementation closeout, emit the mandatory local fallback block from step 4 before the implementation pre-close audit. The pre-close audit may duplicate review evidence, but it does not substitute for `## Standards`, `## Spec`, and the PRD child-family coverage table required by this skill.
+If local fallback was used during implementation closeout, emit the mandatory local fallback block from step 4 before the implementation pre-close audit. The pre-close audit may duplicate review evidence, but it does not substitute for the delegation policy source, `## Standards`, `## Spec`, and the PRD child-family coverage table required by this skill.
 
 If the review resumes, compacts, or is interrupted before final reporting, revalidate the review frame before presenting results: rerun fixed-point resolution, `git status --short`, the non-empty diff check, and the commit list, then confirm the standards-source and spec-source lists are still present in context. If any source list is missing or stale, reconstruct it before reporting.
 
