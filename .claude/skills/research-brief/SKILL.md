@@ -39,7 +39,7 @@ The skill mutates only `reports/`. It NEVER edits `docs/`, `.claude/skills/`, or
 
 ## Step 1: Classify the research target
 
-First, read `references/brief-template.md` in full — §A is the canonical brief anatomy you author to in Step 6, and §B is the target-type→reads map you apply in this step. Read the template directly so the brief is anchored to the canonical anatomy.
+First, read `references/brief-template.md` in full — §A is the canonical brief anatomy you author to in Step 6, and §B is the target-type→reads map you apply in this step. Read the template directly so the brief is anchored to the canonical anatomy. Do not emit the `Classification:` line until this template read is complete; the template read is silent setup, not user-facing output, and does not violate the classification-as-first-output rule.
 
 Then read `research_target` (and `reference_path` in full if given). Classify into one type — this selects the load-bearing "read in full" set for Session 2 (the type→reads map is §B of `references/brief-template.md`):
 
@@ -63,7 +63,9 @@ The point of authoring here is that Claude can read the repo directly — so the
 - the **relevant code seams** Session 2 should inspect (name files/modules, don't paste them — Session 2 reads them itself);
 - any **prior report / spec / archived work** that already bears on the target, so the brief frames the task as a delta rather than a cold start. When the target is a follow-up to an earlier brief, name the predecessor `reports/<...>-research-brief.md` explicitly and state what it already delivered (see `references/brief-template.md` §1) so Session 2 does not re-commission completed work.
 
-Launch Explore agents for broad surveys; read individual files directly. Verify any repo claim in `research_target` or `reference_path` against the actual tree; flag contradictions prominently.
+When active platform policy permits subagents or delegation, launch Explore agents for broad surveys; otherwise perform a targeted local survey and continue without delegating. Read individual files directly. Verify any repo claim in `research_target` or `reference_path` against the actual tree; flag contradictions prominently. If a no-delegation fallback affects completeness, note it in the Step 7 summary.
+
+**Exploration pacing.** For broad directory/doc/code mandates, gather enough evidence to classify the target, name read groups, verify counts and paths, identify relevant seams, and make the Step 5 assumptions defensible. Do not exhaustively analyze every file that Session 2 is assigned to read — Session 2 does the deep research. If exploration runs long before Step 5, emit a concise status and move to the outline checkpoint as soon as the list, seams, and assumptions are supportable.
 
 **Greenfield note.** This repo may have little or no code/docs yet. When the read list would be near-empty, say so plainly in the brief and lean §5's exploration/online-research mandate harder — the brief then commissions *design from first principles* grounded in the repo's stated purpose (its README), not a delta over existing structure.
 
@@ -81,6 +83,8 @@ Reach **~95% confidence about what the user actually wants** — not what they t
 Confidence: X%
 Gaps: [specific remaining unknowns]
 ```
+
+Use `AskUserQuestion` only when the active harness exposes and permits it. If it is absent, mode-restricted, or otherwise unavailable, ask concise plain-text questions or present the Step 5 approval gate in chat; do not treat question-tool absence as user unavailability.
 
 **Which path (pick before drafting):** (a) *Full discovery interview* — scope is open; ask sequential/batched questions to 95%. (b) *Tight bounded round* — scope is largely pre-settled but residual decisions still materially shape the deliverable; pre-settle what is fixed and ask only those decisions as one `AskUserQuestion` batch. (c) *Skip straight to the Step 5 gate* — scope is fully pre-settled and no shaping decision remains. The Step 5 present-and-approve gate fires regardless of path. A blend is normal.
 
