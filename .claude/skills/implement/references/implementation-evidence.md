@@ -1,0 +1,43 @@
+# Implementation Evidence
+
+Read this while working issue-by-issue, before writing tests, before running
+browser/manual proof, and before staging an implementation commit.
+
+## TDD and Issue Workflow
+
+Invoke the repo `tdd` skill where possible, at pre-agreed seams. If the issue or PRD explicitly names proof seams, treat them as pre-agreed after restating them in the ledger or TDD evidence, unless they conflict with live architecture. If no seam has been pre-agreed, derive the conservative proposed seam from the acceptance criteria and existing architecture, announce it in the ledger or TDD evidence, follow the `tdd` skill's confirmation rule before writing tests at that seam, and keep it at the highest practical layer. For docs-only or no-runnable criteria, record that no runnable seam exists and use review/conformance evidence rather than inventing a test.
+
+When the repo `tdd` skill is invoked for implementation work, carry its closeout evidence forward into the implementation ledger or final closeout audit, not only into review-fix blocks. The durable sink should include the `TDD closeout preflight` fields and the full `TDD evidence gate passed: durable sink ...` line, including compact table/header, seams accounted for, `CONTEXT.md` status, ADRs/principles/docs status, partial-red or red-first skip reasons, evidence-only rows, and existing-test contract-change row status. If no runnable seam exists for an issue, name that issue and reason in the evidence-only or skip-reason fields instead of implying TDD coverage.
+
+Default to one issue at a time. If child issues are technically inseparable and an integrated implementation pass is the safer route, say so in the ledger, keep the ledger/audit per issue, and make the closeout evidence map each issue's criteria to the shared implementation and tests.
+
+For each issue:
+
+- Identify the issue's acceptance criteria, required principles/ADR conformance checks, and required proof seams before coding.
+- Write or update tests for the acceptance criteria where a test seam is available.
+- Keep the issue open if required seam tests or other required proof are missing.
+- Mark blockers explicitly in the ledger instead of skipping the issue.
+- If implementation would contradict a named principle or ADR, stop and surface the exception before continuing.
+- When the issue body, PRD text, acceptance criteria, or implementation includes UI/browser-visible behavior, run a real browser smoke or record why it is blocked; include the route, action path, and observed outcome in the closeout evidence.
+- For guided-flow, workflow-routed, or multi-surface UI work, the browser smoke must exercise the production route and decision/action path the user actually reaches from navigation or workflow routing. When the same capability appears on multiple surfaces, verify each UI acceptance checkbox on the routed active surface, not only a legacy/full workspace, API seam, or nearby component.
+- If the work is docs-only or process-only and mentions UI/browser behavior only as inventory, coverage, or citation without changing UI, routes, browser-consumed API shapes, fixtures, or action paths, record `browser smoke N/A` with that reason instead of running a smoke.
+- For browser-consumed API-only changes with no rendered UI change, a real browser page executing the route sequence via `fetch` qualifies as the browser smoke when the evidence records the route, action path, observed HTTP status or JSON, and server/browser cleanup. When fetching localhost APIs from a browser page, navigate to a same-origin localhost route first, such as `/api/health` or the app shell; avoid `data:` or `about:blank` origins because browser private-network/CORS policy may block loopback fetches.
+- When a UI browser smoke requires starting a dev server, record the server URL and whether the server was stopped or intentionally left running. Include that URL or cleanup note in closeout/final evidence so no background session is left ambiguous.
+- For dense app screens or long single-page snapshots, keep browser-smoke evidence bounded: prefer targeted DOM/text assertions, concise excerpts, and screenshots over full-page snapshot dumps. The closeout still needs route, action path, and observed outcome; the raw browser transcript does not need to include the whole page.
+- If any later behavior-changing edit touches the UI, route handlers, browser-consumed API shapes, fixture/data setup, or action path covered by a browser/manual smoke, treat the earlier smoke as preliminary and rerun it on the final tree before closeout, or record why rerun is blocked. If the later behavior-changing UI edit is outside the smoked route/action path, you may record `not affected` only when the closeout names the changed path, explains why the smoked route/action path and browser-consumed API/fixtures were untouched, and reruns targeted proof for the changed path. If the later edit is non-semantic formatting, comment wording, documentation, or closeout text in a UI-adjacent file, inspect the diff and record `not affected` with the reason instead of rerunning a browser smoke.
+- Before final closeout, if browser/manual evidence exists, compare it against the final touched-file set after implementation, review, verification, and documentation edits. Record files changed since the smoke, whether they affect UI/routes/browser-consumed API/fixtures/action path, and whether the evidence was rerun, not affected, or blocked.
+
+If the session resumes, compacts, or is interrupted during implementation or browser/manual proof before closeout, perform a mid-work revalidation before continuing: rerun `git status --short`, revalidate any active dev server, browser session, Playwright page, in-flight command, or generated proof artifact that the next step depends on, and restate the next exact issue/evidence action. Treat browser/manual evidence as preliminary until this check confirms the route/action state is still current, or rerun the proof if the state cannot be trusted.
+
+Run typechecking regularly and single test files regularly. After a focused test command, check the output confirms the intended file or seam actually ran. If a package script does not forward file arguments cleanly, invoke the underlying runner directly, for example `pnpm --filter <pkg> exec vitest run test/file.test.ts`.
+
+Before closeout, read the root verification guidance and run the canonical gates required for the work's blast radius. In this repo, workflow, package, cross-package, or closeout-scale changes require `pnpm test`, `pnpm typecheck`, and `pnpm build`; do not report a lint, browser/e2e, or hard-audit gate as satisfied unless the repo adds that script and policy.
+
+Before committing, draft the pre-close audit row-by-row against each in-scope issue's acceptance criteria and Principles/ADR checks. Patch any row that would be `blocked` or `not done` before entering review, unless the right outcome is to leave that issue open.
+
+Implementation commit gate:
+
+- Pre-close audit drafted with every in-scope criterion and Principles/ADR check mapped to evidence and status.
+- Any `blocked` or `not done` rows are either fixed before review or explicitly justify leaving the issue open.
+- `git status --short` has been rerun and unrelated dirty files are identified.
+- Only implementation-owned files are staged for the implementation commit.

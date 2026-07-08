@@ -67,9 +67,11 @@ if (flags.has("--fixed-child")) {
 if (flags.has("--fixed-child-pending")) {
   requireText("Fixed child inline close comment:");
   requireMatch(
-    /^Fixed child inline close comment: .*(parent URL pending|pending parent rollup URL|this parent rollup comment URL)/im,
-    "fixed child inline close comment pending parent URL"
+    /^Fixed child inline close comment: .*this parent rollup comment URL/im,
+    "fixed child inline close comment with stable self-referential parent URL wording"
   );
+  forbidMatch(/^Fixed child inline close comment: .*parent URL pending/im, "posted fixed child pending placeholder");
+  forbidMatch(/^Fixed child inline close comment: .*pending parent rollup URL/im, "posted fixed child pending placeholder");
 }
 
 if (flags.has("--review-fallback")) {

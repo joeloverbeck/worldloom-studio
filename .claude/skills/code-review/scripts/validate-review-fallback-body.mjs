@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { validateTddCloseoutBody } from "../../tdd/scripts/validate-tdd-closeout-body.mjs";
 
 const args = process.argv.slice(2);
 const file = args.find((arg) => !arg.startsWith("--"));
@@ -36,6 +34,42 @@ const forbidMatch = (regex, label) => {
   if (regex.test(body)) errors.push(`forbidden ${label}`);
 };
 
+const gateLabels = [
+  "frame",
+  "delegation policy source",
+  "Standards",
+  "Spec",
+  "child table",
+  "smell baseline",
+  "found-vs-residual",
+  "closeout line",
+  "immediate-fix block",
+  "tdd fielded closeout gate",
+  "verification/browser freshness"
+];
+
+const normalizeGateLabel = (label) => label.toLowerCase();
+
+const parseGateFields = (line) => {
+  const fields = new Map();
+  const body = line.replace(/^Review fallback gate passed:\s*/i, "");
+
+  for (const segment of body.split(";")) {
+    const trimmed = segment.trim().replace(/\.$/, "");
+
+    for (const label of gateLabels) {
+      const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const match = trimmed.match(new RegExp(`^${escapedLabel}\\s+(.+)$`, "i"));
+      if (match) {
+        fields.set(normalizeGateLabel(label), match[1].trim());
+        break;
+      }
+    }
+  }
+
+  return fields;
+};
+
 const requireGateLine = () => {
   const line = body
     .split(/\r?\n/)
@@ -47,44 +81,24 @@ const requireGateLine = () => {
     return "";
   }
 
-  for (const label of [
-    "frame",
-    "delegation policy source",
-    "Standards",
-    "Spec",
-    "child table",
-    "smell baseline",
-    "found-vs-residual",
-    "closeout line",
-    "immediate-fix block",
-    "tdd fielded closeout gate",
-    "verification/browser freshness"
-  ]) {
+  for (const label of gateLabels) {
     if (!line.includes(label)) errors.push(`gate line missing ${label}`);
   }
 
   return line;
 };
 
-const shellQuote = (value) => {
-  if (/^[A-Za-z0-9_./:=+-]+$/.test(value)) return value;
-  return `'${value.replace(/'/g, "'\\''")}'`;
-};
+const requireGateValue = (fields, label, allowedValues, allowedDescription) => {
+  const value = fields.get(normalizeGateLabel(label));
 
-const formatCommand = (command, args) => [command, ...args].map(shellQuote).join(" ");
+  if (!value) {
+    errors.push(`gate line missing value for ${label}`);
+    return;
+  }
 
-const formatNestedResult = (label, command, args, result) => {
-  const stdout = (result.stdout || "").trim();
-  const stderr = (result.stderr || "").trim();
-  return [
-    `${label} failed`,
-    `command: ${formatCommand(command, args)}`,
-    `status: ${result.status ?? "null"}`,
-    `signal: ${result.signal ?? "none"}`,
-    `error: ${result.error ? String(result.error) : "none"}`,
-    `stdout:\n${stdout || "<empty>"}`,
-    `stderr:\n${stderr || "<empty>"}`
-  ].join("\n");
+  if (!allowedValues.some((regex) => regex.test(value))) {
+    errors.push(`gate line ${label} must be ${allowedDescription}; got ${value}`);
+  }
 };
 
 const extractFieldValue = (label) => {
@@ -107,15 +121,50 @@ const validateFreshnessValue = (value) => {
     return "";
   }
 
+  const namesChangedPath =
+    /\bchanged (path|file|surface)s?\b/i.test(normalized) ||
+    /`[^`]+`/.test(normalized) ||
+    /(?:^|[\s(])(?:\.{0,2}\/)?[\w@.-]+(?:\/[\w@.-]+)+(?:[:),;.]|$)/.test(normalized) ||
+    /\b[\w@.-]+\.(?:ts|tsx|js|mjs|md|json|sqlite|png)\b/.test(normalized);
+  const namesUnaffectedEvidence = /\b(route|action|API|fixture|browser-consumed|UI)\b/i.test(normalized);
+  const hasTargetedProof = /\btargeted proof\b|\btargeted .*passed\b|\bfocused .*passed\b|\breran targeted\b/i.test(normalized);
+  const isNonSemantic =
+    /\b(non-semantic|formatting|formatting-only|indentation|indentation-only|comment wording|docs?-only|documentation-only|closeout-text-only)\b/i.test(
+      normalized
+    );
+  const hasNonSemanticProof =
+    /\bdiff inspected\b|\btargeted proof\b|\btargeted .*passed\b|\bgit diff --check\b|\broot gates? (?:re)?ran\b|\bpnpm (test|typecheck|build)\b/i.test(
+      normalized
+    );
+
   if (/\bnot affected\b/i.test(normalized)) {
-    const namesChangedPath = /\bchanged (path|file|surface)\b|`[^`]+`/.test(normalized);
-    const namesUnaffectedEvidence = /\b(route|action|API|fixture|browser-consumed)\b/i.test(normalized);
-    const hasTargetedProof = /\btargeted proof\b|\btargeted .*passed\b|\bfocused .*passed\b|\breran targeted\b/i.test(normalized);
     if (namesChangedPath && namesUnaffectedEvidence && hasTargetedProof) return "";
-    return "uses not affected without changed path, unaffected evidence path/API/fixture, and targeted proof";
+    if (isNonSemantic && namesChangedPath && namesUnaffectedEvidence && hasNonSemanticProof) return "";
+    return "uses not affected without changed path, unaffected evidence route/action/API/fixture, and targeted proof";
   }
 
-  return "must state rerun proof, justified not affected, blocked/stale reason, or N/A because no browser/manual evidence was used";
+  if (isNonSemantic) {
+    if (namesChangedPath && namesUnaffectedEvidence && hasNonSemanticProof) return "";
+    return "uses non-semantic freshness without changed path, unaffected evidence route/action/API/fixture, and proof";
+  }
+
+  return "must state rerun proof, justified not affected, blocked/stale reason, non-semantic proof, or N/A because no browser/manual evidence was used";
+};
+
+const splitMarkdownTableRow = (row) => row.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
+
+const findRowsAfterTableHeader = (header) => {
+  const lines = body.split(/\r?\n/);
+  const headerIndex = lines.findIndex((line) => line.trim() === header);
+  if (headerIndex === -1) return [];
+
+  const rows = [];
+  for (const line of lines.slice(headerIndex + 2)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("|")) break;
+    rows.push(trimmed);
+  }
+  return rows;
 };
 
 requireText("Review frame:");
@@ -135,6 +184,7 @@ requireText("Findings:");
 requireMatch(/Axis summary:\s*Standards\s+.+?,\s*Spec\s+.+/i, "axis summary");
 
 const gateLine = requireGateLine();
+const gateFields = parseGateFields(gateLine);
 const gateSaysChildFamily = /\bchild table\s+yes\b/i.test(gateLine);
 const gateSaysImmediateFix = /\bimmediate-fix block\s+yes\b/i.test(gateLine);
 const gateSaysCloseoutLine = /\bcloseout line\s+yes\b/i.test(gateLine);
@@ -144,13 +194,63 @@ const shouldRequireChildFamily = flags.has("--child-family") || gateSaysChildFam
 const shouldRequireImmediateFix = flags.has("--immediate-fix") || gateSaysImmediateFix;
 const shouldRunTddValidator = flags.has("--tdd") || flags.has("--tdd-parent-rollup") || gateSaysTddYes;
 
+const yesOnly = [/^yes$/i];
+const yesOrNA = [/^yes$/i, /^N\/A$/i];
+const tddYesAfterStructuralCheck = [/^yes after structural check$/i];
+const tddYesAfterStructuralCheckOrNA = [/^yes after structural check$/i, /^N\/A$/i];
+
+requireGateValue(gateFields, "frame", yesOnly, "yes");
+requireGateValue(gateFields, "delegation policy source", yesOnly, "yes");
+requireGateValue(gateFields, "Standards", yesOnly, "yes");
+requireGateValue(gateFields, "Spec", yesOnly, "yes");
+requireGateValue(
+  gateFields,
+  "child table",
+  flags.has("--child-family") ? yesOnly : yesOrNA,
+  flags.has("--child-family") ? "yes when --child-family is used" : "yes or N/A"
+);
+requireGateValue(gateFields, "smell baseline", yesOnly, "yes");
+requireGateValue(gateFields, "found-vs-residual", yesOrNA, "yes or N/A");
+requireGateValue(
+  gateFields,
+  "closeout line",
+  flags.has("--implement") ? yesOnly : yesOrNA,
+  flags.has("--implement") ? "yes when --implement is used" : "yes or N/A"
+);
+requireGateValue(
+  gateFields,
+  "immediate-fix block",
+  flags.has("--immediate-fix") ? yesOnly : yesOrNA,
+  flags.has("--immediate-fix") ? "yes when --immediate-fix is used" : "yes or N/A"
+);
+requireGateValue(
+  gateFields,
+  "tdd fielded closeout gate",
+  flags.has("--tdd") || flags.has("--tdd-parent-rollup") ? tddYesAfterStructuralCheck : tddYesAfterStructuralCheckOrNA,
+  flags.has("--tdd") || flags.has("--tdd-parent-rollup")
+    ? "yes after structural check when TDD validation is requested"
+    : "yes after structural check or N/A"
+);
+requireGateValue(gateFields, "verification/browser freshness", yesOrNA, "yes or N/A");
+
 if (shouldRequireImplementLine) {
   requireMatch(/^Review fallback:\s+\S.+$/m, "exact Review fallback closeout-ready line");
 }
 
 if (shouldRequireChildFamily) {
-  requireText("| Issue | Acceptance source | Evidence reviewed | Findings/residuals |", "PRD child coverage table header");
+  const childTableHeader = "| Issue | Acceptance source | Evidence reviewed | Findings/residuals |";
+  requireText(childTableHeader, "PRD child coverage table header");
   requireText("|---|---|---|---|", "PRD child coverage table separator");
+
+  const childRows = findRowsAfterTableHeader(childTableHeader);
+  const childIssueRows = childRows.filter((row) => {
+    const cells = splitMarkdownTableRow(row);
+    return cells.length >= 4 && /^#\d+\b/.test(cells[0]);
+  });
+
+  if (!childIssueRows.length) {
+    errors.push("PRD child coverage table has no issue rows");
+  }
 }
 
 if (shouldRequireImmediateFix) {
@@ -178,17 +278,10 @@ if (shouldRunTddValidator) {
   requireText("TDD closeout gate");
   requireText("TDD evidence gate passed:");
 
-  const scriptDir = dirname(fileURLToPath(import.meta.url));
-  const tddValidator = resolve(scriptDir, "../../tdd/scripts/validate-tdd-closeout-body.mjs");
-  if (!existsSync(tddValidator)) {
-    errors.push(`missing TDD validator at ${tddValidator}`);
-  } else {
-    const tddArgs = [tddValidator, file];
-    if (flags.has("--tdd-parent-rollup")) tddArgs.push("--parent-rollup");
-    const result = spawnSync(process.execPath, tddArgs, { encoding: "utf8" });
-    if (result.status !== 0) {
-      errors.push(formatNestedResult("TDD validator", process.execPath, tddArgs, result));
-    }
+  const tddFlags = flags.has("--tdd-parent-rollup") ? ["--parent-rollup"] : [];
+  const tddErrors = validateTddCloseoutBody(body, { flags: tddFlags });
+  if (tddErrors.length) {
+    errors.push(`TDD validator failed:\n${tddErrors.map((error) => `- ${error}`).join("\n")}`);
   }
 }
 

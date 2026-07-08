@@ -142,6 +142,17 @@ When the *slug to write* is itself ambiguous across candidates, resolve it by pa
 
 Before the final response, assemble a compact ledger and make each field explicit, using `none` when a field is empty: written files; manifest baseline/count source; labeled assumptions; corrected input claims; Step 5 outline deltas; dirty status; no-delegation note if relevant. Report:
 
+```markdown
+Written files: <brief path>[, <manifest path>] / none
+Manifest baseline/count source: <commit/shortsha + command/count> / none
+Labeled assumptions: <list> / none
+Corrected input claims: <list> / none
+Step 5 outline deltas: <list> / none
+Dirty status: <expected reports dirt plus any other dirt> / none
+No-delegation note: <fallback/completeness note> / none
+Locked/no-questions handoff: <remote-fetch upload bundle or local-session handoff>
+```
+
 - the written files — remote-fetch: brief + refreshed manifest, the **upload bundle** for ChatGPT-Pro Session 2; local-session: the brief alone. On any local-session run, also name pre-existing `reports/manifest_*.txt` leftovers from earlier remote-fetch runs — whichever line produced them, and especially one at this run's baseline — as **now-orphaned** (no consumer for this run) — the user can clean them or keep them deliberately, rather than a future reader taking them as live workflow cues;
 - a one-line reminder that Session 2 is **locked / no-questions** — remote-fetch: paste the brief, upload the manifest, and ChatGPT-Pro should produce the deliverable directly; local-session: start a fresh session and point it at the brief file;
 - any labeled assumptions carried from an early exit, so the user can correct them before handing off — and, on an **implicit** early exit, a prominent flag that the outline was presented as record only and never approved;

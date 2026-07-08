@@ -1,0 +1,7 @@
+interface:
+  display_name: "Refactor Skill"
+  short_description: "Split and consolidate skill docs"
+  default_prompt: "Use $refactor-skill to split .claude/skills/grilling into progressively disclosed files without losing content."
+
+policy:
+  allow_implicit_invocation: false

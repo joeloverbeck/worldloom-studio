@@ -1,0 +1,81 @@
+# Review Evidence
+
+Read this once implementation is ready for review, before pushing or closing
+issues, and after any review-fix commit or amend.
+
+## Review Before Closeout
+
+Once the implementation is ready, invoke the repo `code-review` skill to review the work before pushing or closing issues.
+
+The repo's code-review skill expects a fixed point. Use one of these routes:
+
+- Commit the completed implementation locally, then run the `code-review` skill against `HEAD~1` or another fixed point before pushing or closing issues.
+- If committing first would be inappropriate, run an explicit pre-commit review against `git diff HEAD` and say that you are adapting the review because no committed fixed point exists yet.
+- If the `code-review` skill cannot run because a required mechanism is unavailable, including when sub-agents or other review tools are unavailable or policy-blocked, run a local two-axis review against the fixed point: standards/conventions and spec/acceptance. Defer to the `code-review` skill's fixed-point and tool-policy discovery rules before choosing fallback, and record whether fallback is due to unavailable tooling or policy-blocked delegation. Document the deviation and its reason, fix any findings, rerun the relevant gates, and include the review outcome in closeout evidence.
+- When local two-axis fallback is used during implementation closeout, carry forward the `code-review` skill's full mandatory fallback block into the durable closeout artifact, or link an adjacent durable sink that contains it. The one-line `Review fallback:` evidence line remains required, but it does not substitute for the review frame, including resolved fixed-point and reviewed HEAD SHAs, delegation policy source, `## Standards`, `## Spec`, PRD child coverage table when applicable, `Smell baseline applied:`, axis summary, `Review fallback gate passed:` line, body-check token sweep, and any immediate-fix or TDD fields required by `code-review`.
+- If review finds no issues after the implementation commit, keep that commit as the final SHA; no second commit is needed. If review fixes happen after the implementation commit, stage only implementation-owned files and intentionally either amend the implementation commit or create a follow-up commit. Refresh the final SHA after the last commit, rerun required gates on the final tree, and use that final SHA in closeout comments.
+- If review fixes create a follow-up commit instead of amending the implementation commit, keep the final review and closeout frame anchored at the original implementation fixed point through final `HEAD`. Do not default closeout review evidence to `HEAD~1` when that would cover only the review-fix commit.
+- For behavior-changing review fixes, red-first evidence must fail for the intended review finding, not merely for a nearby or generic reason. If the first red command fails because of a missing test file, a generic invariant, an unrelated assertion, or any reason that does not prove the reviewed behavior is wrong, record it as `partial red - wrong reason: <reason>`, then add or adjust the smallest assertion that fails for the intended behavior and run that before patching. If a true intended-behavior red is impossible, record `red-first skipped because <specific reason>`.
+- After any review-fix commit, decide whether the fix touches UI, route handlers, browser-consumed API shapes, fixture/data setup, or an action path covered by an earlier browser/manual smoke. If it does, rerun the smoke on the final tree before closeout, or record an explicit blocked reason in the closeout evidence. If the fix is a behavior-changing UI edit outside the smoked route/action path, `not affected` is acceptable only when you name the changed path, explain why the smoked route/action path and browser-consumed API/fixtures were untouched, and rerun targeted proof for the changed path.
+- After any review-fix commit, complete this browser/manual freshness mini-gate before drafting closeout artifacts:
+  - `Files touched since browser/manual smoke: <paths or none>`
+  - `Affects UI/routes/browser-consumed API/fixtures/action path? <yes/no and why>`
+  - `Smoke freshness: <rerun command + observed outcome / N/A because ... / blocked because ...>`
+
+If any amend or follow-up commit happens after review starts or after closeout artifacts are drafted, including evidence-only report/docs/artifact changes, run a post-amend closeout refresh before any tracker mutation:
+
+- Refresh the final SHA and remote reachability, then replace stale SHA references in closeout bodies, issue comments, final response notes, and validator inputs.
+- Recheck that the review frame still covers the final `HEAD`; if not, rerun review or extend the fixed-point frame rather than relying on the pre-amend review wording.
+- Rerun required gates when the final tree changed, or state why the amend was closeout-text-only and did not require gate reruns.
+- Recompute browser/manual freshness against files changed since the last smoke, including evidence artifacts and coverage/docs that affect the closeout claim.
+- Re-inspect body files, fixed-child inline comments, local-only SHA wording, and all applicable validators after the SHA/body refresh.
+
+Review evidence is a closeout hard stop. Before running any issue-close command, record one of these lines in the conversation or closeout audit:
+
+- `Review: code-review against <fixed point>; outcome <no findings / findings fixed in SHA ...>; verification rerun <commands>.`
+- `Review fallback: <why code-review could not run>; standards/spec result <...>; fixes <none / SHA ...>; verification rerun <commands>.`
+
+When local two-axis fallback is used, include this copy-ready block from the repo `code-review` skill in the durable closeout artifact, or link an adjacent durable sink that contains it. Do not replace it with only the one-line `Review fallback:` summary.
+
+```markdown
+Review frame: fixed point input <ref>; fixed point resolved SHA <sha>; reviewed HEAD SHA <sha>; diff command `git diff <resolved-fixed-point-sha>...HEAD`; commits <git log <resolved-fixed-point-sha>..HEAD --oneline>; worktree scope <committed diff only / WIP inputs included>, excluded dirty files <none / paths>; spec source <issues/spec paths>.
+
+## Standards
+
+Fallback used: <unavailable tooling / policy-blocked delegation / other reason>.
+Delegation policy source: <tool metadata/policy inspected / no sub-agent surface found / N/A because fallback was not delegation-related>.
+Sources reviewed: <exact standards-source files or issue numbers; root agent instructions; smell baseline; named Principles/ADRs only when they state coding/workflow conventions>.
+Smell baseline applied: <yes / skipped because ...>.
+Findings: <none / bullets with file+hunk and standard or smell label>.
+
+## Spec
+
+Sources reviewed: <exact issue/PRD/spec files, named Principles/ADRs when applicable>.
+
+| Issue | Acceptance source | Evidence reviewed | Findings/residuals |
+|---|---|---|---|
+| #N | <issue/spec/criterion; enumerate named list items when present> | <diff/tests/docs reviewed> | <none / finding> |
+
+Findings: <none / bullets with quoted spec line>.
+
+TDD closeout gate: <TDD closeout preflight plus full fielded TDD evidence gate line present or explicitly linked: TDD evidence gate passed: durable sink <conversation/comment URL/issue reference/inspected body file path before tracker URL exists>; compact table/header <present after structural check/equivalent fields present after structural check>; seams accounted for <all listed / exceptions named>; CONTEXT.md status <present/absent/N/A>; ADRs/principles/docs status <present/N/A>; partial-red / red-first skip reasons <none/listed>; evidence-only rows <none/listed>; existing-test contract-change rows <none / listed expectation-rewrite rows> / N/A because no tdd skill was invoked>.
+
+If findings were fixed before closeout, include this block before the axis summary:
+
+- **Findings found**: `<count and short titles>`
+- **Fixes made**: `<files/behavior changed, proof/coverage added>`
+- **TDD/review-fix evidence**: `<red command/failure per behavior-changing fix, partial red - wrong reason: <reason> plus follow-up intended red if applicable, coverage-only review fix reason, explicit red-first skipped because ..., or linked TDD review-fix addendum>`
+- **Verification rerun**: `<commands and browser/manual checks>`
+- **Browser/manual evidence freshness**: `<rerun evidence on final tree / not affected because changed path <path or group> leaves the earlier evidence route/action/API/fixture <route/action/API/fixture> untouched and targeted proof <command> passed / explicit blocked or stale reason / N/A because no browser/manual evidence was used>`
+- **Commit handling**: `<unchanged implementation commit SHA / amended commit SHA / follow-up commit SHA / no commit yet>`
+- **Residual findings**: `<remaining Standards and Spec findings, or none>`
+
+Axis summary: Standards <count/worst>, Spec <count/worst>
+
+Review fallback gate passed: frame <yes>; delegation policy source <yes>; Standards <yes>; Spec <yes>; child table <yes/N/A>; smell baseline <yes>; found-vs-residual <yes/N/A>; closeout line <yes/N/A>; immediate-fix block <yes/N/A>; tdd fielded closeout gate <yes after structural check/N/A>; verification/browser freshness <yes/N/A>.
+Review fallback: <required when invoked by implement: why code-review could not run; standards/spec result <...>; fixes <none / SHA ...>; verification rerun <commands> / N/A when not invoked by implement>.
+```
+
+After filling or linking the fallback block, inspect the final durable body directly using the `code-review` body-check token sweep. Do not close issues if the body lacks `fixed point resolved SHA`, `reviewed HEAD SHA`, `Review fallback gate passed: frame`, `closeout line`, `verification/browser freshness`, or the exact `Review fallback:` closeout-ready line when fallback was used.
+
+Before the implementation commit or any review-fix commit, rerun `git status --short`, identify unrelated existing changes, and stage only files owned by the implementation. Leave unrelated dirty files untouched and report them in the final response.
