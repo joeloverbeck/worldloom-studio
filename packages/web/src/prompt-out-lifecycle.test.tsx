@@ -12,6 +12,11 @@ const snippetBetween = (source: string, startMarker: string, endMarker: string) 
   return source.slice(start, end);
 };
 
+const classTokenCount = (html: string, token: string): number =>
+  [...html.matchAll(/class="([^"]*)"/g)]
+    .filter((match) => match[1]?.split(/\s+/).includes(token))
+    .length;
+
 const workflowMap = {
   readOnly: true,
   world: { path: "/tmp/prompt-identity.sqlite" },
@@ -172,6 +177,33 @@ const admissionDecision = (options: {
   const admissionLevel = options.admissionLevel ?? null;
   const workScale = options.workScale ?? null;
   const decisionLabel = options.decisionLabel ?? "Choose and classify the proposed fact before Admission changes canon standing.";
+  const fullGateContract = admissionLevel === "4" ? {
+    sections: [
+      {
+        key: "fact_statement",
+        label: "Fact statement",
+        required: true,
+        canMarkNotApplicable: false,
+        quietDomain: false,
+        guidance: "State the smallest precise version the world must answer."
+      },
+      {
+        key: "dependencies",
+        label: "Dependencies",
+        required: true,
+        canMarkNotApplicable: true,
+        quietDomain: false,
+        guidance: "Name dependencies."
+      }
+    ],
+    allowedNextCanonStatuses: ["under review", "accepted", "accepted with constraints"],
+    operationOptions: ["accept", "constrain"],
+    constraintTagOptions: ["cost-bound"],
+    validationErrors: [],
+    completionAction: { method: "POST", href: "/api/admission/gate/complete" },
+    advisoryArtifacts: [],
+    readSideTrail: []
+  } : null;
 
   return {
     flow: { key: "admission", runState: "not_started" },
@@ -235,6 +267,7 @@ const admissionDecision = (options: {
     },
     writeIntent: { willWrite: ["No canon mutation until the steward completes Admission"], willLink: [], willQueue: [], willLeaveUntouched: ["Prompt-out advisory text is not canon"], willRouteOnward: [] },
     closePreview: { beforeCompletion: [], afterCompletion: [] },
+    fullGateContract,
     readSideTrail: []
   };
 };
@@ -531,7 +564,8 @@ describe("Prompt-out lifecycle web surface", () => {
       } as any}
     />);
 
-    expect(html).toContain("prompt-packet-text");
+    expect(html).toContain("prompt-packet-preview-text");
+    expect(classTokenCount(html, "prompt-packet-text")).toBe(0);
     expect(html).toContain("&lt;compact_top_block&gt;");
     expect(html).toContain("&lt;documents&gt;");
     expect(html).toContain("Quote-grounding pre-step");
@@ -693,6 +727,9 @@ describe("Prompt-out lifecycle web surface", () => {
     expect(currentHtml).toContain("CURRENT CREATION PACKET");
     expect(currentHtml).toContain("section World premise");
     expect(currentHtml).toContain("record short id KER-1");
+    expect(classTokenCount(currentHtml, "prompt-packet-text")).toBe(1);
+    expect(classTokenCount(currentHtml, "current-prompt-packet-text")).toBe(1);
+    expect(currentHtml).toContain("data-current-prompt-packet=\"true\"");
 
     const staleCases = [
       {
@@ -741,6 +778,9 @@ describe("Prompt-out lifecycle web surface", () => {
       expect(html).toContain("This prompt packet body belongs to a prior origin and cannot be copied");
       for (const expected of staleCase.expected) expect(html).toContain(expected);
       expect(html).not.toContain("Current prompt packet body");
+      expect(classTokenCount(html, "prompt-packet-text")).toBe(0);
+      expect(classTokenCount(html, "stale-prompt-packet-text")).toBe(1);
+      expect(html).toContain("data-stale-prompt-packet=\"true\"");
     }
   });
 
@@ -783,6 +823,9 @@ describe("Prompt-out lifecycle web surface", () => {
     expect(currentHtml).toContain("CURRENT ADMISSION PACKET");
     expect(currentHtml).toContain("record short id FAC-7");
     expect(currentHtml).toContain("admission_level none");
+    expect(classTokenCount(currentHtml, "prompt-packet-text")).toBe(1);
+    expect(classTokenCount(currentHtml, "current-prompt-packet-text")).toBe(1);
+    expect(currentHtml).toContain("data-current-prompt-packet=\"true\"");
 
     const staleCases = [
       {
@@ -813,6 +856,28 @@ describe("Prompt-out lifecycle web surface", () => {
         expected: ["step admission:queue-severity", "admission_level none", "Current decision changed to Complete the full canon fact gate with written substance."]
       },
       {
+        label: "full gate draft identity changed",
+        openWorld: "/tmp/prompt-identity.sqlite",
+        origin: loadedOrigin({
+          ...baseAdmissionOrigin,
+          stepKey: "admission:constraints",
+          templateKey: "admission_constraint_challenge",
+          admissionLevel: "4",
+          workScale: "severe",
+          admissionDraftHash: "old-draft-hash",
+          admissionSectionKeys: ["fact_statement", "dependencies"],
+          packetHash: "admission-old-draft-hash"
+        }),
+        decision: admissionDecision({
+          stepKey: "admission:constraints",
+          templateKey: "admission_constraint_challenge",
+          admissionLevel: "4",
+          workScale: "severe",
+          decisionLabel: "Complete the full canon fact gate with written substance."
+        }),
+        expected: ["admission draft old-draft-hash", "admission section keys fact_statement,dependencies", "Current decision changed to Complete the full canon fact gate with written substance."]
+      },
+      {
         label: "world changed",
         openWorld: "/tmp/other-world.sqlite",
         origin: loadedOrigin({ ...baseAdmissionOrigin, packetHash: "admission-prior-world-hash" }),
@@ -837,6 +902,9 @@ describe("Prompt-out lifecycle web surface", () => {
       expect(html).toContain("This prompt packet body belongs to a prior origin and cannot be copied");
       for (const expected of staleCase.expected) expect(html).toContain(expected);
       expect(html).not.toContain("Current prompt packet body");
+      expect(classTokenCount(html, "prompt-packet-text")).toBe(0);
+      expect(classTokenCount(html, "stale-prompt-packet-text")).toBe(1);
+      expect(html).toContain("data-stale-prompt-packet=\"true\"");
     }
   });
 

@@ -240,7 +240,11 @@ label {
   overflow-wrap: anywhere;
 }
 
-.prompt-packet-text {
+.prompt-packet-text,
+.current-prompt-packet-text,
+.stale-prompt-packet-text,
+.unbound-prompt-packet-text,
+.prompt-packet-preview-text {
   max-height: 24rem;
   overflow: auto;
   white-space: pre-wrap;

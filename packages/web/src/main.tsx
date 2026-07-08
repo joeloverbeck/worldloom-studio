@@ -1132,7 +1132,7 @@ function PromptPacketPreview({
         </div>
       ))}
       <p>{preview?.currentDecision ?? "Prompt-out appears after server context is loaded."}</p>
-      <pre className="prompt-packet-text">{preview?.promptText ?? "No prompt packet loaded yet."}</pre>
+      <pre className="prompt-packet-preview-text" data-prompt-packet-preview="true">{preview?.promptText ?? "No prompt packet loaded yet."}</pre>
       <strong>Source manifest</strong>
       {(preview?.sourceManifest ?? ["No source manifest loaded yet."]).map((item) => <p key={item}>{item}</p>)}
       <strong>Context preview</strong>
@@ -1252,12 +1252,24 @@ function PromptPacketBodyStatus({
   origin: LoadedPromptOrigin | null;
 }) {
   if (!promptText) return null;
+  const packetTextClassName = state === "current"
+    ? "prompt-packet-text current-prompt-packet-text"
+    : state === "stale"
+      ? "stale-prompt-packet-text"
+      : "unbound-prompt-packet-text";
   return (
-    <section className={`subpanel prompt-packet-body-status ${state}`} role="status" aria-live="polite">
+    <section
+      className={`subpanel prompt-packet-body-status ${state}`}
+      data-current-prompt-packet={state === "current" ? "true" : undefined}
+      data-stale-prompt-packet={state === "stale" ? "true" : undefined}
+      data-unbound-prompt-packet={state === "unbound" ? "true" : undefined}
+      role="status"
+      aria-live="polite"
+    >
       <h3>{state === "current" ? "Current prompt packet body" : state === "stale" ? "Stale prompt packet body" : "Unbound prompt packet body"}</h3>
       <p>{reason}</p>
       {origin && <p>Prior packet origin: {describePromptOrigin(origin)}</p>}
-      <pre className="prompt-packet-text">{promptText}</pre>
+      <pre className={packetTextClassName}>{promptText}</pre>
     </section>
   );
 }
