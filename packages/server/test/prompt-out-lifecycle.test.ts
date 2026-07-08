@@ -132,7 +132,8 @@ describe("Prompt-out step lifecycle", () => {
     expect(generated.promptOut.packetIdentity).toMatchObject({
       ...admissionStep.step.packetIdentity,
       generatedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
-      packetHash: expect.stringMatching(/^[a-f0-9]{64}$/)
+      packetHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      bodyHash: expect.stringMatching(/^[a-f0-9]{64}$/)
     });
     expect(generated.prompt).toContain("Prerequisite auditor");
     expect(generated.prompt).toContain("Toll ghosts");

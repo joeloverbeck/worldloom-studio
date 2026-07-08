@@ -81,7 +81,10 @@ export interface AdmissionFullGateDraftPayload {
   advisoryRecordId?: number | null;
 }
 
+export type AdmissionDraftState = "not_applicable" | "missing_required" | "incomplete" | "represented";
+
 export interface PromptPacketIdentity {
+  worldPath: string | null;
   flowKey: PromptOutFlowKey | null;
   flowId: number | null;
   stepKey: string;
@@ -93,11 +96,13 @@ export interface PromptPacketIdentity {
   selectedSectionHeading: string | null;
   admissionLevel: string | null;
   workScale: string | null;
+  admissionDraftState: AdmissionDraftState;
   admissionDraftHash: string | null;
   admissionSectionKeys: string[];
   decisionLabel: string;
   generatedAt: string | null;
   packetHash: string | null;
+  bodyHash: string | null;
 }
 
 type PromptIdentityRecord = Pick<RecordRow, "id" | "shortId" | "recordTypeKey" | "title">;
@@ -203,6 +208,20 @@ const admissionDraftSectionKeys = (draft?: AdmissionFullGateDraftPayload | null)
     ? draft.sectionKeys
     : draft?.sections?.map((section) => section.key) ?? [];
 
+const draftText = (value?: string | null): string => value?.trim() ?? "";
+
+const admissionDraftOmissions = (draft?: AdmissionFullGateDraftPayload | null): string[] => {
+  if (!draft) return ["Admission full-gate draft omitted: required draft payload was not provided."];
+  const omissions: string[] = [];
+  for (const section of draft.sections ?? []) {
+    const label = draftText(section.label) || section.key;
+    if (!draftText(section.substance)) omissions.push(`Missing full-gate draft substance: ${label}`);
+  }
+  if (!draftText(draft.consequenceText)) omissions.push("Missing full-gate draft written consequence.");
+  if (!draft.operations?.length) omissions.push("Missing full-gate draft operation order.");
+  return omissions;
+};
+
 const admissionDraftHash = (draft?: AdmissionFullGateDraftPayload | null): string | null =>
   draft ? draft.draftHash ?? packetHash(stableJson({
     ...draft,
@@ -210,6 +229,15 @@ const admissionDraftHash = (draft?: AdmissionFullGateDraftPayload | null): strin
     sectionKeys: admissionDraftSectionKeys(draft),
     sections: draft.sections ?? []
   })) : null;
+
+const admissionDraftRequired = (input: PromptGenerationInput, mode: PromptMode): boolean =>
+  input.flowKey === "admission" && input.templateKey === "admission_constraint_challenge" && mode === "pressure";
+
+const admissionDraftState = (input: PromptGenerationInput, mode: PromptMode): AdmissionDraftState => {
+  if (!admissionDraftRequired(input, mode)) return "not_applicable";
+  if (!input.admissionFullGateDraft) return "missing_required";
+  return admissionDraftOmissions(input.admissionFullGateDraft).length ? "incomplete" : "represented";
+};
 
 const quoteGrounding = "Quote-grounding pre-step: first quote the specific canon, doctrine, or source-record lines your candidates or critiques rest on before the main answer.";
 
@@ -417,6 +445,7 @@ export const promptPacketIdentity = (
     decisionLabel?: string;
     generatedAt?: string | null;
     packetHash?: string | null;
+    bodyHash?: string | null;
   } = {}
 ): PromptPacketIdentity => {
   const stepKey = options.stepKey ?? input.stepKey ?? input.templateKey;
@@ -433,6 +462,7 @@ export const promptPacketIdentity = (
         : null;
   return {
     flowKey: input.flowKey ?? null,
+    worldPath: world.path,
     flowId: input.flowId ?? null,
     stepKey,
     mode,
@@ -443,11 +473,13 @@ export const promptPacketIdentity = (
     selectedSectionHeading: selectedSectionHeading ?? null,
     admissionLevel: input.admissionLevel ?? null,
     workScale: input.workScale ?? null,
+    admissionDraftState: admissionDraftState(input, mode),
     admissionDraftHash: admissionDraftHash(input.admissionFullGateDraft),
     admissionSectionKeys: admissionDraftSectionKeys(input.admissionFullGateDraft),
     decisionLabel: options.decisionLabel ?? selectedSectionHeading ?? record?.title ?? stepKey,
     generatedAt: options.generatedAt ?? null,
-    packetHash: options.packetHash ?? null
+    packetHash: options.packetHash ?? null,
+    bodyHash: options.bodyHash ?? null
   };
 };
 
@@ -456,12 +488,19 @@ const generatedPacketIdentity = (
   input: PromptGenerationInput,
   prompt: string,
   options: Parameters<typeof promptPacketIdentity>[2] = {}
-): PromptPacketIdentity =>
-  promptPacketIdentity(world, input, {
+): PromptPacketIdentity => {
+  const bodyHash = packetHash(prompt);
+  const identity = promptPacketIdentity(world, input, {
     ...options,
     generatedAt: new Date().toISOString(),
-    packetHash: packetHash(prompt)
+    bodyHash,
+    packetHash: null
   });
+  return {
+    ...identity,
+    packetHash: packetHash(stableJson({ ...identity, generatedAt: null, packetHash: null }))
+  };
+};
 
 const standingRulingRows = (world: WorldFile): Array<{ disposition: string; note: string }> =>
   world.db.prepare("SELECT disposition, note FROM advisory_dispositions WHERE standing_ruling = 1 ORDER BY id")
@@ -643,8 +682,6 @@ const propagationPromptContext = (world: WorldFile, input: PromptGenerationInput
   };
 };
 
-const draftText = (value?: string | null): string => value?.trim() ?? "";
-
 const admissionFullGateDraftContext = (input: PromptGenerationInput): {
   lines: string[];
   sourceDocuments: PromptDocument[];
@@ -652,15 +689,30 @@ const admissionFullGateDraftContext = (input: PromptGenerationInput): {
   omissions: string[];
 } => {
   const draft = input.admissionFullGateDraft;
-  if (input.flowKey !== "admission" || input.templateKey !== "admission_constraint_challenge" || !draft) {
+  if (input.flowKey !== "admission" || input.templateKey !== "admission_constraint_challenge") {
     return { lines: [], sourceDocuments: [], sourceManifest: [], omissions: [] };
+  }
+  if (!draft) {
+    const omission = "Admission full-gate draft omitted: required draft payload was not provided; packet is incomplete and cannot be exported as the current browser draft packet.";
+    return {
+      lines: [
+        "Admission full-gate draft status: missing required browser draft payload.",
+        omission
+      ],
+      sourceDocuments: [],
+      sourceManifest: [
+        "Admission full-gate draft state: missing_required",
+        `Omission: ${omission}`
+      ],
+      omissions: [omission]
+    };
   }
 
   const statusLine = draft.saved
     ? "Admission full-gate draft status: saved steward draft, still not canon until Admission completion."
     : "Admission full-gate draft status: current unsaved steward draft, not canon.";
   const sectionLines: string[] = [];
-  const omissions: string[] = [];
+  const omissions = admissionDraftOmissions(draft);
   const sections = draft.sections ?? [];
 
   for (const section of sections) {
@@ -669,7 +721,6 @@ const admissionFullGateDraftContext = (input: PromptGenerationInput): {
     const notApplicableReason = draftText(section.notApplicableReason);
     const quietDomainDeclaration = draftText(section.quietDomainDeclaration);
     if (substance) sectionLines.push(`${label}: ${substance}`);
-    else omissions.push(`Missing full-gate draft substance: ${label}`);
     if (notApplicableReason) sectionLines.push(`${label} N/A reason: ${notApplicableReason}`);
     if (quietDomainDeclaration) sectionLines.push(`${label} quiet-domain declaration: ${quietDomainDeclaration}`);
   }
@@ -693,6 +744,7 @@ const admissionFullGateDraftContext = (input: PromptGenerationInput): {
     sourceDocuments: [{ source: "admission_full_gate_draft:current", content: lines.join("\n") }],
     sourceManifest: [
       `Admission full-gate draft: ${draft.saved ? "saved steward draft" : "current unsaved steward draft"}`,
+      `Admission full-gate draft state: ${admissionDraftState(input, input.mode ?? "pressure")}`,
       ...(sectionKeys.length ? [`Admission full-gate draft section keys: ${sectionKeys.join(", ")}`] : []),
       ...omissions.map((omission) => `Omission: ${omission}`)
     ],

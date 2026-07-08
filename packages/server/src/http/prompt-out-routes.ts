@@ -60,9 +60,15 @@ export const registerPromptOutRoutes = (app: RouteApp, dependencies: RouteDepend
     }>(c)) })
   )));
 
-  app.post("/api/prompt-out/steps/actions/generate", (c) => withWorld(c, dependencies, (world) => tryRoute(c, () =>
-    c.json(runPromptOutGenerateAction(world, promptOutActionContextFromQuery((key) => c.req.query(key))))
-  )));
+  app.post("/api/prompt-out/steps/actions/generate", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () => {
+    const body = await c.req.json().catch(() => ({})) as {
+      admissionFullGateDraft?: PromptOut.AdmissionFullGateDraftPayload;
+    };
+    return c.json(runPromptOutGenerateAction(world, {
+      ...promptOutActionContextFromQuery((key) => c.req.query(key)),
+      admissionFullGateDraft: body.admissionFullGateDraft
+    }));
+  })));
 
   app.post("/api/prompt-out/steps/actions/store-advisory", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () =>
     c.json(runPromptOutStoreAdvisoryAction(

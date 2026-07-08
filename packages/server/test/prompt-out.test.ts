@@ -128,6 +128,7 @@ describe("Prompt-out module", () => {
     });
 
     expect(creation.promptOut.packetIdentity).toMatchObject({
+      worldPath: store.path,
       flowKey: "creation",
       flowId: Number(creationFlow.id),
       stepKey: "creation:kernel_prompt",
@@ -139,10 +140,22 @@ describe("Prompt-out module", () => {
       selectedSectionHeading: "Core promise",
       admissionLevel: null,
       workScale: null,
+      admissionDraftState: "not_applicable",
       decisionLabel: "Core promise"
     });
     expect(creation.promptOut.packetIdentity.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(creation.promptOut.packetIdentity.packetHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(creation.promptOut.packetIdentity.bodyHash).toMatch(/^[a-f0-9]{64}$/);
+    const repeatedCreation = PromptOut.generatePrompt(store, {
+      flowKey: "creation",
+      flowId: Number(creationFlow.id),
+      templateKey: "kernel_pressure",
+      recordId: kernel.id,
+      stepKey: "creation:kernel_prompt",
+      mode: "proposal"
+    });
+    expect(repeatedCreation.promptOut.packetIdentity.packetHash).toBe(creation.promptOut.packetIdentity.packetHash);
+    expect(repeatedCreation.promptOut.packetIdentity.bodyHash).toBe(creation.promptOut.packetIdentity.bodyHash);
 
     const fact = store.createRecord({
       recordTypeKey: "canon_fact",
@@ -161,6 +174,7 @@ describe("Prompt-out module", () => {
     });
 
     expect(admission.promptOut.packetIdentity).toMatchObject({
+      worldPath: store.path,
       flowKey: "admission",
       flowId: null,
       stepKey: "admission:full_gate",
@@ -172,11 +186,15 @@ describe("Prompt-out module", () => {
       selectedSectionHeading: null,
       admissionLevel: "4",
       workScale: "severe",
+      admissionDraftState: "missing_required",
+      admissionDraftHash: null,
       decisionLabel: fact.title
     });
     expect(admission.promptOut.packetIdentity.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(admission.promptOut.packetIdentity.packetHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(admission.promptOut.packetIdentity.bodyHash).toMatch(/^[a-f0-9]{64}$/);
     expect(admission.promptOut.packetIdentity.packetHash).not.toBe(creation.promptOut.packetIdentity.packetHash);
+    expect(admission.prompt).toContain("Admission full-gate draft omitted: required draft payload was not provided");
 
     const admissionWithDraft = PromptOut.generatePrompt(store, {
       flowKey: "admission",
@@ -215,8 +233,37 @@ describe("Prompt-out module", () => {
     expect(admissionWithDraft.prompt).toContain("Advisory-use selection draft: advisory record 42");
     expect(admissionWithDraft.prompt).toContain("Omission: Missing full-gate draft substance: Branch implications");
     expect(admissionWithDraft.promptOut.packetIdentity).toMatchObject({
+      admissionDraftState: "incomplete",
       admissionDraftHash: expect.stringMatching(/^[a-f0-9]{64}$/),
       admissionSectionKeys: ["fact_statement", "dependencies", "institutions_or_quiet_domain_declaration", "branch_implications"]
+    });
+    expect(admissionWithDraft.promptOut.packetIdentity.bodyHash).toMatch(/^[a-f0-9]{64}$/);
+
+    const completeAdmissionWithDraft = PromptOut.generatePrompt(store, {
+      flowKey: "admission",
+      templateKey: "admission_constraint_challenge",
+      recordId: fact.id,
+      stepKey: "admission:full_gate",
+      mode: "pressure",
+      admissionLevel: "4",
+      workScale: "severe",
+      admissionFullGateDraft: {
+        saved: false,
+        sectionKeys: ["fact_statement", "dependencies"],
+        sections: [
+          { key: "fact_statement", label: "Fact statement", substance: "The toll bell charges every bridge crossing." },
+          { key: "dependencies", label: "Dependencies", substance: "Bridge charter, toll collectors, and bell maintenance." }
+        ],
+        consequenceText: "Markets now price crossings by bell debt.",
+        operations: ["constrain", "price"],
+        targetCanonStatus: "accepted with constraints",
+        constraintTags: ["cost-bound"]
+      }
+    });
+    expect(completeAdmissionWithDraft.promptOut.packetIdentity).toMatchObject({
+      admissionDraftState: "represented",
+      admissionDraftHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      bodyHash: expect.stringMatching(/^[a-f0-9]{64}$/)
     });
 
     store.close();
@@ -251,13 +298,14 @@ describe("Prompt-out module", () => {
     store.createLink(seed.id, kernel.id, "derived_from", "Seed decomposed from world kernel");
     store.createLink(seed.id, decomposition.id, "derived_from", "Seed recorded by decomposition report");
 
-    const prompt = PromptOut.generatePrompt(store, {
+    const pressure = PromptOut.generatePrompt(store, {
       flowKey: "creation",
       templateKey: "decomposition_pressure",
       recordId: decomposition.id,
       stepKey: "creation:decomposition_prompt",
       mode: "pressure"
-    }).prompt;
+    });
+    const prompt = pressure.prompt;
 
     expect(prompt).toContain("<compact_top_block>");
     expect(prompt).toContain("<source>seed_decomposition_report:");
@@ -269,6 +317,31 @@ describe("Prompt-out module", () => {
     expect(prompt).toContain("Structural skeleton example (pressure mode)");
     expect(prompt.match(/Structural skeleton example/g)).toHaveLength(1);
     expect(prompt).toContain("Based on the material above");
+
+    const proposal = PromptOut.generatePrompt(store, {
+      flowKey: "creation",
+      templateKey: "decomposition_pressure",
+      recordId: decomposition.id,
+      stepKey: "creation:decomposition_prompt",
+      mode: "proposal"
+    });
+    expect(proposal.promptOut.packetIdentity).toMatchObject({
+      flowKey: "creation",
+      worldPath: store.path,
+      recordId: decomposition.id,
+      recordShortId: decomposition.shortId,
+      recordTypeKey: "seed_decomposition",
+      selectedSectionHeading: null,
+      stepKey: "creation:decomposition_prompt",
+      mode: "proposal",
+      templateKey: "decomposition_pressure",
+      decisionLabel: "Echo seed split",
+      packetHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      bodyHash: expect.stringMatching(/^[a-f0-9]{64}$/)
+    });
+    expect(proposal.prompt).toContain("Flow creation, step creation:decomposition_prompt; selected record");
+    expect(proposal.prompt).toContain("Type: seed_decomposition");
+    expect(proposal.prompt).toContain("Method card: creation.seed-decomposition");
 
     store.close();
   });

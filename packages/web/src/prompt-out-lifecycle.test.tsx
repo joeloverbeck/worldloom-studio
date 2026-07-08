@@ -291,6 +291,47 @@ const loadedOrigin = (overrides: Record<string, unknown> = {}) => ({
   ...overrides
 });
 
+const decompositionDecision = () => {
+  const decision = creationDecision({
+    currentStep: "decomposition:complete",
+    promptStepKey: "creation:decomposition_prompt",
+    templateKey: "decomposition_pressure",
+    recordId: 2,
+    decisionLabel: "Park decomposed seeds."
+  }) as any;
+  decision.currentKernel = { id: 1, shortId: "KER-1", title: "World kernel", recordTypeKey: "world_kernel" };
+  decision.selectedSection = null;
+  decision.promptOut.role = "Decomposition proposal";
+  decision.promptOut.stepRequest.body.mode = "proposal";
+  decision.promptOut.preview = {
+    currentDecision: "Park decomposed seeds.",
+    promptText: "Seed decomposition proposal packet",
+    contextPreview: "Seed decomposition report SDC-1",
+    sourceManifest: ["Seed decomposition report: SDC-1 Echo seed split", "Parked seed: FAC-1 Echo court testimony"],
+    omissions: ["Frontloaded seed audit results omitted until Admission."]
+  };
+  decision.handoff.seedDecompositionReport = {
+    id: 2,
+    shortId: "SDC-1",
+    title: "Echo seed split",
+    recordTypeKey: "seed_decomposition",
+    body: "Echo laws split into testimony, cost, and enforcement seeds.",
+    truthLayer: "Objective canon",
+    canonStatus: "proposed"
+  };
+  decision.handoff.parkedSeeds = [{
+    id: 3,
+    shortId: "FAC-1",
+    title: "Echo court testimony",
+    recordTypeKey: "canon_fact",
+    body: "Courts accept echo testimony under conditions.",
+    truthLayer: "Objective canon",
+    canonStatus: "proposed",
+    sourceLinks: []
+  }];
+  return decision;
+};
+
 describe("Prompt-out lifecycle web surface", () => {
   it("renders server-returned Prompt-out steps and submits returned action URLs", () => {
     const html = renderToString(<App initialOpenWorld="/tmp/prompt-step.sqlite" />);
@@ -313,6 +354,40 @@ describe("Prompt-out lifecycle web surface", () => {
     expect(generatePrompt).not.toContain("flowKey:");
     expect(storeAdvisory).not.toContain("flowKey:");
     expect(skipPrompt).not.toContain("flowKey:");
+    expect(source).toContain("promptPacketExportText");
+    expect(source).toContain("downloadCurrentPromptPacket");
+    expect(source).toContain("navigator.clipboard?.writeText(promptPacketExportText");
+    expect(html).toContain("Download Current Packet");
+  });
+
+  it("renders an Admission mode selector and loads the selected server-returned packet", () => {
+    const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
+    const admissionPromptLoader = snippetBetween(source, "const loadAdmissionPromptStep = async () =>", "const loadCreationPromptStep = async");
+    const html = renderToString(<App
+      initialOpenWorld="/tmp/admission-selector.sqlite"
+      initialWorkflowMap={{
+        ...workflowMap,
+        stages: [{ key: "admission", label: "Admission", state: "active", summary: "Admission queue has proposed facts.", destinationKey: "admission" }],
+        destinations: [{ key: "admission", label: "Admission", kind: "guided-flow", summary: "Govern proposed facts.", state: "active" }]
+      } as any}
+      initialDestination="admission"
+      initialAdmissionDecision={admissionDecision() as any}
+    />);
+
+    expect(html).toContain("Prompt mode");
+    expect(html).toContain("Proposal mode");
+    expect(html).toContain("Pressure mode");
+    expect(html).toContain("Selected mode: Proposal mode - available");
+    expect(html).toContain("Loaded mode: none yet");
+    expect(source).toContain("const [admissionPromptMode, setAdmissionPromptMode]");
+    expect(source).toContain("selectedAdmissionPromptMode");
+    expect(source).toContain("admissionPromptStepRequest");
+    expect(source).toContain("value={admissionPromptMode}");
+    expect(source).toContain("setAdmissionPromptMode");
+    expect(admissionPromptLoader).toContain("selectedAdmissionPromptMode");
+    expect(admissionPromptLoader).toContain("admissionPromptStepRequest");
+    expect(admissionPromptLoader).toContain("payload.step.actions.generate.href");
+    expect(admissionPromptLoader).not.toContain('"/api/prompt-out/generate"');
   });
 
   it("renders server-returned prompt modes, essence blockers, and disposition labels without local availability policy", () => {
@@ -575,8 +650,8 @@ describe("Prompt-out lifecycle web surface", () => {
     expect(html).toContain("adopted with steward revision");
     expect(html).toContain("Pasted responses remain advisory artifacts");
     expect(source).toContain("PromptPacketPreview");
-    expect(source).toContain("promptOut.preview.promptText");
-    expect(source).not.toContain("promptOut.preview.promptText.split");
+    expect(source).toContain("preview?.promptText");
+    expect(source).not.toContain("preview?.promptText.split");
   });
 
   it("binds loaded Prompt-out status to exact origin identity and marks prior decisions stale", () => {
@@ -680,7 +755,8 @@ describe("Prompt-out lifecycle web surface", () => {
     expect(admissionPromptLoader).toContain("setLoadedPromptAndPacket");
     expect(admissionPromptLoader).toContain("buildAdmissionFullGateDraftPayload");
     expect(admissionPromptLoader).toContain("admissionFullGateDraft");
-    expect(admissionPromptLoader).toContain("/api/prompt-out/generate");
+    expect(admissionPromptLoader).toContain("payload.step.actions.generate.href");
+    expect(admissionPromptLoader).not.toContain('"/api/prompt-out/generate"');
     expect(currentOrigin).toContain("worldPath: openWorld");
     expect(currentOrigin).toContain("flowKey: \"creation\"");
     expect(currentOrigin).toContain("flowKey: \"admission\"");
@@ -782,6 +858,49 @@ describe("Prompt-out lifecycle web surface", () => {
       expect(classTokenCount(html, "stale-prompt-packet-text")).toBe(1);
       expect(html).toContain("data-stale-prompt-packet=\"true\"");
     }
+
+  });
+
+  it("binds active Creation seed-decomposition Proposal packets to the decomposition report identity", () => {
+    const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
+    const creationPromptLoader = snippetBetween(source, "const loadCreationPromptStep = async () =>", "const loadPropagationPromptStep = async");
+    const currentOrigin = loadedOrigin({
+      recordId: 2,
+      recordShortId: "SDC-1",
+      recordTypeKey: "seed_decomposition",
+      selectedSectionHeading: null,
+      stepKey: "creation:decomposition_prompt",
+      mode: "proposal",
+      templateKey: "decomposition_pressure",
+      decisionLabel: "Echo seed split",
+      packetHash: "decomposition-proposal-packet-hash",
+      bodyHash: "decomposition-proposal-body-hash"
+    });
+    const html = renderToString(<App
+      initialOpenWorld="/tmp/prompt-identity.sqlite"
+      initialWorkflowMap={workflowMap as any}
+      initialDestination="creation"
+      initialLoadedPromptStatus={{ origin: currentOrigin as any }}
+      initialPromptText="CURRENT SEED DECOMPOSITION PROPOSAL PACKET"
+      initialPromptPacketOrigin={currentOrigin as any}
+      initialCreationDecision={decompositionDecision()}
+    />);
+
+    expect(html).toContain("Current prompt packet body");
+    expect(html).toContain("CURRENT SEED DECOMPOSITION PROPOSAL PACKET");
+    expect(html).toContain("flow creation");
+    expect(html).toContain("step creation:decomposition_prompt");
+    expect(html).toContain("mode proposal");
+    expect(html).toContain("template decomposition_pressure");
+    expect(html).toContain("record 2");
+    expect(html).toContain("record short id SDC-1");
+    expect(html).toContain("record type seed_decomposition");
+    expect(html).toContain("packet decomposition-proposal-packet-hash");
+    expect(html).toContain("body decomposition-proposal-body-hash");
+    expect(html).toContain("Copy Current Packet");
+    expect(html).toContain("Download Current Packet");
+    expect(classTokenCount(html, "current-prompt-packet-text")).toBe(1);
+    expect(creationPromptLoader).toContain("displayedCreationDecision.currentStep.startsWith(\"kernel:\")");
   });
 
   it("keeps Admission packet bodies current only for the matching record, mode, severity, step, and world identity", () => {
@@ -906,6 +1025,38 @@ describe("Prompt-out lifecycle web surface", () => {
       expect(classTokenCount(html, "stale-prompt-packet-text")).toBe(1);
       expect(html).toContain("data-stale-prompt-packet=\"true\"");
     }
+
+    const incompleteOrigin = loadedOrigin({
+      ...baseAdmissionOrigin,
+      stepKey: "admission:constraints",
+      templateKey: "admission_constraint_challenge",
+      admissionLevel: "4",
+      workScale: "severe",
+      admissionDraftHash: "draft-with-missing-section",
+      admissionDraftState: "incomplete",
+      packetHash: "incomplete-packet-hash",
+      bodyHash: "incomplete-body-hash"
+    });
+    const incompleteHtml = renderToString(<App
+      initialOpenWorld="/tmp/prompt-identity.sqlite"
+      initialWorkflowMap={admissionWorkflowMap as any}
+      initialDestination="admission"
+      initialLoadedPromptStatus={{ origin: incompleteOrigin as any }}
+      initialPromptText="INCOMPLETE ADMISSION PACKET"
+      initialPromptPacketOrigin={incompleteOrigin as any}
+      initialAdmissionDecision={admissionDecision({
+        stepKey: "admission:constraints",
+        templateKey: "admission_constraint_challenge",
+        admissionLevel: "4",
+        workScale: "severe",
+        decisionLabel: "Complete the full canon fact gate with written substance."
+      }) as any}
+    />);
+
+    expect(incompleteHtml).toContain("Incomplete prompt packet body");
+    expect(incompleteHtml).toContain("draft state incomplete");
+    expect(incompleteHtml).toContain("INCOMPLETE ADMISSION PACKET");
+    expect(incompleteHtml).not.toContain("data-current-prompt-packet=\"true\"");
   });
 
   it("invalidates packet identity when the steward manually edits the prompt body", () => {
