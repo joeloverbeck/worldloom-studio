@@ -810,7 +810,7 @@ describe("WorldFile", () => {
     PropagationFlow.recordPropagationDomain(store, { flowId: flow.id, domainName: "Economy, trade, and scarcity", triage: "direct", declaration: "Tolls and credit markets change." });
     PropagationFlow.recordPropagationDomain(store, { flowId: flow.id, domainName: "Aesthetics, tone, and narrative use", triage: "negative", declaration: "No comic shortcut; this stays funerary and costly." });
 
-    expect(() => PropagationFlow.closePropagationRun(store, flow.id)).toThrow(/undispositioned high-pressure consequences: #/);
+    expect(() => PropagationFlow.closePropagationRun(store, flow.id)).toThrow(/missing-foundational-orders, missing-full-domain-atlas, undispositioned-high-pressure/);
     const disposition = PropagationFlow.dispositionPropagationConsequence(store, {
       consequenceId: direct.id,
       disposition: "assigned as canon debt",
@@ -818,6 +818,42 @@ describe("WorldFile", () => {
       debtName: "Bridge toll counterfeiting pressure"
     });
     expect(disposition.debtRecordId).toEqual(expect.any(Number));
+
+    for (const [orderKey, body] of [
+      ["zeroth", "Ghost tolls redefine bridge crossings as debt-bearing thresholds."],
+      ["second", "Ferrymen adapt by pricing witness-backed routes separately."],
+      ["third", "Bridge courts institutionalize mortuary toll clerks."],
+      ["fourth", "Old toll bridges become sites of debtor memorials."],
+      ["fifth", "Bridge identity shifts toward metaphysical accounting."]
+    ] as const) {
+      PropagationFlow.addPropagationConsequence(store, {
+        flowId: flow.id,
+        orderKey,
+        body,
+        pressure: "normal"
+      });
+    }
+    for (const [domainName, triage] of [
+      ["Physics, metaphysics, and cosmology", "direct"],
+      ["Geography, climate, and infrastructure", "dependency"],
+      ["Ecology, food, disease, and nonhuman life", "negative"],
+      ["Population, demography, and household life", "reaction"],
+      ["Production, labor, and technology/magic", "dependency"],
+      ["Governance, law, and bureaucracy", "direct"],
+      ["War, coercion, and security", "negative"],
+      ["Religion, ritual, myth, and meaning", "reaction"],
+      ["Culture, custom, language, and identity", "reaction"],
+      ["Knowledge, education, science, and records", "direct"],
+      ["History, memory, and path dependence", "reaction"],
+      ["Daily life and material residue", "reaction"]
+    ] as const) {
+      PropagationFlow.recordPropagationDomain(store, {
+        flowId: flow.id,
+        domainName,
+        triage,
+        declaration: `${domainName} is accounted for in the foundational ghost toll sweep.`
+      });
+    }
 
     const proposal = PropagationFlow.proposeFactFromPropagation(store, {
       flowId: flow.id,
@@ -993,6 +1029,12 @@ describe("WorldFile", () => {
       orderKey: "first",
       body: "Pilgrims route their noon travel around the speaking chapel.",
       pressure: "high"
+    });
+    PropagationFlow.recordPropagationDomain(store, {
+      flowId: propagationFlow.id,
+      domainName: "Daily life and material residue",
+      triage: "reaction",
+      declaration: "Pilgrims reroute daily noon travel around the speaking chapel."
     });
     PropagationFlow.dispositionPropagationConsequence(store, {
       consequenceId: consequence.id,

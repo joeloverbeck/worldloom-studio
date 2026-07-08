@@ -5,9 +5,28 @@ import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest, methodCa
 import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, FacetRow, RecordRow, WorldFile } from "./world-file.js";
 
+interface RecordRef {
+  id: number;
+  shortId: string;
+  recordTypeKey: string;
+  title: string;
+  body: string;
+  truthLayer: string | null;
+  canonStatus: string | null;
+}
+
+interface PropagationActionRoute {
+  method: "POST";
+  href: string;
+  body: { factRecordId: number; debtRecordId?: number };
+}
+
 export interface PropagationQueueRow extends RecordRow {
   scope: string;
   state: string;
+  owedItem: RecordRef;
+  sourceFact: RecordRef | null;
+  route: PropagationActionRoute | null;
 }
 
 export interface PropagationConsequenceRow {
@@ -58,6 +77,12 @@ type PropagationRequiredDomainCount = number | "all";
 interface PropagationCoveragePolicy {
   requiredCoverage: string;
   requiredDomainCount: PropagationRequiredDomainCount;
+}
+
+interface PropagationCoverageObligations extends PropagationCoveragePolicy {
+  severityClass: "foundational" | "major-or-higher" | "lower";
+  requiredDomainStates: Array<PropagationDomainSweepRow["triage"]>;
+  requiredOrders: string[];
 }
 
 const PROPAGATION_ORDERS = [
@@ -149,6 +174,116 @@ const propagationCoveragePolicy = (severity: DeclaredSeverity): PropagationCover
   };
 };
 
+const propagationCoverageObligations = (severity: DeclaredSeverity): PropagationCoverageObligations => {
+  const policy = propagationCoveragePolicy(severity);
+  if (isFoundationalSeverity(severity)) {
+    return {
+      ...policy,
+      severityClass: "foundational",
+      requiredDomainStates: ["direct", "dependency", "reaction", "negative"],
+      requiredOrders: ["zeroth", "first", "second", "third", "fourth", "fifth"]
+    };
+  }
+  if (isMajorOrHigher(severity)) {
+    return {
+      ...policy,
+      severityClass: "major-or-higher",
+      requiredDomainStates: ["direct", "dependency", "reaction"],
+      requiredOrders: ["multiple shock-cone orders"]
+    };
+  }
+  return {
+    ...policy,
+    severityClass: "lower",
+    requiredDomainStates: ["direct"],
+    requiredOrders: ["immediate-effect consequence"]
+  };
+};
+
+const recordRef = (record: RecordRow): RecordRef => ({
+  id: record.id,
+  shortId: record.shortId,
+  recordTypeKey: record.recordTypeKey,
+  title: record.title,
+  body: record.body,
+  truthLayer: record.truthLayer,
+  canonStatus: record.canonStatus
+});
+
+const parseSourceFactId = (body: string): number | null => {
+  const match = body.match(/\b(?:source fact id|fact id|record id):\s*(\d+)\b/i);
+  return match ? Number(match[1]) : null;
+};
+
+const sourceFactForPropagationDebt = (store: WorldFile, debt: RecordRow): RecordRow | null => {
+  for (const link of store.listLinks(debt.id)) {
+    const candidateId = link.fromRecordId === debt.id ? link.toRecordId : link.fromRecordId;
+    if (candidateId === debt.id) continue;
+    const candidate = store.getRecord(candidateId);
+    if (candidate.recordTypeKey === "canon_fact" && link.linkTypeKey === "derived_from") return candidate;
+  }
+  const parsedId = parseSourceFactId(debt.body);
+  if (parsedId == null) return null;
+  const candidate = store.getRecord(parsedId);
+  return candidate.recordTypeKey === "canon_fact" ? candidate : null;
+};
+
+const owedDebtForFlow = (store: WorldFile, flow: PropagationFlowRow): RecordRow | null =>
+  flow.propagation_debt_record_id == null ? null : store.getRecord(flow.propagation_debt_record_id);
+
+const severityForRecord = (store: WorldFile, recordId: number): DeclaredSeverity =>
+  declaredSeverityFromFacets(store.listFacets(recordId));
+
+const severityExpectation = (severity: DeclaredSeverity): string => {
+  const obligations = propagationCoverageObligations(severity);
+  if (obligations.severityClass === "foundational") return "Foundational facts owe all six orders and the full fourteen-domain atlas.";
+  if (obligations.severityClass === "major-or-higher") return "Major-or-higher facts owe multiple orders plus direct, dependency, and reaction domains.";
+  return "Lower-severity facts owe an immediate consequence and at least one ordinary-life or direct domain check.";
+};
+
+const orderControls = (
+  severity: DeclaredSeverity,
+  consequences: PropagationConsequenceRow[],
+  currentStep = "propagation:entry"
+) => {
+  const expectation = severityExpectation(severity);
+  return PROPAGATION_ORDERS.map(([key, label]) => {
+    const rows = consequences.filter((row) => row.orderKey === key);
+    return {
+      key,
+      label,
+      current: currentStep.includes(key),
+      doctrine: methodCard("propagation.shock-cone-orders").operativeRule,
+      severityExpectation: expectation,
+      consequenceCount: rows.length,
+      pressureLevels: [...new Set(rows.map((row) => row.pressure))]
+    };
+  });
+};
+
+const domainAtlasControls = (domainSweeps: PropagationDomainSweepRow[]) =>
+  DOMAIN_ATLAS.map((name) => {
+    const sweep = domainSweeps.find((row) => row.domainName === name);
+    return {
+      name,
+      state: sweep?.triage ?? "unswept",
+      declaration: sweep?.declaration ?? "",
+      doctrine: methodCard("propagation.domain-atlas").operativeRule
+    };
+  });
+
+const skipRecordsForFlow = (store: WorldFile, flowId: number): RecordRow[] =>
+  store.listRecords().filter((record) =>
+    record.recordTypeKey === "skip_record"
+    && record.body.includes("Flow: propagation")
+    && record.body.includes(`Flow id: ${flowId}`)
+  );
+
+const linkedDispositionDebtRecords = (store: WorldFile, dispositions: PropagationDispositionRow[]): RecordRow[] =>
+  dispositions
+    .filter((row) => row.debtRecordId != null)
+    .map((row) => store.getRecord(row.debtRecordId!));
+
 const propagationMethodCardForStep = (stepKey: string) => {
   if (stepKey.includes("domain")) return methodCard("propagation.domain-atlas");
   if (stepKey.includes("disposition")) return methodCard("propagation.disposition");
@@ -185,13 +320,105 @@ const propagationDispositions = (store: WorldFile, flowId: number): PropagationD
 const undispositionedHighPressureConsequences = (store: WorldFile, flowId: number): PropagationConsequenceRow[] =>
   store.undispositionedHighPressurePropagationConsequences(flowId).map((row) => rowToPropagationConsequence(row));
 
-const propagationCloseBlockers = (store: WorldFile, flowId: number): DecisionPointSharedContract["blockers"] =>
-  undispositionedHighPressureConsequences(store, flowId).map((row) => ({
-    key: "undispositioned-high-pressure",
-    label: "Undispositioned high-pressure consequence",
-    message: `High-pressure consequence #${row.id} must be answered, scoped out, assigned as canon debt, or protected as a mystery boundary before close.`,
-    requires: "consequence disposition"
-  }));
+const coverageBlockers = (store: WorldFile, flow: PropagationFlowRow): DecisionPointSharedContract["blockers"] => {
+  const severity = severityForRecord(store, flow.propagation_fact_record_id);
+  const obligations = propagationCoverageObligations(severity);
+  const consequences = propagationConsequences(store, flow.id);
+  const sweeps = propagationDomainSweeps(store, flow.id);
+  const blockers: DecisionPointSharedContract["blockers"] = [];
+  const orderKeys = new Set(consequences.map((row) => row.orderKey));
+  const sweptDomains = new Set(sweeps.map((row) => row.domainName));
+  const triageStates = new Set(sweeps.map((row) => row.triage));
+
+  if (obligations.severityClass === "foundational") {
+    if (orderKeys.size < PROPAGATION_ORDERS.length) {
+      blockers.push({
+        key: "missing-foundational-orders",
+        label: "Missing foundational shock-cone orders",
+        message: "Foundational propagation requires all six shock-cone orders before close.",
+        requires: "zeroth through fifth order consequences",
+        classification: "coverage"
+      });
+    }
+    const unswept = DOMAIN_ATLAS.filter((domainName) => !sweptDomains.has(domainName));
+    if (unswept.length) {
+      blockers.push({
+        key: "missing-full-domain-atlas",
+        label: "Missing full domain-atlas sweep",
+        message: `Foundational propagation still has ${unswept.length} unswept domain-atlas domains.`,
+        requires: "all fourteen domain-atlas domains",
+        classification: "coverage"
+      });
+    }
+    return blockers;
+  }
+
+  if (obligations.severityClass === "major-or-higher") {
+    if (orderKeys.size < 2) {
+      blockers.push({
+        key: "missing-shock-cone-orders",
+        label: "Missing multiple shock-cone orders",
+        message: "Major-or-higher propagation requires consequences in at least two shock-cone orders.",
+        requires: "multiple shock-cone orders",
+        classification: "coverage"
+      });
+    }
+    for (const triage of obligations.requiredDomainStates) {
+      if (!triageStates.has(triage)) {
+        blockers.push({
+          key: `missing-domain-${triage}`,
+          label: `Missing ${triage} domain coverage`,
+          message: `Major-or-higher propagation requires at least one ${triage} domain-atlas declaration.`,
+          requires: `${triage} domain-atlas state`,
+          classification: "coverage"
+        });
+      }
+    }
+    return blockers;
+  }
+
+  if (!consequences.length) {
+    blockers.push({
+      key: "missing-immediate-effect",
+      label: "Missing immediate consequence",
+      message: "Lower-severity propagation still requires at least one steward-authored consequence.",
+      requires: "immediate-effect consequence",
+      classification: "coverage"
+    });
+  }
+  if (!sweeps.length) {
+    blockers.push({
+      key: "missing-ordinary-life-domain",
+      label: "Missing domain coverage",
+      message: "Lower-severity propagation still requires at least one domain-atlas declaration when relevant.",
+      requires: "domain-atlas coverage",
+      classification: "coverage"
+    });
+  }
+  return blockers;
+};
+
+const propagationCloseBlockers = (store: WorldFile, flowId: number): DecisionPointSharedContract["blockers"] => {
+  const flow = readPropagationFlow(store, flowId);
+  return [
+    ...coverageBlockers(store, flow),
+    ...undispositionedHighPressureConsequences(store, flowId).map((row) => ({
+      key: "undispositioned-high-pressure",
+      label: "Undispositioned high-pressure consequence",
+      message: `High-pressure consequence #${row.id} must be answered, scoped out, assigned as canon debt, or protected as a mystery boundary before close.`,
+      requires: "consequence disposition",
+      classification: "stopping-rule"
+    }))
+  ];
+};
+
+const propagationCloseReadiness = (store: WorldFile, flowId: number) => {
+  const blockers = propagationCloseBlockers(store, flowId);
+  return {
+    status: blockers.length ? "blocked" : "ready",
+    blockers
+  };
+};
 
 const propagationPromptModes = (
   record: RecordRow,
@@ -330,28 +557,140 @@ const propagationDecisionPoint = (
   };
 };
 
+const propagationReadSideTrail = (store: WorldFile, flowId: number) => {
+  const flow = readPropagationFlow(store, flowId);
+  const fact = store.getRecord(flow.propagation_fact_record_id);
+  const debt = owedDebtForFlow(store, flow);
+  const dispositions = propagationDispositions(store, flowId);
+  const proposalRows = store.propagationSurfacedProposals(flowId) as Array<{ proposal_record_id: number; report_record_id: number | null }>;
+  const report = flow.propagation_report_record_id == null ? null : store.getRecord(flow.propagation_report_record_id);
+  return [
+    { label: "Source fact", href: `/api/canon-workbench/records/${fact.id}`, recordId: fact.id },
+    ...(report
+      ? [
+          { label: "Propagation report", href: `/api/canon-workbench/records/${report.id}`, recordId: report.id },
+          { label: "Source fact digest link", href: `/api/canon-workbench/records/${fact.id}`, recordId: fact.id }
+        ]
+      : []),
+    ...(debt ? [{ label: "Owed propagation debt", href: `/api/canon-workbench/records/${debt.id}`, recordId: debt.id }] : []),
+    ...proposalRows.map((row) => {
+      const proposal = store.getRecord(row.proposal_record_id);
+      return { label: "Surfaced proposal", href: `/api/canon-workbench/records/${proposal.id}`, recordId: proposal.id };
+    }),
+    ...linkedDispositionDebtRecords(store, dispositions).map((record) => ({
+      label: "Follow-up canon debt",
+      href: `/api/canon-workbench/records/${record.id}`,
+      recordId: record.id
+    })),
+    ...dispositions.filter((row) => row.preservationBoundary).map((row) => ({
+      label: "Protected boundary",
+      href: "/api/contradiction/owed-boundaries",
+      recordId: row.consequenceId
+    })),
+    ...skipRecordsForFlow(store, flowId).map((record) => ({
+      label: "Skip record",
+      href: `/api/canon-workbench/records/${record.id}`,
+      recordId: record.id
+    })),
+    { label: "Current Canon", href: "/api/canon-workbench/current" },
+    { label: "Audit Trail", href: "/api/canon-workbench/audit" }
+  ];
+};
+
+const propagationClosePreview = (store: WorldFile, flowId: number) => {
+  const flow = readPropagationFlow(store, flowId);
+  const fact = store.getRecord(flow.propagation_fact_record_id);
+  const report = flow.propagation_report_record_id == null ? null : store.getRecord(flow.propagation_report_record_id);
+  const dispositions = propagationDispositions(store, flowId);
+  const proposalRows = store.propagationSurfacedProposals(flowId) as Array<{ proposal_record_id: number; report_record_id: number | null }>;
+  const skipRecords = skipRecordsForFlow(store, flowId);
+  return {
+    status: propagationCloseReadiness(store, flowId).status,
+    blockers: propagationCloseBlockers(store, flowId),
+    willWrite: [
+      report
+        ? `read existing append-only propagation report ${report.shortId}`
+        : `append-only propagation report for ${fact.shortId}`,
+      "source fact digest link",
+      "report provenance links for surfaced proposals",
+      ...(flow.propagation_debt_record_id == null ? [] : ["close the owed propagation debt that started this run"]),
+      ...(skipRecords.length ? ["skip records remain linked in the audit trail"] : [])
+    ],
+    existingRecords: [
+      ...(report ? [{ kind: "propagation report", recordId: report.id, title: report.title }] : []),
+      ...proposalRows.map((row) => {
+        const proposal = store.getRecord(row.proposal_record_id);
+        return { kind: "surfaced proposal", recordId: proposal.id, title: proposal.title, canonStatus: proposal.canonStatus };
+      }),
+      ...linkedDispositionDebtRecords(store, dispositions).map((record) => ({
+        kind: "follow-up canon debt",
+        recordId: record.id,
+        title: record.title,
+        canonStatus: record.canonStatus
+      })),
+      ...dispositions.filter((row) => row.preservationBoundary).map((row) => ({
+        kind: "protected boundary",
+        recordId: row.consequenceId,
+        title: row.preservationBoundary
+      })),
+      ...skipRecords.map((record) => ({ kind: "skip record", recordId: record.id, title: record.title }))
+    ],
+    willLeaveUntouched: [
+      "source canon standing remains unchanged",
+      "proposed facts remain proposed until Admission works them",
+      "advisory artifacts remain advisory unless explicitly linked by steward use"
+    ],
+    readSideTrail: propagationReadSideTrail(store, flowId)
+  };
+};
+
 export const propagationQueue = (store: WorldFile): PropagationQueueRow[] =>
   store.propagationQueueRecordIds().map((id) => {
     const record = store.getRecord(id);
-    return { ...record, scope: "propagation", state: "open" };
+    const sourceFact = sourceFactForPropagationDebt(store, record);
+    return {
+      ...record,
+      scope: "propagation",
+      state: "open",
+      owedItem: recordRef(record),
+      sourceFact: sourceFact == null ? null : recordRef(sourceFact),
+      route: sourceFact == null
+        ? null
+        : {
+            method: "POST",
+            href: "/api/propagation/runs/start",
+            body: { factRecordId: sourceFact.id, debtRecordId: record.id }
+          }
+    };
   });
 
-export const propagationPlan = (store: WorldFile, recordId: number): unknown => {
+export const propagationPlan = (store: WorldFile, recordId: number, options: { flowId?: number; currentStep?: string } = {}): unknown => {
   const record = store.getRecord(recordId);
   const facets = store.listFacets(recordId);
   const severity = declaredSeverityFromFacets(facets);
   const coverage = propagationCoveragePolicy(severity);
+  const obligations = propagationCoverageObligations(severity);
+  const consequences = options.flowId == null ? [] : propagationConsequences(store, options.flowId);
+  const domainSweeps = options.flowId == null ? [] : propagationDomainSweeps(store, options.flowId);
   return {
     record,
+    sourceFact: recordRef(record),
     admissionLevel: severity.admissionLevel,
     workScale: severity.workScale,
+    severityPath: severity,
     requiredCoverage: coverage.requiredCoverage,
     requiredDomainCount: coverage.requiredDomainCount === "all" ? DOMAIN_ATLAS.length : coverage.requiredDomainCount,
+    coverageObligations: {
+      ...obligations,
+      requiredDomainCount: obligations.requiredDomainCount === "all" ? DOMAIN_ATLAS.length : obligations.requiredDomainCount
+    },
     orders: PROPAGATION_ORDERS.map(([key, label]) => ({ key, label })),
     domains: DOMAIN_ATLAS,
+    orderControls: orderControls(severity, consequences, options.currentStep),
+    domainAtlas: domainAtlasControls(domainSweeps),
     methodCard: methodCard("propagation.entry"),
     methodCards: methodCardsForFlow("propagation"),
-    decisionPoint: propagationDecisionPoint(store, { recordId }),
+    decisionPoint: propagationDecisionPoint(store, { recordId, flowId: options.flowId, currentStep: options.currentStep }),
     doctrine: {
       mechanisms: "docs/worldbuilding-system/07_propagation_engine.md#propagation-mechanisms",
       signatureTests: ["why not everywhere?", "why not used by enemies?", "where are the fossils?"],
@@ -361,13 +700,20 @@ export const propagationPlan = (store: WorldFile, recordId: number): unknown => 
   };
 };
 
-export const startPropagationRun = (store: WorldFile, input: { factRecordId: number; debtRecordId?: number }): unknown => {
-  const fact = store.getRecord(input.factRecordId);
+export const startPropagationRun = (store: WorldFile, input: { factRecordId?: number; debtRecordId?: number }): unknown => {
+  let factRecordId = input.factRecordId;
   if (input.debtRecordId != null) {
     const debt = store.getRecord(input.debtRecordId);
     if (debt.recordTypeKey !== "canon_debt") throw new Error("propagation debt must be a canon debt record");
-    if (!propagationQueue(store).some((row) => row.id === debt.id)) throw new Error("debt is not an open propagation-scoped debt item");
+    const queueItem = propagationQueue(store).find((row) => row.id === debt.id);
+    if (!queueItem) throw new Error("debt is not an open propagation-scoped debt item");
+    if (queueItem.sourceFact != null && factRecordId != null && factRecordId !== queueItem.sourceFact.id) {
+      throw new Error("source fact does not match propagation debt identity");
+    }
+    factRecordId = queueItem.sourceFact?.id ?? factRecordId;
   }
+  if (factRecordId == null) throw new Error("propagation run requires a source fact");
+  const fact = store.getRecord(factRecordId);
   const existing = store.findInProgressPropagationFlow(fact.id, input.debtRecordId);
   if (existing) return existing;
   return store.createFlowInstance({ flowKey: "propagation", currentStep: "propagation:entry", propagationFactRecordId: fact.id, propagationDebtRecordId: input.debtRecordId ?? null });
@@ -377,9 +723,19 @@ export const getPropagationRun = (store: WorldFile, flowId: number): unknown => 
   const flow = readPropagationFlow(store, flowId);
   const stepKey = String(flow.current_step ?? "propagation:entry");
   const blockers = propagationCloseBlockers(store, flowId);
+  const sourceFact = store.getRecord(flow.propagation_fact_record_id);
+  const owedDebt = owedDebtForFlow(store, flow);
+  const severity = severityForRecord(store, flow.propagation_fact_record_id);
   return {
     flow,
-    plan: propagationPlan(store, flow.propagation_fact_record_id),
+    sourceFact: recordRef(sourceFact),
+    owedDebt: owedDebt == null ? null : recordRef(owedDebt),
+    severityPath: severity,
+    coverageObligations: propagationCoverageObligations(severity),
+    closeReadiness: propagationCloseReadiness(store, flowId),
+    closePreview: propagationClosePreview(store, flowId),
+    readSideTrail: propagationReadSideTrail(store, flowId),
+    plan: propagationPlan(store, flow.propagation_fact_record_id, { flowId, currentStep: stepKey }),
     methodCard: propagationMethodCardForStep(stepKey),
     methodCards: methodCardsForFlow("propagation"),
     decisionPoint: propagationDecisionPoint(store, {
@@ -442,6 +798,7 @@ export const dispositionPropagationConsequence = (
   if (input.disposition === "assigned as canon debt") {
     if (!input.debtName?.trim()) throw new Error("assigned-as-debt consequences require a named debt");
     debtRecordId = store.createCanonDebt({ name: input.debtName, scope: "propagation", assignee: "steward", body: input.note ?? String(consequence.body) }).id;
+    store.createLinkIfMissing(debtRecordId, Number(consequence.fact_record_id), "derived_from", "Propagation follow-up debt preserves source fact");
   }
   if (input.disposition === "protected as a mystery boundary" && !input.preservationBoundary?.trim()) {
     throw new Error("protected consequences require an explicit preservation boundary");
@@ -490,11 +847,11 @@ export const skipPropagationStep = (
   return record;
 };
 
-export const closePropagationRun = (store: WorldFile, flowId: number): { flow: unknown; report: RecordRow; debt: RecordRow | null; missing: PropagationConsequenceRow[] } => {
+export const closePropagationRun = (store: WorldFile, flowId: number): { flow: unknown; report: RecordRow; debt: RecordRow | null; missing: PropagationConsequenceRow[]; closePreview: unknown; readSideTrail: unknown[] } => {
   const flow = readPropagationFlow(store, flowId);
-  const missing = undispositionedHighPressureConsequences(store, flowId);
-  if (missing.length) {
-    throw new Error(`undispositioned high-pressure consequences: ${missing.map((row) => `#${row.id}`).join(", ")}`);
+  const blockers = propagationCloseBlockers(store, flowId);
+  if (blockers.length) {
+    throw new Error(`missing propagation coverage or dispositions: ${blockers.map((row) => row.key).join(", ")}`);
   }
   return store.atomicWrite(() => {
     const report = flow.propagation_report_record_id == null
@@ -509,7 +866,14 @@ export const closePropagationRun = (store: WorldFile, flowId: number): { flow: u
     }
     const debt = flow.propagation_debt_record_id == null ? null : store.closeCanonDebt(flow.propagation_debt_record_id);
     const updatedFlow = store.updateFlowInstance(flowId, { state: "complete", currentStep: "propagation:complete", propagationReportRecordId: report.id });
-    return { flow: updatedFlow, report, debt, missing: [] };
+    return {
+      flow: updatedFlow,
+      report,
+      debt,
+      missing: [],
+      closePreview: propagationClosePreview(store, flowId),
+      readSideTrail: propagationReadSideTrail(store, flowId)
+    };
   });
 };
 

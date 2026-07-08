@@ -1061,13 +1061,45 @@ describe("HTTP API", () => {
 
     const refusedClose = await app.request(`/api/propagation/runs/${flow.flow.id}/close`, { method: "POST" });
     expect(refusedClose.status).toBe(400);
-    expect(await json(refusedClose)).toMatchObject({ error: expect.stringContaining("undispositioned high-pressure consequences") });
+    expect(await json(refusedClose)).toMatchObject({ error: expect.stringContaining("undispositioned-high-pressure") });
 
     expect((await app.request("/api/propagation/dispositions", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ consequenceId: consequence.consequence.id, disposition: "protected as a mystery boundary", preservationBoundary: "author-secret", note: "Keep the origin of toll authority hidden." })
     })).status).toBe(201);
+    for (const orderKey of ["zeroth", "second", "third", "fourth", "fifth"]) {
+      expect((await app.request("/api/propagation/consequences", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          flowId: flow.flow.id,
+          orderKey,
+          body: `Foundational coverage for ${orderKey}.`,
+          pressure: "normal"
+        })
+      })).status).toBe(201);
+    }
+    for (const [domainName, triage] of [
+      ["Physics, metaphysics, and cosmology", "dependency"],
+      ["Geography, climate, and infrastructure", "reaction"],
+      ["Ecology, food, disease, and nonhuman life", "dependency"],
+      ["Population, demography, and household life", "reaction"],
+      ["Production, labor, and technology/magic", "dependency"],
+      ["Governance, law, and bureaucracy", "reaction"],
+      ["War, coercion, and security", "dependency"],
+      ["Religion, ritual, myth, and meaning", "reaction"],
+      ["Culture, custom, language, and identity", "dependency"],
+      ["Knowledge, education, science, and records", "reaction"],
+      ["History, memory, and path dependence", "dependency"],
+      ["Daily life and material residue", "reaction"]
+    ] as const) {
+      expect((await app.request("/api/propagation/domains", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ flowId: flow.flow.id, domainName, triage, declaration: `Foundational ${triage} coverage.` })
+      })).status).toBe(201);
+    }
     const proposed = await json<{ record: { id: number; canonStatus: string }; queue: Array<{ id: number }> }>(await app.request("/api/propagation/propose-fact", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -1197,6 +1229,11 @@ describe("HTTP API", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ flowId: propagationFlow.flow.id, orderKey: "first", body: "Pilgrims route noon travel around the speaking chapel.", pressure: "high" })
     }));
+    expect((await app.request("/api/propagation/domains", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ flowId: propagationFlow.flow.id, domainName: "Daily life and material residue", triage: "direct", declaration: "Travel rituals change around the speaking chapel." })
+    })).status).toBe(201);
     expect((await app.request("/api/propagation/dispositions", {
       method: "POST",
       headers: { "content-type": "application/json" },

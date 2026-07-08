@@ -119,6 +119,9 @@ interface AdmissionQueueRow extends RecordRow {
 interface PropagationQueueRow extends RecordRow {
   scope: string;
   state: string;
+  owedItem?: RecordRow;
+  sourceFact?: RecordRow | null;
+  route?: { method: "POST"; href: string; body: { factRecordId: number; debtRecordId?: number } } | null;
 }
 
 interface PropagationConsequence {
@@ -141,17 +144,44 @@ interface PropagationDisposition {
   id: number;
   consequenceId: number;
   disposition: string;
+  debtRecordId?: number | null;
+  preservationBoundary?: string | null;
 }
 
 interface PropagationPlan {
+  sourceFact?: RecordRow;
+  severityPath?: { admissionLevel: string | null; workScale: string | null };
   requiredCoverage: string;
   requiredDomainCount: number;
   orders: Array<{ key: string; label: string }>;
   domains: string[];
+  orderControls?: Array<{ key: string; label: string; doctrine: string; severityExpectation: string; consequenceCount?: number; pressureLevels?: string[] }>;
+  domainAtlas?: Array<{ name: string; state: "direct" | "dependency" | "reaction" | "negative" | "unswept"; declaration: string; doctrine: string }>;
   methodCard?: MethodCard;
   methodCards?: MethodCard[];
   decisionPoint?: DecisionPointEnvelope;
   doctrine: { signatureTests: string[]; stoppingRules: string[] };
+}
+
+interface PropagationRunPayload {
+  flow: { id: number; state: string; current_step: string; propagation_fact_record_id: number; propagation_debt_record_id: number | null; propagation_report_record_id?: number | null };
+  sourceFact: RecordRow;
+  owedDebt: RecordRow | null;
+  severityPath: { admissionLevel: string | null; workScale: string | null };
+  closeReadiness: { status: string; blockers: Array<{ key: string; label?: string; message: string; requires?: string }> };
+  closePreview: {
+    willWrite: string[];
+    existingRecords: Array<{ kind: string; recordId: number; title?: string; canonStatus?: string | null }>;
+    willLeaveUntouched: string[];
+    readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
+  };
+  readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
+  plan: PropagationPlan;
+  decisionPoint?: DecisionPointEnvelope;
+  consequences: PropagationConsequence[];
+  domainSweeps: PropagationDomain[];
+  dispositions: PropagationDisposition[];
+  proposals?: unknown[];
 }
 
 interface QaTest {
@@ -931,6 +961,8 @@ interface AppProps {
   initialAdmissionDecision?: AdmissionDecisionPoint | null;
   initialCreationDecision?: CreationDecisionPoint | null;
   initialMinimalViableWorld?: MinimalViableWorldState | null;
+  initialPropagationQueue?: PropagationQueueRow[];
+  initialPropagationRun?: PropagationRunPayload | null;
   initialQaScorecard?: QaScorecard | null;
   initialLoadedPromptStatus?: LoadedPromptStatusState | null;
   initialPromptText?: string;
@@ -1665,6 +1697,8 @@ function App({
   initialAdmissionDecision = null,
   initialCreationDecision = null,
   initialMinimalViableWorld = null,
+  initialPropagationQueue = [],
+  initialPropagationRun = null,
   initialQaScorecard = null,
   initialLoadedPromptStatus = null,
   initialPromptText = "",
@@ -1696,12 +1730,13 @@ function App({
   const [decompositionError, setDecompositionError] = useState<string | null>(null);
   const [minimalViableWorld, setMinimalViableWorld] = useState<MinimalViableWorldState | null>(initialMinimalViableWorld);
   const [canonDebt, setCanonDebt] = useState<RecordRow[]>([]);
-  const [propagationQueue, setPropagationQueue] = useState<PropagationQueueRow[]>([]);
-  const [propagationPlan, setPropagationPlan] = useState<PropagationPlan | null>(null);
-  const [propagationDecisionPoint, setPropagationDecisionPoint] = useState<DecisionPointEnvelope | null>(null);
-  const [propagationConsequences, setPropagationConsequences] = useState<PropagationConsequence[]>([]);
-  const [propagationDomains, setPropagationDomains] = useState<PropagationDomain[]>([]);
-  const [propagationDispositions, setPropagationDispositions] = useState<PropagationDisposition[]>([]);
+  const [propagationQueue, setPropagationQueue] = useState<PropagationQueueRow[]>(initialPropagationQueue);
+  const [propagationRun, setPropagationRun] = useState<PropagationRunPayload | null>(initialPropagationRun);
+  const [propagationPlan, setPropagationPlan] = useState<PropagationPlan | null>(initialPropagationRun?.plan ?? null);
+  const [propagationDecisionPoint, setPropagationDecisionPoint] = useState<DecisionPointEnvelope | null>(initialPropagationRun?.decisionPoint ?? initialPropagationRun?.plan.decisionPoint ?? null);
+  const [propagationConsequences, setPropagationConsequences] = useState<PropagationConsequence[]>(initialPropagationRun?.consequences ?? []);
+  const [propagationDomains, setPropagationDomains] = useState<PropagationDomain[]>(initialPropagationRun?.domainSweeps ?? []);
+  const [propagationDispositions, setPropagationDispositions] = useState<PropagationDisposition[]>(initialPropagationRun?.dispositions ?? []);
   const [stage12Run, setStage12Run] = useState<Stage12Run | null>(null);
   const [stage12FlowId, setStage12FlowId] = useState<number | null>(null);
   const [stage12SourceType, setStage12SourceType] = useState<"fact" | "under_review_fact" | "canon_debt" | "material" | "record_section" | "pass_report">("fact");
@@ -1889,9 +1924,9 @@ function App({
   const [admissionCompletionReadback, setAdmissionCompletionReadback] = useState<AdmissionCompletionReadback | null>(null);
   const [canonDebtName, setCanonDebtName] = useState("");
   const [seedAuditFindings, setSeedAuditFindings] = useState("");
-  const [propagationFactId, setPropagationFactId] = useState("");
-  const [propagationDebtId, setPropagationDebtId] = useState("");
-  const [propagationFlowId, setPropagationFlowId] = useState<number | null>(null);
+  const [propagationFactId, setPropagationFactId] = useState(initialPropagationRun ? String(initialPropagationRun.flow.propagation_fact_record_id) : "");
+  const [propagationDebtId, setPropagationDebtId] = useState(initialPropagationRun?.flow.propagation_debt_record_id != null ? String(initialPropagationRun.flow.propagation_debt_record_id) : "");
+  const [propagationFlowId, setPropagationFlowId] = useState<number | null>(initialPropagationRun?.flow.id ?? null);
   const [propagationOrderKey, setPropagationOrderKey] = useState("first");
   const [propagationDomainName, setPropagationDomainName] = useState("");
   const [propagationTriage, setPropagationTriage] = useState<"direct" | "dependency" | "reaction" | "negative">("direct");
@@ -1900,6 +1935,7 @@ function App({
   const [propagationDispositionTerm, setPropagationDispositionTerm] = useState("answered");
   const [propagationConsequenceId, setPropagationConsequenceId] = useState("");
   const [propagationBoundary, setPropagationBoundary] = useState("");
+  const [propagationPromptMode, setPropagationPromptMode] = useState<"proposal" | "pressure">("proposal");
   const [canonCurrentRows, setCanonCurrentRows] = useState<CanonWorkbenchCurrentRow[]>(initialCanonCurrent);
   const [canonAuditTrail, setCanonAuditTrail] = useState<CanonWorkbenchAuditItem[]>(initialCanonAudit);
   const [canonDetail, setCanonDetail] = useState<CanonWorkbenchDetail | null>(initialCanonDetail);
@@ -2145,6 +2181,13 @@ function App({
     ? []
     : canonAuditTrail.filter((item) => item.affectedCurrentRecords.some((record) => record.id === selectedCanonRecordId)),
   [canonAuditTrail, selectedCanonRecordId]);
+  const displayedPropagationContract = (propagationDecisionPoint ?? propagationPlan?.decisionPoint)?.sharedContract ?? null;
+  const propagationPromptModes = displayedPropagationContract?.promptOut.modes ?? [];
+  const selectedPropagationPromptMode = propagationPromptModes.find((mode) => mode.mode === propagationPromptMode)
+    ?? propagationPromptModes[0]
+    ?? null;
+  const propagationPromptStepRequest = selectedPropagationPromptMode?.stepRequest ?? null;
+  const canLoadPropagationPromptStep = Boolean(openWorld && propagationPromptStepRequest && selectedPropagationPromptMode?.availability !== "blocked");
   const currentLoadedPromptOrigin = useMemo<LoadedPromptOrigin | null>(() => {
     if (!openWorld) return null;
 
@@ -2200,6 +2243,29 @@ function App({
       };
     }
 
+    if (activeDestination === "propagation" && propagationPromptStepRequest) {
+      const request = propagationPromptStepRequest.body;
+      return {
+        worldPath: openWorld,
+        flowKey: "propagation",
+        flowId: originNumber(request.flowId) ?? propagationFlowId,
+        recordId: originNumber(request.recordId) ?? propagationRun?.sourceFact.id ?? originNumber(propagationFactId),
+        recordShortId: propagationRun?.sourceFact.shortId ?? null,
+        recordTypeKey: propagationRun?.sourceFact.recordTypeKey ?? null,
+        selectedSectionHeading: null,
+        stepKey: String(request.stepKey ?? displayedPropagationContract?.nextOrResumeState.currentStep ?? "propagation:entry"),
+        mode: typeof request.mode === "string" ? request.mode : propagationPromptMode,
+        templateKey: String(request.templateKey ?? "propagation_consequence_scout"),
+        decisionLabel: displayedPropagationContract?.step.localDecision ?? propagationRun?.sourceFact.title ?? "Propagation",
+        createdAt: loadedPromptStatus?.origin.createdAt ?? "",
+        admissionLevel: propagationRun?.severityPath.admissionLevel ?? null,
+        workScale: propagationRun?.severityPath.workScale ?? null,
+        admissionDraftHash: null,
+        admissionSectionKeys: [],
+        packetHash: loadedPromptStatus?.origin.packetHash ?? null
+      };
+    }
+
     if (activeDestination === "substrate" && promptStep) {
       return {
         worldPath: openWorld,
@@ -2240,6 +2306,12 @@ function App({
     openWorld,
     promptRecordId,
     promptStep,
+    propagationFactId,
+    propagationFlowId,
+    propagationPromptMode,
+    propagationPromptStepRequest,
+    propagationRun,
+    displayedPropagationContract,
     selectedCreationPromptMode
   ]);
   const loadedPromptStatusView = useMemo<LoadedPromptStatusView | null>(() => {
@@ -2417,6 +2489,7 @@ function App({
     promptTemplateKey,
     propagationFactId,
     propagationFlowId,
+    propagationPromptMode,
     qaFlowId,
     qaSubjectRecordId,
     stage12FlowId,
@@ -2670,6 +2743,7 @@ function App({
     setMinimalViableWorld(null);
     setCanonDebt([]);
     setPropagationQueue([]);
+    setPropagationRun(null);
     setPropagationPlan(null);
     setPropagationDecisionPoint(null);
     setPropagationConsequences([]);
@@ -2833,6 +2907,7 @@ function App({
     setPropagationFactId("");
     setPropagationDebtId("");
     setPropagationFlowId(null);
+    setPropagationPromptMode("proposal");
     setPropagationDomainName("");
     setPropagationText("");
     setPropagationConsequenceId("");
@@ -3226,6 +3301,41 @@ function App({
     return payload.step;
   };
 
+  const loadPropagationPromptStep = async () => {
+    const request = propagationPromptStepRequest;
+    if (!request || selectedPropagationPromptMode?.availability === "blocked") {
+      setMessage(`${selectedPropagationPromptMode?.label ?? "Propagation Prompt-out"} is blocked: ${selectedPropagationPromptMode?.blocker ?? "server returned no step request"}`);
+      return null;
+    }
+    setPromptFlowKey("propagation");
+    setPromptTemplateKey(String(request.body.templateKey ?? "propagation_consequence_scout"));
+    setPromptRecordId(String(request.body.recordId ?? propagationRun?.sourceFact.id ?? ""));
+    const payload = await api<{ step: PromptOutStep }>(request.href, {
+      method: request.method,
+      body: JSON.stringify(request.body)
+    });
+    setPromptStep(payload.step);
+    const generated = await api<{ prompt: string; promptOut: { packetIdentity: PromptPacketIdentity } }>(payload.step.actions.generate.href, {
+      method: payload.step.actions.generate.method
+    });
+    setLoadedPromptAndPacket(
+      promptOriginFromPacketIdentity(generated.promptOut.packetIdentity, {
+        flowKey: "propagation",
+        flowId: originNumber(request.body.flowId) ?? propagationFlowId,
+        recordId: propagationRun?.sourceFact.id ?? originNumber(request.body.recordId) ?? null,
+        recordShortId: propagationRun?.sourceFact.shortId ?? null,
+        recordTypeKey: propagationRun?.sourceFact.recordTypeKey ?? null,
+        mode: typeof request.body.mode === "string" ? request.body.mode : selectedPropagationPromptMode?.mode ?? propagationPromptMode,
+        admissionLevel: propagationRun?.severityPath.admissionLevel ?? null,
+        workScale: propagationRun?.severityPath.workScale ?? null,
+        decisionLabel: displayedPropagationContract?.step.localDecision ?? payload.step.label
+      }),
+      generated.prompt
+    );
+    setMessage(`Loaded Propagation Prompt-out step ${payload.step.label} (${payload.step.mode === "proposal" ? "Proposal mode" : "Pressure mode"})`);
+    return payload.step;
+  };
+
   const ensurePromptStep = async () => promptStep ?? loadPromptStep();
 
   const generatePrompt = async () => {
@@ -3616,18 +3726,18 @@ function App({
   };
 
   const loadPropagationRun = async (flowId: number) => {
-    const payload = await api<{
-      plan: PropagationPlan;
-      decisionPoint?: DecisionPointEnvelope;
-      consequences: PropagationConsequence[];
-      domainSweeps: PropagationDomain[];
-      dispositions: PropagationDisposition[];
-    }>(`/api/propagation/runs/${flowId}`);
+    const payload = await api<PropagationRunPayload>(`/api/propagation/runs/${flowId}`);
+    setPropagationRun(payload);
     setPropagationPlan(payload.plan);
     setPropagationDecisionPoint(payload.decisionPoint ?? payload.plan.decisionPoint ?? null);
     setPropagationConsequences(payload.consequences);
     setPropagationDomains(payload.domainSweeps);
     setPropagationDispositions(payload.dispositions);
+    setPropagationFlowId(payload.flow.id);
+    setPropagationFactId(String(payload.flow.propagation_fact_record_id));
+    setPropagationDebtId(payload.flow.propagation_debt_record_id == null ? "" : String(payload.flow.propagation_debt_record_id));
+    setPropagationDomainName(payload.plan.domainAtlas?.[0]?.name ?? payload.plan.domains[0] ?? "");
+    setPropagationOrderKey(payload.plan.orderControls?.[1]?.key ?? payload.plan.orders[1]?.key ?? payload.plan.orders[0]?.key ?? "first");
   };
 
   const startPropagation = async () => {
@@ -3641,13 +3751,27 @@ function App({
     await loadWorldData();
   };
 
+  const startPropagationFromQueue = async (item: PropagationQueueRow) => {
+    if (!item.route) return;
+    const payload = await api<{ flow: { id: number } }>(item.route.href, {
+      method: item.route.method,
+      body: JSON.stringify(item.route.body)
+    });
+    setPropagationFactId(String(item.route.body.factRecordId));
+    setPropagationDebtId(item.route.body.debtRecordId == null ? "" : String(item.route.body.debtRecordId));
+    setPropagationFlowId(payload.flow.id);
+    await loadPropagationRun(payload.flow.id);
+    await loadWorldData();
+  };
+
   const loadPropagationPlan = async () => {
     if (!propagationFactId) return;
     const payload = await api<{ plan: PropagationPlan }>(`/api/propagation/records/${propagationFactId}/plan`);
+    setPropagationRun(null);
     setPropagationPlan(payload.plan);
     setPropagationDecisionPoint(payload.plan.decisionPoint ?? null);
-    setPropagationDomainName(payload.plan.domains[0] ?? "");
-    setPropagationOrderKey(payload.plan.orders[1]?.key ?? payload.plan.orders[0]?.key ?? "first");
+    setPropagationDomainName(payload.plan.domainAtlas?.[0]?.name ?? payload.plan.domains[0] ?? "");
+    setPropagationOrderKey(payload.plan.orderControls?.[1]?.key ?? payload.plan.orders[1]?.key ?? payload.plan.orders[0]?.key ?? "first");
   };
 
   const savePropagationConsequence = async () => {
@@ -4734,6 +4858,178 @@ function App({
     </div>
   );
 
+  const propagationGuidedPanel = (
+    <section className="panel propagation-active-route">
+      <h2>Propagation flow</h2>
+      <p>Work shock cones, consequence domains, and stopping-rule dispositions.</p>
+      <MethodCardPanel card={propagationPlan?.methodCard ?? displayedPropagationContract?.methodCard} />
+      <DecisionContractPanel title="Propagation decision contract" contract={displayedPropagationContract} />
+
+      <section className="subpanel owed-propagation">
+        <h3>Owed propagation</h3>
+        {propagationQueue.length ? propagationQueue.map((debt) => (
+          <article key={debt.id} className="queue-item">
+            <h4>{debt.owedItem?.shortId ?? debt.shortId} · {debt.owedItem?.title ?? debt.title}</h4>
+            <p>{debt.sourceFact ? `${debt.sourceFact.shortId} · ${debt.sourceFact.title}` : "Source fact not returned for this owed item."}</p>
+            <p className="meta">State {debt.state} · scope {debt.scope}</p>
+            <button onClick={() => startPropagationFromQueue(debt)} disabled={!openWorld || !debt.route}>Start/Resume Owed Run</button>
+          </article>
+        )) : <p className="status">No owed propagation queue items returned.</p>}
+      </section>
+
+      <section className="subpanel">
+        <h3>Run identity</h3>
+        <div className="chips">
+          <span>{propagationRun?.sourceFact ? `${propagationRun.sourceFact.shortId} · ${propagationRun.sourceFact.title}` : "Source fact loads from the run payload."}</span>
+          <span>{propagationRun?.owedDebt ? `${propagationRun.owedDebt.shortId} · ${propagationRun.owedDebt.title}` : "No owed debt attached to this run."}</span>
+          <span>Flow {propagationRun?.flow.id ?? propagationFlowId ?? "not started"}</span>
+          <span>Severity {propagationRun?.severityPath.admissionLevel ?? "unset"} / {propagationRun?.severityPath.workScale ?? "unset"}</span>
+        </div>
+        <p>{displayedPropagationContract?.nextOrResumeState.safeExit ?? "Return to the workflow map; this propagation run can be resumed."}</p>
+        <div className="row">
+          <button onClick={() => setActiveDestination("map")}>Safe Return to Workflow Map</button>
+          <button onClick={() => propagationFlowId != null && loadPropagationRun(propagationFlowId)} disabled={!openWorld || propagationFlowId == null}>Refresh Run</button>
+          <button onClick={closePropagation} disabled={!openWorld || propagationFlowId == null}>Close Run</button>
+        </div>
+      </section>
+
+      <section className="subpanel">
+        <h3>Shock-cone orders</h3>
+        <div className="grid compact-grid">
+          {(propagationPlan?.orderControls ?? propagationPlan?.orders.map((order) => ({
+            key: order.key,
+            label: order.label,
+            doctrine: propagationPlan.methodCard?.operativeRule ?? "Work the ordered consequences.",
+            severityExpectation: propagationPlan.requiredCoverage
+          })) ?? []).map((order) => (
+            <article key={order.key} className="subpanel">
+              <h4>{order.label}</h4>
+              <p>{order.doctrine}</p>
+              <p className="meta">{order.severityExpectation}</p>
+              {typeof (order as unknown as { consequenceCount?: number }).consequenceCount === "number" && <p>Consequences: {(order as unknown as { consequenceCount: number }).consequenceCount}</p>}
+            </article>
+          ))}
+        </div>
+        <div className="grid">
+          <label>Order<select value={propagationOrderKey} onChange={(event) => setPropagationOrderKey(event.target.value)}>{(propagationPlan?.orderControls ?? propagationPlan?.orders ?? []).map((order) => <option key={order.key} value={order.key}>{order.label}</option>)}</select></label>
+          <label>Domain<select value={propagationDomainName} onChange={(event) => setPropagationDomainName(event.target.value)}><option></option>{(propagationPlan?.domainAtlas?.map((item) => item.name) ?? propagationPlan?.domains ?? []).map((domain) => <option key={domain}>{domain}</option>)}</select></label>
+          <label>Pressure<select value={propagationPressure} onChange={(event) => setPropagationPressure(event.target.value as "normal" | "high")}><option>normal</option><option>high</option></select></label>
+        </div>
+        <label>Consequence prose<textarea rows={3} value={propagationText} onChange={(event) => setPropagationText(event.target.value)} /></label>
+        <button onClick={savePropagationConsequence} disabled={propagationFlowId == null || !propagationText.trim()}>Add Consequence</button>
+      </section>
+
+      <section className="subpanel">
+        <h3>Domain-atlas sweep</h3>
+        <div className="grid compact-grid">
+          {(propagationPlan?.domainAtlas ?? propagationPlan?.domains.map((name) => ({ name, state: "unswept", declaration: "", doctrine: "Domain declarations explain the relationship." })) ?? []).map((domainState) => (
+            <article key={domainState.name} className="subpanel">
+              <h4>{domainState.name}</h4>
+              <p>{domainState.state}</p>
+              <p className="meta">{domainState.declaration || domainState.doctrine}</p>
+            </article>
+          ))}
+        </div>
+        <div className="grid">
+          <label>Triage<select value={propagationTriage} onChange={(event) => setPropagationTriage(event.target.value as "direct" | "dependency" | "reaction" | "negative")}><option>direct</option><option>dependency</option><option>reaction</option><option>negative</option></select></label>
+          <label>Declaration<textarea rows={2} value={propagationText} onChange={(event) => setPropagationText(event.target.value)} /></label>
+        </div>
+        <button onClick={savePropagationDomain} disabled={propagationFlowId == null || !propagationDomainName || (propagationTriage === "negative" && !propagationText.trim())}>Record Domain</button>
+      </section>
+
+      <section className="subpanel">
+        <h3>Consequences and dispositions</h3>
+        <div className="grid compact-grid">
+          <section>
+            <h4>Disposition effects</h4>
+            <p>answered: governed here with optional rationale.</p>
+            <p>intentionally scoped out: governed by explicit scope note.</p>
+            <p>assigned as canon debt: creates open propagation-scoped debt.</p>
+            <p>protected as a mystery boundary: preserves the boundary for downstream work.</p>
+          </section>
+          <section>
+            <h4>Recorded consequences</h4>
+            {propagationConsequences.length ? propagationConsequences.map((consequence) => (
+              <p key={consequence.id}>#{consequence.id} {consequence.orderLabel} · {consequence.pressure} · {consequence.domainName ?? "no domain"}</p>
+            )) : <p>No consequences recorded.</p>}
+          </section>
+        </div>
+        <div className="grid">
+          <label>Consequence id<input value={propagationConsequenceId} onChange={(event) => setPropagationConsequenceId(event.target.value)} /></label>
+          <label>Disposition<select value={propagationDispositionTerm} onChange={(event) => setPropagationDispositionTerm(event.target.value)}>{consequenceDispositions.length ? consequenceDispositions.map((term) => <option key={term.term}>{term.term}</option>) : ["answered", "intentionally scoped out", "assigned as canon debt", "protected as a mystery boundary"].map((term) => <option key={term}>{term}</option>)}</select></label>
+          <label>Debt or boundary<input value={propagationBoundary} onChange={(event) => setPropagationBoundary(event.target.value)} /></label>
+        </div>
+        <div className="row">
+          <button onClick={savePropagationDisposition} disabled={!propagationConsequenceId || !propagationDispositionTerm}>Save Disposition</button>
+          <button onClick={proposePropagationFact} disabled={propagationFlowId == null || !recordForm.title || !recordForm.truthLayer}>Propose Surfaced Fact</button>
+          <button onClick={skipPropagation} disabled={!openWorld}>Record Skip</button>
+        </div>
+      </section>
+
+      <section className="subpanel">
+        <h3>Propagation Prompt-out</h3>
+        <div className="grid compact-grid">
+          <label>Prompt mode<select value={propagationPromptMode} onChange={(event) => setPropagationPromptMode(event.target.value as "proposal" | "pressure")}>
+            {propagationPromptModes.length ? propagationPromptModes.map((mode) => <option key={mode.mode} value={mode.mode}>{mode.label}</option>) : <option value="proposal">Proposal mode</option>}
+          </select></label>
+          <p className="status">{selectedPropagationPromptMode ? `${selectedPropagationPromptMode.label}: ${selectedPropagationPromptMode.availability}${selectedPropagationPromptMode.blocker ? ` - ${selectedPropagationPromptMode.blocker}` : ""}` : "Prompt modes load from the server contract."}</p>
+          <button onClick={loadPropagationPromptStep} disabled={!canLoadPropagationPromptStep}>Load Propagation Prompt-out Step</button>
+        </div>
+        <p>{displayedPropagationContract?.bearingContext.sourceManifest.join(" · ") ?? "Source manifest loads from the active run."}</p>
+        {promptStep?.context.flowKey === "propagation" && <p>Loaded Prompt-out step: {promptStep.label} · {promptStep.context.stepKey}</p>}
+      </section>
+
+      <section className="subpanel">
+        <h3>Close blockers</h3>
+        {propagationRun?.closeReadiness.blockers.length ? (
+          <ul>{propagationRun.closeReadiness.blockers.map((blocker) => <li key={blocker.key}>{blocker.label ? `${blocker.label}: ` : ""}{blocker.key} · {blocker.message}</li>)}</ul>
+        ) : propagationRun ? (
+          <p>No server-returned blockers.</p>
+        ) : (
+          <p>Start or refresh this flow to load exact server blockers.</p>
+        )}
+      </section>
+
+      <section className="subpanel">
+        <h3>Close/result preview</h3>
+        <div className="grid compact-grid">
+          <section>
+            <h4>Will write</h4>
+            {(propagationRun?.closePreview.willWrite ?? ["Close preview loads from the current run."]).map((item) => <p key={item}>{item}</p>)}
+          </section>
+          <section>
+            <h4>Existing records</h4>
+            {propagationRun?.closePreview.existingRecords.length ? propagationRun.closePreview.existingRecords.map((item) => <p key={`${item.kind}:${item.recordId}`}>{item.kind} · {item.recordId} · {item.title ?? ""}</p>) : <p>None returned.</p>}
+          </section>
+          <section>
+            <h4>Will leave untouched</h4>
+            {(propagationRun?.closePreview.willLeaveUntouched ?? ["Source canon standing remains unchanged."]).map((item) => <p key={item}>{item}</p>)}
+          </section>
+        </div>
+      </section>
+
+      <section className="subpanel">
+        <h3>Read-side trail</h3>
+        <div className="chips">
+          {(propagationRun?.readSideTrail ?? displayedPropagationContract?.readSideTrail ?? []).map((item) => <span key={`${item.label}:${item.href}`}>{item.label} · {item.href}</span>)}
+        </div>
+      </section>
+
+      <details className="subpanel">
+        <summary>Substrate/admin identifiers</summary>
+        <div className="grid">
+          <label>Fact id<input value={propagationFactId} onChange={(event) => setPropagationFactId(event.target.value)} /></label>
+          <label>Debt id<input value={propagationDebtId} onChange={(event) => setPropagationDebtId(event.target.value)} /></label>
+          <label>Flow id<input value={propagationFlowId ?? ""} onChange={(event) => setPropagationFlowId(event.target.value ? Number(event.target.value) : null)} /></label>
+        </div>
+        <div className="row">
+          <button onClick={loadPropagationPlan} disabled={!openWorld || !propagationFactId}>Load Plan</button>
+          <button onClick={startPropagation} disabled={!openWorld || !propagationFactId}>Start or Resume</button>
+        </div>
+      </details>
+    </section>
+  );
+
   if (!openWorld) {
     return (
       <main>
@@ -5324,32 +5620,7 @@ function App({
         </section>
       ),
       admission: admissionRoutedSurface,
-      propagation: (
-        <section className="panel">
-          <h2>Propagation flow</h2>
-          <p>Work shock cones, consequence domains, and stopping-rule dispositions.</p>
-          <MethodCardPanel card={propagationPlan?.methodCard} />
-          <DecisionContractPanel title="Propagation decision contract" contract={(propagationDecisionPoint ?? propagationPlan?.decisionPoint)?.sharedContract} />
-          <div className="grid">
-            <label>Fact id<input value={propagationFactId} onChange={(event) => setPropagationFactId(event.target.value)} /></label>
-            <label>Debt id<input value={propagationDebtId} onChange={(event) => setPropagationDebtId(event.target.value)} /></label>
-            <label>Flow id<input value={propagationFlowId ?? ""} onChange={(event) => setPropagationFlowId(event.target.value ? Number(event.target.value) : null)} /></label>
-          </div>
-          <div className="row">
-            <button onClick={loadPropagationPlan} disabled={!openWorld || !propagationFactId}>Load Plan</button>
-            <button onClick={startPropagation} disabled={!openWorld || !propagationFactId}>Start or Resume</button>
-            <button onClick={() => propagationFlowId != null && loadPropagationRun(propagationFlowId)} disabled={!openWorld || propagationFlowId == null}>Refresh Run</button>
-            <button onClick={closePropagation} disabled={!openWorld || propagationFlowId == null}>Close Run</button>
-          </div>
-          {propagationQueue.map((record) => <p key={record.id}>{record.shortId} · {record.title}</p>)}
-          <section className="subpanel">
-            <h3>Run payload</h3>
-            <p>Consequences: {propagationConsequences.map((consequence) => `#${consequence.id} ${consequence.pressure}`).join(", ") || "none loaded"}</p>
-            <p>Domains: {propagationDomains.map((domain) => domain.domainName).join(", ") || "none loaded"}</p>
-            <p>Dispositions: {propagationDispositions.map((disposition) => `${disposition.consequenceId}:${disposition.disposition}`).join(", ") || "none loaded"}</p>
-          </section>
-        </section>
-      ),
+      propagation: propagationGuidedPanel,
       constraint: (
         <section className="panel">
           <h2>Constraint composition flow</h2>
@@ -6333,76 +6604,7 @@ function App({
             </section>
           </div>
 
-          <div className="panel">
-            <h2>Propagation flow</h2>
-            <MethodCardPanel card={propagationPlan?.methodCard} />
-            <DecisionContractPanel title="Propagation decision contract" contract={(propagationDecisionPoint ?? propagationPlan?.decisionPoint)?.sharedContract} />
-            <div className="doctrine">
-              <strong>Shock cone</strong>
-              <span>{propagationPlan?.methodCard?.operativeRule ?? "Load a fact plan to see server-returned propagation guidance."}</span>
-              <span>{propagationPlan?.requiredCoverage ?? "Load a fact plan to see severity-scaled coverage."}</span>
-            </div>
-            <div className="grid">
-              <label>Fact id<input value={propagationFactId} onChange={(event) => setPropagationFactId(event.target.value)} /></label>
-              <label>Debt id<input value={propagationDebtId} onChange={(event) => setPropagationDebtId(event.target.value)} /></label>
-              <label>Flow id<input value={propagationFlowId ?? ""} onChange={(event) => setPropagationFlowId(event.target.value ? Number(event.target.value) : null)} /></label>
-            </div>
-            <div className="row">
-              <button onClick={loadPropagationPlan} disabled={!openWorld || !propagationFactId}>Load Plan</button>
-              <button onClick={startPropagation} disabled={!openWorld || !propagationFactId}>Start or Resume</button>
-              <button onClick={() => propagationFlowId != null && loadPropagationRun(propagationFlowId)} disabled={!openWorld || propagationFlowId == null}>Refresh Run</button>
-              <button onClick={closePropagation} disabled={!openWorld || propagationFlowId == null}>Close Run</button>
-            </div>
-            {propagationPlan && (
-              <div className="doctrine">
-                <strong>Signature tests</strong>
-                <span>{propagationPlan.doctrine.signatureTests.join(" · ")}</span>
-                <span>Stopping states: {propagationPlan.doctrine.stoppingRules.join(" · ")}</span>
-              </div>
-            )}
-            <div className="grid">
-              <label>Order<select value={propagationOrderKey} onChange={(event) => setPropagationOrderKey(event.target.value)}>{(propagationPlan?.orders ?? []).map((order) => <option key={order.key} value={order.key}>{order.label}</option>)}</select></label>
-              <label>Domain<select value={propagationDomainName} onChange={(event) => setPropagationDomainName(event.target.value)}><option></option>{(propagationPlan?.domains ?? []).map((domain) => <option key={domain}>{domain}</option>)}</select></label>
-              <label>Pressure<select value={propagationPressure} onChange={(event) => setPropagationPressure(event.target.value as "normal" | "high")}><option>normal</option><option>high</option></select></label>
-              <label>Triage<select value={propagationTriage} onChange={(event) => setPropagationTriage(event.target.value as "direct" | "dependency" | "reaction" | "negative")}><option>direct</option><option>dependency</option><option>reaction</option><option>negative</option></select></label>
-            </div>
-            <label>Propagation prose<textarea rows={4} value={propagationText} onChange={(event) => setPropagationText(event.target.value)} /></label>
-            <div className="row">
-              <button onClick={savePropagationConsequence} disabled={propagationFlowId == null || !propagationText.trim()}>Add Consequence</button>
-              <button onClick={savePropagationDomain} disabled={propagationFlowId == null || !propagationDomainName || (propagationTriage === "negative" && !propagationText.trim())}>Record Domain</button>
-              <button onClick={skipPropagation} disabled={!openWorld}>Record Skip</button>
-            </div>
-            <div className="grid">
-              <label>Consequence id<input value={propagationConsequenceId} onChange={(event) => setPropagationConsequenceId(event.target.value)} /></label>
-              <label>Disposition<select value={propagationDispositionTerm} onChange={(event) => setPropagationDispositionTerm(event.target.value)}>{consequenceDispositions.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
-              <label>Debt or boundary<input value={propagationBoundary} onChange={(event) => setPropagationBoundary(event.target.value)} /></label>
-            </div>
-            <div className="row">
-              <button onClick={savePropagationDisposition} disabled={!propagationConsequenceId || !propagationDispositionTerm}>Save Disposition</button>
-              <button onClick={proposePropagationFact} disabled={propagationFlowId == null || !recordForm.title || !recordForm.truthLayer}>Propose Surfaced Fact</button>
-            </div>
-            <div className="subpanel">
-              <h3>Owed propagation</h3>
-              {propagationQueue.map((debt) => <button key={debt.id} onClick={() => { setPropagationDebtId(String(debt.id)); }}>{debt.shortId} · {debt.title}</button>)}
-            </div>
-            <div className="records compact">
-              {propagationConsequences.map((consequence) => (
-                <article key={consequence.id}>
-                  <button onClick={() => setPropagationConsequenceId(String(consequence.id))}>Select</button>
-                  <h3>#{consequence.id} · {consequence.orderLabel}</h3>
-                  <p className="meta">{consequence.pressure} · {consequence.domainName ?? "no domain"} · {propagationDispositions.some((row) => row.consequenceId === consequence.id) ? "dispositioned" : "open"}</p>
-                  <p>{consequence.body}</p>
-                </article>
-              ))}
-              {propagationDomains.map((domain) => (
-                <article key={domain.id}>
-                  <h3>{domain.domainName}</h3>
-                  <p className="meta">{domain.triage}</p>
-                  <p>{domain.declaration || "swept"}</p>
-                </article>
-              ))}
-            </div>
-          </div>
+          {propagationGuidedPanel}
 
           <div className="panel">
             <h2>QA flow</h2>

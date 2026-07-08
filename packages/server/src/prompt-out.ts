@@ -1,4 +1,4 @@
-import { requiresSkipReason } from "./severity-policy.js";
+import { isFoundationalSeverity, isMajorOrHigher, requiresSkipReason, type DeclaredSeverity } from "./severity-policy.js";
 import { resolveCreationDecompositionHandoff } from "./creation-handoff.js";
 import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest, maybeMethodCard } from "./method-cards.js";
 import { PROMPT_TEMPLATE_SEEDS } from "./prompt-out-defaults.js";
@@ -526,6 +526,123 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
   };
 };
 
+const propagationSeverity = (world: WorldFile, factRecordId: number): DeclaredSeverity => {
+  const facets = world.listFacets(factRecordId);
+  return {
+    admissionLevel: facets.find((facet) => facet.vocabulary === "admission_level")?.term ?? null,
+    workScale: facets.find((facet) => facet.vocabulary === "work_scale")?.term ?? null
+  };
+};
+
+const propagationCoverage = (severity: DeclaredSeverity): string => {
+  if (isFoundationalSeverity(severity)) return "full domain-atlas sweep";
+  if (isMajorOrHigher(severity)) return "multiple orders and direct/dependency/reaction domains";
+  return "immediate effects and one ordinary-life residue when relevant";
+};
+
+const propagationPromptBlockers = (
+  severity: DeclaredSeverity,
+  consequences: Array<Record<string, unknown>>,
+  domains: Array<Record<string, unknown>>
+): string[] => {
+  const blockers: string[] = [];
+  const orderKeys = new Set(consequences.map((row) => String(row.order_key)));
+  const triageStates = new Set(domains.map((row) => String(row.triage)));
+  const domainNames = new Set(domains.map((row) => String(row.domain_name)));
+  if (isFoundationalSeverity(severity)) {
+    const allDomains = [
+      "Physics, metaphysics, and cosmology",
+      "Geography, climate, and infrastructure",
+      "Ecology, food, disease, and nonhuman life",
+      "Population, demography, and household life",
+      "Production, labor, and technology/magic",
+      "Economy, trade, and scarcity",
+      "Governance, law, and bureaucracy",
+      "War, coercion, and security",
+      "Religion, ritual, myth, and meaning",
+      "Culture, custom, language, and identity",
+      "Knowledge, education, science, and records",
+      "History, memory, and path dependence",
+      "Daily life and material residue",
+      "Aesthetics, tone, and narrative use"
+    ];
+    if (orderKeys.size < 6) blockers.push("missing-foundational-orders");
+    if (allDomains.some((domainName) => !domainNames.has(domainName))) blockers.push("missing-full-domain-atlas");
+    return blockers;
+  }
+  if (isMajorOrHigher(severity)) {
+    if (orderKeys.size < 2) blockers.push("missing-shock-cone-orders");
+    for (const triage of ["direct", "dependency", "reaction"]) {
+      if (!triageStates.has(triage)) blockers.push(`missing-domain-${triage}`);
+    }
+    return blockers;
+  }
+  if (!consequences.length) blockers.push("missing-immediate-effect");
+  if (!domains.length) blockers.push("missing-ordinary-life-domain");
+  return blockers;
+};
+
+const propagationPromptContext = (world: WorldFile, input: PromptGenerationInput): { lines: string[]; sourceManifest: string[]; omissions: string[] } => {
+  if (input.flowKey !== "propagation" || input.flowId == null) return { lines: [], sourceManifest: [], omissions: [] };
+  const flow = world.getFlowInstance(input.flowId, "propagation");
+  const factId = Number(flow.propagation_fact_record_id);
+  const fact = world.getRecord(factId);
+  const debtId = flow.propagation_debt_record_id == null ? null : Number(flow.propagation_debt_record_id);
+  const debt = debtId == null ? null : world.getRecord(debtId);
+  const reportId = flow.propagation_report_record_id == null ? null : Number(flow.propagation_report_record_id);
+  const consequences = world.propagationConsequences(input.flowId) as Array<Record<string, unknown>>;
+  const domains = world.propagationDomainSweeps(input.flowId) as Array<Record<string, unknown>>;
+  const dispositions = world.propagationDispositions(input.flowId) as Array<Record<string, unknown>>;
+  const proposals = world.propagationSurfacedProposals(input.flowId) as Array<Record<string, unknown>>;
+  const severity = propagationSeverity(world, factId);
+  const requiredCoverage = propagationCoverage(severity);
+  const blockers = propagationPromptBlockers(severity, consequences, domains);
+  const consequenceDispositionIds = new Set(dispositions.map((row) => Number(row.consequence_id)));
+  for (const consequence of consequences.filter((row) => String(row.pressure) === "high" && !consequenceDispositionIds.has(Number(row.id)))) {
+    blockers.push(`undispositioned-high-pressure #${Number(consequence.id)}`);
+  }
+  const omissions = [
+    ...(debt ? [] : ["Owed propagation debt omitted: run was not started from a debt item."]),
+    ...(consequences.length ? [] : ["Recorded consequences omitted: none have been written yet."]),
+    ...(domains.length ? [] : ["Domain-atlas coverage omitted: no domains have been recorded yet."]),
+    ...(dispositions.length ? [] : ["Dispositions omitted: no consequences have reached a stopping state yet."]),
+    ...(proposals.length ? [] : ["Surfaced proposals omitted: none have been routed to Admission yet."]),
+    ...(blockers.length ? blockers.map((blocker) => `Close blocker: ${blocker}`) : [])
+  ];
+  return {
+    lines: [
+      `Propagation source fact: ${fact.shortId} ${fact.title}`,
+      `Owed debt: ${debt ? `${debt.shortId} ${debt.title}` : "none"}`,
+      `Flow id: ${input.flowId}`,
+      `Current step: ${String(flow.current_step)}`,
+      `Severity path: admission_level ${severity.admissionLevel ?? "unset"}, work_scale ${severity.workScale ?? "unset"}`,
+      `Required coverage: ${requiredCoverage}`,
+      `Recorded consequences: ${consequences.length}`,
+      ...consequences.map((row) =>
+        `Consequence #${Number(row.id)}: order ${String(row.order_key)}, domain ${String(row.domain_name ?? "none")}, pressure ${String(row.pressure)}, prose ${String(row.body)}`
+      ),
+      `Domain coverage: ${domains.length}`,
+      ...domains.map((row) =>
+        `Domain ${String(row.domain_name)}: ${String(row.triage)}${String(row.declaration ?? "").trim() ? ` - ${String(row.declaration)}` : ""}`
+      ),
+      `Dispositions: ${dispositions.length}`,
+      ...dispositions.map((row) => `Disposition for consequence #${Number(row.consequence_id)}: ${String(row.disposition)} ${String(row.note ?? "")}`.trim()),
+      `Surfaced proposals: ${proposals.length}`,
+      `Blockers: ${blockers.join(", ") || "none"}`
+    ],
+    sourceManifest: [
+      `Propagation source fact: ${fact.shortId} ${fact.title}`,
+      ...(debt ? [`Propagation owed debt: ${debt.shortId} ${debt.title}`] : []),
+      `Propagation flow id: ${input.flowId}`,
+      `Propagation step: ${String(flow.current_step)}`,
+      `Propagation required coverage: ${requiredCoverage}`,
+      `Propagation blockers: ${blockers.join(", ") || "none"}`,
+      ...(reportId == null ? [] : [`Propagation report: ${reportId}`])
+    ],
+    omissions
+  };
+};
+
 const draftText = (value?: string | null): string => value?.trim() ?? "";
 
 const admissionFullGateDraftContext = (input: PromptGenerationInput): {
@@ -843,7 +960,13 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
   const rulings = standingRulingRows(world);
   const cardValue = promptMethodCard(input);
   const doctrineLines = cardValue ? methodCardDoctrineSlots(cardValue) : [];
-  const flowContext = temporalPromptContext(world, input);
+  const temporalContext = temporalPromptContext(world, input);
+  const propagationContext = propagationPromptContext(world, input);
+  const flowContext = {
+    lines: [...temporalContext.lines, ...propagationContext.lines],
+    sourceManifest: [...temporalContext.sourceManifest, ...propagationContext.sourceManifest],
+    omissions: [...propagationContext.omissions]
+  };
   const admissionDraftContext = admissionFullGateDraftContext(input);
   const sourceManifest = [
     `Prompt template: ${template.key} (${template.package_source})`,
@@ -856,6 +979,7 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
   ];
   const omissions = [
     ...(selectedRecord == null ? ["Selected record omitted: no record context was provided."] : []),
+    ...flowContext.omissions,
     ...admissionDraftContext.omissions,
     "No hidden repository context is available to the external LLM.",
     "Unavailable world context must be named before copy-out rather than silently omitted."

@@ -11,7 +11,7 @@ export const registerPropagationRoutes = (app: RouteApp, dependencies: RouteDepe
   )));
 
   app.post("/api/propagation/runs/start", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () =>
-    c.json({ flow: PropagationFlow.startPropagationRun(world, await readJson<{ factRecordId: number; debtRecordId?: number }>(c)) }, 201)
+    c.json({ flow: PropagationFlow.startPropagationRun(world, await readJson<{ factRecordId?: number; debtRecordId?: number }>(c)) }, 201)
   )));
 
   app.get("/api/propagation/runs/:id", (c) => withWorld(c, dependencies, (world) => tryRoute(c, () =>
