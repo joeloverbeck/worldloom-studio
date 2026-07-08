@@ -2132,6 +2132,9 @@ function App({
         ? `Selected mode: ${selectedCreationPromptMode.label} - ${selectedCreationPromptMode.available ? "available" : selectedCreationPromptMode.blocker ?? "blocked"}`
         : "Selected mode: loads from the server packet.";
   const canLoadCreationPromptStep = Boolean(openWorld && creationPromptStepRequest && !creationPromptOutBlockedByLocalSection);
+  const creationPromptCurrentDecision = creationLocalProposalRequest && selectedSectionContract
+    ? `Define the world's first governing kernel section: ${kernelHeading}.`
+    : displayedCreationDecision.promptOut.preview.currentDecision || displayedCreationDecision.localDecision;
   const loadedCreationPromptMode = promptStep?.context.flowKey === "creation" && promptStep.context.stepKey === displayedCreationDecision.promptOut.stepKey
     ? promptStep.mode ?? null
     : null;
@@ -2187,7 +2190,7 @@ function App({
         stepKey: displayedCreationDecision.promptOut.stepKey,
         mode: typeof request.mode === "string" ? request.mode : selectedCreationPromptMode?.mode ?? null,
         templateKey: String(request.templateKey ?? displayedCreationDecision.promptOut.templateKey),
-        decisionLabel: displayedCreationDecision.promptOut.preview.currentDecision || displayedCreationDecision.localDecision,
+        decisionLabel: creationPromptCurrentDecision,
         createdAt: loadedPromptStatus?.origin.createdAt ?? "",
         admissionLevel: null,
         workScale: null,
@@ -2228,6 +2231,7 @@ function App({
     activeFullGateSectionKeys,
     creationPromptOutBlockedByLocalSection,
     creationPromptStepRequest,
+    creationPromptCurrentDecision,
     displayedCreationDecision,
     flowId,
     kernelHeading,
@@ -2306,7 +2310,7 @@ function App({
   const creationPromptPreviewForDisplay: PromptPreviewPayload = creationLocalProposalRequest && selectedSectionContract
     ? {
         ...displayedCreationDecision.promptOut.preview,
-        currentDecision: `Define the world's first governing kernel section: ${kernelHeading}.`,
+        currentDecision: creationPromptCurrentDecision,
         promptText: currentCreationPromptPacketText ?? [
           "Proposal mode selected target:",
           kernelHeading,
@@ -3214,7 +3218,7 @@ function App({
         recordId: originNumber(request.body.recordId),
         mode: typeof request.body.mode === "string" ? request.body.mode : selectedMode?.mode ?? null,
         selectedSectionHeading: typeof request.body.selectedSectionHeading === "string" ? request.body.selectedSectionHeading : kernelHeading,
-        decisionLabel: creationDecision.promptOut.preview.currentDecision || creationDecision.localDecision
+        decisionLabel: creationPromptCurrentDecision
       }),
       generated.prompt
     );

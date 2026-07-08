@@ -330,13 +330,16 @@ describe("Creation decision-point web surface", () => {
     expect(promptSelection).toContain("selectedSectionHeading: kernelHeading");
     expect(promptSelection).toContain("creationPromptMode !== \"proposal\"");
     expect(promptSelection).toContain("creationPromptModesForDisplay");
+    expect(promptSelection).toContain("creationPromptCurrentDecision");
     expect(source).toContain("creationPromptPreviewForDisplay");
     expect(promptSelection).toContain("available for selected");
     expect(promptSelection).toContain("Proposal prompts are refused for the world's essence");
     expect(currentOrigin).toContain("creationPromptStepRequest?.body");
     expect(currentOrigin).toContain("selectedSectionHeading: typeof request.selectedSectionHeading === \"string\"");
+    expect(currentOrigin).toContain("decisionLabel: creationPromptCurrentDecision");
     expect(creationPromptLoader).toContain("const request = creationPromptStepRequest");
     expect(creationPromptLoader).toContain("request.body.selectedSectionHeading");
+    expect(creationPromptLoader).toContain("decisionLabel: creationPromptCurrentDecision");
     expect(routedCreation).toContain("Load Creation Prompt-out Step");
     expect(routedCreation).toContain("creationPromptModeStatus");
   });
