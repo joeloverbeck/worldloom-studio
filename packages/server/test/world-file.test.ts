@@ -794,8 +794,9 @@ describe("WorldFile", () => {
     const fact = store.createRecord({ recordTypeKey: "canon_fact", title: "Ghost tolls bind bridges", body: "Dead witnesses can charge crossings.", truthLayer: "Objective canon", canonStatus: "accepted" });
     AdmissionFlow.declareAdmissionSeverity(store, fact.id, { admissionLevel: "4", workScale: "severe" });
     const debt = store.createCanonDebt({ name: `Propagation owed for ${fact.shortId}`, scope: "propagation", assignee: "steward", body: "Admission owed a shock cone." });
+    store.createLink(debt.id, fact.id, "derived_from", "Propagation debt source fact");
 
-    expect(PropagationFlow.propagationQueue(store)).toEqual([expect.objectContaining({ id: debt.id, scope: "propagation" })]);
+    expect(PropagationFlow.propagationQueue(store)).toEqual([expect.objectContaining({ id: debt.id, scope: "propagation", sourceFact: expect.objectContaining({ id: fact.id }) })]);
     const flow = PropagationFlow.startPropagationRun(store, { factRecordId: fact.id, debtRecordId: debt.id }) as { id: number; current_step: string };
     expect(flow.current_step).toBe("propagation:entry");
     expect(PropagationFlow.startPropagationRun(store, { factRecordId: fact.id, debtRecordId: debt.id })).toMatchObject({ id: flow.id });

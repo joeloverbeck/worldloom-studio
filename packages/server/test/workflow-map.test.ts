@@ -112,6 +112,12 @@ describe("workflow map HTTP payload", () => {
       assignee: "steward",
       body: "Scope: propagation\nWork the noon-bridge shock cone."
     }));
+    expect((await postJson(app, "/api/links", {
+      fromRecordId: debt.debt.id,
+      toRecordId: accepted.record.id,
+      linkTypeKey: "derived_from",
+      note: "Propagation debt source fact"
+    })).status).toBe(201);
     const propagation = await json<{ flow: { id: number } }>(await postJson(app, "/api/propagation/runs/start", {
       factRecordId: accepted.record.id,
       debtRecordId: debt.debt.id

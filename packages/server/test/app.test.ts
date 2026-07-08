@@ -848,8 +848,14 @@ describe("HTTP API", () => {
         livingRecord: {
           id: proposedJson.record.id,
           title: "Toll bell",
-          body: "A bell charges each crossing",
+          body: "Fact statement substance for bridge-toll admission.",
           canonStatus: "accepted with constraints"
+        },
+        standingText: {
+          acceptedGateStatement: "Fact statement substance for bridge-toll admission.",
+          currentLivingText: "Fact statement substance for bridge-toll admission.",
+          originalProposalText: "A bell charges each crossing",
+          currentDiffersFromAccepted: false
         },
         gateResult: {
           body: expect.stringContaining("Fact statement: Fact statement substance for bridge-toll admission.")
@@ -875,7 +881,27 @@ describe("HTTP API", () => {
     });
     expect(await json(await app.request(`/api/links?recordId=${proposedJson.record.id}`))).toMatchObject({
       links: expect.arrayContaining([
-        expect.objectContaining({ linkTypeKey: "cites_advisory_artifact", toRecordId: gateAdvisory.record.id })
+        expect.objectContaining({ linkTypeKey: "cites_advisory_artifact", toRecordId: gateAdvisory.record.id }),
+        expect.objectContaining({
+          fromRecordId: completedGatePayload.readback.followUpDebt.id,
+          toRecordId: proposedJson.record.id,
+          linkTypeKey: "derived_from",
+          note: expect.stringContaining("Admission-created propagation debt")
+        })
+      ])
+    });
+    expect(await json(await app.request("/api/propagation/queue"))).toMatchObject({
+      queue: expect.arrayContaining([
+        expect.objectContaining({
+          id: completedGatePayload.readback.followUpDebt.id,
+          sourceFact: expect.objectContaining({
+            id: proposedJson.record.id,
+            body: "Fact statement substance for bridge-toll admission."
+          }),
+          route: expect.objectContaining({
+            body: { factRecordId: proposedJson.record.id, debtRecordId: completedGatePayload.readback.followUpDebt.id }
+          })
+        })
       ])
     });
 
@@ -973,6 +999,16 @@ describe("HTTP API", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ name: `Propagation owed for ${fact.record.shortId}`, scope: "propagation", assignee: "steward", body: "Admission owed a shock cone." })
     }));
+    expect((await app.request("/api/links", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        fromRecordId: debt.debt.id,
+        toRecordId: fact.record.id,
+        linkTypeKey: "derived_from",
+        note: "Propagation debt preserves source fact"
+      })
+    })).status).toBe(201);
 
     expect(await json(await app.request("/api/propagation/queue"))).toMatchObject({ queue: [expect.objectContaining({ id: debt.debt.id })] });
     const plan = await json<{ plan: { requiredDomainCount: number; domains: string[]; doctrine: { signatureTests: string[] } } }>(await app.request(`/api/propagation/records/${fact.record.id}/plan`));

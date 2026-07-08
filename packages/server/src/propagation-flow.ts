@@ -210,11 +210,6 @@ const recordRef = (record: RecordRow): RecordRef => ({
   canonStatus: record.canonStatus
 });
 
-const parseSourceFactId = (body: string): number | null => {
-  const match = body.match(/\b(?:source fact id|fact id|record id):\s*(\d+)\b/i);
-  return match ? Number(match[1]) : null;
-};
-
 const sourceFactForPropagationDebt = (store: WorldFile, debt: RecordRow): RecordRow | null => {
   for (const link of store.listLinks(debt.id)) {
     const candidateId = link.fromRecordId === debt.id ? link.toRecordId : link.fromRecordId;
@@ -222,10 +217,7 @@ const sourceFactForPropagationDebt = (store: WorldFile, debt: RecordRow): Record
     const candidate = store.getRecord(candidateId);
     if (candidate.recordTypeKey === "canon_fact" && link.linkTypeKey === "derived_from") return candidate;
   }
-  const parsedId = parseSourceFactId(debt.body);
-  if (parsedId == null) return null;
-  const candidate = store.getRecord(parsedId);
-  return candidate.recordTypeKey === "canon_fact" ? candidate : null;
+  return null;
 };
 
 const owedDebtForFlow = (store: WorldFile, flow: PropagationFlowRow): RecordRow | null =>
@@ -707,10 +699,13 @@ export const startPropagationRun = (store: WorldFile, input: { factRecordId?: nu
     if (debt.recordTypeKey !== "canon_debt") throw new Error("propagation debt must be a canon debt record");
     const queueItem = propagationQueue(store).find((row) => row.id === debt.id);
     if (!queueItem) throw new Error("debt is not an open propagation-scoped debt item");
+    if (queueItem.sourceFact == null) {
+      throw new Error("propagation debt is missing a derived_from source fact link");
+    }
     if (queueItem.sourceFact != null && factRecordId != null && factRecordId !== queueItem.sourceFact.id) {
       throw new Error("source fact does not match propagation debt identity");
     }
-    factRecordId = queueItem.sourceFact?.id ?? factRecordId;
+    factRecordId = queueItem.sourceFact.id;
   }
   if (factRecordId == null) throw new Error("propagation run requires a source fact");
   const fact = store.getRecord(factRecordId);

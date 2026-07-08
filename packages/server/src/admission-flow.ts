@@ -1261,6 +1261,12 @@ export interface AdmissionGateCompletionReadback {
   constraintTags: string[];
   followUpDebt: RecordRow | null;
   advisoryUse: { advisoryRecordId: number; linkTypes: string[] } | null;
+  standingText: {
+    acceptedGateStatement: string;
+    currentLivingText: string;
+    originalProposalText: string;
+    currentDiffersFromAccepted: boolean;
+  };
   historyEvidence: {
     previousTitle: string;
     previousBody: string;
@@ -1442,6 +1448,27 @@ const fullGateSectionLines = (
   ];
 };
 
+const acceptedGateStatement = (
+  contract: AdmissionFullGateContract | null,
+  sections: AdmissionFullGateSectionInput[] | undefined
+): string => {
+  if (!contract) return "";
+  const factStatement = sections?.find((section) => section.key === "fact_statement");
+  return nonEmpty(factStatement?.substance);
+};
+
+const currentLivingTextForGateCompletion = (
+  current: RecordRow,
+  input: AdmissionGateCompletionInput,
+  gate: AdmissionGatePolicy,
+  contract: AdmissionFullGateContract | null
+): string => {
+  const requestedLivingText = nonEmpty(input.body);
+  if (requestedLivingText) return requestedLivingText;
+  const acceptedStatement = gate.path === "full_gate" ? acceptedGateStatement(contract, input.sections) : "";
+  return acceptedStatement || current.body;
+};
+
 export const completeAdmissionGate = (
   worldFile: WorldFile,
   input: AdmissionGateCompletionInput
@@ -1456,9 +1483,11 @@ export const completeAdmissionGate = (
   worldFile.assertAllowedStatusTransition(current.canonStatus, input.canonStatus);
   return worldFile.atomicWrite(() => {
     const warnings = warnsForOpenCanonDebt(declaredSeverityFromFacets(worldFile.listFacets(input.recordId))) ? worldFile.listCanonDebt(true) : [];
+    const acceptedStatement = gate.path === "full_gate" ? acceptedGateStatement(contract, input.sections) : nonEmpty(input.body);
+    const currentLivingText = currentLivingTextForGateCompletion(current, input, gate, contract);
     const record = worldFile.updateRecord(input.recordId, {
       title: input.title ?? current.title,
-      body: input.body ?? current.body,
+      body: currentLivingText,
       truthLayer: input.truthLayer,
       canonStatus: input.canonStatus
     });
@@ -1470,6 +1499,9 @@ export const completeAdmissionGate = (
       body: [
         `Record: ${record.shortId} ${record.title}`,
         `Status: ${input.canonStatus}`,
+        `Accepted standing text: ${acceptedStatement || currentLivingText}`,
+        `Current living text: ${currentLivingText}`,
+        `Original proposal/source text: ${current.body}`,
         `Operations: ${input.operations.join(", ")}`,
         `Consequence: ${input.consequenceText ?? "minor or not supplied"}`,
         `N/A reasons: ${(input.notApplicableReasons ?? []).join("; ") || "none"}`,
@@ -1490,6 +1522,14 @@ export const completeAdmissionGate = (
     const followUpDebt = input.followUpDebt
       ? worldFile.createCanonDebt({ name: `Propagation owed for ${record.shortId}`, scope: "propagation", assignee: "steward", body: input.followUpDebt })
       : null;
+    if (followUpDebt) {
+      worldFile.createLinkIfMissing(
+        followUpDebt.id,
+        record.id,
+        "derived_from",
+        `Admission-created propagation debt source fact: ${record.shortId}`
+      );
+    }
     worldFile.completeAdmissionFlowsForRecord(record.id);
     return {
       record,
@@ -1504,6 +1544,12 @@ export const completeAdmissionGate = (
         advisoryUse: input.advisoryRecordId == null
           ? null
           : { advisoryRecordId: input.advisoryRecordId, linkTypes: ["derived_from", "cites_advisory_artifact"] },
+        standingText: {
+          acceptedGateStatement: acceptedStatement || currentLivingText,
+          currentLivingText,
+          originalProposalText: current.body,
+          currentDiffersFromAccepted: Boolean(acceptedStatement && currentLivingText !== acceptedStatement)
+        },
         historyEvidence: {
           previousTitle: current.title,
           previousBody: current.body,

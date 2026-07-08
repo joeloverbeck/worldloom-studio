@@ -356,11 +356,78 @@ const matchesText = (record: RecordSummary, sections: SectionSummary[], query: s
   return haystacks.some((haystack) => normalize(haystack).includes(needle));
 };
 
+const linkTouchesBoth = (link: LinkSummary, leftId: number, rightId: number): boolean =>
+  touches(link, leftId) && touches(link, rightId);
+
+const gateReportsFor = (records: RecordSummary[], links: LinkSummary[], recordId: number): RecordSummary[] =>
+  records
+    .filter((record) => record.recordTypeKey === "gate_result")
+    .filter((record) => links.some((link) => linkTouchesBoth(link, record.id, recordId)))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id);
+
+const linkedPropagationDebtFor = (records: RecordSummary[], links: LinkSummary[], recordId: number) =>
+  records
+    .filter((record) => record.recordTypeKey === "canon_debt")
+    .map((record) => {
+      const sourceLink = links.find((link) =>
+        link.linkTypeKey === "derived_from" &&
+        link.fromRecordId === record.id &&
+        link.toRecordId === recordId
+      );
+      return sourceLink
+        ? {
+            ...recordSlim(record),
+            sourceRelationship: `${sourceLink.linkTypeKey}: ${sourceLink.note}`.trim()
+          }
+        : null;
+    })
+    .filter((record): record is NonNullable<typeof record> => record != null);
+
+const standingProvenanceFor = (
+  record: RecordSummary,
+  records: RecordSummary[],
+  links: LinkSummary[],
+  histories: RecordHistorySummary[],
+  facets: FacetSummary[],
+  jurisdictionEvents: ReturnType<typeof listJurisdictionEvents>
+) => {
+  const gateReport = gateReportsFor(records, links, record.id)[0] ?? null;
+  const proposalHistory = histories
+    .filter((history) => history.recordId === record.id)
+    .sort((a, b) => a.sequence - b.sequence)[0] ?? null;
+  const admissionOperation = jurisdictionEvents
+    .filter((event) => event.recordId === record.id && event.admissionDecisionOperation)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id - b.id)
+    .at(-1)?.admissionDecisionOperation ?? null;
+  const constraintTags = facets
+    .filter((facet) => facet.recordId === record.id && facet.vocabulary === "constraint_tag")
+    .sort((a, b) => a.position - b.position || a.id - b.id)
+    .map((facet) => facet.term);
+
+  return {
+    currentLivingText: record.body,
+    proposalHistoryText: proposalHistory?.retiredBody ?? null,
+    gateAuditText: gateReport?.body ?? null,
+    admissionOperation,
+    constraintTags,
+    linkedPropagationDebt: linkedPropagationDebtFor(records, links, record.id),
+    typedLinkTrail: links
+      .filter((link) => touches(link, record.id))
+      .map((link) => ({
+        linkTypeKey: link.linkTypeKey,
+        note: link.note,
+        fromRecordId: link.fromRecordId,
+        toRecordId: link.toRecordId
+      }))
+  };
+};
+
 export const currentCanon = (world: WorldFile, filters: CurrentCanonFilters = {}) => {
   const records = listRecordsWithMeta(world);
   const facets = listFacets(world);
   const sections = listSections(world);
   const links = listLinks(world);
+  const histories = listRecordHistory(world);
   const openDebtIds = openDebtRecordIds(records, links);
   const advisoryUseIds = advisoryUseRecordIds(records, links);
   const facetGroups = byRecordId(facets);
@@ -390,6 +457,13 @@ export const currentCanon = (world: WorldFile, filters: CurrentCanonFilters = {}
     .filter((record) => matchesText(record, sections, filters.q ?? ""))
     .map((record) => ({
       ...recordSlim(record),
+      body: record.body,
+      currentLivingText: record.body,
+      gateProvenance: {
+        hasGateResult: gateReportsFor(records, links, record.id).length > 0,
+        hasProposalHistory: histories.some((history) => history.recordId === record.id),
+        hasLinkedDebt: linkedPropagationDebtFor(records, links, record.id).length > 0
+      },
       relationshipMarkers: {
         hasOpenDebt: openDebtIds.has(record.id),
         hasAdvisoryUse: advisoryUseIds.has(record.id),
@@ -638,6 +712,7 @@ export const recordDetail = (world: WorldFile, recordId: number) => {
   const histories = listRecordHistory(world);
   const sectionHistories = listSectionHistory(world);
   const dispositions = listAdvisoryDispositions(world);
+  const jurisdictionEvents = listJurisdictionEvents(world);
   const contextIds = relatedIdsFor(links, recordId);
   const relatedReports = relatedReportsFor(records, links, recordId).map(recordSlim);
   const advisoryArtifacts = advisoryArtifactsFor(records, links, dispositions, contextIds);
@@ -659,6 +734,7 @@ export const recordDetail = (world: WorldFile, recordId: number) => {
         ...link,
         source: recordsById.has(link.fromRecordId) ? recordSlim(recordsById.get(link.fromRecordId)!) : null
       })),
+    standingProvenance: standingProvenanceFor(record, records, links, histories, facets, jurisdictionEvents),
     recordHistory: histories.filter((history) => history.recordId === recordId),
     sectionHistory: sectionHistories.filter((history) => history.recordId === recordId),
     relatedReports,

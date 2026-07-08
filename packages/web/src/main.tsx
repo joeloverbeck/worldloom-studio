@@ -525,11 +525,18 @@ interface CanonWorkbenchCurrentRow {
   id: number;
   shortId: string;
   title: string;
+  body?: string;
   recordTypeKey: string;
   recordTypeLabel: string;
   truthLayer: string;
   canonStatus: string;
   continuityScope: string;
+  currentLivingText?: string;
+  gateProvenance?: {
+    hasGateResult: boolean;
+    hasProposalHistory: boolean;
+    hasLinkedDebt: boolean;
+  };
   relationshipMarkers: {
     hasOpenDebt: boolean;
     hasAdvisoryUse: boolean;
@@ -588,6 +595,15 @@ interface CanonWorkbenchDetail {
   sectionHistory: unknown[];
   relatedReports: CanonWorkbenchRecordRef[];
   canonDebt: CanonWorkbenchRecordRef[];
+  standingProvenance?: {
+    currentLivingText: string;
+    proposalHistoryText: string | null;
+    gateAuditText: string | null;
+    admissionOperation: string | null;
+    constraintTags: string[];
+    linkedPropagationDebt: Array<CanonWorkbenchRecordRef & { sourceRelationship: string }>;
+    typedLinkTrail: Array<{ linkTypeKey: string; note: string; fromRecordId?: number; toRecordId?: number }>;
+  };
   skipRecords: CanonWorkbenchRecordRef[];
   advisoryArtifacts: Array<{ record: CanonWorkbenchRecordRef; dispositions: unknown[] }>;
   standingRulings: unknown[];
@@ -675,6 +691,12 @@ interface AdmissionCompletionReadback {
   constraintTags?: string[];
   followUpDebt?: Partial<RecordRow> | null;
   advisoryUse?: { advisoryRecordId: number; linkTypes?: string[] } | null;
+  standingText?: {
+    acceptedGateStatement: string;
+    currentLivingText: string;
+    originalProposalText: string;
+    currentDiffersFromAccepted: boolean;
+  };
   historyEvidence?: { previousTitle?: string; previousBody?: string };
   readSideTrail?: Array<{ label: string; href: string }>;
 }
@@ -1985,6 +2007,12 @@ function App({
     ...admissionValidationErrors
   ];
   const activeFullGateSectionKeys = activeFullGateContract?.sections.map((section) => section.key) ?? [];
+  const acceptedGateStatementDraft = activeFullGateContract ? (gateSectionSubstance.fact_statement ?? "").trim() : "";
+  const originalProposalText = selectedAdmissionRecord?.body || admissionDecision?.selectedRecord.body || "";
+  const intendedCurrentLivingText = recordForm.body.trim()
+    || acceptedGateStatementDraft
+    || originalProposalText;
+  const currentLivingTextDiffersFromAccepted = Boolean(acceptedGateStatementDraft && intendedCurrentLivingText !== acceptedGateStatementDraft);
   const admissionDraftIdentity = activeFullGateContract && admissionDecision
     ? admissionDraftIdentityFor({
       worldPath: openWorld,
@@ -1996,7 +2024,7 @@ function App({
       sectionKeys: activeFullGateSectionKeys,
       draft: {
         title: recordForm.title || selectedAdmissionRecord?.title || admissionDecision.selectedRecord.title,
-        body: recordForm.body || selectedAdmissionRecord?.body || admissionDecision.selectedRecord.body,
+        body: intendedCurrentLivingText,
         truthLayer: recordForm.truthLayer || selectedAdmissionRecord?.truthLayer || admissionDecision.selectedRecord.truthLayer || "Objective canon",
         canonStatus: gateCanonStatus || recordForm.canonStatus || selectedAdmissionRecord?.canonStatus || "accepted",
         constraintTags: gateConstraintTags,
@@ -2020,7 +2048,7 @@ function App({
   const buildAdmissionGateCompletionPayload = (canonStatusOverride?: string): AdmissionGateCompletionPayload => ({
     recordId: Number(admissionRecordId || admissionDecision?.selectedRecord.id || 0),
     title: recordForm.title || selectedAdmissionRecord?.title || admissionDecision?.selectedRecord.title || "",
-    body: recordForm.body || selectedAdmissionRecord?.body || admissionDecision?.selectedRecord.body || "",
+    body: intendedCurrentLivingText,
     truthLayer: recordForm.truthLayer || selectedAdmissionRecord?.truthLayer || admissionDecision?.selectedRecord.truthLayer || "Objective canon",
     canonStatus: canonStatusOverride || gateCanonStatus || recordForm.canonStatus || selectedAdmissionRecord?.canonStatus || "accepted",
     constraintTags: gateConstraintTags ? parseTextList(gateConstraintTags) : admissionDecision?.selectedRecord.constraintTags ?? [],
@@ -4870,7 +4898,14 @@ function App({
         {propagationQueue.length ? propagationQueue.map((debt) => (
           <article key={debt.id} className="queue-item">
             <h4>{debt.owedItem?.shortId ?? debt.shortId} · {debt.owedItem?.title ?? debt.title}</h4>
-            <p>{debt.sourceFact ? `${debt.sourceFact.shortId} · ${debt.sourceFact.title}` : "Source fact not returned for this owed item."}</p>
+            {debt.sourceFact ? (
+              <p>{debt.sourceFact.shortId} · {debt.sourceFact.title}</p>
+            ) : (
+              <>
+                <p className="status error">Missing source fact link</p>
+                <p>Start is blocked until this canon debt has a derived_from source fact link.</p>
+              </>
+            )}
             <p className="meta">State {debt.state} · scope {debt.scope}</p>
             <button onClick={() => startPropagationFromQueue(debt)} disabled={!openWorld || !debt.route}>Start/Resume Owed Run</button>
           </article>
@@ -5274,6 +5309,16 @@ function App({
                   <option key={artifact.id} value={artifact.id}>{`${artifact.shortId} · ${artifact.title}`}</option>
                 ))}
               </select></label>
+              <section className="subpanel standing-text-review">
+                <h4>Standing text review</h4>
+                <p>By default, current canon uses the accepted Fact statement.</p>
+                <p>Accepted gate statement: {acceptedGateStatementDraft || "not supplied yet"}</p>
+                <p>Intended current living text: {intendedCurrentLivingText || "not supplied yet"}</p>
+                <p>Original proposal/source text: {originalProposalText || "not supplied"}</p>
+                {currentLivingTextDiffersFromAccepted && (
+                  <p className="status error">Current living text differs from the accepted gate statement; review both before completion.</p>
+                )}
+              </section>
               <section className="subpanel final-review">
                 <h4>Exact final review</h4>
                 <p>Final review required before completion</p>
@@ -5286,7 +5331,9 @@ function App({
                     <p className={gateFinalReviewIsCurrent ? "status" : "status error"}>{gateFinalReviewIsCurrent ? "Review matches current full-gate draft." : "Review is stale; review the current draft again."}</p>
                     <p>Reviewed at {gateFinalReview.reviewedAt}</p>
                     <p>Living record title: {gateFinalReview.payload.title}</p>
-                    <p>Living record body: {gateFinalReview.payload.body}</p>
+                    <p>Accepted gate statement: {gateFinalReview.payload.sections.find((section) => section.key === "fact_statement")?.substance || "not supplied"}</p>
+                    <p>Intended current living text: {gateFinalReview.payload.body}</p>
+                    <p>Original proposal/source text: {originalProposalText || "not supplied"}</p>
                     <p>Truth layer: {gateFinalReview.payload.truthLayer}</p>
                     <p>Canon standing transition: {admissionDecision?.selectedRecord.canonStatus ?? "unknown"} to {gateFinalReview.payload.canonStatus}</p>
                     <p>Ordered operations: {gateFinalReview.payload.operations.join(", ") || "none"}</p>
@@ -5307,6 +5354,9 @@ function App({
                   <div>
                     <h4>Completion readback comparison</h4>
                     <p>Current canon: {admissionCompletionReadback.livingRecord?.title ?? "record returned"} · {admissionCompletionReadback.livingRecord?.canonStatus ?? "status returned"}</p>
+                    <p>Current living text: {admissionCompletionReadback.standingText?.currentLivingText ?? admissionCompletionReadback.livingRecord?.body ?? "current text returned"}</p>
+                    <p>Accepted gate statement: {admissionCompletionReadback.standingText?.acceptedGateStatement ?? "accepted text returned"}</p>
+                    <p>Original proposal/source text: {admissionCompletionReadback.standingText?.originalProposalText ?? admissionCompletionReadback.historyEvidence?.previousBody ?? "history returned"}</p>
                     <p>Gate result: {admissionCompletionReadback.gateResult?.title ?? "gate_result returned"}</p>
                     <p>Operation events: {(admissionCompletionReadback.operationEvents ?? []).join(", ") || "none"}</p>
                     <p>Tags: {(admissionCompletionReadback.constraintTags ?? []).join(", ") || "none"}</p>
@@ -5715,12 +5765,76 @@ function App({
         </section>
       ),
       "canon-workbench": (
-        <section className="panel">
+        <section className="panel canon-workbench">
           <h2>Canon Workbench</h2>
           <p>Current Canon</p>
           <p>Audit Trail</p>
-          <p>Canon Workbench text query</p>
-          {canonCurrentRows.map((row) => <p key={row.id}>{row.shortId} · {row.title}</p>)}
+          <div className="grid compact-grid">
+            <label>Canon Workbench text query<input value={canonWorkbenchQuery} onChange={(event) => setCanonWorkbenchQuery(event.target.value)} /></label>
+            <label>Canon status filter<select value={canonWorkbenchStatus} onChange={(event) => setCanonWorkbenchStatus(event.target.value)}>
+              <option value="">Default standing statuses</option>
+              {canonStatuses.map((term) => <option key={term.term}>{term.term}</option>)}
+            </select></label>
+          </div>
+          <div className="row">
+            <label className="inline-check"><input type="checkbox" checked={canonWorkbenchOpenDebt} onChange={(event) => setCanonWorkbenchOpenDebt(event.target.checked)} />Open canon debt</label>
+            <button onClick={loadCanonWorkbench}>Refresh Workbench</button>
+          </div>
+          <section className="subpanel">
+            <h3>Current Canon</h3>
+            {canonCurrentRows.length === 0 && <p className="status">No current canon matches these filters</p>}
+            <div className="records compact">
+              {canonCurrentRows.map((row) => (
+                <article key={row.id} className={selectedCanonRecordId === row.id ? "selected" : undefined}>
+                  <button onClick={() => void selectCurrentCanonRow(row)}>Select</button>
+                  <h3>{row.shortId} · {row.title}</h3>
+                  <p className="meta">{row.recordTypeLabel} · {row.truthLayer} · {row.canonStatus} · {row.continuityScope}</p>
+                  <p>Current living text: {row.currentLivingText ?? row.body ?? "not returned"}</p>
+                  {row.gateProvenance && (
+                    <p className="meta">
+                      Gate provenance: {[
+                        row.gateProvenance.hasGateResult ? "gate result" : "",
+                        row.gateProvenance.hasProposalHistory ? "proposal history" : "",
+                        row.gateProvenance.hasLinkedDebt ? "linked debt" : ""
+                      ].filter(Boolean).join(" · ") || "none"}
+                    </p>
+                  )}
+                  <div className="chips">
+                    {row.relationshipMarkers.hasOpenDebt && <span>Open debt</span>}
+                    {row.relationshipMarkers.hasAdvisoryUse && <span>Advisory use</span>}
+                    {row.relationshipMarkers.typedLinkTypes.map((linkType) => <span key={linkType}>{linkType}</span>)}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+          <section className="subpanel">
+            <h3>Detail pane</h3>
+            {canonDetail ? (
+              <article>
+                <h3>{canonDetail.record.shortId} · {canonDetail.record.title}</h3>
+                <p className="meta">{canonDetail.record.recordTypeLabel} · {canonDetail.record.truthLayer} · {canonDetail.record.canonStatus} · {canonDetail.record.continuityScope}</p>
+                <p>{canonDetail.record.body || "No prose yet."}</p>
+                {canonDetail.standingProvenance && (
+                  <section className="subpanel">
+                    <h4>Standing provenance</h4>
+                    <p>Current living text: {canonDetail.standingProvenance.currentLivingText || "not returned"}</p>
+                    <p>Proposal/source history: {canonDetail.standingProvenance.proposalHistoryText || "none returned"}</p>
+                    <p>Gate audit text: {canonDetail.standingProvenance.gateAuditText || "none returned"}</p>
+                    <p>Admission operation: {canonDetail.standingProvenance.admissionOperation || "none returned"}</p>
+                    <p>Constraint tags: {canonDetail.standingProvenance.constraintTags.join(", ") || "none"}</p>
+                    <p>Linked propagation debt: {canonDetail.standingProvenance.linkedPropagationDebt.map((record) => `${record.shortId} ${record.title} · ${record.sourceRelationship}`).join(", ") || "none"}</p>
+                    <p>Typed-link trail: {canonDetail.standingProvenance.typedLinkTrail.map((link) => `${link.linkTypeKey} ${link.note}`).join(", ") || "none"}</p>
+                  </section>
+                )}
+                <p>Related reports: {canonDetail.relatedReports.map((record) => `${record.shortId} ${record.title}`).join(", ") || "none"}</p>
+                <p>Canon debt: {canonDetail.canonDebt.map((record) => `${record.shortId} ${record.title}`).join(", ") || "none"}</p>
+                <button onClick={() => { void api<{ markdown: string }>(canonDetail.exportAffordance.href).then((payload) => setExportedMarkdown(payload.markdown)); }}>Export Markdown</button>
+              </article>
+            ) : (
+              <p className="status">Select a Current Canon row or Audit Trail item.</p>
+            )}
+          </section>
         </section>
       ),
       "markdown-export": (
@@ -5930,6 +6044,16 @@ function App({
                           <button onClick={() => void selectCurrentCanonRow(row)}>Select</button>
                           <h3>{row.shortId} · {row.title}</h3>
                           <p className="meta">{row.recordTypeLabel} · {row.truthLayer} · {row.canonStatus} · {row.continuityScope}</p>
+                          <p>Current living text: {row.currentLivingText ?? row.body ?? "not returned"}</p>
+                          {row.gateProvenance && (
+                            <p className="meta">
+                              Gate provenance: {[
+                                row.gateProvenance.hasGateResult ? "gate result" : "",
+                                row.gateProvenance.hasProposalHistory ? "proposal history" : "",
+                                row.gateProvenance.hasLinkedDebt ? "linked debt" : ""
+                              ].filter(Boolean).join(" · ") || "none"}
+                            </p>
+                          )}
                           <div className="chips">
                             {row.relationshipMarkers.hasOpenDebt && <span>Open debt</span>}
                             {row.relationshipMarkers.hasAdvisoryUse && <span>Advisory use</span>}
@@ -5970,6 +6094,18 @@ function App({
                           <span>{section.body}</span>
                         </div>
                       ))}
+                      {canonDetail.standingProvenance && (
+                        <section className="subpanel">
+                          <h4>Standing provenance</h4>
+                          <p>Current living text: {canonDetail.standingProvenance.currentLivingText || "not returned"}</p>
+                          <p>Proposal/source history: {canonDetail.standingProvenance.proposalHistoryText || "none returned"}</p>
+                          <p>Gate audit text: {canonDetail.standingProvenance.gateAuditText || "none returned"}</p>
+                          <p>Admission operation: {canonDetail.standingProvenance.admissionOperation || "none returned"}</p>
+                          <p>Constraint tags: {canonDetail.standingProvenance.constraintTags.join(", ") || "none"}</p>
+                          <p>Linked propagation debt: {canonDetail.standingProvenance.linkedPropagationDebt.map((record) => `${record.shortId} ${record.title} · ${record.sourceRelationship}`).join(", ") || "none"}</p>
+                          <p>Typed-link trail: {canonDetail.standingProvenance.typedLinkTrail.map((link) => `${link.linkTypeKey} ${link.note}`).join(", ") || "none"}</p>
+                        </section>
+                      )}
                       <p>Links: {canonDetail.outgoingLinks.length} outgoing, {canonDetail.incomingLinks.length} incoming</p>
                       <p>History: {canonDetail.recordHistory.length} record, {canonDetail.sectionHistory.length} section</p>
                       <p>Related reports: {canonDetail.relatedReports.map((record) => `${record.shortId} ${record.title}`).join(", ") || "none"}</p>

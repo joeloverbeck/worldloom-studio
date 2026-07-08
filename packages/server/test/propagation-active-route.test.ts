@@ -69,6 +69,17 @@ const propagationDebtFor = async (app: ReturnType<typeof createApp>, factId: num
   return debt.debt;
 };
 
+const fullGateSections = async (app: ReturnType<typeof createApp>, recordId: number, context: string) => {
+  const payload = await json<{
+    decisionPoint: { fullGateContract: { sections: Array<{ key: string; label: string; quietDomain: boolean }> } };
+  }>(await app.request(`/api/admission/records/${recordId}/gate`));
+  return payload.decisionPoint.fullGateContract.sections.map((section) => ({
+    key: section.key,
+    substance: `${section.label} substance for ${context}.`,
+    ...(section.quietDomain ? { quietDomainDeclaration: `No quiet-domain omission for ${context}.` } : {})
+  }));
+};
+
 const domain = {
   direct: "Economy, trade, and scarcity",
   dependency: "Governance, law, and bureaucracy",
@@ -82,6 +93,98 @@ afterEach(() => {
 });
 
 describe("Propagation active owed route server contract", () => {
+  it("does not recover owed source facts by parsing debt prose", async () => {
+    const app = await createWorld();
+    const fact = await acceptedFact(app, {
+      title: "Parsed-source bridge",
+      admissionLevel: "3",
+      workScale: "major"
+    });
+    const debt = await json<{ debt: { id: number } }>(await postJson(app, "/api/canon-debt", {
+      name: "Propagation owed with prose source only",
+      scope: "propagation",
+      assignee: "steward",
+      body: `This prose says source fact id: ${fact.id}, but no typed link exists.`
+    }));
+
+    const queue = await json<{ queue: Array<any> }>(await app.request("/api/propagation/queue"));
+    expect(queue.queue.find((row) => row.id === debt.debt.id)).toMatchObject({
+      sourceFact: null,
+      route: null
+    });
+    const start = await postJson(app, "/api/propagation/runs/start", {
+      debtRecordId: debt.debt.id
+    });
+    expect(start.status).toBe(400);
+    expect(await json<{ error: string }>(start)).toMatchObject({
+      error: expect.stringMatching(/source fact/i)
+    });
+  });
+
+  it("makes Admission-created propagation debt source-linked, routeable, and startable", async () => {
+    const app = await createWorld();
+    const proposed = await json<{ record: { id: number; title: string } }>(await postJson(app, "/api/records", {
+      recordTypeKey: "canon_fact",
+      title: "Admission-created bridge debt source",
+      body: "Broad bridge debt proposal body.",
+      truthLayer: "Objective canon",
+      canonStatus: "proposed"
+    }));
+    await postJson(app, `/api/admission/records/${proposed.record.id}/severity`, {
+      admissionLevel: "4",
+      workScale: "severe"
+    });
+    const completed = await json<{ readback: { livingRecord: { body: string }; followUpDebt: { id: number; title: string } } }>(
+      await postJson(app, "/api/admission/gate/complete", {
+        recordId: proposed.record.id,
+        truthLayer: "Objective canon",
+        canonStatus: "accepted with constraints",
+        operations: ["constrain"],
+        consequenceText: "Bridge debt now affects court access.",
+        sections: await fullGateSections(app, proposed.record.id, "admission-created propagation source"),
+        notApplicableReasons: ["No branch implication."],
+        quietDomainDeclarations: ["No spatial spread yet."],
+        followUpDebt: "Work the constrained bridge debt shock cone."
+      })
+    );
+
+    expect(completed.readback.livingRecord.body).toBe("Fact statement substance for admission-created propagation source.");
+    const links = await json<{ links: Array<{ fromRecordId: number; toRecordId: number; linkTypeKey: string; note: string }> }>(
+      await app.request(`/api/links?recordId=${completed.readback.followUpDebt.id}`)
+    );
+    expect(links.links).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        fromRecordId: completed.readback.followUpDebt.id,
+        toRecordId: proposed.record.id,
+        linkTypeKey: "derived_from",
+        note: expect.stringContaining("Admission-created propagation debt")
+      })
+    ]));
+
+    const queue = await json<{ queue: Array<any> }>(await app.request("/api/propagation/queue"));
+    const item = queue.queue.find((row) => row.id === completed.readback.followUpDebt.id);
+    expect(item).toMatchObject({
+      sourceFact: {
+        id: proposed.record.id,
+        title: "Admission-created bridge debt source",
+        body: "Fact statement substance for admission-created propagation source."
+      },
+      route: {
+        method: "POST",
+        href: "/api/propagation/runs/start",
+        body: { factRecordId: proposed.record.id, debtRecordId: completed.readback.followUpDebt.id }
+      }
+    });
+
+    const started = await json<{ flow: { propagation_fact_record_id: number; propagation_debt_record_id: number } }>(
+      await postJson(app, item.route.href, item.route.body)
+    );
+    expect(started.flow).toMatchObject({
+      propagation_fact_record_id: proposed.record.id,
+      propagation_debt_record_id: completed.readback.followUpDebt.id
+    });
+  });
+
   it("carries owed source identity through queue, start, resume, and run readiness", async () => {
     const app = await createWorld();
     const fact = await acceptedFact(app, {

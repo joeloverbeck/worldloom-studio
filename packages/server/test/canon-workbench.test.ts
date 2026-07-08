@@ -283,13 +283,14 @@ describe("Canon Workbench HTTP API", () => {
     });
     const proposed = await createRecord(app, {
       title: "Bridge court proposal",
+      body: "Bridge court proposal body",
       canonStatus: "proposed"
     });
     await postJson(app, `/api/admission/records/${proposed.id}/severity`, {
       admissionLevel: "3",
       workScale: "major"
     });
-    const gate = await json<{ gateResult: { id: number } }>(await postJson(app, "/api/admission/gate/complete", {
+    const gate = await json<{ gateResult: { id: number }; readback: { followUpDebt: { id: number } } }>(await postJson(app, "/api/admission/gate/complete", {
       recordId: proposed.id,
       truthLayer: "Objective canon",
       canonStatus: "accepted",
@@ -297,7 +298,8 @@ describe("Canon Workbench HTTP API", () => {
       consequenceText: "Court tolls now affect legal access.",
       sections: await fullGateSections(app, proposed.id, "bridge court proposal"),
       notApplicableReasons: ["No branch implication."],
-      quietDomainDeclarations: ["No spatial spread yet."]
+      quietDomainDeclarations: ["No spatial spread yet."],
+      followUpDebt: "Propagate bridge court toll obligations."
     }));
 
     await createLink(app, report.id, fact.id, "derived_from", "Report affects fact");
@@ -309,6 +311,29 @@ describe("Canon Workbench HTTP API", () => {
     await createLink(app, gate.gateResult.id, fact.id, "derived_from", "Gate affected current fact");
 
     const before = await mutationSnapshot(app, fact.id);
+    const currentAfterAdmission = await json<{
+      rows: Array<{
+        id: number;
+        body: string;
+        currentLivingText?: string;
+        gateProvenance?: { hasGateResult: boolean; hasProposalHistory: boolean; hasLinkedDebt: boolean };
+        relationshipMarkers: { hasOpenDebt: boolean; typedLinkTypes: string[] };
+      }>;
+    }>(await app.request("/api/canon-workbench/current"));
+    expect(currentAfterAdmission.rows.find((row) => row.id === proposed.id)).toMatchObject({
+      body: "Fact statement substance for bridge court proposal.",
+      currentLivingText: "Fact statement substance for bridge court proposal.",
+      relationshipMarkers: {
+        hasOpenDebt: true,
+        typedLinkTypes: expect.arrayContaining(["derived_from"])
+      },
+      gateProvenance: {
+        hasGateResult: true,
+        hasProposalHistory: true,
+        hasLinkedDebt: true
+      }
+    });
+
     const audit = await json<{
       spine: Array<{
         record: { id: number; title: string; mutationRegime: string };
@@ -383,6 +408,49 @@ describe("Canon Workbench HTTP API", () => {
     expect(detail.standingRulings.length).toBeGreaterThan(0);
     expect(detail.advisoryDispositions.length).toBeGreaterThan(0);
     expect(detail.exportAffordance).toEqual({ method: "GET", href: `/api/records/${fact.id}/export/markdown` });
+
+    const proposedDetail = await json<{
+      record: { id: number; body: string; canonStatus: string };
+      recordHistory: unknown[];
+      relatedReports: Array<{ id: number; title: string }>;
+      canonDebt: Array<{ id: number; title: string }>;
+      standingProvenance?: {
+        currentLivingText: string;
+        proposalHistoryText: string | null;
+        gateAuditText: string | null;
+        admissionOperation: string | null;
+        constraintTags: string[];
+        linkedPropagationDebt: Array<{ id: number; title: string; sourceRelationship: string }>;
+        typedLinkTrail: Array<{ linkTypeKey: string; note: string }>;
+      };
+    }>(await app.request(`/api/canon-workbench/records/${proposed.id}`));
+    expect(proposedDetail.record).toMatchObject({
+      id: proposed.id,
+      body: "Fact statement substance for bridge court proposal.",
+      canonStatus: "accepted"
+    });
+    expect(proposedDetail.recordHistory.length).toBeGreaterThan(0);
+    expect(proposedDetail.relatedReports).toEqual(expect.arrayContaining([expect.objectContaining({ id: gate.gateResult.id })]));
+    expect(proposedDetail.canonDebt).toEqual(expect.arrayContaining([expect.objectContaining({ id: gate.readback.followUpDebt.id })]));
+    expect(proposedDetail.standingProvenance).toMatchObject({
+      currentLivingText: "Fact statement substance for bridge court proposal.",
+      proposalHistoryText: "Bridge court proposal body",
+      gateAuditText: expect.stringContaining("Fact statement: Fact statement substance for bridge court proposal."),
+      admissionOperation: "accept",
+      constraintTags: [],
+      linkedPropagationDebt: [
+        expect.objectContaining({
+          id: gate.readback.followUpDebt.id,
+          sourceRelationship: expect.stringContaining("derived_from")
+        })
+      ],
+      typedLinkTrail: expect.arrayContaining([
+        expect.objectContaining({
+          linkTypeKey: "derived_from",
+          note: expect.stringContaining("Admission-created propagation debt")
+        })
+      ])
+    });
 
     await app.request("/api/canon-workbench/current");
     await app.request("/api/canon-workbench/audit");

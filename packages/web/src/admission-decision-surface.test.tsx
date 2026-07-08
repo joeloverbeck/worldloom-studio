@@ -506,6 +506,11 @@ describe("Admission decision-point browser surface", () => {
     expect(html).toContain("Allowed canon status target");
     expect(html).toContain("Constraint tags for full gate");
     expect(html).toContain("Follow-up debt for full gate");
+    expect(html).toContain("Standing text review");
+    expect(html).toContain("Accepted gate statement");
+    expect(html).toContain("Intended current living text");
+    expect(html).toContain("Original proposal/source text");
+    expect(html).toContain("By default, current canon uses the accepted Fact statement.");
     expect(html).toContain("Review exact full-gate payload");
     expect(html).toContain("Final review required before completion");
     expect(html).toContain("Complete and update canon standing");

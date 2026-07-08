@@ -139,6 +139,21 @@ describe("Propagation web surface", () => {
           owedItem: owedDebt,
           sourceFact,
           route: { method: "POST", href: "/api/propagation/runs/start", body: { factRecordId: 11, debtRecordId: 12 } }
+        } as any, {
+          id: 13,
+          shortId: "DEB-13",
+          recordTypeKey: "canon_debt",
+          title: "Propagation owed without source",
+          body: "No typed source link exists.",
+          truthLayer: "Objective canon",
+          canonStatus: "under review",
+          updatedAt: "2026-07-08T00:00:00.000Z",
+          createdAt: "2026-07-08T00:00:00.000Z",
+          scope: "propagation",
+          state: "open",
+          owedItem: { id: 13, shortId: "DEB-13", recordTypeKey: "canon_debt", title: "Propagation owed without source", body: "No typed source link exists.", truthLayer: "Objective canon", canonStatus: "under review" },
+          sourceFact: null,
+          route: null
         } as any]}
         initialPropagationRun={run as any}
       />
@@ -146,6 +161,9 @@ describe("Propagation web surface", () => {
 
     expect(html).toContain("Propagation owed for noon bridge");
     expect(html).toContain("Noon bridge testimony");
+    expect(html).toContain("Propagation owed without source");
+    expect(html).toContain("Missing source fact link");
+    expect(html).toContain("Start is blocked until this canon debt has a derived_from source fact link.");
     expect(html).toContain("Start/Resume Owed Run");
     expect(html).toContain("Substrate/admin identifiers");
     expect(html).toContain("Zeroth-order: definition");
