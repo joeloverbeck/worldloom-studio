@@ -72,4 +72,6 @@ Tracker mutation is blocked until all of these are true:
 
 Immediately before the first tracker mutation, make the exact `Closeout preflight:` block and literal `Closeout gate passed: audit sink ...` line visible in the conversation or durable audit sink. Do not run `gh issue close`, `glab issue close`, or equivalent until the closeout command gate in [references/tracker-closeout-gates.md](references/tracker-closeout-gates.md) passes.
 
+If browser/manual proof started a dev server, browser session, or long-running proof process, stop it before the final response or explicitly report why it remains running.
+
 Run a final `git status --short`. For untracked verification artifacts, either remove them if safe, stage them if they are intended evidence, or explicitly report them in the final response.

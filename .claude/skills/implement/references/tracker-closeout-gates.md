@@ -142,6 +142,8 @@ Use a targeted grep plus visual inspection. This command is a starting point, no
 rg -n "Acceptance criterion or conformance check|Status|satisfied|blocked|not done|TDD evidence|TDD evidence gate passed|TDD closeout gate|Review:|Review fallback:|Principles/ADR conformance:|Local-only SHA:|not remote-reachable because|local-only closeout is acceptable because|browser smoke|browser evidence|Final freshness delta|Fixed child inline close comment|Closeout gate passed: audit sink|Closeout body check passed" "$body"
 ```
 
+If any inspection output is truncated, treat that output as not inspected. Split the check into bounded token sweeps and targeted excerpts before any tracker mutation, for example one command for gate/evidence labels, one command for the audit table header and status literals, and a short table excerpt around the affected issue rows. The body-check line is valid only after an untruncated inspection plus visual confirmation of grouped criteria and literal statuses.
+
 If the body uses `Complete`, `PASS`, `OK`, checkmarks, or prose instead of literal `satisfied`, `blocked`, or `not done`, if any row hides multiple acceptance checkboxes without naming them, if an affected issue or parent PRD has a `## Principles` section but the body lacks the exact string `Principles/ADR conformance:`, if local-only closeout lacks the exact `Local-only SHA:` label and full explanatory sentence, or if the visible gate line lacks `Closeout gate passed: audit sink`, stop and repair the body before any tracker mutation.
 
 ## Closeout Command Gate

@@ -20,10 +20,13 @@ TDD preflight:
 - Agreed seams: <issue/PRD-stated seams restated / user-confirmed seams / confirmation needed>
 - Row plan: <red-first seams>; <no-runnable criteria>; <evidence-only browser/manual seams>
 - Shared-boundary table stub: <created before first red test / N/A>; <every in-scope issue has a row or exceptions named>
+- Existing expectation rewrite checkpoint: <none yet / row will be added immediately if an existing test, fixture, snapshot, route/schema expectation, or artifact assertion is edited after a failing command>
 - User confirmation needed: <yes/no, and why>
 ```
 
 Shared-boundary pre-red hard stop: when the work covers multiple issues, one PRD with child issues, or one implementation boundary shared by several acceptance rows, paste the compact evidence table immediately below the preflight before any red command. A prose row plan is not enough. Mark each row as `red-first`, `existing contract-change expectation`, `static contract check + browser evidence`, `no-runnable`, or `evidence-only`; if the table is genuinely N/A, name the exception in the `Shared-boundary table stub` field before proceeding.
+
+Existing expectation rewrite checkpoint: if an existing test, fixture, snapshot, route/schema expectation, or artifact assertion fails after an intended contract change and you edit that existing expected value, update the compact evidence table immediately before continuing. Use an `existing contract-change expectation` row, cite the failing command in `Red command/failure`, cite the authorizing spec/issue/worked example in `Acceptance covered`, and keep the full existing-test closeout rule under [Rules of the loop](#rules-of-the-loop) from becoming a last-minute validator repair.
 
 For shared-boundary issue families, paste this compact evidence table stub before the first red test; do not substitute a prose-only row plan. The red and green cells can be `TBD` while work is still in progress, but every in-scope issue and agreed seam must already have a row with a `red-first`, `no-runnable`, or `evidence-only` classification.
 

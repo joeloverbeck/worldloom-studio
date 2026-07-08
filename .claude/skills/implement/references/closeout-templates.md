@@ -81,8 +81,13 @@ Then inspect the exact body before posting:
 body="/tmp/worldloom-closeout-<issue-or-prd>.md"
 $EDITOR "$body"
 # If no interactive editor is available, create the body with the environment-approved file-edit mechanism instead.
+# Run the applicable validator commands before posting; omit commands whose evidence type is N/A and drop only flags whose conditions do not apply.
+node .claude/skills/tdd/scripts/validate-tdd-closeout-body.mjs "$body" --parent-rollup
+node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs "$body" --implement --child-family --tdd-parent-rollup
+node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body" --closing --principles --local-only --fixed-child-pending --review-fallback
 sed -n '1,240p' "$body"
 rg -n "Acceptance criterion or conformance check|Status|satisfied|blocked|not done|TDD evidence|TDD evidence gate passed|TDD closeout gate|Review:|Review fallback:|Principles/ADR conformance:|Local-only SHA:|not remote-reachable because|local-only closeout is acceptable because|browser smoke|browser evidence|Final freshness delta|Fixed child inline close comment|Closeout gate passed: audit sink" "$body"
+# If any inspection output is truncated, treat it as not inspected. Split the check into bounded token sweeps and short table/status excerpts before posting or closing.
 comment_url="$(gh issue comment <issue> --body-file "$body")"
 gh issue close <issue> --reason completed --comment "Completed; evidence: $comment_url"
 ```
