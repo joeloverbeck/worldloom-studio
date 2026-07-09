@@ -5135,6 +5135,138 @@ function App({
     await loadWorldData();
   };
 
+  const minimalViableWorldIsOwed = minimalViableWorld?.checkpoint.owed === true;
+  const minimalViableWorldStatus = minimalViableWorld
+    ? `${minimalViableWorld.checkpoint.owed ? "owed" : "not owed"} · close ${minimalViableWorld.checkpoint.closeReadiness.status}`
+    : "No checkpoint state loaded";
+  const minimalViableWorldUnlockReason = minimalViableWorld?.checkpoint.blockers.find((blocker) =>
+    blocker.key === "no_admitted_seed_facts" || blocker.requires?.includes("admitted seed")
+  )?.message ?? "Admitted seed evidence unlocks this checkpoint.";
+
+  const minimalViableWorldCheckpointHeader = (includeReport = false) => (
+    <div className="row">
+      <button onClick={loadMinimalViableWorld} disabled={!openWorld}>Refresh Checkpoint</button>
+      <span className="status">{minimalViableWorldStatus}</span>
+      {includeReport && minimalViableWorld?.checkpoint.report && <span className="status">{minimalViableWorld.checkpoint.report.shortId}</span>}
+    </div>
+  );
+
+  const activeCreationStatePanel = (
+    <section className="subpanel active-creation-state">
+      <h3>Active Creation state</h3>
+      <p>Active now: {displayedCreationDecision.localDecision}</p>
+      <div className="chips">
+        <span>Current step: {displayedCreationDecision.nextOrResumeState.currentStep}</span>
+        <span>Next: {displayedCreationDecision.nextOrResumeState.nextStep}</span>
+        <span>Safe exit/resume: {displayedCreationDecision.nextOrResumeState.safeExit}</span>
+      </div>
+    </section>
+  );
+
+  const minimalViableWorldCompactPanel = (
+    <section className="subpanel minimal-viable-world-checkpoint not-current">
+      <h3>Minimal Viable World checkpoint is not current</h3>
+      {minimalViableWorldCheckpointHeader()}
+      <p>Not current: admitted seed evidence unlocks this checkpoint.</p>
+      <p>{minimalViableWorldUnlockReason}</p>
+      <p>Unavailable future work, not completed work.</p>
+    </section>
+  );
+
+  const minimalViableWorldFullPanel = (
+    <section className="subpanel minimal-viable-world-checkpoint">
+      <h3>Minimal Viable World checkpoint</h3>
+      {minimalViableWorldCheckpointHeader(true)}
+      <DecisionContractPanel title="Minimal Viable World decision contract" contract={displayedMinimalDecision} />
+      <div className="grid compact-grid">
+        <section>
+          <h4>Whole-world signals</h4>
+          {(minimalViableWorld?.checkpoint.coverageSignals.wholeWorld ?? []).map((signal) => (
+            <p key={signal.key}><strong>{signal.label}</strong>: {signal.status}</p>
+          ))}
+        </section>
+        <section>
+          <h4>Close readiness</h4>
+          <p>{minimalViableWorld?.checkpoint.closeReadiness.status ?? "not loaded"}</p>
+          {(minimalViableWorld?.checkpoint.closeReadiness.blockers ?? []).slice(0, 6).map((blocker) => (
+            <p key={blocker.key}>{blocker.label}: {blocker.message}</p>
+          ))}
+        </section>
+        <section>
+          <h4>Deferrals and routes</h4>
+          <p>Deferred: {minimalViableWorld?.checkpoint.unresolvedDeferrals.length ?? 0}</p>
+          <p>Open debt: {minimalViableWorld?.checkpoint.openCanonDebt.length ?? 0}</p>
+          <p>Admission proposals: {minimalViableWorld?.checkpoint.admissionProposals.length ?? 0}</p>
+          <p>Advisory artifacts: {minimalViableWorld?.checkpoint.advisoryArtifacts.length ?? 0}</p>
+        </section>
+      </div>
+      <div className="records compact">
+        {minimalSeedOptions.map((seed) => (
+          <article key={seed.id}>
+            <button onClick={() => {
+              setMinimalSeedRecordId(String(seed.id));
+              setMinimalProposalSeedRecordId(String(seed.id));
+            }}>Select</button>
+            <h3>{seed.shortId}: {seed.title}</h3>
+            <p className="meta">{seed.recordTypeKey} · {seed.canonStatus}</p>
+            {seed.dimensions.map((dimension) => (
+              <p key={`${seed.id}:${dimension.key}`}><strong>{dimension.label}</strong>: {dimension.status} · {dimension.evidence.map((record) => record.shortId).join(", ") || "no evidence"}</p>
+            ))}
+          </article>
+        ))}
+      </div>
+      <div className="grid">
+        <label>Seed<select value={minimalSeedRecordId} onChange={(event) => setMinimalSeedRecordId(event.target.value)}>
+          <option></option>
+          {minimalSeedOptions.map((seed) => <option key={seed.id} value={seed.id}>{seed.shortId}: {seed.title}</option>)}
+        </select></label>
+        <label>Dimension<select value={minimalDimensionKey} onChange={(event) => setMinimalDimensionKey(event.target.value)}>
+          <option></option>
+          {minimalDimensionOptions.map((dimension) => <option key={dimension.key} value={dimension.key}>{dimension.label}</option>)}
+        </select></label>
+        <label>Disposition<select value={minimalDisposition} onChange={(event) => setMinimalDisposition(event.target.value as "covered" | "deferred" | "protected_mystery")}>
+          <option value="covered">covered</option>
+          <option value="deferred">deferred</option>
+          <option value="protected_mystery">protected mystery</option>
+        </select></label>
+        <label>Evidence ids<input value={minimalEvidenceRecordIds} onChange={(event) => setMinimalEvidenceRecordIds(event.target.value)} /></label>
+        <label>Protected record id<input value={minimalProtectedRecordId} onChange={(event) => setMinimalProtectedRecordId(event.target.value)} /></label>
+        <label>Deferral<select value={minimalDeferralKind} onChange={(event) => setMinimalDeferralKind(event.target.value as "none" | "skip" | "canon_debt")}>
+          <option value="none">none</option>
+          <option value="skip">skip</option>
+          <option value="canon_debt">canon debt</option>
+        </select></label>
+        <label>Deferral step<input value={minimalDeferralStep} onChange={(event) => setMinimalDeferralStep(event.target.value)} /></label>
+        <label>Debt name<input value={minimalDebtName} onChange={(event) => setMinimalDebtName(event.target.value)} /></label>
+      </div>
+      <label>Disposition substance<textarea rows={3} value={minimalDispositionSubstance} onChange={(event) => setMinimalDispositionSubstance(event.target.value)} /></label>
+      <button onClick={recordMinimalViableWorldDisposition} disabled={!openWorld || !minimalSeedRecordId || !minimalDimensionKey || !minimalDispositionSubstance.trim()}>Record Checkpoint Disposition</button>
+      <div className="grid">
+        <label>Proposal seed<select value={minimalProposalSeedRecordId} onChange={(event) => setMinimalProposalSeedRecordId(event.target.value)}>
+          <option></option>
+          {minimalSeedOptions.map((seed) => <option key={seed.id} value={seed.id}>{seed.shortId}: {seed.title}</option>)}
+        </select></label>
+        <label>Proposal title<input value={minimalProposalTitle} onChange={(event) => setMinimalProposalTitle(event.target.value)} /></label>
+        <label>Truth layer<select value={minimalProposalTruthLayer} onChange={(event) => setMinimalProposalTruthLayer(event.target.value)}>
+          <option value="Objective canon">Objective canon</option>
+          {truthLayers.map((term) => <option key={term.term}>{term.term}</option>)}
+        </select></label>
+      </div>
+      <label>Proposal body<textarea rows={3} value={minimalProposalBody} onChange={(event) => setMinimalProposalBody(event.target.value)} /></label>
+      <button onClick={routeMinimalViableWorldProposal} disabled={!openWorld || minimalViableWorld?.checkpoint.report == null || !minimalProposalTitle.trim() || !minimalProposalBody.trim()}>Route Checkpoint Proposal</button>
+      <section className="subpanel">
+        <h4>Checkpoint Prompt-out</h4>
+        {(displayedMinimalDecision?.promptOut.modes ?? []).map((mode) => (
+          <p key={mode.mode}><strong>{mode.label}</strong>: {mode.availability}{mode.blocker ? ` · ${mode.blocker}` : ""}</p>
+        ))}
+        <button onClick={loadMinimalViableWorldPromptStep} disabled={!openWorld || !displayedMinimalDecision?.promptOut.modes.some((mode) => mode.availability === "available" && mode.stepRequest)}>Load Checkpoint Prompt-out Step</button>
+      </section>
+      <div className="chips">
+        {(displayedMinimalDecision?.readSideTrail ?? []).map((item) => <span key={`${item.label}:${item.href}`}>{item.label} · {item.href}</span>)}
+      </div>
+    </section>
+  );
+
   const setupPanel = (secondary = false) => (
     <section className={secondary ? "setup-panel compact-setup" : "setup-panel"}>
       <h2>{secondary ? "Setup controls" : "Setup/open world"}</h2>
@@ -5967,64 +6099,7 @@ function App({
               ))}
             </div>
           </section>
-          <section className="subpanel minimal-viable-world-checkpoint">
-            <h3>Minimal Viable World checkpoint</h3>
-            <div className="row">
-              <button onClick={loadMinimalViableWorld} disabled={!openWorld}>Refresh Checkpoint</button>
-              <button onClick={loadMinimalViableWorldPromptStep} disabled={!openWorld || !displayedMinimalDecision?.promptOut.modes.some((mode) => mode.availability === "available" && mode.stepRequest)}>Load Checkpoint Prompt-out Step</button>
-              <span className="status">{minimalViableWorld ? `${minimalViableWorld.checkpoint.owed ? "owed" : "not owed"} · close ${minimalViableWorld.checkpoint.closeReadiness.status}` : "No checkpoint state loaded"}</span>
-            </div>
-            <DecisionContractPanel title="Minimal Viable World decision contract" contract={displayedMinimalDecision} />
-            <div className="grid compact-grid">
-              <section>
-                <h4>Whole-world signals</h4>
-                {(minimalViableWorld?.checkpoint.coverageSignals.wholeWorld ?? []).map((signal) => <p key={signal.key}>{signal.label}: {signal.status}</p>)}
-              </section>
-              <section>
-                <h4>Seeds</h4>
-                {minimalSeedOptions.map((seed) => <p key={seed.id}>{seed.shortId}: {seed.dimensions.map((dimension) => `${dimension.key} ${dimension.status}`).join(" · ")}</p>)}
-              </section>
-            </div>
-            <div className="grid">
-              <label>Seed<select value={minimalSeedRecordId} onChange={(event) => setMinimalSeedRecordId(event.target.value)}>
-                <option></option>
-                {minimalSeedOptions.map((seed) => <option key={seed.id} value={seed.id}>{seed.shortId}: {seed.title}</option>)}
-              </select></label>
-              <label>Dimension<select value={minimalDimensionKey} onChange={(event) => setMinimalDimensionKey(event.target.value)}>
-                <option></option>
-                {minimalDimensionOptions.map((dimension) => <option key={dimension.key} value={dimension.key}>{dimension.label}</option>)}
-              </select></label>
-              <label>Disposition<select value={minimalDisposition} onChange={(event) => setMinimalDisposition(event.target.value as "covered" | "deferred" | "protected_mystery")}>
-                <option value="covered">covered</option>
-                <option value="deferred">deferred</option>
-                <option value="protected_mystery">protected mystery</option>
-              </select></label>
-              <label>Evidence ids<input value={minimalEvidenceRecordIds} onChange={(event) => setMinimalEvidenceRecordIds(event.target.value)} /></label>
-              <label>Protected record id<input value={minimalProtectedRecordId} onChange={(event) => setMinimalProtectedRecordId(event.target.value)} /></label>
-              <label>Deferral<select value={minimalDeferralKind} onChange={(event) => setMinimalDeferralKind(event.target.value as "none" | "skip" | "canon_debt")}>
-                <option value="none">none</option>
-                <option value="skip">skip</option>
-                <option value="canon_debt">canon debt</option>
-              </select></label>
-              <label>Deferral step<input value={minimalDeferralStep} onChange={(event) => setMinimalDeferralStep(event.target.value)} /></label>
-              <label>Debt name<input value={minimalDebtName} onChange={(event) => setMinimalDebtName(event.target.value)} /></label>
-            </div>
-            <label>Disposition substance<textarea rows={3} value={minimalDispositionSubstance} onChange={(event) => setMinimalDispositionSubstance(event.target.value)} /></label>
-            <button onClick={recordMinimalViableWorldDisposition} disabled={!openWorld || !minimalSeedRecordId || !minimalDimensionKey || !minimalDispositionSubstance.trim()}>Record Checkpoint Disposition</button>
-            <div className="grid">
-              <label>Proposal seed<select value={minimalProposalSeedRecordId} onChange={(event) => setMinimalProposalSeedRecordId(event.target.value)}>
-                <option></option>
-                {minimalSeedOptions.map((seed) => <option key={seed.id} value={seed.id}>{seed.shortId}: {seed.title}</option>)}
-              </select></label>
-              <label>Proposal title<input value={minimalProposalTitle} onChange={(event) => setMinimalProposalTitle(event.target.value)} /></label>
-              <label>Truth layer<select value={minimalProposalTruthLayer} onChange={(event) => setMinimalProposalTruthLayer(event.target.value)}>
-                <option value="Objective canon">Objective canon</option>
-                {truthLayers.map((term) => <option key={term.term}>{term.term}</option>)}
-              </select></label>
-              <label>Proposal body<textarea rows={3} value={minimalProposalBody} onChange={(event) => setMinimalProposalBody(event.target.value)} /></label>
-            </div>
-            <button onClick={routeMinimalViableWorldProposal} disabled={!openWorld || minimalViableWorld?.checkpoint.report == null || !minimalProposalTitle.trim() || !minimalProposalBody.trim()}>Route Checkpoint Proposal</button>
-          </section>
+          {minimalViableWorldIsOwed && minimalViableWorldFullPanel}
           <section className="subpanel">
             <h3>Kernel authoring</h3>
             <p>Consequence mode is steward judgment; the app does not infer, default, or silently reuse it.</p>
@@ -6132,6 +6207,8 @@ function App({
               <li>Treat Prompt-out as advisory pressure, not canon generation.</li>
             </ol>
           </section>
+          {!minimalViableWorldIsOwed && activeCreationStatePanel}
+          {!minimalViableWorldIsOwed && minimalViableWorldCompactPanel}
         </section>
       ),
       admission: admissionRoutedSurface,
@@ -7398,101 +7475,7 @@ function App({
                   <p key={blocker.key}><strong>{blocker.label}</strong>: {blocker.message} Requires {blocker.requires}.</p>
                 ))}
             </section>
-            <section className="subpanel minimal-viable-world-checkpoint">
-              <h3>Minimal Viable World checkpoint</h3>
-              <div className="row">
-                <button onClick={loadMinimalViableWorld} disabled={!openWorld}>Refresh Checkpoint</button>
-                <span className="status">{minimalViableWorld ? `${minimalViableWorld.checkpoint.owed ? "owed" : "not owed"} · close ${minimalViableWorld.checkpoint.closeReadiness.status}` : "No checkpoint state loaded"}</span>
-                {minimalViableWorld?.checkpoint.report && <span className="status">{minimalViableWorld.checkpoint.report.shortId}</span>}
-              </div>
-              <DecisionContractPanel title="Minimal Viable World decision contract" contract={displayedMinimalDecision} />
-              <div className="grid compact-grid">
-                <section>
-                  <h4>Whole-world signals</h4>
-                  {(minimalViableWorld?.checkpoint.coverageSignals.wholeWorld ?? []).map((signal) => (
-                    <p key={signal.key}><strong>{signal.label}</strong>: {signal.status}</p>
-                  ))}
-                </section>
-                <section>
-                  <h4>Close readiness</h4>
-                  <p>{minimalViableWorld?.checkpoint.closeReadiness.status ?? "not loaded"}</p>
-                  {(minimalViableWorld?.checkpoint.closeReadiness.blockers ?? []).slice(0, 6).map((blocker) => (
-                    <p key={blocker.key}>{blocker.label}: {blocker.message}</p>
-                  ))}
-                </section>
-                <section>
-                  <h4>Deferrals and routes</h4>
-                  <p>Deferred: {minimalViableWorld?.checkpoint.unresolvedDeferrals.length ?? 0}</p>
-                  <p>Open debt: {minimalViableWorld?.checkpoint.openCanonDebt.length ?? 0}</p>
-                  <p>Admission proposals: {minimalViableWorld?.checkpoint.admissionProposals.length ?? 0}</p>
-                  <p>Advisory artifacts: {minimalViableWorld?.checkpoint.advisoryArtifacts.length ?? 0}</p>
-                </section>
-              </div>
-              <div className="records compact">
-                {minimalSeedOptions.map((seed) => (
-                  <article key={seed.id}>
-                    <button onClick={() => {
-                      setMinimalSeedRecordId(String(seed.id));
-                      setMinimalProposalSeedRecordId(String(seed.id));
-                    }}>Select</button>
-                    <h3>{seed.shortId}: {seed.title}</h3>
-                    <p className="meta">{seed.recordTypeKey} · {seed.canonStatus}</p>
-                    {seed.dimensions.map((dimension) => (
-                      <p key={`${seed.id}:${dimension.key}`}><strong>{dimension.label}</strong>: {dimension.status} · {dimension.evidence.map((record) => record.shortId).join(", ") || "no evidence"}</p>
-                    ))}
-                  </article>
-                ))}
-              </div>
-              <div className="grid">
-                <label>Seed<select value={minimalSeedRecordId} onChange={(event) => setMinimalSeedRecordId(event.target.value)}>
-                  <option></option>
-                  {minimalSeedOptions.map((seed) => <option key={seed.id} value={seed.id}>{seed.shortId}: {seed.title}</option>)}
-                </select></label>
-                <label>Dimension<select value={minimalDimensionKey} onChange={(event) => setMinimalDimensionKey(event.target.value)}>
-                  <option></option>
-                  {minimalDimensionOptions.map((dimension) => <option key={dimension.key} value={dimension.key}>{dimension.label}</option>)}
-                </select></label>
-                <label>Disposition<select value={minimalDisposition} onChange={(event) => setMinimalDisposition(event.target.value as "covered" | "deferred" | "protected_mystery")}>
-                  <option value="covered">covered</option>
-                  <option value="deferred">deferred</option>
-                  <option value="protected_mystery">protected mystery</option>
-                </select></label>
-                <label>Evidence ids<input value={minimalEvidenceRecordIds} onChange={(event) => setMinimalEvidenceRecordIds(event.target.value)} /></label>
-                <label>Protected record id<input value={minimalProtectedRecordId} onChange={(event) => setMinimalProtectedRecordId(event.target.value)} /></label>
-                <label>Deferral<select value={minimalDeferralKind} onChange={(event) => setMinimalDeferralKind(event.target.value as "none" | "skip" | "canon_debt")}>
-                  <option value="none">none</option>
-                  <option value="skip">skip</option>
-                  <option value="canon_debt">canon debt</option>
-                </select></label>
-                <label>Deferral step<input value={minimalDeferralStep} onChange={(event) => setMinimalDeferralStep(event.target.value)} /></label>
-                <label>Debt name<input value={minimalDebtName} onChange={(event) => setMinimalDebtName(event.target.value)} /></label>
-              </div>
-              <label>Disposition substance<textarea rows={3} value={minimalDispositionSubstance} onChange={(event) => setMinimalDispositionSubstance(event.target.value)} /></label>
-              <button onClick={recordMinimalViableWorldDisposition} disabled={!openWorld || !minimalSeedRecordId || !minimalDimensionKey || !minimalDispositionSubstance.trim()}>Record Checkpoint Disposition</button>
-              <div className="grid">
-                <label>Proposal seed<select value={minimalProposalSeedRecordId} onChange={(event) => setMinimalProposalSeedRecordId(event.target.value)}>
-                  <option></option>
-                  {minimalSeedOptions.map((seed) => <option key={seed.id} value={seed.id}>{seed.shortId}: {seed.title}</option>)}
-                </select></label>
-                <label>Proposal title<input value={minimalProposalTitle} onChange={(event) => setMinimalProposalTitle(event.target.value)} /></label>
-                <label>Truth layer<select value={minimalProposalTruthLayer} onChange={(event) => setMinimalProposalTruthLayer(event.target.value)}>
-                  <option value="Objective canon">Objective canon</option>
-                  {truthLayers.map((term) => <option key={term.term}>{term.term}</option>)}
-                </select></label>
-              </div>
-              <label>Proposal body<textarea rows={3} value={minimalProposalBody} onChange={(event) => setMinimalProposalBody(event.target.value)} /></label>
-              <button onClick={routeMinimalViableWorldProposal} disabled={!openWorld || minimalViableWorld?.checkpoint.report == null || !minimalProposalTitle.trim() || !minimalProposalBody.trim()}>Route Checkpoint Proposal</button>
-              <section className="subpanel">
-                <h4>Checkpoint Prompt-out</h4>
-                {(displayedMinimalDecision?.promptOut.modes ?? []).map((mode) => (
-                  <p key={mode.mode}><strong>{mode.label}</strong>: {mode.availability}{mode.blocker ? ` · ${mode.blocker}` : ""}</p>
-                ))}
-                <button onClick={loadMinimalViableWorldPromptStep} disabled={!openWorld || !displayedMinimalDecision?.promptOut.modes.some((mode) => mode.availability === "available" && mode.stepRequest)}>Load Checkpoint Prompt-out Step</button>
-              </section>
-              <div className="chips">
-                {(displayedMinimalDecision?.readSideTrail ?? []).map((item) => <span key={`${item.label}:${item.href}`}>{item.label} · {item.href}</span>)}
-              </div>
-            </section>
+            {minimalViableWorldIsOwed && minimalViableWorldFullPanel}
             <section className="subpanel">
               <h3>Kernel authoring</h3>
               <p>Consequence mode is steward judgment; the app does not infer, default, or silently reuse it.</p>
@@ -7613,6 +7596,8 @@ function App({
                 <li>Exit and resume without losing flow orientation.</li>
               </ol>
             </section>
+            {!minimalViableWorldIsOwed && activeCreationStatePanel}
+            {!minimalViableWorldIsOwed && minimalViableWorldCompactPanel}
           </div>
 
           {message && <p className="status">{message}</p>}

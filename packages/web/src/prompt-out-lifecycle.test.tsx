@@ -393,7 +393,7 @@ describe("Prompt-out lifecycle web surface", () => {
 
   it("renders server-returned prompt modes, essence blockers, and disposition labels without local availability policy", () => {
     const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
-    const creationPromptPanel = snippetBetween(source, "<p>{displayedCreationDecision.promptOut.role}", "<button onClick={loadCreationPromptStep}");
+    const creationPromptPanel = snippetBetween(source, 'title="Prompt-out preview"', "<button onClick={loadCreationPromptStep}");
     const creationPromptButton = snippetBetween(source, "<button onClick={loadCreationPromptStep}", "</button>");
     const promptLoader = snippetBetween(source, "const loadCreationPromptStep = async () =>", "const ensurePromptStep = async");
     const html = renderToString(<App
@@ -518,7 +518,8 @@ describe("Prompt-out lifecycle web surface", () => {
     expect(html).toContain("challenge, risks, alternatives, and questions");
     expect(html).toContain("world&#x27;s essence");
     expect(html).toContain("Pasted responses remain advisory artifacts");
-    expect(creationPromptPanel).toContain("promptOut.modes");
+    expect(source).toContain("const creationPromptModes = displayedCreationDecision.promptOut.modes ?? []");
+    expect(creationPromptPanel).toContain("modes={creationPromptModesForDisplay}");
     expect(html).toContain("Prompt mode");
     expect(html).toContain("Selected mode: Proposal mode - available");
     expect(creationPromptButton).toContain("!canLoadCreationPromptStep");

@@ -12,6 +12,239 @@ const snippetBetween = (source: string, startMarker: string, endMarker: string) 
   return source.slice(start, end);
 };
 
+const indexAfter = (html: string, startMarker: string, needle: string) => {
+  const start = html.indexOf(startMarker);
+  expect(start).toBeGreaterThanOrEqual(0);
+  const index = html.indexOf(needle, start);
+  expect(index).toBeGreaterThan(start);
+  return index;
+};
+
+const normalizeRenderedText = (html: string) => html.replace(/<!-- -->/g, "");
+
+const workflowMap = {
+  readOnly: true,
+  world: { path: "/tmp/creation.sqlite" },
+  stages: [
+    { key: "creation", label: "Creation", state: "active", summary: "Start with the world kernel.", destinationKey: "creation" },
+    { key: "admission", label: "Admission", state: "not_yet_earned", summary: "Admission waits for proposed seeds.", unlockReason: "Park proposed seeds.", destinationKey: "admission" },
+    { key: "minimal-viable-world", label: "Minimal Viable World", state: "not_yet_earned", summary: "Checkpoint waits for admitted seed evidence.", unlockReason: "Admitted seed evidence unlocks the checkpoint.", destinationKey: "creation" }
+  ],
+  queues: [
+    { key: "admission", label: "Admission queue", count: 0, destinationKey: "admission", href: "/api/admission/queue", summary: "No proposed seeds exist yet." },
+    { key: "minimal-viable-world", label: "Minimal Viable World checkpoint", count: 0, destinationKey: "creation", href: "/api/flows/creation/minimal-viable-world", summary: "Admitted seed evidence must exist before the checkpoint is earned." }
+  ],
+  nextDecision: { destinationKey: "creation", label: "Start Creation", reason: "No world kernel exists yet.", href: "/api/flows/creation/start" },
+  destinations: [
+    { key: "creation", label: "Creation", kind: "guided-flow", summary: "Create the world kernel.", state: "active" },
+    { key: "admission", label: "Admission", kind: "guided-flow", summary: "Govern proposed facts.", state: "not_yet_earned" },
+    { key: "substrate", label: "Substrate", kind: "substrate", summary: "Generic record, link, search, draft, and Prompt-out admin tools.", state: "available" }
+  ]
+};
+
+const notCurrentMinimalViableWorld = {
+  checkpoint: {
+    owed: false,
+    report: null,
+    route: "/api/flows/creation/minimal-viable-world",
+    blockers: [{
+      key: "no_admitted_seed_facts",
+      label: "Admitted seed facts",
+      message: "The Minimal Viable World checkpoint waits for admitted seed evidence; parked proposed seeds alone do not count.",
+      requires: "admitted seed facts"
+    }],
+    coverageSignals: {
+      admittedSeeds: [],
+      wholeWorld: [{ key: "admitted_seed_count", label: "admitted seed evidence", status: "absent", evidence: [], reason: "No admitted seed evidence exists yet." }]
+    },
+    dispositions: [],
+    closeReadiness: { status: "blocked", blockers: [] },
+    unresolvedDeferrals: [],
+    openCanonDebt: [],
+    admissionProposals: [],
+    advisoryArtifacts: []
+  },
+  decisionPoint: {
+    sharedContract: {
+      flow: { key: "creation", runState: "checkpoint_blocked" },
+      step: { key: "minimal_viable_world:coverage_review", localDecision: "Wait for admitted seed evidence before working the Minimal Viable World checkpoint.", packageSource: "docs/worldbuilding-system/05_creation_protocol.md", why: "Phases 4-8 are future work until seed evidence is admitted." },
+      obligations: { required: [], optional: [], skippable: [], severityDependent: [] },
+      bearingContext: { displayed: ["No admitted seed evidence exists yet."], sourceManifest: [], omissions: ["Full checkpoint detail is not current before admitted seed evidence."] },
+      promptOut: { serverOwned: true, modes: [{ mode: "proposal", label: "Proposal mode", availability: "blocked", blocker: "Proposal prompts need admitted seed context before copy-out.", framing: "future checkpoint proposals", stepRequest: null }] },
+      blockers: [{
+        key: "no_admitted_seed_facts",
+        label: "Admitted seed facts",
+        message: "The Minimal Viable World checkpoint waits for admitted seed evidence; parked proposed seeds alone do not count.",
+        requires: "admitted seed facts"
+      }],
+      writeIntent: { willWrite: [], willLink: [], willQueue: [], willRouteOnward: [], willLeaveUntouched: ["not-current checkpoint presentation writes no records"] },
+      nextOrResumeState: { currentStep: "minimal_viable_world:not_current", nextStep: "admit seed evidence before checkpoint work", safeExit: "Return to active Creation work." },
+      readSideTrail: []
+    }
+  }
+};
+
+const kernelCompleteNoSeedDecision = {
+  flow: { key: "creation", runState: "in_progress" },
+  currentStep: "decomposition:seed-facts",
+  localDecision: "Split broad steward material into seed facts that can be independently rejected.",
+  packageAuthority: {
+    primary: "docs/worldbuilding-system/05_creation_protocol.md",
+    why: "Phase 2 owns seed decomposition before Admission has work.",
+    citations: ["docs/worldbuilding-system/05_creation_protocol.md#phase-2-seed-decomposition"]
+  },
+  currentKernel: { id: 1, shortId: "KER-1", title: "World kernel", recordTypeKey: "world_kernel" },
+  sectionPrompts: [],
+  selectedSection: null,
+  consequenceMode: { saved: "weird", status: "saved", source: "record facet: consequence_mode", blocker: null },
+  work: { required: ["Seed title", "Seed body", "Truth layer", "Granularity confirmation"], optional: ["Admission intent note"], allowedEmpty: [], skippable: ["Prompt-out advisory pressure can be declined with a skip_record"] },
+  blockers: [{ key: "proposed_seeds", label: "Proposed seeds", message: "Seed decomposition must park proposed seeds before Admission has work.", requires: "parked proposed seeds" }],
+  decompositionReadiness: [{ key: "seed_body", label: "Seed body", status: "blocked", message: "Seed parking is blocked until the steward enters seed body material.", remediation: "Enter the seed body." }],
+  promptOut: {
+    available: false,
+    blocker: "Decomposition Prompt-out waits for seed material.",
+    templateKey: "decomposition_pressure",
+    stepKey: "creation:decomposition_prompt",
+    role: "Prerequisite auditor",
+    stepRequest: null,
+    preview: { currentDecision: "Split broad steward material into seed facts that can be independently rejected.", promptText: "", contextPreview: "", sourceManifest: [], omissions: [], advisoryCanonWarning: "Pasted responses remain advisory artifacts and are not admitted canon." }
+  },
+  writeIntent: { willWrite: ["seed_decomposition report", "canon_fact records fixed at proposed"], willLink: ["derived_from links"], willQueue: ["Admission queue"], willRouteOnward: ["Admission flow"], willLeaveUntouched: ["Creation does not admit canon"] },
+  nextOrResumeState: { currentStep: "decomposition:seed-facts", nextStep: "park proposed seeds", safeExit: "Safe exit keeps seed decomposition visible from Creation." },
+  readSideTrail: [{ label: "Kernel KER-1", href: "/api/canon-workbench/records/1", recordId: 1 }],
+  handoffs: [],
+  handoff: {
+    seedDecompositionReport: null,
+    reportSections: [],
+    parkedSeeds: [],
+    supportingKernel: { id: 1, shortId: "KER-1", title: "World kernel", recordTypeKey: "world_kernel", body: "A saved kernel.", truthLayer: "Objective canon", canonStatus: "proposed" },
+    kernelSections: [],
+    granularityRationale: null,
+    admissionIntent: null,
+    admissionQueueRoute: "/api/admission/queue",
+    currentStatus: "not parked",
+    nextStep: "park proposed seeds",
+    sourceLinks: [],
+    doctrineAtPointOfUse: ["Phase 2 granularity rule"]
+  }
+};
+
+const emptyWorldCreationDecision = {
+  ...kernelCompleteNoSeedDecision,
+  currentStep: "kernel:World premise",
+  localDecision: "Define the world's first governing kernel section: World premise.",
+  packageAuthority: {
+    primary: "docs/worldbuilding-system/05_creation_protocol.md",
+    why: "Phase 1 owns the world kernel as a pressure seed, not an encyclopedia.",
+    citations: ["docs/worldbuilding-system/05_creation_protocol.md#phase-1-world-kernel"]
+  },
+  currentKernel: null,
+  sectionPrompts: [{
+    heading: "World premise",
+    prompt: "Name the governing premise in steward-authored wording.",
+    obligation: "required",
+    savedBody: "",
+    hasSavedBody: false,
+    emptyState: {
+      kind: "no_saved_section_text",
+      message: "No saved text exists yet for World premise; the field should start empty for this section."
+    },
+    saveTarget: { flowId: 1, heading: "World premise" }
+  }],
+  selectedSection: {
+    heading: "World premise",
+    prompt: "Name the governing premise in steward-authored wording.",
+    obligation: "required",
+    savedBody: "",
+    hasSavedBody: false,
+    emptyState: {
+      kind: "no_saved_section_text",
+      message: "No saved text exists yet for World premise; the field should start empty for this section."
+    },
+    saveTarget: { flowId: 1, heading: "World premise" }
+  },
+  consequenceMode: {
+    saved: null,
+    status: "missing_saved_facet",
+    source: "record facet: consequence_mode",
+    blocker: "Save the kernel step with an explicit steward-selected consequence mode before decomposition can treat it as applied."
+  },
+  blockers: [
+    {
+      key: "kernel_material",
+      label: "Kernel material",
+      message: "Creation Prompt-out and seed decomposition wait for steward-authored kernel material.",
+      requires: "steward-authored kernel material"
+    },
+    {
+      key: "consequence_mode",
+      label: "Consequence mode",
+      message: "Seed decomposition cannot proceed until the steward saves an explicit consequence mode.",
+      requires: "saved explicit consequence mode"
+    }
+  ],
+  promptOut: {
+    available: false,
+    blocker: "Creation Prompt-out requires a current kernel record; Proposal needs a non-premise target, and Pressure requires steward-authored kernel material.",
+    templateKey: "kernel_pressure",
+    stepKey: "creation:kernel_prompt",
+    role: "Consequence scout",
+    modes: [
+      {
+        mode: "proposal",
+        label: "Proposal mode",
+        availability: "blocked",
+        blocker: "Proposal prompts are refused for the world's essence; the AI-assisted workflow reserves the World premise to the steward.",
+        framing: "Request labeled candidates with alternatives and assumptions; adoption remains steward authorship.",
+        role: "Decision proposal",
+        templateKey: "kernel_pressure",
+        stepKey: "creation:kernel_prompt",
+        outputLabels: [],
+        stepRequest: null
+      },
+      {
+        mode: "pressure",
+        label: "Pressure mode",
+        availability: "blocked",
+        blocker: "Pressure prompts require steward-authored material for World premise.",
+        framing: "Ask for challenge, risks, alternatives, and questions on steward-authored material.",
+        role: "Consequence scout",
+        templateKey: "kernel_pressure",
+        stepKey: "creation:kernel_prompt",
+        outputLabels: [],
+        stepRequest: null
+      }
+    ],
+    stepRequest: null,
+    preview: {
+      currentDecision: "Define the world's first governing kernel section: World premise.",
+      promptText: "Role framing (Consequence scout): ask for pressure, not answers.",
+      contextPreview: "Selected kernel section: World premise\nSelected section material: (empty)\nNo kernel record yet.",
+      sourceManifest: ["Selected kernel section: World premise", "Package source: docs/worldbuilding-system/05_creation_protocol.md"],
+      omissions: ["Current kernel material is absent until the steward writes it."],
+      advisoryCanonWarning: "Prompt-out is optional advisory pressure. Pasted responses remain advisory artifacts and are not admitted canon."
+    }
+  },
+  writeIntent: {
+    willWrite: ["one living world_kernel record", "seed_decomposition report", "canon_fact records fixed at proposed"],
+    willLink: ["read-side trail placeholders until records exist", "derived_from links from parked seeds to the kernel and decomposition report"],
+    willQueue: ["parked seeds appear in the Admission queue"],
+    willRouteOnward: ["Seed decomposition after explicit consequence mode", "Seed decomposition once seed material, truth layer, consequence mode, and granularity confirmation are present", "Admission flow"],
+    willLeaveUntouched: ["canon standing is not admitted inside Creation", "truth layer remains steward-supplied judgment", "pasted advisory text does not alter kernel, seed, report, or proposal fields without explicit steward use"]
+  },
+  nextOrResumeState: {
+    currentStep: "kernel:World premise",
+    nextStep: "continue kernel authoring",
+    safeExit: "Safe exit leaves the Creation flow in progress and resumable from the same world file."
+  },
+  readSideTrail: [],
+  handoff: {
+    ...kernelCompleteNoSeedDecision.handoff,
+    supportingKernel: null,
+    sourceLinks: []
+  }
+};
+
 describe("Creation decision-point web surface", () => {
   it("renders Creation as the new-world decision surface and consumes server policy shapes", () => {
     const html = renderToString(<App initialOpenWorld="/tmp/creation.sqlite" />);
@@ -125,6 +358,59 @@ describe("Creation decision-point web surface", () => {
     expect(source).toContain("minimal_viable_world_checkpoint");
     expect(source).toContain("recordMinimalViableWorldDisposition");
     expect(source).toContain("routeMinimalViableWorldProposal");
+  });
+
+  it("foregrounds empty-world Creation work before compact not-current Minimal Viable World status", () => {
+    const html = renderToString(<App
+      initialOpenWorld="/tmp/creation.sqlite"
+      initialWorkflowMap={workflowMap as any}
+      initialDestination="creation"
+      initialCreationDecision={emptyWorldCreationDecision as any}
+      initialMinimalViableWorld={notCurrentMinimalViableWorld as any}
+    />);
+
+    const normalizedHtml = normalizeRenderedText(html);
+    const kernelIndex = indexAfter(normalizedHtml, "Creation decision point", "Kernel authoring");
+    const decompositionIndex = indexAfter(normalizedHtml, "Creation decision point", "Seed decomposition decision");
+    const nextIndex = indexAfter(normalizedHtml, "Creation decision point", "Next: continue kernel authoring");
+    const checkpointIndex = indexAfter(normalizedHtml, "Creation decision point", "Minimal Viable World checkpoint is not current");
+    expect(kernelIndex).toBeLessThan(checkpointIndex);
+    expect(decompositionIndex).toBeLessThan(checkpointIndex);
+    expect(nextIndex).toBeLessThan(checkpointIndex);
+    expect(html).toContain("admitted seed evidence unlocks this checkpoint");
+    expect(html).toContain("Unavailable future work, not completed work.");
+    const compactPanel = normalizedHtml.slice(checkpointIndex);
+    expect(compactPanel).not.toContain("Minimal Viable World decision contract");
+    expect(compactPanel).not.toContain("Record Checkpoint Disposition");
+    expect(compactPanel).not.toContain("Route Checkpoint Proposal");
+    expect(compactPanel).not.toContain("Load Checkpoint Prompt-out Step");
+  });
+
+  it("foregrounds kernel-complete seed decomposition before compact not-current Minimal Viable World status", () => {
+    const html = renderToString(<App
+      initialOpenWorld="/tmp/creation.sqlite"
+      initialWorkflowMap={workflowMap as any}
+      initialDestination="creation"
+      initialCreationDecision={kernelCompleteNoSeedDecision as any}
+      initialMinimalViableWorld={notCurrentMinimalViableWorld as any}
+    />);
+
+    const normalizedHtml = normalizeRenderedText(html);
+    const seedDecisionIndex = indexAfter(normalizedHtml, "Creation decision point", "Seed decomposition decision");
+    const readinessIndex = indexAfter(normalizedHtml, "Creation decision point", "Pre-submit readiness");
+    const nextIndex = indexAfter(normalizedHtml, "Creation decision point", "Next: park proposed seeds");
+    const resumeIndex = indexAfter(normalizedHtml, "Creation decision point", "Safe exit/resume");
+    const checkpointIndex = indexAfter(normalizedHtml, "Creation decision point", "Minimal Viable World checkpoint is not current");
+    expect(seedDecisionIndex).toBeLessThan(checkpointIndex);
+    expect(readinessIndex).toBeLessThan(checkpointIndex);
+    expect(nextIndex).toBeLessThan(checkpointIndex);
+    expect(resumeIndex).toBeLessThan(checkpointIndex);
+    expect(html).toContain("Seed decomposition must park proposed seeds before Admission has work.");
+    expect(html).toContain("parked proposed seeds alone do not count");
+    const compactPanel = normalizedHtml.slice(checkpointIndex);
+    expect(compactPanel).not.toContain("Protected record id");
+    expect(compactPanel).not.toContain("Proposal seed");
+    expect(compactPanel).not.toContain("Debt name");
   });
 
   it("renders the post-decomposition handoff from server-owned policy without turning source paths into guidance", () => {
