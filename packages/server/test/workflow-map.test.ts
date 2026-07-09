@@ -81,6 +81,46 @@ describe("workflow map HTTP payload", () => {
     expect(await json(await app.request("/api/records"))).toEqual(before);
   });
 
+  it("keeps a saved-kernel world in Creation until seed decomposition parks proposed seeds", async () => {
+    const app = await createWorld();
+    await postJson(app, "/api/records", {
+      recordTypeKey: "world_kernel",
+      title: "Bell city kernel",
+      body: "The city hears testimony from bells.",
+      truthLayer: "Objective canon",
+      canonStatus: "proposed"
+    });
+    const before = await json<{ records: unknown[] }>(await app.request("/api/records"));
+
+    const payload = await json<{
+      stages: Array<{ key: string; state: string; summary: string; unlockReason?: string }>;
+      queues: Array<{ key: string; count: number; summary: string }>;
+      nextDecision: { destinationKey: string; label: string; reason: string; href: string };
+      destinations: Array<{ key: string; state: string }>;
+    }>(await app.request("/api/workflow-map"));
+
+    expect(payload.stages).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "creation", state: expect.stringMatching(/active|owed/), summary: expect.stringMatching(/seed decomposition/i) }),
+      expect.objectContaining({ key: "admission", state: expect.stringMatching(/not_yet_earned|blocked/), unlockReason: expect.stringContaining("proposed seed") }),
+      expect.objectContaining({ key: "qa", state: "not_yet_earned" })
+    ]));
+    expect(payload.queues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "admission", count: 0, summary: expect.stringContaining("no proposed seeds") })
+    ]));
+    expect(payload.nextDecision).toMatchObject({
+      destinationKey: "creation",
+      label: expect.stringContaining("Seed decomposition"),
+      href: expect.stringContaining("/api/flows/creation")
+    });
+    expect(payload.nextDecision.reason).not.toMatch(/QA|review|stability/i);
+    expect(payload.destinations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "creation", state: expect.stringMatching(/active|owed/) }),
+      expect.objectContaining({ key: "admission", state: expect.stringMatching(/not_yet_earned|blocked/) }),
+      expect.objectContaining({ key: "qa", state: "not_yet_earned" })
+    ]));
+    expect(await json(await app.request("/api/records"))).toEqual(before);
+  });
+
   it("surfaces admission, propagation, boundary, canon-debt, and skip queues from live world state", async () => {
     const app = await createWorld();
     await postJson(app, "/api/records", {

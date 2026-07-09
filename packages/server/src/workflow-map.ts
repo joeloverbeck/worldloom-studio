@@ -37,7 +37,10 @@ const hasInProgressFlow = (flows: FlowInstanceRow[], flowKey: string): boolean =
   flows.some((flow) => flow.flow_key === flowKey);
 
 const acceptedOrUnderReviewRecords = (records: RecordRow[]): RecordRow[] =>
-  records.filter((record) => record.canonStatus === "accepted" || record.canonStatus === "under review" || record.canonStatus === "accepted with constraints");
+  records.filter((record) =>
+    record.recordTypeKey !== "world_kernel" &&
+    (record.canonStatus === "accepted" || record.canonStatus === "under review" || record.canonStatus === "accepted with constraints")
+  );
 
 const stage = (
   key: string,
@@ -99,6 +102,7 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
   const hasKernel = records.some((record) => record.recordTypeKey === "world_kernel");
   const worldHasCanonMaterial = acceptedOrUnderReviewRecords(records).length > 0;
   const admissionQueue = AdmissionFlow.admissionQueue(world);
+  const preAdmissionSeedDecompositionOwed = hasKernel && admissionQueue.length === 0 && !worldHasCanonMaterial;
   const propagationQueue = PropagationFlow.propagationQueue(world);
   const owedBoundaries = ContradictionFlow.owedBoundariesQueue(world);
   const openCanonDebt = CanonDebt.listCanonDebt(world, true);
@@ -108,7 +112,7 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
 
   const activeDestination =
     admissionQueue.length > 0 ? "admission"
-      : !hasKernel ? "creation"
+      : !hasKernel || preAdmissionSeedDecompositionOwed ? "creation"
         : flows[0] ? flowDestination(String(flows[0].flow_key)) : null;
   const owedDestinations = new Set<string>([
     ...(propagationQueue.length > 0 ? ["propagation"] : []),
@@ -116,22 +120,39 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
     ...(temporalDebt.length > 0 ? ["temporal"] : []),
     ...(minimalViableWorldOwed > 0 ? ["creation"] : [])
   ]);
+  const creationState: WorkflowMapStage["state"] = !hasKernel
+    ? "active"
+    : preAdmissionSeedDecompositionOwed
+      ? hasInProgressFlow(flows, "creation") ? "active" : "owed"
+      : hasInProgressFlow(flows, "creation") ? "active" : "done";
+  const admissionState: WorkflowMapStage["state"] = !hasKernel || preAdmissionSeedDecompositionOwed
+    ? "not_yet_earned"
+    : admissionQueue.length > 0 || hasInProgressFlow(flows, "admission") ? "active" : "done";
+  const admissionUnlockReason = !hasKernel
+    ? "Create a world_kernel or park proposed seeds before Admission has work."
+    : preAdmissionSeedDecompositionOwed
+      ? "Park proposed seeds through Creation seed decomposition before Admission has work."
+      : undefined;
 
   const stages: WorkflowMapStage[] = [
     stage(
       "creation",
       "Creation",
-      !hasKernel ? "active" : hasInProgressFlow(flows, "creation") ? "active" : "done",
-      "World kernel and seed decomposition start the journey.",
+      creationState,
+      preAdmissionSeedDecompositionOwed
+        ? "Seed decomposition is owed before Admission has proposed-seed work."
+        : "World kernel and seed decomposition start the journey.",
       "creation"
     ),
     stage(
       "admission",
       "Admission",
-      !hasKernel ? "not_yet_earned" : admissionQueue.length > 0 || hasInProgressFlow(flows, "admission") ? "active" : "done",
-      "Admission is the only path from proposed fact to canon standing.",
+      admissionState,
+      preAdmissionSeedDecompositionOwed
+        ? "Admission queue work begins after Creation parks proposed seeds."
+        : "Admission is the only path from proposed fact to canon standing.",
       "admission",
-      !hasKernel ? "Create a world_kernel or park proposed seeds before Admission has work." : undefined
+      admissionUnlockReason
     ),
     stage(
       "propagation",
@@ -189,7 +210,16 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
   ]);
 
   const queues = [
-    queue("admission", "Admission queue", admissionQueue.length, "admission", "/api/admission/queue", "Proposed or under-review facts awaiting governance."),
+    queue(
+      "admission",
+      "Admission queue",
+      admissionQueue.length,
+      "admission",
+      "/api/admission/queue",
+      preAdmissionSeedDecompositionOwed
+        ? "Admission queue is 0 because no proposed seeds exist yet; seed decomposition unlocks Admission work."
+        : "Proposed or under-review facts awaiting governance."
+    ),
     queue("owed-propagation", "Owed propagation", propagationQueue.length, "propagation", "/api/propagation/queue", "Propagation-scoped debt and owed shock cones."),
     queue("owed-boundaries", "Owed boundaries", owedBoundaries.length, "contradiction", "/api/contradiction/owed-boundaries", "Protected consequences that still need mystery-ledger governance."),
     queue("minimal-viable-world", "Minimal Viable World checkpoint", minimalViableWorldOwed, "creation", "/api/flows/creation/minimal-viable-world", "Creation phases 4-8 checkpoint owed after admitted seed evidence exists."),
@@ -209,7 +239,9 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
             ? { destinationKey: "creation", label: "Work Minimal Viable World checkpoint", reason: "Admitted seed evidence exists and no earlier owed queue is foregrounded.", href: "/api/flows/creation/minimal-viable-world" }
           : !hasKernel
             ? { destinationKey: "creation", label: "Start Creation", reason: "No world kernel exists yet; create the world kernel first.", href: "/api/flows/creation/start" }
-            : { destinationKey: "qa", label: "Review stability", reason: "No owed queue is currently foregrounded; QA is the next stability check when enough material exists.", href: "/api/qa/passes/start" };
+            : preAdmissionSeedDecompositionOwed
+              ? { destinationKey: "creation", label: "Seed decomposition owed", reason: "The world kernel is saved, but Creation must park proposed seeds before Admission has work.", href: "/api/flows/creation/start" }
+              : { destinationKey: "qa", label: "Review stability", reason: "No owed queue is currently foregrounded; QA is the next stability check when enough material exists.", href: "/api/qa/passes/start" };
 
   return {
     readOnly: true,

@@ -29,7 +29,7 @@ Create/open policy remains server-owned. The browser shows server-returned path,
 
 Successful create/open of a different world is a world-scoped reset boundary. Before the new workspace renders, the browser clears or remounts all world-scoped guided-flow state: active destination-local payloads, flow/run identifiers, selected records, decision payloads, Creation kernel and seed draft buffers, consequence-mode and decomposition state, Minimal Viable World state, Admission queue selection and loaded decision state, Prompt-out preview and loaded status, advisory/lifecycle UI state, Canon Workbench selections, destination-local caches, and flow/action errors. The visible invariant is that the displayed world path matches the world file behind every visible flow record, prompt state, queue state, draft buffer, selected record, decision payload, and flow/action error. Failed create/open attempts preserve the current open world's workspace state while showing setup/open recovery near the setup controls. When current-world unsaved browser buffers would be discarded by a switch, the steward is warned before the successful switch continues.
 
-After a world is open, setup controls become secondary and the workflow map becomes the home surface. A world with no `world_kernel` foregrounds Creation start/resume from the map as the primary active guided path; unrelated flows show prerequisite or not-yet-ready states until the kernel prerequisite exists. A world that has just parked Creation seeds foregrounds the Creation-to-Admission handoff and the Admission queue route: parked proposed seeds, seed-decomposition report, source links, granularity rationale, optional decomposition Prompt-out, and Admission queue route. Unrelated advanced flows remain available as substrate or later work, but they are visually secondary to the immediate handoff where this state is in scope.
+After a world is open, setup controls become secondary and the workflow map becomes the home surface. A world with no `world_kernel` foregrounds Creation start/resume from the map as the primary active guided path; unrelated flows show prerequisite or not-yet-ready states until the kernel prerequisite exists. A world with a saved `world_kernel` and no parked proposed seed remains in Creation: the kernel proves Creation has begun, but seed decomposition is still owed before Admission has queue work. In that state Admission is not yet earned or blocked by missing proposed seeds, its queue count may be `0` without implying completion, the unlock reason names proposed seeds as the prerequisite, and the next decision points back to Creation seed decomposition rather than QA, review, or a generic stability destination. A world that has just parked Creation seeds foregrounds the Creation-to-Admission handoff and the Admission queue route: parked proposed seeds, seed-decomposition report, source links, granularity rationale, optional decomposition Prompt-out, and Admission queue route. Unrelated advanced flows remain available as substrate or later work, but they are visually secondary to the immediate handoff where this state is in scope.
 
 ## Map-as-Home Rule
 
@@ -49,11 +49,20 @@ Stages render with one of these states:
 
 Stages in `blocked` or `not_yet_earned` state must state what unlocks them. Conditional passes use this language to explain "when facts apply" instead of presenting the passes as mandatory stops for every fact.
 
+Early-world state grammar is explicit:
+
+1. **No kernel**: Creation is active; Admission and later guided stages are not yet earned because no `world_kernel` exists.
+2. **Kernel authoring in progress**: Creation remains active; Admission is not yet earned because seed decomposition has not parked proposed seeds.
+3. **Kernel saved, seed decomposition owed**: Creation is active or owed for seed decomposition; Admission is unavailable with proposed-seed unlock guidance; Admission queue `0` means no proposed seeds exist yet, not completed Admission work; the next decision routes to Creation seed decomposition.
+4. **Seed parked or under review**: Admission is active or owed according to the Admission queue contract; Creation has handed proposed seed work to Admission without admitting canon standing.
+5. **Post-correction proposed material**: corrected proposed facts created by governed Creation correction remain routed to Admission, preserving the PRD #302 correction and late-Admission blocking behavior.
+
 ## Foregrounding and Queues
 
 The map foregrounds state in this order unless a future spec narrows the order further:
 
 - an empty world foregrounds **Start Creation** because no `world_kernel` exists;
+- a saved `world_kernel` with no parked proposed seeds foregrounds **Creation seed decomposition** because Creation phases 1-2 are not complete and Admission has not earned queue work;
 - parked proposed seeds or under-review facts foreground the **Admission queue**;
 - propagation-scoped debt foregrounds **Owed propagation**;
 - temporal/timeline debt foregrounds the **Temporal/Timeline** destination when sequence, latency, residue, or timing-boundary work is owed;
@@ -120,6 +129,7 @@ Every guided flow browser surface exposes:
 ## Cross-Flow Handoffs
 
 - A new world with no `world_kernel` foregrounds Creation start/resume as the primary active guided path; unrelated flows show prerequisites or not-yet-ready states until the kernel prerequisite exists.
+- A world with a saved `world_kernel` but no parked proposed seeds keeps Creation active or owed for seed decomposition. Admission remains unavailable or not yet earned with an unlock reason naming proposed seeds, the Admission queue count remains truthfully `0`, and QA/review cannot be foregrounded merely because the kernel record exists.
 - Creation parks seeds at `proposed`; Admission owns first canon standing.
 - After seed parking, the active handoff names the seed-decomposition report, derived-from links, current/next/resume state, prompt-out state or governed skip, and read-side trail before steering the steward to Admission.
 - After Admission admits seed facts, the Creation destination can become owed for the Minimal Viable World checkpoint. The map links to `/api/flows/creation/minimal-viable-world`; the checkpoint can create skip records, canon debt, and Admission proposals, but it does not admit facts or compute a verdict.
@@ -137,6 +147,7 @@ A browser workflow slice that changes navigation must show:
 
 - for map-first shell changes, a walkthrough from setup through open-world to the map, into a guided flow, back to the map with run state parked and refreshed, and into the Admission queue when Admission is owed;
 - on the map, stage state, queue counts, next decision, why that decision is next, and unlock reasons for unearned stages;
+- for the kernel-complete/no-seed state, Creation current/owed state, Admission unavailable state, Admission queue `0`, proposed-seed unlock guidance, Creation seed-decomposition next decision, and non-mutation/read-only behavior;
 - a start/resume path;
 - a visible current decision point;
 - at least one next-step or blocker state;
@@ -145,6 +156,7 @@ A browser workflow slice that changes navigation must show:
 - for setup/open-world changes, a walkthrough from no-world setup through create/open success and the empty-world Creation prerequisite state.
 - for world-switch reset changes, a same-runtime browser walkthrough that starts in world A with loaded Creation, Admission, Prompt-out, draft/buffer, selected-record, queue, decision, and error state where available; switches to world B without refreshing; and verifies no world A short IDs, titles, prompt packets, loaded statuses, draft text, selected records, queue selections, decision payloads, or flow/action errors render under world B's displayed path.
 - for Creation-to-Admission handoff changes, a walkthrough from open early-world state through seed parking, prompt preview or governed skip, and Admission handoff, with unrelated advanced flows presented as not-current or prerequisite surfaces where the slice touches them.
+- for pre-Admission handoff changes, a cognitive walkthrough that starts with a saved kernel before seed parking, identifies seed decomposition as the owed decision, distinguishes unlock guidance from provenance, predicts that the map writes nothing, follows the Creation resume destination, parks proposed seeds, and returns to a refreshed Admission queue state.
 
 ## Principles
 
