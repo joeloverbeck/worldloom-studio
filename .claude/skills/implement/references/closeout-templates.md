@@ -107,6 +107,10 @@ comment_url="$(gh issue comment <issue> --body-file "$body")"
 gh issue close <issue> --reason completed --comment "Completed; evidence: $comment_url"
 ```
 
+Post-smoke commit-only freshness example: if the final browser/manual proof ran on the same file content that was later committed, and the only post-smoke change was creating the commit metadata/SHA, write the freshness fields as content-unchanged proof rather than forcing a fake rerun. Example wording:
+
+> Final freshness delta: files touched since the last browser/manual proof after final commit and verification edits: git commit metadata only; not affected because no tracked file content changed after the smoke, the evidence route/action/API/fixture <route/action/API/fixture> is untouched, and targeted proof `git diff HEAD -- <owned files>` is empty.
+
 Do not leave temporary body files in the repo unless they are intentional committed evidence.
 
 ## Blocked Closeout Handoff

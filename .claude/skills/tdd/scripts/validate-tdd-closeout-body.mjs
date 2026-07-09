@@ -127,6 +127,14 @@ export const validateTddCloseoutBody = (body, options = {}) => {
       /\b[\w@.-]+\.(?:ts|tsx|js|mjs|md|json|sqlite|png)\b/.test(normalized);
     const namesUnaffectedEvidence = /\b(route|action|API|fixture|browser-consumed|UI)\b/i.test(normalized);
     const hasTargetedProof = /\btargeted proof\b|\btargeted .*passed\b|\bfocused .*passed\b|\breran targeted\b/i.test(normalized);
+    const isCommitMetadataOnly = /\b(?:git )?commit metadata only\b/i.test(normalized);
+    const hasNoTrackedContentChange =
+      /\bno tracked (?:file )?content changed\b/i.test(normalized) ||
+      /\bno tracked files? changed\b/i.test(normalized) ||
+      /\bno file content changed\b/i.test(normalized) ||
+      /\bno content changes?\b/i.test(normalized) ||
+      /\bsame\b.+\bcontent\b/i.test(normalized);
+    const hasCommitMetadataProof = hasTargetedProof || /\bgit diff HEAD\b/i.test(normalized);
     const isNonSemantic =
       /\b(non-semantic|formatting|formatting-only|indentation|indentation-only|comment wording|docs?-only|documentation-only|closeout-text-only)\b/i.test(
         normalized
@@ -135,6 +143,11 @@ export const validateTddCloseoutBody = (body, options = {}) => {
       /\bdiff inspected\b|\btargeted proof\b|\btargeted .*passed\b|\bgit diff --check\b|\broot gates? (?:re)?ran\b|\bpnpm (test|typecheck|build)\b/i.test(
         normalized
       );
+
+    if (isCommitMetadataOnly) {
+      if (hasNoTrackedContentChange && namesUnaffectedEvidence && hasCommitMetadataProof) return "";
+      return "uses commit-metadata-only freshness without no-tracked-content-change statement, unaffected evidence route/action/API/fixture, and git diff proof";
+    }
 
     if (/\bnot affected\b/i.test(normalized)) {
       if (namesChangedPath && namesUnaffectedEvidence && hasTargetedProof) return "";
@@ -184,6 +197,9 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     if (/\bred-first skipped\b.+\bbecause\b/i.test(normalized)) return true;
     if (/\bpartial red - wrong reason:/i.test(normalized)) return true;
     if (/\bcoverage-only review fix\b/i.test(normalized)) return true;
+    if (/\bcoverage-only existing behavior\b.+\bred-first N\/A because behavior already existed\b/i.test(normalized)) {
+      return true;
+    }
     if (/\bexisting contract-change expectation\b/i.test(normalized)) return true;
     if (/\b(shared[- ]red[- ]command|same red command as|linked shared red command)\b/i.test(normalized)) return true;
 
@@ -194,6 +210,7 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     const normalized = cell.replace(/\s+/g, " ").trim();
     if (!normalized || /^N\/A\b/i.test(normalized)) return false;
     if (/\bexisting-test contract-change expectation\b/i.test(normalized)) return false;
+    if (/\bcoverage-only existing behavior\b/i.test(normalized)) return false;
     return /\b(review[- ]fix|finding fixed|coverage-only|partial-red|red-first skip)\b/i.test(normalized);
   };
 

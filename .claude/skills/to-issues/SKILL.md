@@ -134,7 +134,19 @@ Make that self-check visible before publication. For every affected `ready-for-a
 
 Verify the chosen label exists before creating the first issue with that label (create it per the project's triage-label doc if absent; a verification earlier in the same session suffices). Prefer current same-repo issue metadata when it already shows the exact chosen label; use `gh label list` only when no current issue metadata has shown it or label creation may be needed. If label-listing is temporarily unavailable, exact label presence on an issue from the same repo is acceptable verification.
 
-Temporary issue-body files are acceptable as local transport for `gh issue create --body-file`; use the least-permission mechanism available to create and remove them. In sandboxed Codex-style environments, adding and later deleting temp files under `/tmp` with `apply_patch` is acceptable when shell writes or `rm` are constrained. The published issue body must not cite the staging path or any machine-local artifact. Before running the first `gh issue create`, sweep every staged body assembled from local notes or temp files for machine-local paths; when sweeping temp files, use a content-only check such as `rg --no-filename` so the temp file path itself is not reported as a false positive. Rerun the sweep after placeholder substitution or body edits. Treat leak and placeholder sweeps as hard serial gates: do not run `gh issue create` in the same parallel batch as those checks; create only after the relevant sweeps complete cleanly.
+Temporary issue-body files are acceptable as local transport for `gh issue create --body-file`; use the least-permission mechanism available to create and remove them. Prefer an outside-worktree path such as `/tmp/worldloom-issues-<parent-or-slug>-<slice>.md` when the active environment permits safe creation and cleanup. If shell writes or `rm` are constrained, or outside-worktree editing is awkward, use clearly temporary repo-local hidden files such as `reports/.tmp-<parent-or-slug>-issue-<n>.md`, create and delete them with the environment-approved edit mechanism, and verify cleanup with `test ! -e` plus the final `git status --short`. In Codex-style sessions, that means using `apply_patch` for repo-local temp body files rather than shell redirection, heredocs, or destructive cleanup commands. The published issue body must not cite the staging path or any machine-local artifact. Before running the first `gh issue create`, sweep every staged body assembled from local notes or temp files for machine-local paths; when sweeping temp files, use a content-only check such as `rg --no-filename` so the temp file path itself is not reported as a false positive. Rerun the sweep after placeholder substitution or body edits. Treat leak and placeholder sweeps as hard serial gates: do not run `gh issue create` in the same parallel batch as those checks; create only after the relevant sweeps complete cleanly.
+
+Mandatory final checklist run sheet for affected ready-labelled issues:
+
+```markdown
+| Slice | Checklist item | Covered by final AC ordinal/excerpt | N/A reason |
+|---|---|---|---|
+| <slice title> | package source cited | AC <n> or "<short staged criterion excerpt>" | - |
+| <slice title> | decision-point contract named | AC <n> or "<short staged criterion excerpt>" | - |
+| <slice title> | required/optional/skippable/severity-dependent fields visible where relevant | AC <n> or "<short staged criterion excerpt>" | N/A - <reason> |
+```
+
+Publishing with `ready-for-agent` or `ready-for-human` is blocked until every applicable browser-visible guidance item has a final AC ordinal/excerpt in this run sheet, or a specific `N/A - <reason>`. A generic body criterion such as `Browser-visible guidance checklist mapped` may summarize the result, but it never substitutes for this concrete row-by-row mapping.
 
 Publication safety gates before every `gh issue create`:
 

@@ -18,6 +18,7 @@ Include:
 
 - Source artifact path or identifier, plus selected section/title when applicable.
 - Source durability status: durable, dirty, untracked, or temp-only.
+- Authored artifact status: for the determination file being written, state whether it is new/untracked, dirty, tracked-clean, or publication-ref-visible as applicable.
 - Primary evidence summarized from local files, tracker state, reports, issue IDs, screenshots, or runtime captures.
 - Live checkout or freshness snapshot, including branch and relevant worktree dirt.
 - Tracker freshness, including the command or issue IDs checked.
@@ -104,6 +105,21 @@ Include the details a later `/to-prd` pass needs:
 - Canonical gates and focused gates.
 - Browser, cold-LLM, or field replay evidence expectations.
 - Source durability warnings and temporary-path handling.
+
+## Completion Self-Check
+
+Before closing or writing the final summary, scan the drafted artifact for these fields:
+
+- `/to-prd` consulted for house style only, or skipped with reason.
+- Source artifact posture and temporary-path handling.
+- Authored artifact posture: new/untracked, dirty, tracked-clean, or publication-ref-visible as applicable.
+- Tracker freshness and relevant open/closed issue IDs.
+- Selected first PRD or verdict.
+- Follow-on candidates and coverage-only work.
+- Recommended testing seam and seam checkpoint still owed.
+- Likely publication label and what would downgrade it.
+- Canonical gates and focused gates.
+- Source and authored-artifact durability warnings.
 
 ## Freshness And Boundaries
 

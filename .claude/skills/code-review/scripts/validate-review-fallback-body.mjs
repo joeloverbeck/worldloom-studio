@@ -134,6 +134,14 @@ const validateFreshnessValue = (value) => {
     /\b[\w@.-]+\.(?:ts|tsx|js|mjs|md|json|sqlite|png)\b/.test(normalized);
   const namesUnaffectedEvidence = /\b(route|action|API|fixture|browser-consumed|UI)\b/i.test(normalized);
   const hasTargetedProof = /\btargeted proof\b|\btargeted .*passed\b|\bfocused .*passed\b|\breran targeted\b/i.test(normalized);
+  const isCommitMetadataOnly = /\b(?:git )?commit metadata only\b/i.test(normalized);
+  const hasNoTrackedContentChange =
+    /\bno tracked (?:file )?content changed\b/i.test(normalized) ||
+    /\bno tracked files? changed\b/i.test(normalized) ||
+    /\bno file content changed\b/i.test(normalized) ||
+    /\bno content changes?\b/i.test(normalized) ||
+    /\bsame\b.+\bcontent\b/i.test(normalized);
+  const hasCommitMetadataProof = hasTargetedProof || /\bgit diff HEAD\b/i.test(normalized);
   const isNonSemantic =
     /\b(non-semantic|formatting|formatting-only|indentation|indentation-only|comment wording|docs?-only|documentation-only|closeout-text-only)\b/i.test(
       normalized
@@ -142,6 +150,11 @@ const validateFreshnessValue = (value) => {
     /\bdiff inspected\b|\btargeted proof\b|\btargeted .*passed\b|\bgit diff --check\b|\broot gates? (?:re)?ran\b|\bpnpm (test|typecheck|build)\b/i.test(
       normalized
     );
+
+  if (isCommitMetadataOnly) {
+    if (hasNoTrackedContentChange && namesUnaffectedEvidence && hasCommitMetadataProof) return "";
+    return "uses commit-metadata-only freshness without no-tracked-content-change statement, unaffected evidence route/action/API/fixture, and git diff proof";
+  }
 
   if (/\bnot affected\b/i.test(normalized)) {
     if (namesChangedPath && namesUnaffectedEvidence && hasTargetedProof) return "";
@@ -154,7 +167,7 @@ const validateFreshnessValue = (value) => {
     return "uses non-semantic freshness without changed path, unaffected evidence route/action/API/fixture, and proof";
   }
 
-  return "must state rerun proof, justified not affected, blocked/stale reason, non-semantic proof, or N/A because no browser/manual evidence was used";
+  return "must state rerun proof, justified not affected, blocked/stale reason, non-semantic proof, commit-metadata-only proof, or N/A because no browser/manual evidence was used";
 };
 
 const validateConsoleStateValue = (value) => {
