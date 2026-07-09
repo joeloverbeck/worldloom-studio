@@ -343,6 +343,82 @@ describe("Prompt-out module", () => {
     store.close();
   });
 
+  it("returns a refreshed Creation Prompt-out preview after split correction", () => {
+    const store = WorldFile.create(tempPath("creation-correction-prompt.sqlite"));
+    const flow = CreationFlow.startCreationFlow(store) as { id: number };
+    const saved = CreationFlow.saveKernelStep(store, {
+      flowId: flow.id,
+      heading: "World premise",
+      body: "A harbor city where the dead leave seven-day echoes that courts want to treat as testimony.",
+      consequenceMode: "weird"
+    }) as { kernel: { id: number } };
+    const decomposed = CreationFlow.decomposeSeeds(store, {
+      flowId: flow.id,
+      kernelRecordId: saved.kernel.id,
+      granularityRationale: "FAC-1 is broad enough to split into evidence identity and access cost siblings.",
+      seeds: [{
+        title: "Echo court testimony",
+        body: "Courts accept echo testimony under strict conditions.",
+        truthLayer: "Objective canon",
+        granularityConfirmed: true
+      }]
+    }) as { report: { id: number }; records: Array<{ id: number }> };
+
+    const corrected = CreationFlow.correctParkedSeed(store, {
+      seedRecordId: decomposed.records[0]!.id,
+      action: "split",
+      rationale: "Split FAC-1 so Admission can test identity evidence and access cost independently.",
+      siblings: [
+        {
+          title: "Echo testimony requires identity memories",
+          body: "Echo testimony requires memories only the deceased would know before courts treat it as evidence.",
+          truthLayer: "Objective canon"
+        },
+        {
+          title: "Safe echo binding is costly",
+          body: "Poor families often cannot afford safe echo binding before the seven-day echo fades.",
+          truthLayer: "Objective canon"
+        }
+      ]
+    }) as {
+      decisionPoint?: {
+        promptOut: { preview: { promptText: string; contextPreview: string; sourceManifest: string[] } };
+        handoff: { parkedSeeds: Array<{ shortId: string; title: string; canonStatus: string }> };
+        readSideTrail: Array<{ label: string }>;
+      };
+      readSideTrail: Array<{ label: string }>;
+    };
+
+    expect(corrected.decisionPoint?.promptOut.preview.contextPreview).toContain("FAC-1");
+    expect(corrected.decisionPoint?.promptOut.preview.contextPreview).toContain("FAC-2");
+    expect(corrected.decisionPoint?.promptOut.preview.contextPreview).toContain("FAC-3");
+    expect(corrected.decisionPoint?.promptOut.preview.promptText).toContain("Echo testimony requires identity memories");
+    expect(corrected.decisionPoint?.promptOut.preview.promptText).toContain("Safe echo binding is costly");
+    expect(corrected.decisionPoint?.promptOut.preview.sourceManifest).toEqual(expect.arrayContaining([
+      expect.stringContaining("Parked seed: FAC-1 Echo court testimony"),
+      expect.stringContaining("Parked seed: FAC-2 Echo testimony requires identity memories"),
+      expect.stringContaining("Parked seed: FAC-3 Safe echo binding is costly")
+    ]));
+    expect(corrected.decisionPoint?.handoff.parkedSeeds).toEqual(expect.arrayContaining([
+      expect.objectContaining({ shortId: "FAC-1", canonStatus: "rejected" }),
+      expect.objectContaining({ shortId: "FAC-2", canonStatus: "proposed" }),
+      expect.objectContaining({ shortId: "FAC-3", canonStatus: "proposed" })
+    ]));
+    expect(corrected.decisionPoint?.readSideTrail.map((entry) => entry.label)).toEqual(expect.arrayContaining([
+      "Parked seed FAC-1",
+      "Parked seed FAC-2",
+      "Parked seed FAC-3",
+      "Admission queue"
+    ]));
+    expect(corrected.readSideTrail.map((entry) => entry.label)).toEqual(expect.arrayContaining([
+      "Original seed FAC-1",
+      "Corrected proposed fact FAC-2",
+      "Corrected proposed fact FAC-3",
+      "Admission queue"
+    ]));
+    store.close();
+  });
+
   it("renders decomposition pressure packets with source documents, rationalized constraints, and one skeleton", () => {
     const store = WorldFile.create(tempPath("sandwich-decomposition.sqlite"));
     const kernel = store.createRecord({

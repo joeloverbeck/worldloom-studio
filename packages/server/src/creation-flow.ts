@@ -2,6 +2,7 @@ import { admissionQueueWithDecisionPointLinks, parkCreationSeedForAdmission } fr
 import {
   creationNarrowingNoteCorrectionMatchesInput,
   findCreationNarrowingNoteCorrection,
+  findLatestCreationFlowByKernelRecord,
   recordCreationNarrowingNoteCorrection,
   type CreationNarrowingNoteCorrectionRow
 } from "./creation-correction-store.js";
@@ -1114,14 +1115,21 @@ export const correctParkedSeed = (
       sourceLinks: linksFromRecord(worldFile, record.id)
     }));
     const { kernelId, reportId } = correctionSourceRecordIds(worldFile, seed);
+    const report = reportId == null ? null : worldFile.getRecord(reportId);
+    const outputRecords = [originalSeed, ...correctedRecords];
+    const correctedDecisionContext = {
+      ...(report == null ? {} : { report }),
+      records: outputRecords
+    };
     const handoff = creationHandoffContext(
       worldFile,
       kernelId == null ? null : worldFile.getRecord(kernelId),
-      {
-        ...(reportId == null ? {} : { report: worldFile.getRecord(reportId) }),
-        records: [originalSeed, ...correctedRecords]
-      }
+      correctedDecisionContext
     );
+    const flow = kernelId == null ? null : findLatestCreationFlowByKernelRecord(worldFile, kernelId);
+    const decisionPoint = flow == null
+      ? null
+      : creationDecisionPoint(worldFile, flow, correctedDecisionContext);
     const appliedNarrowingNote = input.action === "admission_narrowing_note"
       ? appliedNarrowingNotesForSeed(worldFile, seed).find((note) => note.correctionContext.id === context.id) ?? null
       : null;
@@ -1135,6 +1143,7 @@ export const correctParkedSeed = (
         correctedRecords: correctedWithLinks
       },
       admissionQueue: admissionQueueWithDecisionPointLinks(worldFile),
+      decisionPoint,
       handoff,
       readSideTrail: [
         { label: `Original seed ${originalSeed.shortId}`, href: `/api/canon-workbench/records/${originalSeed.id}`, recordId: originalSeed.id },

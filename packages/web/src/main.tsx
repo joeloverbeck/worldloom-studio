@@ -1106,6 +1106,7 @@ const emptyCreationCoverageDraft: CreationCoverageDraft = {
 interface CreationCorrectionResponse {
   correction: unknown;
   admissionQueue: AdmissionQueueRow[];
+  decisionPoint?: CreationDecisionPoint | null;
   handoff: CreationDecisionPoint["handoff"];
   readSideTrail: CreationDecisionPoint["readSideTrail"];
 }
@@ -2882,11 +2883,34 @@ function App({
     && promptPacketOrigin?.flowKey === "creation"
     ? promptText
     : null;
+  const currentCreationPromptPacketPreview: PromptPreviewPayload | null = currentCreationPromptPacketText && promptPacketOrigin?.flowKey === "creation"
+    ? {
+        currentDecision: `Current loaded Prompt-out packet for ${promptPacketOrigin.stepKey} in ${promptPacketOrigin.mode === "pressure" ? "Pressure mode" : "Proposal mode"}.`,
+        promptText: currentCreationPromptPacketText,
+        contextPreview: [
+          `Current decision: ${promptPacketOrigin.decisionLabel}`,
+          promptPacketOrigin.recordShortId ? `Record: ${promptPacketOrigin.recordShortId}` : null,
+          promptPacketOrigin.recordTypeKey ? `Record type: ${promptPacketOrigin.recordTypeKey}` : null,
+          promptPacketOrigin.selectedSectionHeading ? `Selected section: ${promptPacketOrigin.selectedSectionHeading}` : null,
+          "The preview is bound to the same loaded Prompt-out identity as the current copy/download actions."
+        ].filter((line): line is string => Boolean(line)).join(" "),
+        sourceManifest: [
+          `Current packet identity: flow ${promptPacketOrigin.flowKey ?? "none"}; step ${promptPacketOrigin.stepKey}; mode ${promptPacketOrigin.mode ?? "none"}; template ${promptPacketOrigin.templateKey}`,
+          `Current packet record: ${promptPacketOrigin.recordId ?? "none"}${promptPacketOrigin.recordShortId ? ` (${promptPacketOrigin.recordShortId})` : ""}`,
+          `Prompt packet hash: ${promptPacketOrigin.packetHash ?? "none"}`,
+          `Prompt packet body hash: ${promptPacketOrigin.bodyHash ?? "none"}`,
+          `Prompt packet source_manifest hash: ${promptPacketOrigin.sourceManifestHash ?? "none"}`
+        ],
+        omissions: ["Current packet replaces the secondary preview while its identity matches the active Creation decision."],
+        advisoryCanonWarning: displayedCreationDecision.promptOut.preview.advisoryCanonWarning
+      }
+    : null;
   const creationLocalPreviewUsesSelectedSection = creationKernelPromptTargeting
     && selectedSectionContract
     && (creationLocalPromptRequest || creationPromptOutBlockedByLocalSection);
-  const creationPromptPreviewForDisplay: PromptPreviewPayload = creationLocalPreviewUsesSelectedSection && selectedSectionContract
-    ? {
+  const creationPromptPreviewForDisplay: PromptPreviewPayload = currentCreationPromptPacketPreview
+    ?? (creationLocalPreviewUsesSelectedSection && selectedSectionContract
+      ? {
         ...displayedCreationDecision.promptOut.preview,
         currentDecision: creationPromptCurrentDecision,
         promptText: currentCreationPromptPacketText ?? [
@@ -2921,7 +2945,7 @@ function App({
         ].join(" "),
         advisoryCanonWarning: displayedCreationDecision.promptOut.preview.advisoryCanonWarning
       }
-    : displayedCreationDecision.promptOut.preview;
+      : displayedCreationDecision.promptOut.preview);
 
   useEffect(() => {
     api<HealthPayload>("/api/health")
@@ -4185,9 +4209,9 @@ function App({
         delete next[seedRecordId];
         return next;
       });
-      setCreationDecision((current) => current
+      setCreationDecision((current) => payload.decisionPoint ?? (current
         ? { ...current, handoff: payload.handoff, readSideTrail: payload.readSideTrail ?? current.readSideTrail }
-        : current);
+        : current));
       setAdmissionQueue(payload.admissionQueue ?? admissionQueue);
       setMessage("Creation correction applied; Admission queue and read-side trail refreshed.");
       await loadWorldData();

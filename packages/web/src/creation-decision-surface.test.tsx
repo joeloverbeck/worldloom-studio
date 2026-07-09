@@ -644,6 +644,7 @@ describe("Creation decision-point web surface", () => {
     expect(source).toContain("/api/flows/creation/corrections");
     expect(source).toContain("setCorrectionError");
     expect(source).toContain("payload.validationErrors");
+    expect(source).toContain("payload.decisionPoint ??");
     expect(source).toContain("setAdmissionQueue(payload.admissionQueue");
   });
 

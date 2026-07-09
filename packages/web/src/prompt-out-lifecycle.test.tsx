@@ -905,6 +905,72 @@ describe("Prompt-out lifecycle web surface", () => {
     expect(creationPromptLoader).toContain("displayedCreationDecision.currentStep.startsWith(\"kernel:\")");
   });
 
+  it("refreshes the Creation seed-decomposition preview to the loaded current Pressure packet", () => {
+    const currentOrigin = loadedOrigin({
+      recordId: 2,
+      recordShortId: "SDC-1",
+      recordTypeKey: "seed_decomposition",
+      selectedSectionHeading: null,
+      stepKey: "creation:decomposition_prompt",
+      mode: "pressure",
+      templateKey: "decomposition_pressure",
+      decisionLabel: "Echo seed split",
+      packetHash: "decomposition-pressure-packet-hash",
+      bodyHash: "decomposition-pressure-body-hash",
+      sourceManifestHash: "decomposition-pressure-source-manifest-hash"
+    });
+    const decision = decompositionDecision() as any;
+    decision.promptOut.preview.promptText = "STALE PROPOSAL PREVIEW FOR FAC-1 ONLY";
+    decision.promptOut.preview.sourceManifest = ["Parked seed: FAC-1 Echo court testimony"];
+    decision.promptOut.preview.omissions = ["Historical Proposal preview before correction split."];
+    decision.handoff.parkedSeeds = [
+      ...decision.handoff.parkedSeeds,
+      {
+        id: 4,
+        shortId: "FAC-2",
+        title: "Echo testimony requires identity memories",
+        recordTypeKey: "canon_fact",
+        body: "Echo testimony requires memories only the deceased would know.",
+        truthLayer: "Objective canon",
+        canonStatus: "proposed",
+        sourceLinks: []
+      },
+      {
+        id: 5,
+        shortId: "FAC-3",
+        title: "Echo testimony is too costly for poor families",
+        recordTypeKey: "canon_fact",
+        body: "Poor families often cannot afford safe echo binding.",
+        truthLayer: "Objective canon",
+        canonStatus: "proposed",
+        sourceLinks: []
+      }
+    ];
+
+    const html = renderToString(<App
+      initialOpenWorld="/tmp/prompt-identity.sqlite"
+      initialWorkflowMap={workflowMap as any}
+      initialDestination="creation"
+      initialCreationPromptMode="pressure"
+      initialLoadedPromptStatus={{ origin: currentOrigin as any }}
+      initialPromptText="CURRENT PRESSURE PACKET: FAC-1 FAC-2 FAC-3"
+      initialPromptPacketOrigin={currentOrigin as any}
+      initialCreationDecision={decision}
+    />);
+    const promptOutStart = html.indexOf("Prompt-out preview");
+    const promptOutEnd = html.indexOf("Seed decomposition decision", promptOutStart);
+    expect(promptOutStart).toBeGreaterThanOrEqual(0);
+    expect(promptOutEnd).toBeGreaterThan(promptOutStart);
+    const promptOutPanel = html.slice(promptOutStart, promptOutEnd);
+
+    expect(promptOutPanel).toContain("Current loaded Prompt-out packet for creation:decomposition_prompt in Pressure mode.");
+    expect(promptOutPanel).toContain("CURRENT PRESSURE PACKET: FAC-1 FAC-2 FAC-3");
+    expect(promptOutPanel).toContain("Prompt packet source_manifest hash: decomposition-pressure-source-manifest-hash");
+    expect(promptOutPanel).toContain("Current packet replaces the secondary preview while its identity matches the active Creation decision.");
+    expect(promptOutPanel).not.toContain("STALE PROPOSAL PREVIEW FOR FAC-1 ONLY");
+    expect(promptOutPanel).not.toContain("Historical Proposal preview before correction split.");
+  });
+
   it("allows saved-section Creation Pressure after section switching and marks prior section-mode packets stale", () => {
     const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
     const currentOrigin = snippetBetween(source, "const currentLoadedPromptOrigin = useMemo", "const loadedPromptStatusView");

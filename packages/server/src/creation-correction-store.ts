@@ -1,4 +1,4 @@
-import type { WorldFile } from "./world-file.js";
+import type { FlowInstanceRow, WorldFile } from "./world-file.js";
 
 export interface CreationNarrowingNoteCorrectionRow {
   id: number;
@@ -88,3 +88,16 @@ export const recordCreationNarrowingNoteCorrection = (
     normalizedCreationCorrectionText(input.narrowingNote)
   );
 };
+
+export const findLatestCreationFlowByKernelRecord = (
+  world: WorldFile,
+  kernelRecordId: number
+): FlowInstanceRow | null =>
+  (world.db.prepare(`
+    SELECT *
+    FROM flow_instances
+    WHERE flow_key = 'creation'
+      AND kernel_record_id = ?
+    ORDER BY id DESC
+    LIMIT 1
+  `).get(kernelRecordId) as FlowInstanceRow | undefined) ?? null;
