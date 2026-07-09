@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
+import { WorldFile } from "../src/world-file.js";
 
 let tempDirs: string[] = [];
 
@@ -19,7 +20,7 @@ afterEach(() => {
   tempDirs = [];
 });
 
-const openWorld = async () => {
+const openWorldAt = async () => {
   const app = createApp();
   const path = tempPath("creation.sqlite");
   expect((await app.request("/api/worlds/create", {
@@ -27,8 +28,10 @@ const openWorld = async () => {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ path })
   })).status).toBe(201);
-  return app;
+  return { app, path };
 };
+
+const openWorld = async () => (await openWorldAt()).app;
 
 describe("Creation decision-point HTTP surface", () => {
   it("starts or resumes Creation with a server-owned decision-point payload", async () => {
@@ -1058,7 +1061,7 @@ describe("Creation decision-point HTTP surface", () => {
   });
 
   it("exposes and applies governed post-park correction actions before Admission begins", async () => {
-    const app = await openWorld();
+    const { app, path } = await openWorldAt();
     const start = await json<{ flow: { id: number } }>(await app.request("/api/flows/creation/start", { method: "POST" }));
     const saved = await json<{ kernel: { id: number } }>(await app.request("/api/flows/creation/kernel-step", {
       method: "POST",
@@ -1358,24 +1361,71 @@ describe("Creation decision-point HTTP surface", () => {
       })
     ]));
 
-    const note = await json<{
-      correction: { action: string; originalSeed: { id: number; canonStatus: string }; correctedRecords: unknown[]; correctionContext: { id: number; body: string } };
-      admissionQueue: Array<{ title: string; sourceLinks: Array<{ note: string; target: { id: number } | null }> }>;
-    }>(await app.request("/api/flows/creation/corrections", {
+    const invalidNote = await app.request("/api/flows/creation/corrections", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         seedRecordId: decomposed.records[3]?.id,
         action: "admission_narrowing_note",
-        rationale: "The seed can proceed only if Admission narrows jurisdiction.",
-        narrowingNote: "Admission should test harbor-court jurisdiction before any broader court standing."
+        rationale: "",
+        narrowingNote: ""
       })
+    });
+    expect(invalidNote.status).toBe(400);
+    expect(await json<{
+      validationErrors: Array<{ key: string; message: string }>;
+      attemptedInput: { action: string; rationale: string; narrowingNote: string };
+    }>(invalidNote)).toMatchObject({
+      validationErrors: expect.arrayContaining([
+        expect.objectContaining({ key: "rationale" }),
+        expect.objectContaining({ key: "narrowingNote" })
+      ]),
+      attemptedInput: { action: "admission_narrowing_note", rationale: "", narrowingNote: "" }
+    });
+
+    const noteInput = {
+      seedRecordId: decomposed.records[3]?.id,
+      action: "admission_narrowing_note",
+      rationale: "The seed can proceed only if Admission narrows jurisdiction.",
+      narrowingNote: "Admission should test harbor-court jurisdiction before any broader court standing."
+    };
+    const note = await json<{
+      correction: {
+        action: string;
+        alreadyApplied: boolean;
+        appliedNarrowingNote: { note: string; rationale: string; correctionContext: { id: number; shortId: string; recordTypeKey: string } };
+        originalSeed: { id: number; canonStatus: string };
+        correctedRecords: unknown[];
+        correctionContext: { id: number; shortId: string; body: string };
+      };
+      admissionQueue: Array<{ title: string; sourceLinks: Array<{ note: string; target: { id: number } | null }> }>;
+      readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
+      handoff: {
+        parkedSeeds: Array<{
+          id: number;
+          correction: {
+            appliedNarrowingNotes: Array<{ note: string; rationale: string; correctionContext: { id: number; shortId: string; recordTypeKey: string } }>;
+            actions: Array<{ key: string; available: boolean; blocker: string | null }>;
+            writeIntent: { willLeaveUntouched: string[] };
+          };
+        }>;
+      };
+    }>(await app.request("/api/flows/creation/corrections", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(noteInput)
     }));
     expect(note.correction).toMatchObject({
       action: "admission_narrowing_note",
+      alreadyApplied: false,
       originalSeed: { canonStatus: "proposed" },
       correctedRecords: [],
-      correctionContext: { body: expect.stringContaining("Admission should test harbor-court jurisdiction") }
+      correctionContext: { body: expect.stringContaining("Admission should test harbor-court jurisdiction") },
+      appliedNarrowingNote: {
+        note: "Admission should test harbor-court jurisdiction before any broader court standing.",
+        rationale: "The seed can proceed only if Admission narrows jurisdiction.",
+        correctionContext: expect.objectContaining({ id: expect.any(Number), recordTypeKey: "canon_change_proposal" })
+      }
     });
     expect(note.admissionQueue).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -1385,6 +1435,196 @@ describe("Creation decision-point HTTP surface", () => {
         ])
       })
     ]));
+    expect(note.readSideTrail).toEqual(expect.arrayContaining([
+      expect.objectContaining({ label: expect.stringContaining("Original seed"), recordId: decomposed.records[3]?.id }),
+      expect.objectContaining({ label: expect.stringContaining("Correction context"), recordId: note.correction.correctionContext.id }),
+      expect.objectContaining({ label: "Admission queue", href: "/api/admission/queue" })
+    ]));
+    const noteContextDetail = await json<{
+      record: { id: number; recordTypeKey: string; body: string };
+      outgoingLinks: Array<{ linkTypeKey: string; target: { id: number; recordTypeKey: string } | null }>;
+    }>(await app.request(`/api/canon-workbench/records/${note.correction.correctionContext.id}`));
+    expect(noteContextDetail.record).toMatchObject({
+      id: note.correction.correctionContext.id,
+      recordTypeKey: "canon_change_proposal",
+      body: expect.stringContaining("Admission should test harbor-court jurisdiction")
+    });
+    expect(noteContextDetail.outgoingLinks).toEqual(expect.arrayContaining([
+      expect.objectContaining({ linkTypeKey: "derived_from", target: expect.objectContaining({ id: decomposed.records[3]?.id, recordTypeKey: "canon_fact" }) })
+    ]));
+    const noteHandoffSeed = note.handoff.parkedSeeds.find((seed) => seed.id === decomposed.records[3]?.id);
+    expect(noteHandoffSeed?.correction).toMatchObject({
+      appliedNarrowingNotes: [
+        expect.objectContaining({
+          note: "Admission should test harbor-court jurisdiction before any broader court standing.",
+          rationale: "The seed can proceed only if Admission narrows jurisdiction.",
+          correctionContext: expect.objectContaining({ id: note.correction.correctionContext.id, recordTypeKey: "canon_change_proposal" })
+        })
+      ],
+      actions: expect.arrayContaining([
+        expect.objectContaining({ key: "admission_narrowing_note", available: false, blocker: expect.stringContaining("already applied") })
+      ]),
+      writeIntent: {
+        willLeaveUntouched: expect.arrayContaining(["Creation does not admit canon or assign Admission severity"])
+      }
+    });
+    const recordsAfterFirstNote = await json<{ records: Array<{ id: number; recordTypeKey: string }> }>(await app.request("/api/records"));
+    expect(recordsAfterFirstNote.records.filter((record) =>
+      record.id === note.correction.correctionContext.id
+      && record.recordTypeKey === "canon_change_proposal"
+    )).toHaveLength(1);
+    const noteLinksAfterFirst = await json<{ links: Array<{ fromRecordId: number; toRecordId: number; linkTypeKey: string; note: string }> }>(
+      await app.request(`/api/links?recordId=${decomposed.records[3]?.id}`)
+    );
+    expect(noteLinksAfterFirst.links.filter((link) =>
+      link.fromRecordId === decomposed.records[3]?.id
+      && link.toRecordId === note.correction.correctionContext.id
+      && link.linkTypeKey === "derived_from"
+      && link.note.includes("Admission narrowing note")
+    )).toHaveLength(1);
+    const worldAfterFirstNote = WorldFile.open(path);
+    try {
+      const idempotenceRows = worldAfterFirstNote.db.prepare(`
+        SELECT seed_record_id AS seedRecordId,
+               correction_context_record_id AS correctionContextRecordId,
+               action_key AS actionKey,
+               rationale,
+               narrowing_note AS narrowingNote
+        FROM creation_narrowing_note_corrections
+        WHERE seed_record_id = ?
+      `).all(decomposed.records[3]?.id) as Array<{
+        seedRecordId: number;
+        correctionContextRecordId: number;
+        actionKey: string;
+        rationale: string;
+        narrowingNote: string;
+      }>;
+      expect(idempotenceRows).toEqual([
+        expect.objectContaining({
+          seedRecordId: decomposed.records[3]?.id,
+          correctionContextRecordId: note.correction.correctionContext.id,
+          actionKey: "admission_narrowing_note",
+          rationale: "The seed can proceed only if Admission narrows jurisdiction.",
+          narrowingNote: "Admission should test harbor-court jurisdiction before any broader court standing."
+        })
+      ]);
+      const idempotenceColumns = worldAfterFirstNote.db.prepare("PRAGMA table_info('creation_narrowing_note_corrections')").all() as Array<{ name: string }>;
+      expect(idempotenceColumns.map((column) => column.name)).not.toContain("payload_fingerprint");
+    } finally {
+      worldAfterFirstNote.close();
+    }
+
+    const retry = await json<{
+      correction: {
+        alreadyApplied: boolean;
+        correctionContext: { id: number; shortId: string; body: string };
+        originalSeed: { id: number; canonStatus: string };
+        correctedRecords: unknown[];
+        appliedNarrowingNote: { correctionContext: { id: number; shortId: string }; note: string };
+      };
+      admissionQueue: Array<{ id: number; title: string; sourceLinks: Array<{ note: string; target: { id: number } | null }> }>;
+      readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
+      handoff: { parkedSeeds: Array<{ id: number; correction: { appliedNarrowingNotes: Array<{ correctionContext: { id: number } }> } }> };
+    }>(await app.request("/api/flows/creation/corrections", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(noteInput)
+    }));
+    expect(retry.correction).toMatchObject({
+      alreadyApplied: true,
+      correctionContext: { id: note.correction.correctionContext.id, shortId: note.correction.correctionContext.shortId },
+      originalSeed: { id: decomposed.records[3]?.id, canonStatus: "proposed" },
+      correctedRecords: [],
+      appliedNarrowingNote: {
+        note: "Admission should test harbor-court jurisdiction before any broader court standing.",
+        correctionContext: { id: note.correction.correctionContext.id, shortId: note.correction.correctionContext.shortId }
+      }
+    });
+    expect(retry.admissionQueue.filter((row) => row.title === "Narrowing-note echo seed")).toHaveLength(1);
+    expect(retry.admissionQueue.find((row) => row.title === "Narrowing-note echo seed")?.sourceLinks.filter((link) =>
+      link.target?.id === note.correction.correctionContext.id && link.note.includes("Admission narrowing note")
+    )).toHaveLength(1);
+    expect(retry.handoff.parkedSeeds.find((seed) => seed.id === decomposed.records[3]?.id)?.correction.appliedNarrowingNotes).toEqual([
+      expect.objectContaining({ correctionContext: expect.objectContaining({ id: note.correction.correctionContext.id }) })
+    ]);
+    expect(retry.readSideTrail).toEqual(expect.arrayContaining([
+      expect.objectContaining({ label: expect.stringContaining("Original seed"), recordId: decomposed.records[3]?.id }),
+      expect.objectContaining({ label: expect.stringContaining("Correction context"), recordId: note.correction.correctionContext.id }),
+      expect.objectContaining({ label: "Admission queue", href: "/api/admission/queue" })
+    ]));
+    const recordsAfterRetry = await json<{ records: Array<{ id: number; recordTypeKey: string }> }>(await app.request("/api/records"));
+    expect(recordsAfterRetry.records.filter((record) =>
+      record.id === note.correction.correctionContext.id
+      && record.recordTypeKey === "canon_change_proposal"
+    )).toHaveLength(1);
+    const noteLinksAfterRetry = await json<{ links: Array<{ fromRecordId: number; toRecordId: number; linkTypeKey: string; note: string }> }>(
+      await app.request(`/api/links?recordId=${decomposed.records[3]?.id}`)
+    );
+    expect(noteLinksAfterRetry.links.filter((link) =>
+      link.fromRecordId === decomposed.records[3]?.id
+      && link.toRecordId === note.correction.correctionContext.id
+      && link.linkTypeKey === "derived_from"
+      && link.note.includes("Admission narrowing note")
+    )).toHaveLength(1);
+    const worldAfterRetry = WorldFile.open(path);
+    try {
+      const idempotenceRows = worldAfterRetry.db.prepare(`
+        SELECT seed_record_id AS seedRecordId,
+               correction_context_record_id AS correctionContextRecordId,
+               action_key AS actionKey,
+               rationale,
+               narrowing_note AS narrowingNote
+        FROM creation_narrowing_note_corrections
+        WHERE seed_record_id = ?
+      `).all(decomposed.records[3]?.id) as Array<{
+        seedRecordId: number;
+        correctionContextRecordId: number;
+        actionKey: string;
+        rationale: string;
+        narrowingNote: string;
+      }>;
+      expect(idempotenceRows).toEqual([
+        expect.objectContaining({
+          seedRecordId: decomposed.records[3]?.id,
+          correctionContextRecordId: note.correction.correctionContext.id,
+          actionKey: "admission_narrowing_note",
+          rationale: "The seed can proceed only if Admission narrows jurisdiction.",
+          narrowingNote: "Admission should test harbor-court jurisdiction before any broader court standing."
+        })
+      ]);
+    } finally {
+      worldAfterRetry.close();
+    }
+    const changedSubstanceRetry = await app.request("/api/flows/creation/corrections", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ...noteInput,
+        narrowingNote: "Admission should test guild jurisdiction before harbor-court standing."
+      })
+    });
+    expect(changedSubstanceRetry.status).toBe(400);
+    expect(await json<{
+      validationErrors: Array<{ key: string; message: string }>;
+      attemptedInput: { action: string; narrowingNote: string };
+      correctionContract: { appliedNarrowingNotes: Array<{ correctionContext: { id: number } }> };
+    }>(changedSubstanceRetry)).toMatchObject({
+      validationErrors: expect.arrayContaining([
+        expect.objectContaining({
+          key: "admission_narrowing_note_already_applied",
+          message: expect.stringContaining("future explicit new-note action")
+        })
+      ]),
+      attemptedInput: {
+        action: "admission_narrowing_note",
+        narrowingNote: "Admission should test guild jurisdiction before harbor-court standing."
+      },
+      correctionContract: {
+        appliedNarrowingNotes: [
+          expect.objectContaining({ correctionContext: expect.objectContaining({ id: note.correction.correctionContext.id }) })
+        ]
+      }
+    });
     const noteAdmission = await json<{
       decisionPoint: {
         selectedRecord: {

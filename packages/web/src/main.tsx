@@ -920,6 +920,18 @@ interface CreationDecisionPoint {
         directMutationBlocked: boolean;
         originalSeedWording: string;
         correctionContext: string;
+        appliedNarrowingNotes?: Array<{
+          note: string;
+          rationale: string;
+          correctionContext: {
+            id: number;
+            shortId: string;
+            title: string;
+            recordTypeKey: string;
+            href: string;
+          };
+          framing: string;
+        }>;
         actions: Array<{ key: string; label: string; available: boolean; blocker: string | null; preview: string }>;
         writeIntent: {
           willWrite: string[];
@@ -1328,15 +1340,36 @@ function CreationCorrectionPanel({
   const selectedAction = correction.actions.find((action) => action.key === draft.action) ?? correction.actions[0];
   const selectedActionKey = (selectedAction?.key ?? draft.action) as CreationCorrectionActionKey;
   const actionUnavailable = correction.availability !== "correctable" || !selectedAction?.available || !directCreationCorrectionActions.has(selectedActionKey);
+  const appliedNarrowingNotes = correction.appliedNarrowingNotes ?? [];
   return (
     <section className="subpanel correction-panel">
       <h4>Post-park correction</h4>
-      <p className="status">{correction.availability === "correctable" ? "Correctable before Admission begins" : correction.correctionContext}</p>
+      <p className="status">{correction.availability === "correctable" && appliedNarrowingNotes.length === 0 ? "Correctable before Admission begins" : correction.correctionContext}</p>
       <p><strong>Original seed wording</strong>: {correction.originalSeedWording || seed.body}</p>
+      {appliedNarrowingNotes.length > 0 && (
+        <div className="applied-note-list">
+          <h4>Applied Admission narrowing note</h4>
+          {appliedNarrowingNotes.map((note) => (
+            <div key={note.correctionContext.id} className="applied-note">
+              <p>{note.note}</p>
+              <p><strong>Rationale</strong>: {note.rationale}</p>
+              <p>
+                <a href={note.correctionContext.href}>{`Correction context ${note.correctionContext.shortId}`}</a>
+                {` · ${note.correctionContext.title}`}
+              </p>
+              <p className="meta">{note.framing}</p>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="grid compact-grid">
         <label>Correction action
           <select value={selectedActionKey} onChange={(event) => onDraftChange({ action: event.target.value as CreationCorrectionActionKey })}>
-            {correction.actions.map((action) => <option key={action.key} value={action.key}>{action.label}</option>)}
+            {correction.actions.map((action) => (
+              <option key={action.key} value={action.key} disabled={!action.available || !directCreationCorrectionActions.has(action.key as CreationCorrectionActionKey)}>
+                {action.label}
+              </option>
+            ))}
           </select>
         </label>
         <label>Correction rationale

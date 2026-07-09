@@ -325,6 +325,23 @@ label {
   color: #1d5a4f;
 }
 
+.applied-note-list {
+  display: grid;
+  gap: 8px;
+  border-left: 3px solid #6d7f54;
+  padding-left: 10px;
+}
+
+.applied-note {
+  display: grid;
+  gap: 4px;
+}
+
+.applied-note p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .records {
   display: grid;
   gap: 10px;

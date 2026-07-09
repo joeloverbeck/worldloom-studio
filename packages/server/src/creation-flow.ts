@@ -1,6 +1,20 @@
 import { admissionQueueWithDecisionPointLinks, parkCreationSeedForAdmission } from "./admission-flow.js";
+import {
+  creationNarrowingNoteCorrectionMatchesInput,
+  findCreationNarrowingNoteCorrection,
+  recordCreationNarrowingNoteCorrection,
+  type CreationNarrowingNoteCorrectionRow
+} from "./creation-correction-store.js";
 import * as CreationCoverage from "./creation-coverage.js";
-import { correctionContractForSeed, creationHandoffContext, sourceLinksForRecord, type CreationHandoffContext, type HandoffSourceLink } from "./creation-handoff.js";
+import {
+  ADMISSION_NARROWING_NOTE_LINK_NOTE,
+  appliedNarrowingNotesForSeed,
+  correctionContractForSeed,
+  creationHandoffContext,
+  sourceLinksForRecord,
+  type CreationHandoffContext,
+  type HandoffSourceLink
+} from "./creation-handoff.js";
 import { ADVISORY_OUTPUT_LABELS, promptMode, splitDisplayedContext, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
 import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest } from "./method-cards.js";
 import * as PromptOut from "./prompt-out.js";
@@ -450,6 +464,15 @@ const createCorrectionContext = (worldFile: WorldFile, seed: RecordRow, input: C
   if (kernelId != null) worldFile.createLinkIfMissing(context.id, kernelId, "derived_from", "Creation correction preserves kernel provenance");
   if (reportId != null) worldFile.createLinkIfMissing(context.id, reportId, "derived_from", "Creation correction preserves seed-decomposition report provenance");
   return context;
+};
+
+const existingNarrowingNoteContext = (
+  worldFile: WorldFile,
+  row: CreationNarrowingNoteCorrectionRow | null
+): RecordRow | null => {
+  if (!row) return null;
+  const context = safeRecord(worldFile, row.correctionContextRecordId);
+  return context?.recordTypeKey === "canon_change_proposal" ? context : null;
 };
 
 const createCorrectedFact = (
@@ -1037,28 +1060,53 @@ export const correctParkedSeed = (
   if (validationErrors.length) {
     throw new CreationCorrectionValidationError("Creation correction validation failed.", validationErrors, input, contract);
   }
+  const existingNarrowingNote = input.action === "admission_narrowing_note"
+    ? findCreationNarrowingNoteCorrection(worldFile, seed.id)
+    : null;
+  if (
+    existingNarrowingNote
+    && !creationNarrowingNoteCorrectionMatchesInput(existingNarrowingNote, input)
+  ) {
+    throw new CreationCorrectionValidationError(
+      "Admission narrowing note already exists for this Creation seed.",
+      [{
+        key: "admission_narrowing_note_already_applied",
+        message: "Admission narrowing note already applied; use changed substance only through a future explicit new-note action for a separate context."
+      }],
+      input,
+      correctionContractForSeed(worldFile, seed)
+    );
+  }
 
   return worldFile.atomicWrite(() => {
-    const context = createCorrectionContext(worldFile, seed, input);
+    const existingContext = existingNarrowingNoteContext(worldFile, existingNarrowingNote);
+    const context = existingContext ?? createCorrectionContext(worldFile, seed, input);
+    const alreadyApplied = existingContext != null;
     let originalSeed = seed;
     const correctedRecords: RecordRow[] = [];
 
-    if (input.action === "split") {
+    if (!alreadyApplied && input.action === "split") {
       originalSeed = markOriginalNoLongerCurrent(worldFile, seed);
       for (const sibling of input.siblings ?? []) {
         correctedRecords.push(createCorrectedFact(worldFile, requiredFact(sibling), seed, context));
       }
     }
-    if (input.action === "retract_and_rewrite") {
+    if (!alreadyApplied && input.action === "retract_and_rewrite") {
       originalSeed = markOriginalNoLongerCurrent(worldFile, seed);
       correctedRecords.push(createCorrectedFact(worldFile, requiredFact(input.replacement!), seed, context));
     }
-    if (input.action === "replace") {
+    if (!alreadyApplied && input.action === "replace") {
       originalSeed = markOriginalNoLongerCurrent(worldFile, seed);
       correctedRecords.push(createCorrectedFact(worldFile, requiredFact(input.replacement!), seed, context, true));
     }
-    if (input.action === "admission_narrowing_note") {
-      worldFile.createLinkIfMissing(seed.id, context.id, "derived_from", "Admission narrowing note from Creation correction context");
+    if (!alreadyApplied && input.action === "admission_narrowing_note") {
+      worldFile.createLinkIfMissing(seed.id, context.id, "derived_from", ADMISSION_NARROWING_NOTE_LINK_NOTE);
+      recordCreationNarrowingNoteCorrection(worldFile, {
+        seedRecordId: seed.id,
+        correctionContextRecordId: context.id,
+        rationale: input.rationale,
+        narrowingNote: input.narrowingNote
+      });
     }
 
     const correctedWithLinks = correctedRecords.map((record) => ({
@@ -1074,9 +1122,14 @@ export const correctParkedSeed = (
         records: [originalSeed, ...correctedRecords]
       }
     );
+    const appliedNarrowingNote = input.action === "admission_narrowing_note"
+      ? appliedNarrowingNotesForSeed(worldFile, seed).find((note) => note.correctionContext.id === context.id) ?? null
+      : null;
     return {
       correction: {
         action: input.action,
+        alreadyApplied,
+        appliedNarrowingNote,
         correctionContext: context,
         originalSeed,
         correctedRecords: correctedWithLinks

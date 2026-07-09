@@ -12,7 +12,7 @@ import {
 import { QA_RED_TEAM_PROMPT_TEXT, QA_TEST_CATALOG } from "./qa-catalog.js";
 
 export const APPLICATION_ID = 0x574c4f4d;
-export const CURRENT_SCHEMA_VERSION = 9;
+export const CURRENT_SCHEMA_VERSION = 10;
 
 const sqlString = (value: string): string => `'${value.replaceAll("'", "''")}'`;
 
@@ -1481,4 +1481,21 @@ BEGIN
 END;
 
 PRAGMA user_version = 9;
+`;
+
+export const migration010 = `
+CREATE TABLE IF NOT EXISTS creation_narrowing_note_corrections (
+  id INTEGER PRIMARY KEY,
+  seed_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  correction_context_record_id INTEGER NOT NULL UNIQUE REFERENCES records(id) ON DELETE CASCADE,
+  action_key TEXT NOT NULL DEFAULT 'admission_narrowing_note' CHECK (action_key = 'admission_narrowing_note'),
+  rationale TEXT NOT NULL,
+  narrowing_note TEXT NOT NULL,
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL DEFAULT 'creation:post_park_correction',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (seed_record_id, action_key)
+) STRICT;
+
+PRAGMA user_version = 10;
 `;

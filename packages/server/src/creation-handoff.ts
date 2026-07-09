@@ -1,4 +1,5 @@
 import { methodCard, methodCardDoctrineSlots } from "./method-cards.js";
+import { creationNarrowingNoteCorrectionsForSeed } from "./creation-correction-store.js";
 import type { LinkRow, RecordRow, SectionRow, WorldFile } from "./world-file.js";
 
 export interface HandoffRecordSummary {
@@ -30,11 +31,19 @@ export interface HandoffCorrectionAction {
   preview: string;
 }
 
+export interface HandoffAppliedNarrowingNote {
+  note: string;
+  rationale: string;
+  correctionContext: HandoffRecordSummary & { href: string };
+  framing: string;
+}
+
 export interface HandoffCorrectionContract {
   availability: "correctable" | "late_admission" | "not_current";
   directMutationBlocked: boolean;
   originalSeedWording: string;
   correctionContext: string;
+  appliedNarrowingNotes: HandoffAppliedNarrowingNote[];
   actions: HandoffCorrectionAction[];
   writeIntent: {
     willWrite: string[];
@@ -107,6 +116,28 @@ export const sourceLinksForRecord = (worldFile: WorldFile, recordId: number): Ha
       }];
     });
 
+export const ADMISSION_NARROWING_NOTE_LINK_NOTE = "Admission narrowing note from Creation correction context";
+
+export const appliedNarrowingNotesForSeed = (
+  worldFile: WorldFile,
+  seed: RecordRow
+): HandoffAppliedNarrowingNote[] =>
+  creationNarrowingNoteCorrectionsForSeed(worldFile, seed.id)
+    .flatMap((row) => {
+      const context = safeRecord(worldFile, row.correctionContextRecordId);
+      if (!context || context.recordTypeKey !== "canon_change_proposal") return [];
+      return [{
+        note: row.narrowingNote,
+        rationale: row.rationale,
+        correctionContext: {
+          ...toSummary(context),
+          href: `/api/canon-workbench/records/${context.id}`
+        },
+        framing: "Proposed-only Admission-facing caution; Creation did not admit canon or assign severity."
+      }];
+    })
+    .sort((left, right) => left.correctionContext.id - right.correctionContext.id);
+
 const admissionWorkStarted = (worldFile: WorldFile, seed: RecordRow): boolean => {
   if (seed.canonStatus === "under review") return true;
   if (worldFile.listFacets(seed.id).some((facet) => facet.vocabulary === "admission_level" || facet.vocabulary === "work_scale")) return true;
@@ -122,6 +153,7 @@ const admissionWorkStarted = (worldFile: WorldFile, seed: RecordRow): boolean =>
 };
 
 export const correctionContractForSeed = (worldFile: WorldFile, seed: RecordRow): HandoffCorrectionContract => {
+  const appliedNarrowingNotes = appliedNarrowingNotesForSeed(worldFile, seed);
   const late = admissionWorkStarted(worldFile, seed);
   const correctable = seed.recordTypeKey === "canon_fact" && seed.canonStatus === "proposed" && !late;
   if (late) {
@@ -130,6 +162,7 @@ export const correctionContractForSeed = (worldFile: WorldFile, seed: RecordRow)
       directMutationBlocked: true,
       originalSeedWording: seed.body,
       correctionContext: "Admission work has begun; Creation cannot directly mutate the in-flight proposed fact.",
+      appliedNarrowingNotes,
       actions: [
         {
           key: "superseding",
@@ -172,6 +205,7 @@ export const correctionContractForSeed = (worldFile: WorldFile, seed: RecordRow)
       directMutationBlocked: true,
       originalSeedWording: seed.body,
       correctionContext: "This parked seed is no longer a current proposed seed before Admission.",
+      appliedNarrowingNotes,
       actions: [
         {
           key: "read_history",
@@ -194,11 +228,15 @@ export const correctionContractForSeed = (worldFile: WorldFile, seed: RecordRow)
       }
     };
   }
+  const hasAppliedNarrowingNote = appliedNarrowingNotes.length > 0;
   return {
     availability: "correctable",
     directMutationBlocked: false,
     originalSeedWording: seed.body,
-    correctionContext: "Creation can repair this proposed seed before Admission work begins.",
+    correctionContext: hasAppliedNarrowingNote
+      ? "Creation can repair this proposed seed before Admission work begins; an Admission narrowing note is already applied."
+      : "Creation can repair this proposed seed before Admission work begins.",
+    appliedNarrowingNotes,
     actions: [
       {
         key: "split",
@@ -224,9 +262,13 @@ export const correctionContractForSeed = (worldFile: WorldFile, seed: RecordRow)
       {
         key: "admission_narrowing_note",
         label: "Carry Admission narrowing note",
-        available: true,
-        blocker: null,
-        preview: "Record steward-authored caution for Admission intake without changing canon standing."
+        available: !hasAppliedNarrowingNote,
+        blocker: hasAppliedNarrowingNote
+          ? "Admission narrowing note already applied; use changed substance or a future explicit new-note action for a separate context."
+          : null,
+        preview: hasAppliedNarrowingNote
+          ? "Existing Admission-facing caution is already linked for Admission."
+          : "Record steward-authored caution for Admission intake without changing canon standing."
       }
     ],
     writeIntent: {

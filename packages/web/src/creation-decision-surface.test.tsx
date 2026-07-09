@@ -498,12 +498,26 @@ describe("Creation decision-point web surface", () => {
               availability: "correctable",
               directMutationBlocked: false,
               originalSeedWording: "Courts accept echo testimony under conditions.",
-              correctionContext: "Creation can repair this proposed seed before Admission work begins.",
+              correctionContext: "Creation can repair this proposed seed before Admission work begins; an Admission narrowing note is already applied.",
+              appliedNarrowingNotes: [
+                {
+                  note: "Admission should test harbor-court jurisdiction before broader court standing.",
+                  rationale: "The seed can proceed only if Admission narrows jurisdiction.",
+                  correctionContext: {
+                    id: 9,
+                    shortId: "CCP-1",
+                    title: "Creation correction: FAC-1",
+                    recordTypeKey: "canon_change_proposal",
+                    href: "/api/canon-workbench/records/9"
+                  },
+                  framing: "Proposed-only Admission-facing caution; Creation did not admit canon or assign severity."
+                }
+              ],
               actions: [
                 { key: "split", label: "Split into sibling proposed facts", available: true, blocker: null, preview: "Write sibling proposed facts." },
                 { key: "retract_and_rewrite", label: "Retract and rewrite", available: true, blocker: null, preview: "Preserve the original wording and write replacement wording." },
                 { key: "replace", label: "Replace with corrected proposed fact", available: true, blocker: null, preview: "Route a corrected proposed fact." },
-                { key: "admission_narrowing_note", label: "Carry Admission narrowing note", available: true, blocker: null, preview: "Carry caution into Admission without admitting canon." }
+                { key: "admission_narrowing_note", label: "Carry Admission narrowing note", available: false, blocker: "Admission narrowing note already applied; use changed substance or a future explicit new-note action for a separate context.", preview: "Existing caution is already linked for Admission." }
               ],
               writeIntent: {
                 willWrite: ["correction context report", "corrected canon_fact records at proposed"],
@@ -597,6 +611,12 @@ describe("Creation decision-point web surface", () => {
     expect(html).toContain("Retract and rewrite");
     expect(html).toContain("Replace with corrected proposed fact");
     expect(html).toContain("Carry Admission narrowing note");
+    expect(html).toContain("Applied Admission narrowing note");
+    expect(html).toContain("Admission should test harbor-court jurisdiction before broader court standing.");
+    expect(html).toContain("The seed can proceed only if Admission narrows jurisdiction.");
+    expect(html).toContain("Correction context CCP-1");
+    expect(html).toContain("Proposed-only Admission-facing caution; Creation did not admit canon or assign severity.");
+    expect(html).toContain("Admission narrowing note already applied");
     expect(html).toContain("Correction rationale");
     expect(html).toContain("Replacement title");
     expect(html).toContain("Sibling title");
