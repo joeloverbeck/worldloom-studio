@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
 import * as PromptOut from "../src/prompt-out.js";
+import * as CreationFlow from "../src/creation-flow.js";
 import { WorldFile } from "../src/world-file.js";
 
 let tempDirs: string[] = [];
@@ -265,6 +266,79 @@ describe("Prompt-out module", () => {
       admissionDraftHash: expect.stringMatching(/^[a-f0-9]{64}$/),
       bodyHash: expect.stringMatching(/^[a-f0-9]{64}$/)
     });
+
+    store.close();
+  });
+
+  it("threads Creation seed-family coverage inventory into decomposition Proposal and Pressure packets", () => {
+    const store = WorldFile.create(tempPath("creation-coverage-prompt.sqlite"));
+    const flow = CreationFlow.startCreationFlow(store) as { id: number };
+    const saved = CreationFlow.saveKernelStep(store, {
+      flowId: flow.id,
+      heading: "Foundational facts",
+      body: "Temporal access, anti-aging chemistry, and spinal implant boundaries.",
+      consequenceMode: "hard speculative"
+    }) as { kernel: { id: number } };
+    const decomposed = CreationFlow.decomposeSeeds(store, {
+      flowId: flow.id,
+      kernelRecordId: saved.kernel.id,
+      granularityRationale: "Temporal access is independently rejectable.",
+      seeds: [{ title: "Temporal access tool", body: "A device opens one-way temporal access windows.", truthLayer: "Objective canon", granularityConfirmed: true }]
+    }) as { report: { id: number }; records: Array<{ id: number }> };
+    const confirmed = CreationFlow.confirmCoverageRows(store, {
+      kernelRecordId: saved.kernel.id,
+      seedDecompositionReportId: decomposed.report.id,
+      rows: [
+        { label: "Temporal access", sourceKernelContext: "The temporal-access seed family.", required: true },
+        { label: "Anti-aging chemistry", sourceKernelContext: "Chemistry remains implicit in the kernel.", required: true },
+        { label: "Spinal implant boundaries", sourceKernelContext: "Implant limits remain intentionally out of scope.", required: true }
+      ]
+    });
+    CreationFlow.linkCoverageRowToSeeds(store, { rowId: confirmed.rows[0]!.id, seedRecordIds: [decomposed.records[0]!.id], seedDecompositionReportId: decomposed.report.id });
+    CreationFlow.deferCoverageRow(store, { rowId: confirmed.rows[1]!.id, rationale: "Chemistry is seed debt for the next Creation pass." });
+    CreationFlow.markCoverageRowOutOfScope(store, { rowId: confirmed.rows[2]!.id, rationale: "Implant boundaries are excluded from this pass." });
+    const recordsBeforePrompt = store.listRecords();
+    const linksBeforePrompt = store.listLinks();
+    const coverageRowsBeforePrompt = store.db.prepare("SELECT * FROM creation_seed_family_coverage ORDER BY id").all();
+    const coverageLinksBeforePrompt = store.db.prepare("SELECT * FROM creation_seed_family_coverage_links ORDER BY id").all();
+
+    const proposal = PromptOut.generatePrompt(store, {
+      flowKey: "creation",
+      templateKey: "decomposition_pressure",
+      recordId: decomposed.report.id,
+      stepKey: "creation:decomposition_prompt",
+      mode: "proposal"
+    }).prompt;
+    const pressure = PromptOut.generatePrompt(store, {
+      flowKey: "creation",
+      templateKey: "decomposition_pressure",
+      recordId: decomposed.report.id,
+      stepKey: "creation:decomposition_prompt",
+      mode: "pressure"
+    }).prompt;
+
+    for (const prompt of [proposal, pressure]) {
+      expect(prompt).toContain("Creation seed-family coverage inventory");
+      expect(prompt).toContain("Coverage row: Temporal access");
+      expect(prompt).toContain("Disposition: covered");
+      expect(prompt).toContain("Linked proposed seed");
+      expect(prompt).toContain("Coverage row: Anti-aging chemistry");
+      expect(prompt).toContain("Disposition: deferred");
+      expect(prompt).toContain("Chemistry is seed debt");
+      expect(prompt).toContain("Coverage row: Spinal implant boundaries");
+      expect(prompt).toContain("Disposition: out_of_scope");
+      expect(prompt).toContain("Implant boundaries are excluded");
+      expect(prompt).toContain("Source record: Creation coverage inventory");
+      expect(prompt).toContain("Canon status: proposed");
+      expect(prompt).toContain("no automatic coverage disposition");
+      expect(prompt).toContain("no automatic seed creation");
+    }
+    expect(proposal).toContain("Draft labeled candidate split material");
+    expect(pressure).toContain("Provide pressure, risks, alternatives, and questions");
+    expect(store.listRecords()).toEqual(recordsBeforePrompt);
+    expect(store.listLinks()).toEqual(linksBeforePrompt);
+    expect(store.db.prepare("SELECT * FROM creation_seed_family_coverage ORDER BY id").all()).toEqual(coverageRowsBeforePrompt);
+    expect(store.db.prepare("SELECT * FROM creation_seed_family_coverage_links ORDER BY id").all()).toEqual(coverageLinksBeforePrompt);
 
     store.close();
   });

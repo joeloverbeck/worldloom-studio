@@ -864,6 +864,7 @@ interface CreationDecisionPoint {
     message: string;
     remediation: string;
   }>;
+  coverageInventory: CreationCoverageInventory;
   promptOut: {
     available: boolean;
     blocker: string | null;
@@ -972,6 +973,72 @@ interface CreationDecisionPoint {
   };
 }
 
+interface CreationCoverageInventory {
+  kernel: {
+    id: number;
+    shortId: string;
+    title: string;
+    recordTypeKey: string;
+    body: string;
+    truthLayer: string | null;
+    canonStatus: string | null;
+  } | null;
+  state: {
+    status: "missing_inventory" | "blocked" | "resolved" | string;
+    completionBlocked: boolean;
+    summary: string;
+    blockers: Array<{ key: string; label: string; message: string; requires: string }>;
+  };
+  createOrConfirmPath: {
+    method: "POST";
+    href: "/api/flows/creation/coverage";
+    body: { kernelRecordId: number };
+  } | null;
+  rows: Array<{
+    id: number;
+    kernelRecordId: number;
+    label: string;
+    sourceKernelContext: string;
+    required: boolean;
+    disposition: "unresolved" | "covered" | "deferred" | "out_of_scope" | string;
+    dispositionRationale: string | null;
+    outOfScopeRationale: string | null;
+    seedDecompositionReport: {
+      id: number;
+      shortId: string;
+      title: string;
+      recordTypeKey: string;
+      body: string;
+      truthLayer: string | null;
+      canonStatus: string | null;
+    } | null;
+    linkedSeeds: Array<{
+      id: number;
+      shortId: string;
+      title: string;
+      recordTypeKey: string;
+      body: string;
+      truthLayer: string | null;
+      canonStatus: string | null;
+      note: string;
+    }>;
+    debtRecord: {
+      id: number;
+      shortId: string;
+      title: string;
+      recordTypeKey: string;
+      body: string;
+      truthLayer: string | null;
+      canonStatus: string | null;
+    } | null;
+    actions: {
+      link: { method: "POST"; href: "/api/flows/creation/coverage/link" };
+      defer: { method: "POST"; href: "/api/flows/creation/coverage/defer" };
+      outOfScope: { method: "POST"; href: "/api/flows/creation/coverage/out-of-scope" };
+    };
+  }>;
+}
+
 interface CreationPromptOutStepRequest {
   method: "POST";
   href: string;
@@ -1011,6 +1078,18 @@ interface CreationCorrectionDraft {
   replacementTruthLayer: string;
   narrowingNote: string;
 }
+
+interface CreationCoverageDraft {
+  seedRecordIds: string;
+  rationale: string;
+  error: string | null;
+}
+
+const emptyCreationCoverageDraft: CreationCoverageDraft = {
+  seedRecordIds: "",
+  rationale: "",
+  error: null
+};
 
 interface CreationCorrectionResponse {
   correction: unknown;
@@ -1623,6 +1702,18 @@ const defaultCreationSection = (
 
 const kernelSectionDraftKeyFor = (recordId: number | null, heading: string) => `${recordId ?? "pending-kernel"}::${heading}`;
 
+const defaultCreationCoverageInventory: CreationCoverageInventory = {
+  kernel: null,
+  state: {
+    status: "missing_inventory",
+    completionBlocked: true,
+    summary: "Creation seed-family coverage inventory loads after seed decomposition.",
+    blockers: []
+  },
+  createOrConfirmPath: null,
+  rows: []
+};
+
 const defaultCreationDecision: CreationDecisionPoint = {
   flow: {
     key: "creation",
@@ -1705,6 +1796,7 @@ const defaultCreationDecision: CreationDecisionPoint = {
       remediation: "Add granularity rationale or check the confirmation after applying the Phase 2 granularity rule."
     }
   ],
+  coverageInventory: defaultCreationCoverageInventory,
   promptOut: {
     available: false,
     blocker: "Creation Prompt-out requires steward-authored kernel material and a current kernel record.",
@@ -1971,6 +2063,7 @@ function App({
   const [decompositionError, setDecompositionError] = useState<string | null>(null);
   const [correctionDrafts, setCorrectionDrafts] = useState<Record<number, CreationCorrectionDraft>>({});
   const [correctionError, setCorrectionError] = useState<Record<number, string[]>>({});
+  const [coverageDrafts, setCoverageDrafts] = useState<Record<number, CreationCoverageDraft>>({});
   const [minimalViableWorld, setMinimalViableWorld] = useState<MinimalViableWorldState | null>(initialMinimalViableWorld);
   const [canonDebt, setCanonDebt] = useState<RecordRow[]>([]);
   const [propagationQueue, setPropagationQueue] = useState<PropagationQueueRow[]>(initialPropagationQueue);
@@ -2321,6 +2414,8 @@ function App({
   const displayedCreationDecision = creationDecision ?? defaultCreationDecision;
   const creationDecisionHandoff = creationDecision ? creationDecision.handoff : displayedCreationDecision.handoff;
   const creationHandoffReady = displayedCreationDecision.handoff.parkedSeeds.length > 0;
+  const displayedCreationCoverage = displayedCreationDecision.coverageInventory ?? defaultCreationCoverageInventory;
+  const creationCoverageBlocked = displayedCreationCoverage.state.completionBlocked;
   const creationPromptModes = displayedCreationDecision.promptOut.modes ?? [];
   const selectedSectionContract = displayedCreationDecision.sectionPrompts.find((section) => section.heading === kernelHeading)
     ?? displayedCreationDecision.selectedSection
@@ -3046,6 +3141,7 @@ function App({
     seedTruthLayer,
     granularityRationale,
     admissionIntent,
+    Object.values(coverageDrafts).map((draft) => `${draft.seedRecordIds}\n${draft.rationale}\n${draft.error ?? ""}`).join("\n"),
     minimalDispositionSubstance,
     minimalEvidenceRecordIds,
     minimalProtectedRecordId,
@@ -3126,6 +3222,7 @@ function App({
     setAdmissionDecision(null);
     setCreationDecision(null);
     setDecompositionError(null);
+    setCoverageDrafts({});
     setMinimalViableWorld(null);
     setCanonDebt([]);
     setPropagationQueue([]);
@@ -3920,6 +4017,85 @@ function App({
         return;
       }
       throw error;
+    }
+  };
+
+  const coverageDraftFor = (rowId: number): CreationCoverageDraft =>
+    coverageDrafts[rowId] ?? emptyCreationCoverageDraft;
+
+  const updateCoverageDraft = (rowId: number, patch: Partial<CreationCoverageDraft>) => {
+    setCoverageDrafts((current) => ({
+      ...current,
+      [rowId]: {
+        ...emptyCreationCoverageDraft,
+        ...current[rowId],
+        ...patch
+      }
+    }));
+  };
+
+  const setCoverageDraftError = (rowId: number, error: unknown) => {
+    const message = error instanceof ApiError
+      ? ((error.payload as { validationErrors?: Array<{ key: string; message: string }>; error?: string }).validationErrors ?? [])
+        .map((entry) => `${entry.key}: ${entry.message}`)
+        .join("; ") || (error.payload as { error?: string }).error || error.message
+      : error instanceof Error ? error.message : String(error);
+    updateCoverageDraft(rowId, { error: message });
+    setMessage(message);
+  };
+
+  const applyCoverageMutation = async (coverage: CreationCoverageInventory, rowId: number) => {
+    setCreationDecision((current) => current ? { ...current, coverageInventory: coverage } : current);
+    updateCoverageDraft(rowId, { error: null });
+    await startFlow();
+    await loadWorldData();
+  };
+
+  const submitCoverageLink = async (row: CreationCoverageInventory["rows"][number]) => {
+    const draft = coverageDraftFor(row.id);
+    const seedRecordIds = parseTextList(draft.seedRecordIds)
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value));
+    try {
+      const payload = await api<{ coverage: CreationCoverageInventory }>(row.actions.link.href, {
+        method: row.actions.link.method,
+        body: JSON.stringify({
+          rowId: row.id,
+          seedRecordIds,
+          seedDecompositionReportId: row.seedDecompositionReport?.id ?? creationDecisionHandoff.seedDecompositionReport?.id ?? undefined,
+          expectedDisposition: row.disposition,
+          rationale: draft.rationale || undefined
+        })
+      });
+      await applyCoverageMutation(payload.coverage, row.id);
+    } catch (error) {
+      setCoverageDraftError(row.id, error);
+    }
+  };
+
+  const submitCoverageDefer = async (row: CreationCoverageInventory["rows"][number]) => {
+    const draft = coverageDraftFor(row.id);
+    try {
+      const payload = await api<{ coverage: CreationCoverageInventory }>(row.actions.defer.href, {
+        method: row.actions.defer.method,
+        body: JSON.stringify({ rowId: row.id, rationale: draft.rationale, expectedDisposition: row.disposition })
+      });
+      await applyCoverageMutation(payload.coverage, row.id);
+    } catch (error) {
+      setCoverageDraftError(row.id, error);
+    }
+  };
+
+  const submitCoverageOutOfScope = async (row: CreationCoverageInventory["rows"][number]) => {
+    const draft = coverageDraftFor(row.id);
+    try {
+      const payload = await api<{ coverage: CreationCoverageInventory }>(row.actions.outOfScope.href, {
+        method: row.actions.outOfScope.method,
+        body: JSON.stringify({ rowId: row.id, rationale: draft.rationale, expectedDisposition: row.disposition })
+      });
+      await applyCoverageMutation(payload.coverage, row.id);
+    } catch (error) {
+      setCoverageDraftError(row.id, error);
     }
   };
 
@@ -6039,6 +6215,62 @@ function App({
         </div>
       </section>
     );
+    const creationCoveragePanel = (
+      <section className="subpanel seed-family-coverage">
+        <h3>Seed-family coverage</h3>
+        <p>Account for kernel seed families before Admission handoff.</p>
+        <p className="status">{displayedCreationCoverage.state.summary}</p>
+        {displayedCreationCoverage.createOrConfirmPath && (
+          <p className="meta">{`${displayedCreationCoverage.createOrConfirmPath.method} ${displayedCreationCoverage.createOrConfirmPath.href} · kernel ${displayedCreationCoverage.createOrConfirmPath.body.kernelRecordId}`}</p>
+        )}
+        {creationCoverageBlocked && (
+          <p>Admission queue remains visible but secondary until required Creation seed-family coverage is resolved.</p>
+        )}
+        <p>Creation does not admit canon or assign Admission severity; it only records coverage dispositions, seed links, and governed seed debt.</p>
+        {displayedCreationCoverage.state.blockers.map((blocker) => (
+          <p key={blocker.key} className="status error">{`${blocker.label}: ${blocker.message} · ${blocker.requires}`}</p>
+        ))}
+        {displayedCreationCoverage.rows.length === 0 ? (
+          <p className="status">No seed-family coverage rows have been confirmed yet.</p>
+        ) : (
+          <div className="grid compact-grid">
+            {displayedCreationCoverage.rows.map((row) => {
+              const draft = coverageDraftFor(row.id);
+              return (
+                <article key={row.id} className="subpanel">
+                  <h4>{row.label}</h4>
+                  <p className="meta">{`${row.required ? "Required" : "Optional"} · Disposition: ${row.disposition}`}</p>
+                  <p>{row.sourceKernelContext || "No kernel context returned for this row."}</p>
+                  {row.dispositionRationale && <p>{`Disposition rationale: ${row.dispositionRationale}`}</p>}
+                  {row.outOfScopeRationale && <p>{`Out-of-scope rationale: ${row.outOfScopeRationale}`}</p>}
+                  {row.seedDecompositionReport && <p>{`Seed decomposition report: ${row.seedDecompositionReport.shortId} ${row.seedDecompositionReport.title}`}</p>}
+                  {row.debtRecord && <p>{`Seed debt: ${row.debtRecord.shortId} ${row.debtRecord.title} · ${row.debtRecord.body}`}</p>}
+                  {row.linkedSeeds.length ? row.linkedSeeds.map((seed) => (
+                    <p key={seed.id}>{`Linked proposed seed ${seed.shortId}: ${seed.title} · Canon status: ${seed.canonStatus ?? "unset"}`}</p>
+                  )) : <p className="meta">No parked proposed seeds are linked to this row yet.</p>}
+                  <label>Link parked proposed seeds<input
+                    value={draft.seedRecordIds}
+                    onChange={(event) => updateCoverageDraft(row.id, { seedRecordIds: event.target.value, error: null })}
+                    placeholder="record ids separated by commas or lines"
+                  /></label>
+                  <label>Disposition rationale<textarea
+                    rows={2}
+                    value={draft.rationale}
+                    onChange={(event) => updateCoverageDraft(row.id, { rationale: event.target.value, error: null })}
+                  /></label>
+                  {draft.error && <p className="status error">{draft.error}</p>}
+                  <div className="row">
+                    <button onClick={() => void submitCoverageLink(row)} disabled={!openWorld || !draft.seedRecordIds.trim()}>Link parked proposed seeds</button>
+                    <button onClick={() => void submitCoverageDefer(row)} disabled={!openWorld || !draft.rationale.trim()}>Defer as seed debt</button>
+                    <button onClick={() => void submitCoverageOutOfScope(row)} disabled={!openWorld || !draft.rationale.trim()}>Mark out of scope</button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    );
     const shellSurfaces = {
       creation: (
         <section className="panel creation-decision">
@@ -6099,6 +6331,7 @@ function App({
               ))}
             </div>
           </section>
+          {creationCoveragePanel}
           {minimalViableWorldIsOwed && minimalViableWorldFullPanel}
           <section className="subpanel">
             <h3>Kernel authoring</h3>

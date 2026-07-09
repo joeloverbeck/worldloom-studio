@@ -12,7 +12,7 @@ import {
 import { QA_RED_TEAM_PROMPT_TEXT, QA_TEST_CATALOG } from "./qa-catalog.js";
 
 export const APPLICATION_ID = 0x574c4f4d;
-export const CURRENT_SCHEMA_VERSION = 8;
+export const CURRENT_SCHEMA_VERSION = 9;
 
 const sqlString = (value: string): string => `'${value.replaceAll("'", "''")}'`;
 
@@ -1439,4 +1439,46 @@ INSERT OR IGNORE INTO vocabulary_terms (vocabulary, term, package_source, extens
 VALUES ('advisory_disposition', 'adopted with steward revision', 'docs/worldbuilding-system/20_ai_assisted_workflow.md', 0, 0);
 
 PRAGMA user_version = 8;
+`;
+
+export const migration009 = `
+CREATE TABLE IF NOT EXISTS creation_seed_family_coverage (
+  id INTEGER PRIMARY KEY,
+  kernel_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  seed_decomposition_report_id INTEGER REFERENCES records(id) ON DELETE SET NULL,
+  label TEXT NOT NULL,
+  source_kernel_context TEXT NOT NULL DEFAULT '',
+  required INTEGER NOT NULL DEFAULT 1 CHECK (required IN (0, 1)),
+  disposition TEXT NOT NULL DEFAULT 'unresolved' CHECK (disposition IN ('unresolved', 'covered', 'deferred', 'out_of_scope')),
+  disposition_rationale TEXT NOT NULL DEFAULT '',
+  debt_record_id INTEGER REFERENCES records(id) ON DELETE SET NULL,
+  out_of_scope_rationale TEXT NOT NULL DEFAULT '',
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL DEFAULT 'decomposition:coverage',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (kernel_record_id, label),
+  CHECK (disposition != 'deferred' OR (length(trim(disposition_rationale)) > 0 AND debt_record_id IS NOT NULL)),
+  CHECK (disposition != 'out_of_scope' OR length(trim(out_of_scope_rationale)) > 0)
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS creation_seed_family_coverage_links (
+  id INTEGER PRIMARY KEY,
+  coverage_row_id INTEGER NOT NULL REFERENCES creation_seed_family_coverage(id) ON DELETE CASCADE,
+  seed_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  seed_decomposition_report_id INTEGER REFERENCES records(id) ON DELETE SET NULL,
+  note TEXT NOT NULL DEFAULT '',
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (coverage_row_id, seed_record_id)
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS creation_seed_family_coverage_touch_updated_at
+AFTER UPDATE ON creation_seed_family_coverage
+WHEN old.updated_at = new.updated_at
+BEGIN
+  UPDATE creation_seed_family_coverage SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = new.id;
+END;
+
+PRAGMA user_version = 9;
 `;

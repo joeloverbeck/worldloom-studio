@@ -782,7 +782,7 @@ describe("Creation decision-point HTTP surface", () => {
     expect(decomposedPayload).toMatchObject({
       records: [{ canonStatus: "proposed", truthLayer: "Objective canon" }],
       decisionPoint: {
-        currentStep: "decomposition:complete",
+        currentStep: "decomposition:coverage",
         handoff: {
           seedDecompositionReport: { id: decomposedPayload.report.id, shortId: decomposedPayload.report.shortId },
           parkedSeeds: [expect.objectContaining({
@@ -893,11 +893,11 @@ describe("Creation decision-point HTTP surface", () => {
     }>(await app.request("/api/flows/creation/start", { method: "POST" }));
     expect(resumedComplete.flow).toMatchObject({
       id: start.flow.id,
-      state: "complete",
-      current_step: "decomposition:complete"
+      state: "in_progress",
+      current_step: "decomposition:coverage"
     });
     expect(resumedComplete.decisionPoint).toMatchObject({
-      currentStep: "decomposition:complete",
+      currentStep: "decomposition:coverage",
       handoff: {
         parkedSeeds: [expect.objectContaining({
           id: decomposedPayload.records[0]?.id,
@@ -905,6 +905,156 @@ describe("Creation decision-point HTTP surface", () => {
         })]
       }
     });
+  });
+
+  it("exposes Creation seed-family coverage rows, dispositions, readback, and non-mutating reads", async () => {
+    const app = await openWorld();
+    const start = await json<{ flow: { id: number } }>(await app.request("/api/flows/creation/start", { method: "POST" }));
+    const saved = await json<{ kernel: { id: number } }>(await app.request("/api/flows/creation/kernel-step", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        flowId: start.flow.id,
+        heading: "Foundational facts",
+        body: "Temporal access, anti-aging chemistry, spinal implant boundaries, and ordinary-life pressure.",
+        consequenceMode: "hard speculative"
+      })
+    }));
+    const decomposed = await json<{
+      report: { id: number };
+      records: Array<{ id: number; canonStatus: string }>;
+    }>(await app.request("/api/flows/creation/decompose", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        flowId: start.flow.id,
+        kernelRecordId: saved.kernel.id,
+        granularityRationale: "Temporal access can be rejected independently from chemistry and spinal implant boundaries.",
+        seeds: [{ title: "Temporal access tool", body: "A device opens one-way temporal access windows.", truthLayer: "Objective canon", granularityConfirmed: true }]
+      })
+    }));
+
+    const emptyInventory = await json<{
+      coverage: {
+        state: { status: string; completionBlocked: boolean; blockers: Array<{ key: string; message: string }> };
+        createOrConfirmPath: { method: string; href: string; body: { kernelRecordId: number } };
+        rows: unknown[];
+      };
+    }>(await app.request("/api/flows/creation/coverage"));
+    expect(emptyInventory.coverage).toMatchObject({
+      state: {
+        status: "missing_inventory",
+        completionBlocked: true,
+        blockers: [expect.objectContaining({ key: "coverage_inventory", message: expect.stringContaining("create or confirm") })]
+      },
+      createOrConfirmPath: {
+        method: "POST",
+        href: "/api/flows/creation/coverage",
+        body: { kernelRecordId: saved.kernel.id }
+      },
+      rows: []
+    });
+
+    const confirmed = await json<{
+      coverage: {
+        state: { status: string; completionBlocked: boolean };
+        rows: Array<{ id: number; label: string; disposition: string; required: boolean; sourceKernelContext: string; linkedSeeds: unknown[]; debtRecord: unknown | null; outOfScopeRationale: string | null }>;
+      };
+    }>(await app.request("/api/flows/creation/coverage", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kernelRecordId: saved.kernel.id,
+        seedDecompositionReportId: decomposed.report.id,
+        rows: [
+          { label: "Temporal access", sourceKernelContext: "The temporal-access seed family from the kernel.", required: true },
+          { label: "Anti-aging chemistry", sourceKernelContext: "The chemistry and subjective-age seed family.", required: true },
+          { label: "Spinal implant boundaries", sourceKernelContext: "Future implant and invulnerability limits.", required: true }
+        ]
+      })
+    }));
+    expect(confirmed.coverage.state).toMatchObject({ status: "blocked", completionBlocked: true });
+    expect(confirmed.coverage.rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ label: "Temporal access", disposition: "unresolved", required: true, sourceKernelContext: expect.stringContaining("temporal-access") })
+    ]));
+
+    const missingRationale = await app.request("/api/flows/creation/coverage/defer", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ rowId: confirmed.coverage.rows[1]?.id, rationale: "" })
+    });
+    expect(missingRationale.status).toBe(400);
+    expect(await json<{ validationErrors: Array<{ key: string; message: string }> }>(missingRationale)).toMatchObject({
+      validationErrors: expect.arrayContaining([expect.objectContaining({ key: "rationale" })])
+    });
+
+    const invalidSeed = await app.request("/api/flows/creation/coverage/link", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ rowId: confirmed.coverage.rows[0]?.id, seedRecordIds: [saved.kernel.id] })
+    });
+    expect(invalidSeed.status).toBe(400);
+    expect(await json<{ validationErrors: Array<{ key: string; message: string }> }>(invalidSeed)).toMatchObject({
+      validationErrors: expect.arrayContaining([expect.objectContaining({ key: "seedRecordIds" })])
+    });
+
+    const covered = await json<{ coverage: { rows: Array<{ id: number; label: string; disposition: string; linkedSeeds: Array<{ id: number; canonStatus: string }>; seedDecompositionReport: { id: number } | null }> } }>(await app.request("/api/flows/creation/coverage/link", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ rowId: confirmed.coverage.rows[0]?.id, seedRecordIds: [decomposed.records[0]?.id], seedDecompositionReportId: decomposed.report.id, expectedDisposition: "unresolved" })
+    }));
+    expect(covered.coverage.rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        label: "Temporal access",
+        disposition: "covered",
+        linkedSeeds: [expect.objectContaining({ id: decomposed.records[0]?.id, canonStatus: "proposed" })],
+        seedDecompositionReport: expect.objectContaining({ id: decomposed.report.id })
+      })
+    ]));
+
+    const stale = await app.request("/api/flows/creation/coverage/link", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ rowId: confirmed.coverage.rows[0]?.id, seedRecordIds: [decomposed.records[0]?.id], expectedDisposition: "unresolved" })
+    });
+    expect(stale.status).toBe(400);
+    expect(await json<{ validationErrors: Array<{ key: string; message: string }> }>(stale)).toMatchObject({
+      validationErrors: expect.arrayContaining([expect.objectContaining({ key: "stale_row_identity" })])
+    });
+
+    const deferred = await json<{ coverage: { rows: Array<{ label: string; disposition: string; debtRecord: { title: string; body: string } | null }> } }>(await app.request("/api/flows/creation/coverage/defer", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ rowId: confirmed.coverage.rows[1]?.id, rationale: "Chemistry remains seed debt until the first Admission pass." })
+    }));
+    expect(deferred.coverage.rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        label: "Anti-aging chemistry",
+        disposition: "deferred",
+        debtRecord: expect.objectContaining({ body: expect.stringContaining("Chemistry remains seed debt") })
+      })
+    ]));
+
+    const scopedOut = await json<{ coverage: { state: { status: string; completionBlocked: boolean }; rows: Array<{ label: string; disposition: string; outOfScopeRationale: string | null }> } }>(await app.request("/api/flows/creation/coverage/out-of-scope", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ rowId: confirmed.coverage.rows[2]?.id, rationale: "Implant boundaries are out of scope for this Creation pass." })
+    }));
+    expect(scopedOut.coverage.state).toMatchObject({ status: "resolved", completionBlocked: false });
+    expect(scopedOut.coverage.rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        label: "Spinal implant boundaries",
+        disposition: "out_of_scope",
+        outOfScopeRationale: "Implant boundaries are out of scope for this Creation pass."
+      })
+    ]));
+
+    const recordsBeforeRead = await json<{ records: unknown[] }>(await app.request("/api/records"));
+    const linksBeforeRead = await json<unknown[]>(await app.request("/api/links"));
+    await app.request("/api/flows/creation/coverage");
+    await app.request("/api/flows/creation/coverage");
+    expect(await json(await app.request("/api/records"))).toEqual(recordsBeforeRead);
+    expect(await json(await app.request("/api/links"))).toEqual(linksBeforeRead);
   });
 
   it("exposes and applies governed post-park correction actions before Admission begins", async () => {

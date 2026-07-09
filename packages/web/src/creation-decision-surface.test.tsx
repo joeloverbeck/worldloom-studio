@@ -627,6 +627,104 @@ describe("Creation decision-point web surface", () => {
     expect(source).toContain("setAdmissionQueue(payload.admissionQueue");
   });
 
+  it("renders Creation seed-family coverage controls and unresolved Admission-secondary guidance", () => {
+    const coverageDecision = {
+      ...kernelCompleteNoSeedDecision,
+      currentStep: "decomposition:coverage",
+      localDecision: "Account for kernel seed families before Admission handoff.",
+      blockers: [
+        { key: "coverage:2", label: "Unresolved coverage", message: "Anti-aging chemistry still needs disposition before Admission handoff.", requires: "covered, deferred, or out of scope with rationale" }
+      ],
+      writeIntent: {
+        willWrite: ["coverage row dispositions", "canon_debt records for deferred seed families"],
+        willLink: ["coverage rows to parked proposed seeds"],
+        willQueue: ["Admission queue remains visible but secondary"],
+        willRouteOnward: ["Admission after coverage is resolved"],
+        willLeaveUntouched: ["Creation does not admit canon or assign Admission severity"]
+      },
+      nextOrResumeState: {
+        currentStep: "decomposition:coverage",
+        nextStep: "resolve seed-family coverage before Admission handoff",
+        safeExit: "Return to the workflow map; coverage rows remain visible from Creation."
+      },
+      coverageInventory: {
+        state: {
+          status: "blocked",
+          completionBlocked: true,
+          blockers: [{ key: "coverage:2", label: "Anti-aging chemistry", message: "Coverage row is unresolved.", requires: "disposition" }]
+        },
+        createOrConfirmPath: { method: "POST", href: "/api/flows/creation/coverage", body: { kernelRecordId: 1 } },
+        rows: [
+          {
+            id: 1,
+            label: "Temporal access",
+            sourceKernelContext: "Temporal-access seed family.",
+            required: true,
+            disposition: "covered",
+            linkedSeeds: [{ id: 4, shortId: "FAC-1", title: "Temporal access tool", canonStatus: "proposed" }],
+            dispositionRationale: null,
+            debtRecord: null,
+            outOfScopeRationale: null,
+            actions: {
+              link: { method: "POST", href: "/api/flows/creation/coverage/link" },
+              defer: { method: "POST", href: "/api/flows/creation/coverage/defer" },
+              outOfScope: { method: "POST", href: "/api/flows/creation/coverage/out-of-scope" }
+            }
+          },
+          {
+            id: 2,
+            label: "Anti-aging chemistry",
+            sourceKernelContext: "Chemistry and subjective-age material remains implicit.",
+            required: true,
+            disposition: "unresolved",
+            linkedSeeds: [],
+            dispositionRationale: null,
+            debtRecord: null,
+            outOfScopeRationale: null,
+            actions: {
+              link: { method: "POST", href: "/api/flows/creation/coverage/link" },
+              defer: { method: "POST", href: "/api/flows/creation/coverage/defer" },
+              outOfScope: { method: "POST", href: "/api/flows/creation/coverage/out-of-scope" }
+            }
+          }
+        ]
+      }
+    };
+    const workflowMapWithSecondaryAdmission = {
+      ...workflowMap,
+      queues: [{ key: "admission", label: "Admission queue", count: 1, destinationKey: "admission", href: "/api/admission/queue", summary: "Proposed seeds are visible, but unresolved Creation seed-family coverage is primary." }],
+      nextDecision: { destinationKey: "creation", label: "Resolve seed-family coverage", reason: "Anti-aging chemistry still needs disposition.", href: "/api/flows/creation/start" }
+    };
+
+    const html = renderToString(<App
+      initialOpenWorld="/tmp/creation.sqlite"
+      initialWorkflowMap={workflowMapWithSecondaryAdmission as any}
+      initialDestination="creation"
+      initialCreationDecision={coverageDecision as any}
+    />);
+    const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
+
+    expect(html).toContain("Seed-family coverage");
+    expect(html).toContain("Account for kernel seed families before Admission handoff.");
+    expect(html).toContain("Anti-aging chemistry still needs disposition before Admission handoff.");
+    expect(html).toContain("Temporal access");
+    expect(html).toContain("Disposition: covered");
+    expect(html).toContain("Linked proposed seed FAC-1");
+    expect(html).toContain("Anti-aging chemistry");
+    expect(html).toContain("Disposition: unresolved");
+    expect(html).toContain("Link parked proposed seeds");
+    expect(html).toContain("Defer as seed debt");
+    expect(html).toContain("Mark out of scope");
+    expect(html).toContain("Disposition rationale");
+    expect(html).toContain("Admission queue remains visible but secondary");
+    expect(html).toContain("Creation does not admit canon or assign Admission severity");
+    expect(html).toContain("Return to the workflow map; coverage rows remain visible from Creation.");
+    expect(source).toContain("/api/flows/creation/coverage/link");
+    expect(source).toContain("/api/flows/creation/coverage/defer");
+    expect(source).toContain("/api/flows/creation/coverage/out-of-scope");
+    expect(source).toContain("coverageInventory");
+  });
+
   it("renders routed Creation controls for selected-section guidance, readiness, and inline recovery", () => {
     const workflowMap = {
       readOnly: true,

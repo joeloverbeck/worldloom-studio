@@ -1,4 +1,5 @@
 import { admissionQueueWithDecisionPointLinks, parkCreationSeedForAdmission } from "./admission-flow.js";
+import * as CreationCoverage from "./creation-coverage.js";
 import { correctionContractForSeed, creationHandoffContext, sourceLinksForRecord, type CreationHandoffContext, type HandoffSourceLink } from "./creation-handoff.js";
 import { ADVISORY_OUTPUT_LABELS, promptMode, splitDisplayedContext, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
 import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest } from "./method-cards.js";
@@ -116,6 +117,7 @@ interface CreationDecisionPayload {
   };
   blockers: CreationBlocker[];
   decompositionReadiness: CreationReadinessItem[];
+  coverageInventory: CreationCoverage.CreationCoverageInventory;
   promptOut: {
     available: boolean;
     blocker: string | null;
@@ -500,8 +502,19 @@ export const creationDecisionPoint = (
   const decompositionStep = currentStep.startsWith("decomposition");
   const selectedSection = selectedSectionContext(sectionContracts, currentStep);
   const handoff = creationHandoffContext(worldFile, kernel, output);
+  const coverageInventory = CreationCoverage.creationCoverageInventory(worldFile, { kernelRecordId: kernel?.id ?? null });
+  const coverageApplies = Boolean(kernel && handoff.parkedSeeds.length);
+  const coverageBlocked = coverageApplies && coverageInventory.state.completionBlocked;
+  const coveragePromptContext = kernel
+    ? CreationCoverage.coverageContextForPrompt(worldFile, {
+        kernelRecordId: kernel.id,
+        seedDecompositionReportId: handoff.seedDecompositionReport?.id ?? null
+      })
+    : { lines: [] as string[], sourceManifest: [] as string[], omissions: [] as string[] };
   const decompositionPromptReady = Boolean(handoff.seedDecompositionReport && handoff.parkedSeeds.length);
-  const localDecision = decompositionStep
+  const localDecision = currentStep === "decomposition:coverage"
+    ? "Account for kernel seed families before Admission handoff."
+    : decompositionStep
     ? "Split broad steward material into smaller seed facts that can be independently rejected."
     : selectedSection
       ? `Define the world's first governing kernel section: ${selectedSection.heading}.`
@@ -525,6 +538,9 @@ export const creationDecisionPoint = (
       requires: "saved explicit consequence mode"
     });
   }
+  if (coverageBlocked) {
+    blockers.push(...coverageInventory.state.blockers);
+  }
 
   const templateKey = decompositionStep ? "decomposition_pressure" : "kernel_pressure";
   const stepKey = decompositionStep ? "creation:decomposition_prompt" : "creation:kernel_prompt";
@@ -543,7 +559,8 @@ export const creationDecisionPoint = (
           `Canon status: ${seed.canonStatus ?? "unset"}`,
           seed.body
         ].filter(Boolean).join("\n")),
-        handoff.supportingKernel ? `Supporting kernel ${handoff.supportingKernel.shortId}: ${handoff.supportingKernel.title}` : ""
+        handoff.supportingKernel ? `Supporting kernel ${handoff.supportingKernel.shortId}: ${handoff.supportingKernel.title}` : "",
+        ...coveragePromptContext.lines
       ].filter(Boolean).join("\n\n")
     : [
         selectedSection ? `Selected kernel section: ${selectedSection.heading}` : "",
@@ -558,6 +575,7 @@ export const creationDecisionPoint = (
         `Seed decomposition report: ${handoff.seedDecompositionReport?.shortId} ${handoff.seedDecompositionReport?.title}`,
         ...handoff.parkedSeeds.map((seed) => `Parked seed: ${seed.shortId} ${seed.title} (${seed.truthLayer ?? "unset"} / ${seed.canonStatus ?? "unset"})`),
         ...(handoff.supportingKernel ? [`Supporting kernel: ${handoff.supportingKernel.shortId} ${handoff.supportingKernel.title}`] : []),
+        ...coveragePromptContext.sourceManifest,
         ...methodCardSourceManifest(cardValue),
         "Omissions: Frontloaded seed audit and Admission gate results do not exist inside Creation."
       ]
@@ -575,7 +593,8 @@ export const creationDecisionPoint = (
     ? [
         "Frontloaded seed audit results omitted: Admission owns that instrument and no result exists yet.",
         "Admission gate results omitted: Admission has not selected severity or run a gate yet.",
-        "Open canon debt omitted unless it directly affects this decomposition decision."
+        "Open canon debt omitted unless it directly affects this decomposition decision.",
+        ...coveragePromptContext.omissions
       ]
     : [
         ...(!materialPresent ? ["Current kernel material is absent until the steward writes it."] : []),
@@ -703,7 +722,8 @@ export const creationDecisionPoint = (
     obligations: {
       required: [
         "Write steward-authored kernel material",
-        "For decomposition, provide seed title, body, truth layer, and granularity confirmation"
+        "For decomposition, provide seed title, body, truth layer, and granularity confirmation",
+        ...(coverageApplies ? ["Resolve required seed-family coverage before Admission handoff"] : [])
       ],
       optional: [
         "Allowed-empty kernel sections may remain thin",
@@ -736,16 +756,19 @@ export const creationDecisionPoint = (
       willWrite: [
         kernel ? "section update on one living world_kernel record" : "one living world_kernel record",
         "seed_decomposition report",
-        "canon_fact records fixed at proposed"
+        "canon_fact records fixed at proposed",
+        ...(coverageApplies ? ["coverage row dispositions", "canon_debt records for deferred seed families"] : [])
       ],
       willLink: [
         kernel ? `kernel read-side trail for ${kernel.shortId}` : "read-side trail placeholders until records exist",
-        "derived_from links from parked seeds to the kernel and decomposition report"
+        "derived_from links from parked seeds to the kernel and decomposition report",
+        ...(coverageApplies ? ["coverage rows to parked proposed seeds"] : [])
       ],
       willQueue: ["parked seeds appear in the Admission queue"],
       willRouteOnward: [
         "Seed decomposition after explicit consequence mode",
         "Seed decomposition once seed material, truth layer, consequence mode, and granularity confirmation are present",
+        ...(coverageBlocked ? ["Admission after coverage is resolved"] : []),
         "Admission flow"
       ],
       willLeaveUntouched: [
@@ -756,8 +779,12 @@ export const creationDecisionPoint = (
     },
     nextOrResumeState: {
       currentStep,
-      nextStep: mode && materialPresent ? "seed decomposition" : "continue kernel authoring",
-      safeExit: "Safe exit leaves the Creation flow in progress and resumable from the same world file."
+      nextStep: coverageBlocked
+        ? "resolve seed-family coverage before Admission handoff"
+        : mode && materialPresent ? "seed decomposition" : "continue kernel authoring",
+      safeExit: coverageApplies
+        ? "Return to the workflow map; coverage rows remain visible from Creation."
+        : "Safe exit leaves the Creation flow in progress and resumable from the same world file."
     },
     readSideTrail: trail(kernel, output.report ?? (handoff.seedDecompositionReport ? worldFile.getRecord(handoff.seedDecompositionReport.id) : undefined), output.records ?? handoff.parkedSeeds.map((seed) => worldFile.getRecord(seed.id)))
   };
@@ -787,7 +814,8 @@ export const creationDecisionPoint = (
       required: [
         "Write steward-authored kernel material",
         "Explicitly select consequence mode before seed decomposition",
-        "For decomposition, provide seed title, body, truth layer, and granularity confirmation"
+        "For decomposition, provide seed title, body, truth layer, and granularity confirmation",
+        ...(coverageApplies ? ["Resolve required seed-family coverage before Admission handoff"] : [])
       ],
       optional: [
         "Allowed-empty kernel sections may remain thin",
@@ -799,6 +827,7 @@ export const creationDecisionPoint = (
     },
     blockers,
     decompositionReadiness: readiness(mode, decompositionInput),
+    coverageInventory,
     promptOut: {
       available: modes.some((promptMode) => promptMode.available),
       blocker: modes.some((promptMode) => promptMode.available)
@@ -824,16 +853,19 @@ export const creationDecisionPoint = (
       willWrite: [
         kernel ? "section update on one living world_kernel record" : "one living world_kernel record",
         "seed_decomposition report",
-        "canon_fact records fixed at proposed"
+        "canon_fact records fixed at proposed",
+        ...(coverageApplies ? ["coverage row dispositions", "canon_debt records for deferred seed families"] : [])
       ],
       willLink: [
         kernel ? `kernel read-side trail for ${kernel.shortId}` : "read-side trail placeholders until records exist",
-        "derived_from links from parked seeds to the kernel and decomposition report"
+        "derived_from links from parked seeds to the kernel and decomposition report",
+        ...(coverageApplies ? ["coverage rows to parked proposed seeds"] : [])
       ],
       willQueue: ["parked seeds appear in the Admission queue"],
       willRouteOnward: [
         "Seed decomposition after explicit consequence mode",
         "Seed decomposition once seed material, truth layer, consequence mode, and granularity confirmation are present",
+        ...(coverageBlocked ? ["Admission after coverage is resolved"] : []),
         "Admission flow"
       ],
       willLeaveUntouched: [
@@ -844,8 +876,12 @@ export const creationDecisionPoint = (
     },
     nextOrResumeState: {
       currentStep,
-      nextStep: mode && materialPresent ? "seed decomposition" : "continue kernel authoring",
-      safeExit: "Safe exit leaves the Creation flow in progress and resumable from the same world file."
+      nextStep: coverageBlocked
+        ? "resolve seed-family coverage before Admission handoff"
+        : mode && materialPresent ? "seed decomposition" : "continue kernel authoring",
+      safeExit: coverageApplies
+        ? "Return to the workflow map; coverage rows remain visible from Creation."
+        : "Safe exit leaves the Creation flow in progress and resumable from the same world file."
     },
     readSideTrail: sharedContract.readSideTrail,
     handoffs: [
@@ -864,7 +900,14 @@ export const startCreationFlow = (worldFile: WorldFile): FlowInstanceRow => {
   const row = worldFile.findLatestInProgressFlow("creation");
   if (row) return row;
   const completed = worldFile.findLatestFlow("creation");
-  if (completed?.state === "complete" && completed.current_step === "decomposition:complete") return completed;
+  if (completed?.state === "complete" && completed.current_step === "decomposition:complete") {
+    const kernelRecordId = completed.kernel_record_id == null ? null : Number(completed.kernel_record_id);
+    if (kernelRecordId != null && CreationCoverage.hasParkedCreationSeeds(worldFile, kernelRecordId)) {
+      CreationCoverage.refreshCreationCoverageFlowState(worldFile, kernelRecordId);
+      return worldFile.getFlowInstance(Number(completed.id), "creation");
+    }
+    return completed;
+  }
   return worldFile.createFlowInstance({ flowKey: "creation", currentStep: "kernel:World premise" });
 };
 
@@ -906,6 +949,14 @@ export const recordCreationSkip = (
   worldFile: WorldFile,
   input: { flowId?: number; stepKey: string; admissionLevel?: string; workScale?: string; reason?: string }
 ): RecordRow => PromptOut.recordPromptOutSkip(worldFile, { flowKey: "creation", ...input });
+
+export const confirmCoverageRows = CreationCoverage.confirmCoverageRows;
+export const linkCoverageRowToSeeds = CreationCoverage.linkCoverageRowToSeeds;
+export const deferCoverageRow = CreationCoverage.deferCoverageRow;
+export const markCoverageRowOutOfScope = CreationCoverage.markCoverageRowOutOfScope;
+export type CreationCoverageConfirmInput = CreationCoverage.CreationCoverageConfirmInput;
+export type CreationCoverageLinkInput = CreationCoverage.CreationCoverageLinkInput;
+export type CreationCoverageDispositionInput = CreationCoverage.CreationCoverageDispositionInput;
 
 export const decomposeSeeds = (
   worldFile: WorldFile,
@@ -953,7 +1004,9 @@ export const decomposeSeeds = (
     ]);
     const records = input.seeds.map((seed) => parkCreationSeedForAdmission(worldFile, { ...seed, canonStatus: "proposed" }, kernel.id, report.id));
     for (const draft of drafts) worldFile.discardDraft(draft.id);
-    const flow = worldFile.updateFlowInstance(input.flowId, { currentStep: "decomposition:complete", state: "complete" });
+    worldFile.updateFlowInstance(input.flowId, { currentStep: "decomposition:complete", state: "complete" });
+    CreationCoverage.refreshCreationCoverageFlowState(worldFile, kernel.id);
+    const flow = worldFile.getFlowInstance(input.flowId, "creation");
     return { report, records, flow, decisionPoint: creationDecisionPoint(worldFile, flow, { report, records }) };
   });
 };

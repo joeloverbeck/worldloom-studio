@@ -40,6 +40,7 @@ The closeout evidence should name:
 - browser-visible state transitions on the active route, including current/stale state, blockers, entered material preservation, selected record or debt identity, and route-owned copy/store/export affordances when relevant;
 - API or readback proof when the fix writes or reads durable state, including the resulting record, report, queue entry, operation event, audit trail, or explicit non-mutation;
 - Prompt-out packet proof when the blocker involves Prompt-out: packet mode, status, visible body, copyable body, source manifest, omission text, advisory/canon warning, and cold external LLM packet relevance where that proof is in scope;
+- Creation coverage-gate proof when the blocker involves seed-family coverage: coverage inventory or create/confirm path, unresolved rows, covered/deferred/out-of-scope disposition controls, rationale fields, linked proposed seeds, Admission queue secondary visibility, server-owned current/next/resume state, and read-side trail;
 - remaining caveats, follow-up PRDs, or intentionally unproven routes when the fix is partial.
 
 Coverage-ledger promotion should wait for corresponding active-route replay evidence. If a slice proves only a primitive, server contract, representative fixture, or API readback, the ledger should preserve that value while keeping active-route caveats explicit.

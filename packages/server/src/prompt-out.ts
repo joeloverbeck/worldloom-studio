@@ -1,4 +1,5 @@
 import { isFoundationalSeverity, isMajorOrHigher, requiresSkipReason, type DeclaredSeverity } from "./severity-policy.js";
+import * as CreationCoverage from "./creation-coverage.js";
 import { resolveCreationDecompositionHandoff } from "./creation-handoff.js";
 import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest, maybeMethodCard } from "./method-cards.js";
 import { PROMPT_TEMPLATE_SEEDS } from "./prompt-out-defaults.js";
@@ -785,16 +786,22 @@ const creationDecompositionPrompt = (
         ...handoff.kernelSections.map((section) => `${section.heading}: ${section.body}`)
       ].filter(Boolean).join("\n")
     : "Supporting kernel context: omitted because no linked kernel was found.";
+  const coverageContext = CreationCoverage.coverageContextForPrompt(world, {
+    kernelRecordId: handoff.supportingKernel?.id ?? null,
+    seedDecompositionReportId: report.id
+  });
   const omissions = [
     "Frontloaded seed audit results omitted: Admission owns that instrument and no result exists yet.",
     "Admission gate results omitted: Admission has not selected severity or run a gate yet.",
     "Standing rulings omitted when none exist.",
-    "Open canon debt omitted unless it affects the decomposition decision."
+    "Open canon debt omitted unless it affects the decomposition decision.",
+    ...coverageContext.omissions
   ];
   const sourceManifest = [
     `Source record: seed-decomposition report ${report.shortId} ${report.title}`,
     ...handoff.parkedSeeds.map((seed) => `Source record: parked seed ${seed.shortId} ${seed.title}`),
     ...(handoff.supportingKernel ? [`Source record: supporting kernel ${handoff.supportingKernel.shortId} ${handoff.supportingKernel.title}`] : []),
+    ...coverageContext.sourceManifest,
     `Prompt template: ${template.key} (${template.package_source})`,
     ...methodCardSourceManifest(cardValue),
     ...omissions.map((omission) => `Omission: ${omission}`)
@@ -812,11 +819,13 @@ const creationDecompositionPrompt = (
         ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey }),
         `Granularity rationale: ${handoff.granularityRationale ?? "Each parked seed is independently rejectable without destroying its siblings."}`,
         ...(handoff.admissionIntent ? [`Admission intent: ${handoff.admissionIntent}`] : []),
-        kernelContext
+        kernelContext,
+        ...coverageContext.lines
       ],
       packageDoctrine: [
         ...methodCardDoctrineSlots(cardValue),
-        "Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories."
+        "Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories.",
+        "Coverage guardrail: no automatic coverage disposition; no automatic seed creation; Creation coverage rows need explicit steward action."
       ],
       decisionMaterial: [
         `Seed decomposition report ${report.shortId}: ${report.title}`,
@@ -845,7 +854,8 @@ const creationDecompositionPrompt = (
               source: `supporting_kernel:${handoff.supportingKernel.shortId}`,
               content: kernelContext
             }]
-          : [])
+          : []),
+        ...coverageContext.sourceDocuments
       ],
       standingRulings: rulings.map((row) => `${row.disposition}: ${row.note}`),
       omissions,

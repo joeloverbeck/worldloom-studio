@@ -2,6 +2,7 @@ import type { WorkflowMapDestination, WorkflowMapPayload, WorkflowMapQueue, Work
 import * as AdmissionFlow from "./admission-flow.js";
 import * as CanonDebt from "./canon-debt.js";
 import * as ContradictionFlow from "./contradiction-flow.js";
+import * as CreationCoverage from "./creation-coverage.js";
 import * as MinimalViableWorld from "./minimal-viable-world.js";
 import { workflowMapMethodCards } from "./method-cards.js";
 import * as PropagationFlow from "./propagation-flow.js";
@@ -99,9 +100,19 @@ const destinations = (
 export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
   const records = world.listRecords();
   const flows = inProgressFlows(world);
-  const hasKernel = records.some((record) => record.recordTypeKey === "world_kernel");
+  const creationKernel = CreationCoverage.latestCreationKernelRecord(world);
+  const hasKernel = creationKernel != null;
   const worldHasCanonMaterial = acceptedOrUnderReviewRecords(records).length > 0;
   const admissionQueue = AdmissionFlow.admissionQueue(world);
+  const creationCoverage = creationKernel
+    ? CreationCoverage.creationCoverageInventory(world, { kernelRecordId: creationKernel.id })
+    : null;
+  const coverageBlocksAdmission = Boolean(
+    creationKernel &&
+    admissionQueue.length > 0 &&
+    CreationCoverage.hasParkedCreationSeeds(world, creationKernel.id) &&
+    creationCoverage?.state.completionBlocked
+  );
   const preAdmissionSeedDecompositionOwed = hasKernel && admissionQueue.length === 0 && !worldHasCanonMaterial;
   const propagationQueue = PropagationFlow.propagationQueue(world);
   const owedBoundaries = ContradictionFlow.owedBoundariesQueue(world);
@@ -111,7 +122,8 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
   const minimalViableWorldOwed = MinimalViableWorld.owedQueueCount(world);
 
   const activeDestination =
-    admissionQueue.length > 0 ? "admission"
+    coverageBlocksAdmission ? "creation"
+      : admissionQueue.length > 0 ? "admission"
       : !hasKernel || preAdmissionSeedDecompositionOwed ? "creation"
         : flows[0] ? flowDestination(String(flows[0].flow_key)) : null;
   const owedDestinations = new Set<string>([
@@ -122,16 +134,20 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
   ]);
   const creationState: WorkflowMapStage["state"] = !hasKernel
     ? "active"
-    : preAdmissionSeedDecompositionOwed
+    : preAdmissionSeedDecompositionOwed || coverageBlocksAdmission
       ? hasInProgressFlow(flows, "creation") ? "active" : "owed"
       : hasInProgressFlow(flows, "creation") ? "active" : "done";
   const admissionState: WorkflowMapStage["state"] = !hasKernel || preAdmissionSeedDecompositionOwed
     ? "not_yet_earned"
+    : coverageBlocksAdmission
+      ? "blocked"
     : admissionQueue.length > 0 || hasInProgressFlow(flows, "admission") ? "active" : "done";
   const admissionUnlockReason = !hasKernel
     ? "Create a world_kernel or park proposed seeds before Admission has work."
     : preAdmissionSeedDecompositionOwed
       ? "Park proposed seeds through Creation seed decomposition before Admission has work."
+      : coverageBlocksAdmission
+        ? "Resolve unresolved seed-family coverage rows before Admission becomes the primary path."
       : undefined;
 
   const stages: WorkflowMapStage[] = [
@@ -139,7 +155,9 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
       "creation",
       "Creation",
       creationState,
-      preAdmissionSeedDecompositionOwed
+      coverageBlocksAdmission
+        ? creationCoverage?.state.summary ?? "Creation seed-family coverage is unresolved before Admission handoff."
+        : preAdmissionSeedDecompositionOwed
         ? "Seed decomposition is owed before Admission has proposed-seed work."
         : "World kernel and seed decomposition start the journey.",
       "creation"
@@ -148,7 +166,9 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
       "admission",
       "Admission",
       admissionState,
-      preAdmissionSeedDecompositionOwed
+      coverageBlocksAdmission
+        ? "Admission queue is visible, but Creation seed-family coverage remains primary before handoff."
+        : preAdmissionSeedDecompositionOwed
         ? "Admission queue work begins after Creation parks proposed seeds."
         : "Admission is the only path from proposed fact to canon standing.",
       "admission",
@@ -216,7 +236,9 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
       admissionQueue.length,
       "admission",
       "/api/admission/queue",
-      preAdmissionSeedDecompositionOwed
+      coverageBlocksAdmission
+        ? "Proposed seeds are visible as secondary work, but unresolved Creation seed-family coverage is primary."
+        : preAdmissionSeedDecompositionOwed
         ? "Admission queue is 0 because no proposed seeds exist yet; seed decomposition unlocks Admission work."
         : "Proposed or under-review facts awaiting governance."
     ),
@@ -227,7 +249,16 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
     queue("skips", "Skips", skipCount, "substrate", "/api/search?q=skip_record", "Recorded skipped instruments and their reason duties.")
   ];
 
-  const nextDecision = admissionQueue.length > 0
+  const nextDecision = coverageBlocksAdmission
+    ? {
+        destinationKey: "creation",
+        label: "Resolve seed-family coverage",
+        reason: creationCoverage?.state.blockers.length
+          ? `${creationCoverage.state.blockers.map((blocker) => blocker.label).join(", ")} still needs disposition before Admission handoff.`
+          : creationCoverage?.state.summary ?? "Creation seed-family coverage must be resolved before Admission handoff.",
+        href: "/api/flows/creation/start"
+      }
+    : admissionQueue.length > 0
     ? { destinationKey: "admission", label: "Work Admission queue", reason: "Proposed facts are waiting for governance.", href: "/api/admission/queue" }
     : owedBoundaries.length > 0
       ? { destinationKey: "contradiction", label: "Work owed boundaries", reason: "A protected propagation consequence needs mystery-ledger governance.", href: "/api/contradiction/owed-boundaries" }
