@@ -25,4 +25,8 @@ export const registerCreationRoutes = (app: RouteApp, dependencies: RouteDepende
       seeds: Array<{ title: string; body: string; truthLayer: string; canonStatus?: string; granularityConfirmed?: boolean }>;
     }>(c)), 201)
   )));
+
+  app.post("/api/flows/creation/corrections", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () =>
+    c.json(CreationFlow.correctParkedSeed(world, await readJson<CreationFlow.CreationCorrectionInput>(c)), 201)
+  )));
 };

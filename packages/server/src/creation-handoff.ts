@@ -22,8 +22,36 @@ export interface HandoffSourceLink {
   note: string;
 }
 
+export interface HandoffCorrectionAction {
+  key: string;
+  label: string;
+  available: boolean;
+  blocker: string | null;
+  preview: string;
+}
+
+export interface HandoffCorrectionContract {
+  availability: "correctable" | "late_admission" | "not_current";
+  directMutationBlocked: boolean;
+  originalSeedWording: string;
+  correctionContext: string;
+  actions: HandoffCorrectionAction[];
+  writeIntent: {
+    willWrite: string[];
+    willLink: string[];
+    willQueue: string[];
+    willLeaveUntouched: string[];
+  };
+  nextOrResumeState: {
+    currentStep: string;
+    nextStep: string;
+    safeExit: string;
+  };
+}
+
 export interface HandoffParkedSeed extends HandoffRecordSummary {
   sourceLinks: HandoffSourceLink[];
+  correction: HandoffCorrectionContract;
 }
 
 export interface CreationHandoffContext {
@@ -78,6 +106,142 @@ export const sourceLinksForRecord = (worldFile: WorldFile, recordId: number): Ha
         note: link.note
       }];
     });
+
+const admissionWorkStarted = (worldFile: WorldFile, seed: RecordRow): boolean => {
+  if (seed.canonStatus === "under review") return true;
+  if (worldFile.listFacets(seed.id).some((facet) => facet.vocabulary === "admission_level" || facet.vocabulary === "work_scale")) return true;
+  const row = worldFile.db.prepare(`
+    SELECT 1
+    FROM flow_instances
+    WHERE flow_key = 'admission'
+      AND state = 'in_progress'
+      AND current_step LIKE ?
+    LIMIT 1
+  `).get(`record:${seed.id}:%`);
+  return Boolean(row);
+};
+
+export const correctionContractForSeed = (worldFile: WorldFile, seed: RecordRow): HandoffCorrectionContract => {
+  const late = admissionWorkStarted(worldFile, seed);
+  const correctable = seed.recordTypeKey === "canon_fact" && seed.canonStatus === "proposed" && !late;
+  if (late) {
+    return {
+      availability: "late_admission",
+      directMutationBlocked: true,
+      originalSeedWording: seed.body,
+      correctionContext: "Admission work has begun; Creation cannot directly mutate the in-flight proposed fact.",
+      actions: [
+        {
+          key: "superseding",
+          label: "Superseding proposal",
+          available: true,
+          blocker: null,
+          preview: "Route a superseding proposed fact without changing the in-flight Admission record."
+        },
+        {
+          key: "re_proposal",
+          label: "Re-proposal",
+          available: true,
+          blocker: null,
+          preview: "Create a new proposed fact for later Admission handling."
+        },
+        {
+          key: "admission_facing_note",
+          label: "Admission-facing note",
+          available: true,
+          blocker: null,
+          preview: "Carry caution into Admission without changing canon standing."
+        }
+      ],
+      writeIntent: {
+        willWrite: ["late-correction context only if the steward chooses an Admission-facing route"],
+        willLink: ["in-flight Admission seed remains the governed target"],
+        willQueue: ["new proposals must be routed separately"],
+        willLeaveUntouched: ["Creation does not mutate an in-flight Admission record"]
+      },
+      nextOrResumeState: {
+        currentStep: "decomposition:complete",
+        nextStep: "continue in Admission or route a superseding proposal",
+        safeExit: "Return to Admission; the Creation handoff keeps the late-correction reason visible."
+      }
+    };
+  }
+  if (!correctable) {
+    return {
+      availability: "not_current",
+      directMutationBlocked: true,
+      originalSeedWording: seed.body,
+      correctionContext: "This parked seed is no longer a current proposed seed before Admission.",
+      actions: [
+        {
+          key: "read_history",
+          label: "Read correction history",
+          available: true,
+          blocker: null,
+          preview: "Review the original wording, correction links, and read-side trail."
+        }
+      ],
+      writeIntent: {
+        willWrite: [],
+        willLink: [],
+        willQueue: [],
+        willLeaveUntouched: ["non-current seed wording and correction history remain read-only from Creation"]
+      },
+      nextOrResumeState: {
+        currentStep: "decomposition:complete",
+        nextStep: "review corrected proposed facts or Admission queue",
+        safeExit: "Return to the Creation handoff or read-side trail without mutating this seed."
+      }
+    };
+  }
+  return {
+    availability: "correctable",
+    directMutationBlocked: false,
+    originalSeedWording: seed.body,
+    correctionContext: "Creation can repair this proposed seed before Admission work begins.",
+    actions: [
+      {
+        key: "split",
+        label: "Split into sibling proposed facts",
+        available: true,
+        blocker: null,
+        preview: "Write steward-authored sibling canon_fact records at proposed and preserve the original seed wording."
+      },
+      {
+        key: "retract_and_rewrite",
+        label: "Retract and rewrite",
+        available: true,
+        blocker: null,
+        preview: "Mark the original proposed seed no longer current and write replacement wording at proposed."
+      },
+      {
+        key: "replace",
+        label: "Replace with corrected proposed fact",
+        available: true,
+        blocker: null,
+        preview: "Route a corrected proposed fact and link it as superseding the original parked seed."
+      },
+      {
+        key: "admission_narrowing_note",
+        label: "Carry Admission narrowing note",
+        available: true,
+        blocker: null,
+        preview: "Record steward-authored caution for Admission intake without changing canon standing."
+      }
+    ],
+    writeIntent: {
+      willWrite: ["correction context report", "corrected canon_fact records at proposed"],
+      willLink: ["original parked seed", "seed-decomposition report", "world kernel", "correction context"],
+      willQueue: ["corrected proposed facts remain visible in the Admission queue"],
+      willLeaveUntouched: ["Creation does not admit canon or assign Admission severity", "pasted advisory material is not parsed into facts"]
+    },
+    nextOrResumeState: {
+      currentStep: "decomposition:complete",
+      nextStep: "repair parked seed before Admission",
+      safeExit: "Safe exit keeps the Creation handoff, original wording, entered correction material, and Admission route visible."
+    }
+  };
+};
 
 const sectionBody = (sections: SectionRow[], heading: string): string | null =>
   sections.find((section) => section.heading === heading)?.body.trim() || null;
@@ -136,7 +300,8 @@ export const creationHandoffContext = (
   const reportSections = report ? worldFile.listSections(report.id) : [];
   const parkedSeeds = records.map((record) => ({
     ...toSummary(record),
-    sourceLinks: sourceLinksForRecord(worldFile, record.id)
+    sourceLinks: sourceLinksForRecord(worldFile, record.id),
+    correction: correctionContractForSeed(worldFile, record)
   }));
   const reportLink = report
     ? [{

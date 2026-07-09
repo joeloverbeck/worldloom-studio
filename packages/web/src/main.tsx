@@ -914,6 +914,24 @@ interface CreationDecisionPoint {
       body: string;
       truthLayer: string | null;
       canonStatus: string | null;
+      correction?: {
+        availability: string;
+        directMutationBlocked: boolean;
+        originalSeedWording: string;
+        correctionContext: string;
+        actions: Array<{ key: string; label: string; available: boolean; blocker: string | null; preview: string }>;
+        writeIntent: {
+          willWrite: string[];
+          willLink: string[];
+          willQueue: string[];
+          willLeaveUntouched: string[];
+        };
+        nextOrResumeState: {
+          currentStep: string;
+          nextStep: string;
+          safeExit: string;
+        };
+      };
       sourceLinks: Array<{
         label: string;
         href: string;
@@ -967,6 +985,38 @@ interface CreationPromptOutStepRequest {
     selectedSectionHeading?: string;
     label: string;
   };
+}
+
+type CreationCorrectionActionKey =
+  | "split"
+  | "retract_and_rewrite"
+  | "replace"
+  | "admission_narrowing_note"
+  | "superseding"
+  | "re_proposal"
+  | "admission_facing_note"
+  | "read_history";
+
+interface CreationCorrectionDraft {
+  action: CreationCorrectionActionKey;
+  rationale: string;
+  siblingTitle: string;
+  siblingBody: string;
+  siblingTruthLayer: string;
+  secondSiblingTitle: string;
+  secondSiblingBody: string;
+  secondSiblingTruthLayer: string;
+  replacementTitle: string;
+  replacementBody: string;
+  replacementTruthLayer: string;
+  narrowingNote: string;
+}
+
+interface CreationCorrectionResponse {
+  correction: unknown;
+  admissionQueue: AdmissionQueueRow[];
+  handoff: CreationDecisionPoint["handoff"];
+  readSideTrail: CreationDecisionPoint["readSideTrail"];
 }
 
 interface AppProps {
@@ -1134,6 +1184,28 @@ const emptyRecordForm = {
   canonStatus: ""
 };
 
+const emptyCreationCorrectionDraft: CreationCorrectionDraft = {
+  action: "split",
+  rationale: "",
+  siblingTitle: "",
+  siblingBody: "",
+  siblingTruthLayer: "",
+  secondSiblingTitle: "",
+  secondSiblingBody: "",
+  secondSiblingTruthLayer: "",
+  replacementTitle: "",
+  replacementBody: "",
+  replacementTruthLayer: "",
+  narrowingNote: ""
+};
+
+const directCreationCorrectionActions = new Set<CreationCorrectionActionKey>([
+  "split",
+  "retract_and_rewrite",
+  "replace",
+  "admission_narrowing_note"
+]);
+
 function MethodCardPanel({ card, title = "Method card" }: { card?: MethodCard | null; title?: string }) {
   if (!card) return null;
   return (
@@ -1150,6 +1222,93 @@ function MethodCardPanel({ card, title = "Method card" }: { card?: MethodCard | 
           {card.packageSources.map((source) => <span key={source}>{source}</span>)}
         </div>
       </details>
+    </section>
+  );
+}
+
+function CreationCorrectionPanel({
+  seed,
+  draft,
+  errorMessages,
+  disabled,
+  onDraftChange,
+  onSubmit
+}: {
+  seed: CreationDecisionPoint["handoff"]["parkedSeeds"][number];
+  draft: CreationCorrectionDraft;
+  errorMessages: string[];
+  disabled: boolean;
+  onDraftChange: (patch: Partial<CreationCorrectionDraft>) => void;
+  onSubmit: () => void;
+}) {
+  if (!seed.correction) return null;
+  const correction = seed.correction;
+  const selectedAction = correction.actions.find((action) => action.key === draft.action) ?? correction.actions[0];
+  const selectedActionKey = (selectedAction?.key ?? draft.action) as CreationCorrectionActionKey;
+  const actionUnavailable = correction.availability !== "correctable" || !selectedAction?.available || !directCreationCorrectionActions.has(selectedActionKey);
+  return (
+    <section className="subpanel correction-panel">
+      <h4>Post-park correction</h4>
+      <p className="status">{correction.availability === "correctable" ? "Correctable before Admission begins" : correction.correctionContext}</p>
+      <p><strong>Original seed wording</strong>: {correction.originalSeedWording || seed.body}</p>
+      <div className="grid compact-grid">
+        <label>Correction action
+          <select value={selectedActionKey} onChange={(event) => onDraftChange({ action: event.target.value as CreationCorrectionActionKey })}>
+            {correction.actions.map((action) => <option key={action.key} value={action.key}>{action.label}</option>)}
+          </select>
+        </label>
+        <label>Correction rationale
+          <textarea rows={2} value={draft.rationale} onChange={(event) => onDraftChange({ rationale: event.target.value })} />
+        </label>
+      </div>
+      <div className="grid compact-grid" hidden={selectedActionKey !== "split"}>
+        <label>Sibling title<input value={draft.siblingTitle} onChange={(event) => onDraftChange({ siblingTitle: event.target.value })} /></label>
+        <label>Sibling truth layer<input value={draft.siblingTruthLayer} onChange={(event) => onDraftChange({ siblingTruthLayer: event.target.value })} /></label>
+        <label>Sibling body<textarea rows={2} value={draft.siblingBody} onChange={(event) => onDraftChange({ siblingBody: event.target.value })} /></label>
+        <label>Second sibling title<input value={draft.secondSiblingTitle} onChange={(event) => onDraftChange({ secondSiblingTitle: event.target.value })} /></label>
+        <label>Second sibling truth layer<input value={draft.secondSiblingTruthLayer} onChange={(event) => onDraftChange({ secondSiblingTruthLayer: event.target.value })} /></label>
+        <label>Second sibling body<textarea rows={2} value={draft.secondSiblingBody} onChange={(event) => onDraftChange({ secondSiblingBody: event.target.value })} /></label>
+      </div>
+      <div className="grid compact-grid" hidden={selectedActionKey !== "retract_and_rewrite" && selectedActionKey !== "replace"}>
+        <label>Replacement title<input value={draft.replacementTitle} onChange={(event) => onDraftChange({ replacementTitle: event.target.value })} /></label>
+        <label>Replacement truth layer<input value={draft.replacementTruthLayer} onChange={(event) => onDraftChange({ replacementTruthLayer: event.target.value })} /></label>
+        <label>Replacement body<textarea rows={2} value={draft.replacementBody} onChange={(event) => onDraftChange({ replacementBody: event.target.value })} /></label>
+      </div>
+      <label hidden={selectedActionKey !== "admission_narrowing_note"}>Narrowing note<textarea rows={2} value={draft.narrowingNote} onChange={(event) => onDraftChange({ narrowingNote: event.target.value })} /></label>
+      {errorMessages.length > 0 && (
+        <div className="error">
+          {errorMessages.map((message) => <p key={message}>{message}</p>)}
+        </div>
+      )}
+      <button onClick={onSubmit} disabled={disabled || actionUnavailable}>Submit Correction</button>
+      <div className="grid compact-grid">
+        {correction.actions.map((action) => (
+          <article key={action.key} className="subpanel">
+            <h3>{action.label}</h3>
+            <p>{action.available ? action.preview : action.blocker}</p>
+          </article>
+        ))}
+      </div>
+      <div className="grid compact-grid">
+        <section>
+          <h4>Write intent</h4>
+          <p>{correction.writeIntent.willWrite.join(" · ") || "No write from this state."}</p>
+        </section>
+        <section>
+          <h4>Link intent</h4>
+          <p>{correction.writeIntent.willLink.join(" · ") || "No link from this state."}</p>
+        </section>
+        <section>
+          <h4>Queue intent</h4>
+          <p>{correction.writeIntent.willQueue.join(" · ") || "No queue change from this state."}</p>
+        </section>
+        <section>
+          <h4>Non-mutation guarantees</h4>
+          <p>{correction.writeIntent.willLeaveUntouched.join(" · ") || "No mutation guarantee returned."}</p>
+        </section>
+      </div>
+      <p>{correction.nextOrResumeState.nextStep}</p>
+      <p className="meta">{correction.nextOrResumeState.safeExit}</p>
     </section>
   );
 }
@@ -1803,6 +1962,8 @@ function App({
   const [admissionDecision, setAdmissionDecision] = useState<AdmissionDecisionPoint | null>(initialAdmissionDecision);
   const [creationDecision, setCreationDecision] = useState<CreationDecisionPoint | null>(initialCreationDecision);
   const [decompositionError, setDecompositionError] = useState<string | null>(null);
+  const [correctionDrafts, setCorrectionDrafts] = useState<Record<number, CreationCorrectionDraft>>({});
+  const [correctionError, setCorrectionError] = useState<Record<number, string[]>>({});
   const [minimalViableWorld, setMinimalViableWorld] = useState<MinimalViableWorldState | null>(initialMinimalViableWorld);
   const [canonDebt, setCanonDebt] = useState<RecordRow[]>([]);
   const [propagationQueue, setPropagationQueue] = useState<PropagationQueueRow[]>(initialPropagationQueue);
@@ -3686,6 +3847,79 @@ function App({
         const payload = error.payload as { error?: string; decisionPoint?: CreationDecisionPoint };
         if (payload.decisionPoint) setCreationDecision(payload.decisionPoint);
         setDecompositionError(payload.error ?? error.message);
+        setMessage(payload.error ?? error.message);
+        return;
+      }
+      throw error;
+    }
+  };
+
+  const correctionDraftFor = (seedRecordId: number): CreationCorrectionDraft =>
+    correctionDrafts[seedRecordId] ?? emptyCreationCorrectionDraft;
+
+  const updateCorrectionDraft = (seedRecordId: number, patch: Partial<CreationCorrectionDraft>) => {
+    setCorrectionDrafts((current) => ({
+      ...current,
+      [seedRecordId]: {
+        ...emptyCreationCorrectionDraft,
+        ...current[seedRecordId],
+        ...patch
+      }
+    }));
+  };
+
+  const correctionPayloadFor = (seedRecordId: number, draft: CreationCorrectionDraft): Record<string, unknown> => {
+    const payload: Record<string, unknown> = {
+      seedRecordId,
+      action: draft.action,
+      rationale: draft.rationale
+    };
+    if (draft.action === "split") {
+      payload.siblings = [
+        { title: draft.siblingTitle, body: draft.siblingBody, truthLayer: draft.siblingTruthLayer },
+        ...(draft.secondSiblingTitle.trim() || draft.secondSiblingBody.trim() || draft.secondSiblingTruthLayer.trim()
+          ? [{ title: draft.secondSiblingTitle, body: draft.secondSiblingBody, truthLayer: draft.secondSiblingTruthLayer }]
+          : [])
+      ];
+    }
+    if (draft.action === "retract_and_rewrite" || draft.action === "replace") {
+      payload.replacement = {
+        title: draft.replacementTitle,
+        body: draft.replacementBody,
+        truthLayer: draft.replacementTruthLayer
+      };
+    }
+    if (draft.action === "admission_narrowing_note") {
+      payload.narrowingNote = draft.narrowingNote;
+    }
+    return payload;
+  };
+
+  const submitCreationCorrection = async (seedRecordId: number) => {
+    const draft = correctionDraftFor(seedRecordId);
+    try {
+      const payload = await api<CreationCorrectionResponse>("/api/flows/creation/corrections", {
+        method: "POST",
+        body: JSON.stringify(correctionPayloadFor(seedRecordId, draft))
+      });
+      setCorrectionError((current) => {
+        const next = { ...current };
+        delete next[seedRecordId];
+        return next;
+      });
+      setCreationDecision((current) => current
+        ? { ...current, handoff: payload.handoff, readSideTrail: payload.readSideTrail ?? current.readSideTrail }
+        : current);
+      setAdmissionQueue(payload.admissionQueue ?? admissionQueue);
+      setMessage("Creation correction applied; Admission queue and read-side trail refreshed.");
+      await loadWorldData();
+    } catch (error) {
+      if (error instanceof ApiError) {
+        const payload = error.payload as { error?: string; validationErrors?: Array<{ key: string; message: string }> };
+        const messages = payload.validationErrors?.length
+          ? payload.validationErrors.map((entry) => `${entry.key}: ${entry.message}`)
+          : [payload.error ?? error.message];
+        setCorrectionError((current) => ({ ...current, [seedRecordId]: messages }));
         setMessage(payload.error ?? error.message);
         return;
       }
@@ -5639,6 +5873,14 @@ function App({
                     <h3>{`${seed.shortId} · ${seed.title}`}</h3>
                     <p>{seed.body}</p>
                     <p className="meta">{`Truth layer: ${seed.truthLayer ?? "unset"} · Current canon status: ${seed.canonStatus ?? "unset"}`}</p>
+                    <CreationCorrectionPanel
+                      seed={seed}
+                      draft={correctionDraftFor(seed.id)}
+                      errorMessages={correctionError[seed.id] ?? []}
+                      disabled={!openWorld}
+                      onDraftChange={(patch) => updateCorrectionDraft(seed.id, patch)}
+                      onSubmit={() => { void submitCreationCorrection(seed.id); }}
+                    />
                   </article>
                 ))}
               </div>
@@ -6117,6 +6359,14 @@ function App({
                         <p>{seed.body}</p>
                         <p className="meta">{`Truth layer: ${seed.truthLayer ?? "unset"} · Current canon status: ${seed.canonStatus ?? "unset"}`}</p>
                         <p>{`Source links: ${seed.sourceLinks.map((link) => link.label).join(" · ") || "none"}`}</p>
+                        <CreationCorrectionPanel
+                          seed={seed}
+                          draft={correctionDraftFor(seed.id)}
+                          errorMessages={correctionError[seed.id] ?? []}
+                          disabled={!openWorld}
+                          onDraftChange={(patch) => updateCorrectionDraft(seed.id, patch)}
+                          onSubmit={() => { void submitCreationCorrection(seed.id); }}
+                        />
                       </article>
                     ))}
                   </section>

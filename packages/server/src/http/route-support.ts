@@ -25,6 +25,16 @@ export const badRequest = (c: Context, error: unknown): Response =>
       typeof error === "object" && error !== null && "validationErrors" in error
         ? { validationErrors: (error as { validationErrors: unknown }).validationErrors }
         : {}
+    ),
+    ...(
+      typeof error === "object" && error !== null && "attemptedInput" in error
+        ? { attemptedInput: (error as { attemptedInput: unknown }).attemptedInput }
+        : {}
+    ),
+    ...(
+      typeof error === "object" && error !== null && "correctionContract" in error
+        ? { correctionContract: (error as { correctionContract: unknown }).correctionContract }
+        : {}
     )
   }, 400);
 

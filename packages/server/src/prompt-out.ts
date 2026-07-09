@@ -758,6 +758,7 @@ const creationDecompositionPrompt = (
   template: PromptTemplateRow,
   stepKey: string
 ): PromptGenerationResult => {
+  const mode = input.mode ?? "pressure";
   const handoff = resolveCreationDecompositionHandoff(world, input.recordId);
   const cardValue = methodCard("creation.seed-decomposition");
   const rulings = standingRulingRows(world);
@@ -794,11 +795,13 @@ const creationDecompositionPrompt = (
   ];
 
   const prompt = renderPromptPacket({
-      mode: "pressure",
-      roleName: template.role_name,
+      mode,
+      roleName: mode === "proposal" ? "Decision proposal" : template.role_name,
       templateText: template.current_text,
       currentDecision: `Flow ${input.flowKey ?? "creation"}, step ${stepKey}: decide whether the seed decomposition is ready to hand to Admission.`,
-      modeRequest: "Provide pressure, risks, alternatives, and questions that help the steward decide whether the decomposition is ready for Admission.",
+      modeRequest: mode === "proposal"
+        ? "Draft labeled candidate split material, alternatives, assumptions, risks, and questions that help the steward repair the parked seed before Admission. Do not assign truth layer, canon standing, or final wording."
+        : "Provide pressure, risks, alternatives, and questions that help the steward decide whether the decomposition is ready for Admission.",
       bearingContext: [
         ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey }),
         `Granularity rationale: ${handoff.granularityRationale ?? "Each parked seed is independently rejectable without destroying its siblings."}`,
@@ -851,11 +854,11 @@ const creationDecompositionPrompt = (
       flowKey: input.flowKey ?? null,
       flowId: input.flowId ?? null,
       stepKey,
-      mode: "pressure",
+      mode,
       templateKey: input.templateKey,
       recordId: report.id,
-      packetIdentity: generatedPacketIdentity(world, { ...input, recordId: report.id, mode: "pressure", stepKey }, prompt, {
-        mode: "pressure",
+      packetIdentity: generatedPacketIdentity(world, { ...input, recordId: report.id, mode, stepKey }, prompt, {
+        mode,
         stepKey,
         record: report,
         selectedSectionHeading: null,
@@ -1001,7 +1004,7 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
   const template = promptTemplateRow(world, input.templateKey);
   const stepKey = input.stepKey ?? input.templateKey;
   const mode: PromptMode = input.mode ?? "pressure";
-  if (mode === "pressure" && input.flowKey === "creation" && input.templateKey === "decomposition_pressure") {
+  if (input.flowKey === "creation" && input.templateKey === "decomposition_pressure") {
     return creationDecompositionPrompt(world, input, template, stepKey);
   }
   const selectedRecord = input.recordId == null ? null : world.getRecord(input.recordId);

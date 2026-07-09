@@ -1,5 +1,5 @@
-import { parkCreationSeedForAdmission } from "./admission-flow.js";
-import { creationHandoffContext, type CreationHandoffContext } from "./creation-handoff.js";
+import { admissionQueueWithDecisionPointLinks, parkCreationSeedForAdmission } from "./admission-flow.js";
+import { correctionContractForSeed, creationHandoffContext, sourceLinksForRecord, type CreationHandoffContext, type HandoffSourceLink } from "./creation-handoff.js";
 import { ADVISORY_OUTPUT_LABELS, promptMode, splitDisplayedContext, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
 import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest } from "./method-cards.js";
 import * as PromptOut from "./prompt-out.js";
@@ -12,6 +12,23 @@ type AdmissionSeedInput = {
   truthLayer: string;
   canonStatus?: string;
   granularityConfirmed?: boolean;
+};
+
+type CreationCorrectionAction = "split" | "retract_and_rewrite" | "replace" | "admission_narrowing_note";
+
+type CreationCorrectionFactInput = {
+  title?: string;
+  body?: string;
+  truthLayer?: string;
+};
+
+export type CreationCorrectionInput = {
+  seedRecordId: number;
+  action: CreationCorrectionAction;
+  rationale?: string;
+  siblings?: CreationCorrectionFactInput[];
+  replacement?: CreationCorrectionFactInput;
+  narrowingNote?: string;
 };
 
 type CreationFlowRow = FlowInstanceRow & {
@@ -154,6 +171,25 @@ export class CreationFlowBlockedError extends Error {
     super(message);
     this.name = "CreationFlowBlockedError";
     this.decisionPoint = decisionPoint;
+  }
+}
+
+export class CreationCorrectionValidationError extends Error {
+  validationErrors: Array<{ key: string; message: string }>;
+  attemptedInput: CreationCorrectionInput;
+  correctionContract?: unknown;
+
+  constructor(
+    message: string,
+    validationErrors: Array<{ key: string; message: string }>,
+    attemptedInput: CreationCorrectionInput,
+    correctionContract?: unknown
+  ) {
+    super(message);
+    this.name = "CreationCorrectionValidationError";
+    this.validationErrors = validationErrors;
+    this.attemptedInput = attemptedInput;
+    this.correctionContract = correctionContract;
   }
 }
 
@@ -325,6 +361,128 @@ const trail = (kernel: RecordRow | null, report?: RecordRow, records: RecordRow[
   ...records.map((record) => ({ label: `Parked seed ${record.shortId}`, href: `/api/canon-workbench/records/${record.id}`, recordId: record.id })),
   { label: "Admission queue", href: "/api/admission/queue" }
 ];
+
+const safeRecord = (worldFile: WorldFile, recordId: number): RecordRow | null => {
+  try {
+    return worldFile.getRecord(recordId);
+  } catch {
+    return null;
+  }
+};
+
+const linksFromRecord = (worldFile: WorldFile, recordId: number): HandoffSourceLink[] =>
+  worldFile.listLinks(recordId)
+    .filter((link) => link.fromRecordId === recordId)
+    .flatMap((link) => {
+      const target = safeRecord(worldFile, link.toRecordId);
+      if (!target) return [];
+      return [{
+        label: `${link.linkTypeKey}: ${target.shortId} ${target.title}`,
+        href: `/api/canon-workbench/records/${target.id}`,
+        recordId: target.id,
+        shortId: target.shortId,
+        title: target.title,
+        recordTypeKey: target.recordTypeKey,
+        linkTypeKey: link.linkTypeKey,
+        note: link.note
+      }];
+    });
+
+const correctionSourceRecordIds = (worldFile: WorldFile, seed: RecordRow): { kernelId: number | null; reportId: number | null } => {
+  let kernelId: number | null = null;
+  let reportId: number | null = null;
+  for (const link of sourceLinksForRecord(worldFile, seed.id)) {
+    if (link.recordTypeKey === "world_kernel") kernelId = link.recordId;
+    if (link.recordTypeKey === "seed_decomposition") reportId = link.recordId;
+  }
+  return { kernelId, reportId };
+};
+
+const validateCorrectionFact = (
+  prefix: string,
+  fact: CreationCorrectionFactInput | undefined,
+  errors: Array<{ key: string; message: string }>
+) => {
+  if (!fact?.title?.trim()) errors.push({ key: `${prefix}.title`, message: "Correction title is required." });
+  if (!fact?.body?.trim()) errors.push({ key: `${prefix}.body`, message: "Correction body is required." });
+  if (!fact?.truthLayer?.trim()) errors.push({ key: `${prefix}.truthLayer`, message: "Correction truth layer is required." });
+};
+
+const validateCorrectionInput = (input: CreationCorrectionInput): Array<{ key: string; message: string }> => {
+  const errors: Array<{ key: string; message: string }> = [];
+  if (!input.rationale?.trim()) errors.push({ key: "rationale", message: "Correction rationale is required." });
+  if (input.action === "split") {
+    if (!input.siblings?.length) {
+      errors.push({ key: "siblings", message: "Split requires at least one sibling proposed fact." });
+    }
+    input.siblings?.forEach((sibling, index) => validateCorrectionFact(`siblings[${index}]`, sibling, errors));
+  }
+  if (input.action === "retract_and_rewrite" || input.action === "replace") {
+    validateCorrectionFact("replacement", input.replacement, errors);
+  }
+  if (input.action === "admission_narrowing_note" && !input.narrowingNote?.trim()) {
+    errors.push({ key: "narrowingNote", message: "Admission narrowing note substance is required." });
+  }
+  return errors;
+};
+
+const correctionContextBody = (seed: RecordRow, input: CreationCorrectionInput): string => [
+  `Action: ${input.action}`,
+  `Original seed: ${seed.shortId} ${seed.title}`,
+  `Original wording: ${seed.body}`,
+  `Rationale: ${input.rationale?.trim() ?? ""}`,
+  ...(input.narrowingNote?.trim() ? [`Admission narrowing note: ${input.narrowingNote.trim()}`] : []),
+  "Creation correction remains proposed-only; Admission owns first canon standing, severity, gate results, and admission outcomes."
+].join("\n");
+
+const createCorrectionContext = (worldFile: WorldFile, seed: RecordRow, input: CreationCorrectionInput): RecordRow => {
+  const context = worldFile.createRecord({
+    recordTypeKey: "canon_change_proposal",
+    title: `Creation correction: ${seed.shortId}`,
+    body: correctionContextBody(seed, input),
+    truthLayer: seed.truthLayer ?? "Objective canon",
+    canonStatus: "proposed"
+  });
+  worldFile.createLinkIfMissing(context.id, seed.id, "derived_from", "Creation correction preserves original parked seed wording");
+  const { kernelId, reportId } = correctionSourceRecordIds(worldFile, seed);
+  if (kernelId != null) worldFile.createLinkIfMissing(context.id, kernelId, "derived_from", "Creation correction preserves kernel provenance");
+  if (reportId != null) worldFile.createLinkIfMissing(context.id, reportId, "derived_from", "Creation correction preserves seed-decomposition report provenance");
+  return context;
+};
+
+const createCorrectedFact = (
+  worldFile: WorldFile,
+  fact: Required<CreationCorrectionFactInput>,
+  seed: RecordRow,
+  context: RecordRow,
+  supersedesOriginal = false
+): RecordRow => {
+  const record = worldFile.createRecord({
+    recordTypeKey: "canon_fact",
+    title: fact.title,
+    body: fact.body,
+    truthLayer: fact.truthLayer,
+    canonStatus: "proposed"
+  });
+  const { kernelId, reportId } = correctionSourceRecordIds(worldFile, seed);
+  if (kernelId != null) worldFile.createLinkIfMissing(record.id, kernelId, "derived_from", "Corrected seed preserves world-kernel provenance");
+  if (reportId != null) worldFile.createLinkIfMissing(record.id, reportId, "derived_from", "Corrected seed preserves seed-decomposition report provenance");
+  worldFile.createLinkIfMissing(record.id, seed.id, "derived_from", "Corrected seed preserves original parked seed wording");
+  worldFile.createLinkIfMissing(record.id, context.id, "derived_from", "Corrected seed created by Creation correction context");
+  if (supersedesOriginal) worldFile.createLinkIfMissing(record.id, seed.id, "supersedes", "Creation replacement supersedes original parked seed");
+  return record;
+};
+
+const markOriginalNoLongerCurrent = (worldFile: WorldFile, seed: RecordRow): RecordRow => {
+  worldFile.assertAllowedStatusTransition(seed.canonStatus, "rejected");
+  return worldFile.updateRecord(seed.id, { canonStatus: "rejected" });
+};
+
+const requiredFact = (fact: CreationCorrectionFactInput): Required<CreationCorrectionFactInput> => ({
+  title: fact.title!.trim(),
+  body: fact.body!.trim(),
+  truthLayer: fact.truthLayer!.trim()
+});
 
 export const creationDecisionPoint = (
   worldFile: WorldFile,
@@ -705,6 +863,8 @@ export const creationDecisionPoint = (
 export const startCreationFlow = (worldFile: WorldFile): FlowInstanceRow => {
   const row = worldFile.findLatestInProgressFlow("creation");
   if (row) return row;
+  const completed = worldFile.findLatestFlow("creation");
+  if (completed?.state === "complete" && completed.current_step === "decomposition:complete") return completed;
   return worldFile.createFlowInstance({ flowKey: "creation", currentStep: "kernel:World premise" });
 };
 
@@ -795,5 +955,87 @@ export const decomposeSeeds = (
     for (const draft of drafts) worldFile.discardDraft(draft.id);
     const flow = worldFile.updateFlowInstance(input.flowId, { currentStep: "decomposition:complete", state: "complete" });
     return { report, records, flow, decisionPoint: creationDecisionPoint(worldFile, flow, { report, records }) };
+  });
+};
+
+export const correctParkedSeed = (
+  worldFile: WorldFile,
+  input: CreationCorrectionInput
+): unknown => {
+  const seed = worldFile.getRecord(input.seedRecordId);
+  const contract = correctionContractForSeed(worldFile, seed);
+  if (contract.availability === "late_admission") {
+    throw new CreationCorrectionValidationError(
+      "Creation correction is blocked because Admission work has already begun for this seed.",
+      [{ key: "admission_started", message: "Use a superseding proposal, re-proposal, or Admission-facing note instead of mutating the in-flight Admission record." }],
+      input,
+      contract
+    );
+  }
+  if (contract.availability !== "correctable") {
+    throw new CreationCorrectionValidationError(
+      "Creation correction is blocked because the seed is not a current proposed pre-Admission seed.",
+      [{ key: "seedRecordId", message: "Only current proposed Creation seeds can be corrected before Admission begins." }],
+      input,
+      contract
+    );
+  }
+  const validationErrors = validateCorrectionInput(input);
+  if (validationErrors.length) {
+    throw new CreationCorrectionValidationError("Creation correction validation failed.", validationErrors, input, contract);
+  }
+
+  return worldFile.atomicWrite(() => {
+    const context = createCorrectionContext(worldFile, seed, input);
+    let originalSeed = seed;
+    const correctedRecords: RecordRow[] = [];
+
+    if (input.action === "split") {
+      originalSeed = markOriginalNoLongerCurrent(worldFile, seed);
+      for (const sibling of input.siblings ?? []) {
+        correctedRecords.push(createCorrectedFact(worldFile, requiredFact(sibling), seed, context));
+      }
+    }
+    if (input.action === "retract_and_rewrite") {
+      originalSeed = markOriginalNoLongerCurrent(worldFile, seed);
+      correctedRecords.push(createCorrectedFact(worldFile, requiredFact(input.replacement!), seed, context));
+    }
+    if (input.action === "replace") {
+      originalSeed = markOriginalNoLongerCurrent(worldFile, seed);
+      correctedRecords.push(createCorrectedFact(worldFile, requiredFact(input.replacement!), seed, context, true));
+    }
+    if (input.action === "admission_narrowing_note") {
+      worldFile.createLinkIfMissing(seed.id, context.id, "derived_from", "Admission narrowing note from Creation correction context");
+    }
+
+    const correctedWithLinks = correctedRecords.map((record) => ({
+      ...record,
+      sourceLinks: linksFromRecord(worldFile, record.id)
+    }));
+    const { kernelId, reportId } = correctionSourceRecordIds(worldFile, seed);
+    const handoff = creationHandoffContext(
+      worldFile,
+      kernelId == null ? null : worldFile.getRecord(kernelId),
+      {
+        ...(reportId == null ? {} : { report: worldFile.getRecord(reportId) }),
+        records: [originalSeed, ...correctedRecords]
+      }
+    );
+    return {
+      correction: {
+        action: input.action,
+        correctionContext: context,
+        originalSeed,
+        correctedRecords: correctedWithLinks
+      },
+      admissionQueue: admissionQueueWithDecisionPointLinks(worldFile),
+      handoff,
+      readSideTrail: [
+        { label: `Original seed ${originalSeed.shortId}`, href: `/api/canon-workbench/records/${originalSeed.id}`, recordId: originalSeed.id },
+        { label: `Correction context ${context.shortId}`, href: `/api/canon-workbench/records/${context.id}`, recordId: context.id },
+        ...correctedRecords.map((record) => ({ label: `Corrected proposed fact ${record.shortId}`, href: `/api/canon-workbench/records/${record.id}`, recordId: record.id })),
+        { label: "Admission queue", href: "/api/admission/queue" }
+      ]
+    };
   });
 };

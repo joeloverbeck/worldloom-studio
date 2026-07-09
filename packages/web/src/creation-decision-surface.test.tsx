@@ -199,19 +199,78 @@ describe("Creation decision-point web surface", () => {
       handoff: {
         seedDecompositionReport: { id: 3, shortId: "SEE-1", title: "Seed decomposition", recordTypeKey: "seed_decomposition", body: "Kernel KER-1", truthLayer: "Objective canon", canonStatus: "proposed" },
         reportSections: [],
-        parkedSeeds: [{
-          id: 4,
-          shortId: "FAC-1",
-          title: "Echo court testimony",
-          recordTypeKey: "canon_fact",
-          body: "Courts accept echo testimony under conditions.",
-          truthLayer: "Objective canon",
-          canonStatus: "proposed",
-          sourceLinks: [
-            { label: "Kernel KER-1: World kernel", href: "/api/canon-workbench/records/1", recordId: 1, shortId: "KER-1", title: "World kernel", recordTypeKey: "world_kernel", linkTypeKey: "derived_from", note: "Seed decomposed from world kernel" },
-            { label: "Seed decomposition report SEE-1: Seed decomposition", href: "/api/canon-workbench/records/3", recordId: 3, shortId: "SEE-1", title: "Seed decomposition", recordTypeKey: "seed_decomposition", linkTypeKey: "derived_from", note: "Seed recorded by decomposition report" }
-          ]
-        }],
+        parkedSeeds: [
+          {
+            id: 4,
+            shortId: "FAC-1",
+            title: "Echo court testimony",
+            recordTypeKey: "canon_fact",
+            body: "Courts accept echo testimony under conditions.",
+            truthLayer: "Objective canon",
+            canonStatus: "proposed",
+            correction: {
+              availability: "correctable",
+              directMutationBlocked: false,
+              originalSeedWording: "Courts accept echo testimony under conditions.",
+              correctionContext: "Creation can repair this proposed seed before Admission work begins.",
+              actions: [
+                { key: "split", label: "Split into sibling proposed facts", available: true, blocker: null, preview: "Write sibling proposed facts." },
+                { key: "retract_and_rewrite", label: "Retract and rewrite", available: true, blocker: null, preview: "Preserve the original wording and write replacement wording." },
+                { key: "replace", label: "Replace with corrected proposed fact", available: true, blocker: null, preview: "Route a corrected proposed fact." },
+                { key: "admission_narrowing_note", label: "Carry Admission narrowing note", available: true, blocker: null, preview: "Carry caution into Admission without admitting canon." }
+              ],
+              writeIntent: {
+                willWrite: ["correction context report", "corrected canon_fact records at proposed"],
+                willLink: ["original parked seed", "seed-decomposition report", "world kernel", "correction context"],
+                willQueue: ["corrected proposed facts remain visible in the Admission queue"],
+                willLeaveUntouched: ["Creation does not admit canon or assign Admission severity"]
+              },
+              nextOrResumeState: {
+                currentStep: "decomposition:complete",
+                nextStep: "repair parked seed before Admission",
+                safeExit: "Safe exit keeps the Creation handoff visible."
+              }
+            },
+            sourceLinks: [
+              { label: "Kernel KER-1: World kernel", href: "/api/canon-workbench/records/1", recordId: 1, shortId: "KER-1", title: "World kernel", recordTypeKey: "world_kernel", linkTypeKey: "derived_from", note: "Seed decomposed from world kernel" },
+              { label: "Seed decomposition report SEE-1: Seed decomposition", href: "/api/canon-workbench/records/3", recordId: 3, shortId: "SEE-1", title: "Seed decomposition", recordTypeKey: "seed_decomposition", linkTypeKey: "derived_from", note: "Seed recorded by decomposition report" }
+            ]
+          },
+          {
+            id: 5,
+            shortId: "FAC-2",
+            title: "Late echo testimony",
+            recordTypeKey: "canon_fact",
+            body: "Admission has already started reviewing this seed.",
+            truthLayer: "Objective canon",
+            canonStatus: "under review",
+            correction: {
+              availability: "late_admission",
+              directMutationBlocked: true,
+              originalSeedWording: "Admission has already started reviewing this seed.",
+              correctionContext: "Admission work has begun; Creation cannot directly mutate the in-flight proposed fact.",
+              actions: [
+                { key: "superseding", label: "Superseding proposal", available: true, blocker: null, preview: "Route a superseding proposed fact without changing the in-flight Admission record." },
+                { key: "re_proposal", label: "Re-proposal", available: true, blocker: null, preview: "Create a new proposed fact for later Admission handling." },
+                { key: "admission_facing_note", label: "Admission-facing note", available: true, blocker: null, preview: "Carry caution into Admission without changing canon standing." }
+              ],
+              writeIntent: {
+                willWrite: ["late-correction context only if the steward chooses an Admission-facing route"],
+                willLink: ["in-flight Admission seed remains the governed target"],
+                willQueue: ["new proposals must be routed separately"],
+                willLeaveUntouched: ["Creation does not mutate an in-flight Admission record"]
+              },
+              nextOrResumeState: {
+                currentStep: "decomposition:complete",
+                nextStep: "continue in Admission or route a superseding proposal",
+                safeExit: "Return to Admission; the Creation handoff keeps the late-correction reason visible."
+              }
+            },
+            sourceLinks: [
+              { label: "Seed decomposition report SEE-1: Seed decomposition", href: "/api/canon-workbench/records/3", recordId: 3, shortId: "SEE-1", title: "Seed decomposition", recordTypeKey: "seed_decomposition", linkTypeKey: "derived_from", note: "Seed recorded by decomposition report" }
+            ]
+          }
+        ],
         supportingKernel: { id: 1, shortId: "KER-1", title: "World kernel", recordTypeKey: "world_kernel", body: "A city hears its dead.", truthLayer: "Objective canon", canonStatus: "proposed" },
         kernelSections: [],
         granularityRationale: "Each seed can be rejected without rewriting its siblings.",
@@ -235,7 +294,8 @@ describe("Creation decision-point web surface", () => {
       initialOpenWorld="/tmp/creation.sqlite"
       initialRecords={[
         { id: 1, shortId: "KER-1", title: "World kernel", recordTypeKey: "world_kernel", body: "", truthLayer: "Objective canon", canonStatus: "proposed", updatedAt: "now" },
-        { id: 4, shortId: "FAC-1", title: "Echo court testimony", recordTypeKey: "canon_fact", body: "Courts accept echo testimony under conditions.", truthLayer: "Objective canon", canonStatus: "proposed", updatedAt: "now" }
+        { id: 4, shortId: "FAC-1", title: "Echo court testimony", recordTypeKey: "canon_fact", body: "Courts accept echo testimony under conditions.", truthLayer: "Objective canon", canonStatus: "proposed", updatedAt: "now" },
+        { id: 5, shortId: "FAC-2", title: "Late echo testimony", recordTypeKey: "canon_fact", body: "Admission has already started reviewing this seed.", truthLayer: "Objective canon", canonStatus: "under review", updatedAt: "now" }
       ]}
       initialCreationDecision={handoffDecision as any}
     />);
@@ -245,6 +305,26 @@ describe("Creation decision-point web surface", () => {
     expect(html).toContain("FAC-1 · Echo court testimony");
     expect(html).toContain("Courts accept echo testimony under conditions.");
     expect(html).toContain("Current canon status: proposed");
+    expect(html).toContain("Post-park correction");
+    expect(html).toContain("Original seed wording");
+    expect(html).toContain("Split into sibling proposed facts");
+    expect(html).toContain("Retract and rewrite");
+    expect(html).toContain("Replace with corrected proposed fact");
+    expect(html).toContain("Carry Admission narrowing note");
+    expect(html).toContain("Correction rationale");
+    expect(html).toContain("Replacement title");
+    expect(html).toContain("Sibling title");
+    expect(html).toContain("Narrowing note");
+    expect(html).toContain("Submit Correction");
+    expect(html).toContain("corrected canon_fact records at proposed");
+    expect(html).toContain("Creation does not admit canon or assign Admission severity");
+    expect(html).toContain("repair parked seed before Admission");
+    expect(html).toContain("Admission work has begun; Creation cannot directly mutate the in-flight proposed fact.");
+    expect(html).toContain("Superseding proposal");
+    expect(html).toContain("Re-proposal");
+    expect(html).toContain("Admission-facing note");
+    expect(html).toContain("Creation does not mutate an in-flight Admission record");
+    expect(html).toContain("continue in Admission or route a superseding proposal");
     expect(html).toContain("Admission intent: Audit during Admission for institutional cost.");
     expect(html).toContain("Creation parks proposed seeds; Admission owns first canon standing.");
     expect(html).toContain("File paths and package sources are provenance, not primary operating instructions.");
@@ -255,6 +335,10 @@ describe("Creation decision-point web surface", () => {
     expect(html).toContain("Not current: work from the Creation handoff before starting unrelated advanced flows.");
     expect(source).toContain("creationDecision.handoff");
     expect(source).toContain("displayedCreationDecision.handoff.parkedSeeds");
+    expect(source).toContain("/api/flows/creation/corrections");
+    expect(source).toContain("setCorrectionError");
+    expect(source).toContain("payload.validationErrors");
+    expect(source).toContain("setAdmissionQueue(payload.admissionQueue");
   });
 
   it("renders routed Creation controls for selected-section guidance, readiness, and inline recovery", () => {

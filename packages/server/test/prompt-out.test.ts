@@ -339,9 +339,105 @@ describe("Prompt-out module", () => {
       packetHash: expect.stringMatching(/^[a-f0-9]{64}$/),
       bodyHash: expect.stringMatching(/^[a-f0-9]{64}$/)
     });
-    expect(proposal.prompt).toContain("Flow creation, step creation:decomposition_prompt; selected record");
-    expect(proposal.prompt).toContain("Type: seed_decomposition");
+    expect(proposal.prompt).toContain("Flow creation, step creation:decomposition_prompt: decide whether the seed decomposition is ready to hand to Admission.");
+    expect(proposal.prompt).toContain("Seed decomposition report");
+    expect(proposal.prompt).toContain("Parked seeds:");
+    expect(proposal.prompt).toContain("Draft labeled candidate split material");
     expect(proposal.prompt).toContain("Method card: creation.seed-decomposition");
+    expect(proposal.prompt).not.toContain("Flow creation, step creation:decomposition_prompt; selected record");
+
+    store.close();
+  });
+
+  it("keeps Creation decomposition Proposal and Pressure packets on the same post-park context", () => {
+    const store = WorldFile.create(tempPath("decomposition-parity.sqlite"));
+    const kernel = store.createRecord({
+      recordTypeKey: "world_kernel",
+      title: "Echo city kernel",
+      body: "The city courts debts through seven-day echoes.",
+      ...explicitJudgment
+    });
+    store.replaceSections(kernel.id, [
+      { heading: "World premise", body: "The dead leave seven-day legal echoes.", position: 1 },
+      { heading: "Primary pressures and initial domains", body: "Courts, mortuary advocates, and poor households feel pressure first.", position: 8 }
+    ]);
+    const decomposition = store.createRecord({
+      recordTypeKey: "seed_decomposition",
+      title: "Echo seed split",
+      body: "Echo laws split into testimony, cost, and enforcement seeds.",
+      ...explicitJudgment
+    });
+    store.replaceSections(decomposition.id, [
+      { heading: "Kernel source", body: `${kernel.shortId} ${kernel.title}`, position: 1 },
+      { heading: "Granularity decisions", body: "Identity testing and court admissibility can be rejected independently.", position: 2 },
+      { heading: "Parked seeds", body: "Echo court testimony", position: 3 },
+      { heading: "Thin-start boundary", body: "Admission intent: audit jurisdiction and cost before first standing.", position: 4 }
+    ]);
+    const seed = store.createRecord({
+      recordTypeKey: "canon_fact",
+      title: "Echo court testimony",
+      body: "Harbor courts accept echo testimony only after identity testing.",
+      truthLayer: "Objective canon",
+      canonStatus: "proposed"
+    });
+    store.createLink(seed.id, kernel.id, "derived_from", "Seed decomposed from world kernel");
+    store.createLink(seed.id, decomposition.id, "derived_from", "Seed recorded by decomposition report");
+
+    const proposal = PromptOut.generatePrompt(store, {
+      flowKey: "creation",
+      templateKey: "decomposition_pressure",
+      recordId: decomposition.id,
+      stepKey: "creation:decomposition_prompt",
+      mode: "proposal"
+    });
+    const pressure = PromptOut.generatePrompt(store, {
+      flowKey: "creation",
+      templateKey: "decomposition_pressure",
+      recordId: decomposition.id,
+      stepKey: "creation:decomposition_prompt",
+      mode: "pressure"
+    });
+
+    const sharedDecisionBearingMarkers = [
+      "Echo seed split",
+      "Echo laws split into testimony, cost, and enforcement seeds.",
+      "Identity testing and court admissibility can be rejected independently.",
+      "Admission intent: audit jurisdiction and cost before first standing.",
+      "Echo court testimony",
+      "Harbor courts accept echo testimony only after identity testing.",
+      "Truth layer: Objective canon",
+      "Canon status: proposed",
+      "Supporting kernel context",
+      "The dead leave seven-day legal echoes.",
+      "Courts, mortuary advocates, and poor households feel pressure first.",
+      "Frontloaded seed audit results omitted: Admission owns that instrument and no result exists yet.",
+      "Admission gate results omitted: Admission has not selected severity or run a gate yet.",
+      "Source record: parked seed",
+      "Source record: supporting kernel",
+      "Pasted responses stay advisory artifacts"
+    ];
+    for (const marker of sharedDecisionBearingMarkers) {
+      expect(proposal.prompt).toContain(marker);
+      expect(pressure.prompt).toContain(marker);
+    }
+    expect(proposal.promptOut.packetIdentity).toMatchObject({
+      mode: "proposal",
+      recordId: decomposition.id,
+      recordTypeKey: "seed_decomposition",
+      decisionLabel: "Echo seed split"
+    });
+    expect(pressure.promptOut.packetIdentity).toMatchObject({
+      mode: "pressure",
+      recordId: decomposition.id,
+      recordTypeKey: "seed_decomposition",
+      decisionLabel: "Echo seed split"
+    });
+    expect(proposal.prompt).toContain("Draft labeled candidate split material");
+    expect(proposal.prompt).toContain("Structural skeleton example (proposal mode)");
+    expect(pressure.prompt).toContain("Provide pressure, risks, alternatives, and questions");
+    expect(pressure.prompt).toContain("Structural skeleton example (pressure mode)");
+    expect(proposal.prompt).not.toContain("Flow creation, step creation:decomposition_prompt; selected record");
+    expect(pressure.prompt).not.toContain("Flow creation, step creation:decomposition_prompt; selected record");
 
     store.close();
   });

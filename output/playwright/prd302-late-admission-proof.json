@@ -1,0 +1,176 @@
+{
+  "worldPath": "/tmp/worldloom-prd302/prd302-late-admission-1783562067365.sqlite",
+  "createdStatus": 201,
+  "severityStatus": 200,
+  "severityRecord": {
+    "id": 6,
+    "shortId": "FAC-3",
+    "title": "Manor descents reach one buried continent"
+  },
+  "severityDeclaredCorrection": {
+    "availability": "late_admission",
+    "directMutationBlocked": true,
+    "originalSeedWording": "Several noble houses access the same buried continent through estate-bound descents.",
+    "correctionContext": "Admission work has begun; Creation cannot directly mutate the in-flight proposed fact.",
+    "actions": [
+      {
+        "key": "superseding",
+        "label": "Superseding proposal",
+        "available": true,
+        "blocker": null,
+        "preview": "Route a superseding proposed fact without changing the in-flight Admission record."
+      },
+      {
+        "key": "re_proposal",
+        "label": "Re-proposal",
+        "available": true,
+        "blocker": null,
+        "preview": "Create a new proposed fact for later Admission handling."
+      },
+      {
+        "key": "admission_facing_note",
+        "label": "Admission-facing note",
+        "available": true,
+        "blocker": null,
+        "preview": "Carry caution into Admission without changing canon standing."
+      }
+    ],
+    "writeIntent": {
+      "willWrite": [
+        "late-correction context only if the steward chooses an Admission-facing route"
+      ],
+      "willLink": [
+        "in-flight Admission seed remains the governed target"
+      ],
+      "willQueue": [
+        "new proposals must be routed separately"
+      ],
+      "willLeaveUntouched": [
+        "Creation does not mutate an in-flight Admission record"
+      ]
+    },
+    "nextOrResumeState": {
+      "currentStep": "decomposition:complete",
+      "nextStep": "continue in Admission or route a superseding proposal",
+      "safeExit": "Return to Admission; the Creation handoff keeps the late-correction reason visible."
+    }
+  },
+  "preAdmissionSiblingCorrection": {
+    "availability": "correctable",
+    "directMutationBlocked": false,
+    "originalSeedWording": "Estate staff maintain access ledgers before expeditions depart.",
+    "correctionContext": "Creation can repair this proposed seed before Admission work begins.",
+    "actions": [
+      {
+        "key": "split",
+        "label": "Split into sibling proposed facts",
+        "available": true,
+        "blocker": null,
+        "preview": "Write steward-authored sibling canon_fact records at proposed and preserve the original seed wording."
+      },
+      {
+        "key": "retract_and_rewrite",
+        "label": "Retract and rewrite",
+        "available": true,
+        "blocker": null,
+        "preview": "Mark the original proposed seed no longer current and write replacement wording at proposed."
+      },
+      {
+        "key": "replace",
+        "label": "Replace with corrected proposed fact",
+        "available": true,
+        "blocker": null,
+        "preview": "Route a corrected proposed fact and link it as superseding the original parked seed."
+      },
+      {
+        "key": "admission_narrowing_note",
+        "label": "Carry Admission narrowing note",
+        "available": true,
+        "blocker": null,
+        "preview": "Record steward-authored caution for Admission intake without changing canon standing."
+      }
+    ],
+    "writeIntent": {
+      "willWrite": [
+        "correction context report",
+        "corrected canon_fact records at proposed"
+      ],
+      "willLink": [
+        "original parked seed",
+        "seed-decomposition report",
+        "world kernel",
+        "correction context"
+      ],
+      "willQueue": [
+        "corrected proposed facts remain visible in the Admission queue"
+      ],
+      "willLeaveUntouched": [
+        "Creation does not admit canon or assign Admission severity",
+        "pasted advisory material is not parsed into facts"
+      ]
+    },
+    "nextOrResumeState": {
+      "currentStep": "decomposition:complete",
+      "nextStep": "repair parked seed before Admission",
+      "safeExit": "Safe exit keeps the Creation handoff, original wording, entered correction material, and Admission route visible."
+    }
+  },
+  "directMutationAttempt": {
+    "status": 400,
+    "validationErrors": [
+      {
+        "key": "admission_started",
+        "message": "Use a superseding proposal, re-proposal, or Admission-facing note instead of mutating the in-flight Admission record."
+      }
+    ],
+    "correctionContract": {
+      "availability": "late_admission",
+      "directMutationBlocked": true,
+      "originalSeedWording": "Several noble houses access the same buried continent through estate-bound descents.",
+      "correctionContext": "Admission work has begun; Creation cannot directly mutate the in-flight proposed fact.",
+      "actions": [
+        {
+          "key": "superseding",
+          "label": "Superseding proposal",
+          "available": true,
+          "blocker": null,
+          "preview": "Route a superseding proposed fact without changing the in-flight Admission record."
+        },
+        {
+          "key": "re_proposal",
+          "label": "Re-proposal",
+          "available": true,
+          "blocker": null,
+          "preview": "Create a new proposed fact for later Admission handling."
+        },
+        {
+          "key": "admission_facing_note",
+          "label": "Admission-facing note",
+          "available": true,
+          "blocker": null,
+          "preview": "Carry caution into Admission without changing canon standing."
+        }
+      ],
+      "writeIntent": {
+        "willWrite": [
+          "late-correction context only if the steward chooses an Admission-facing route"
+        ],
+        "willLink": [
+          "in-flight Admission seed remains the governed target"
+        ],
+        "willQueue": [
+          "new proposals must be routed separately"
+        ],
+        "willLeaveUntouched": [
+          "Creation does not mutate an in-flight Admission record"
+        ]
+      },
+      "nextOrResumeState": {
+        "currentStep": "decomposition:complete",
+        "nextStep": "continue in Admission or route a superseding proposal",
+        "safeExit": "Return to Admission; the Creation handoff keeps the late-correction reason visible."
+      }
+    }
+  },
+  "passed": true
+}

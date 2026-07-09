@@ -560,6 +560,10 @@ export class WorldFile {
     return (this.db.prepare("SELECT * FROM flow_instances WHERE flow_key = ? AND state = 'in_progress' ORDER BY id DESC LIMIT 1").get(flowKey) as FlowInstanceRow | undefined) ?? null;
   }
 
+  findLatestFlow(flowKey: string): FlowInstanceRow | null {
+    return (this.db.prepare("SELECT * FROM flow_instances WHERE flow_key = ? ORDER BY id DESC LIMIT 1").get(flowKey) as FlowInstanceRow | undefined) ?? null;
+  }
+
   findLatestInProgressFlowByStepPrefix(flowKey: string, stepPrefix: string): FlowInstanceRow | null {
     return (this.db.prepare("SELECT * FROM flow_instances WHERE flow_key = ? AND state = 'in_progress' AND current_step LIKE ? ORDER BY id DESC LIMIT 1").get(flowKey, `${stepPrefix}%`) as FlowInstanceRow | undefined) ?? null;
   }

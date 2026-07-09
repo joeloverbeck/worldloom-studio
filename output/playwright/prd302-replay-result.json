@@ -1,0 +1,1324 @@
+{
+  "worldPath": "/tmp/worldloom-prd302/prd302-1783555398409.sqlite",
+  "flowId": 1,
+  "kernelId": 1,
+  "decompositionReport": {
+    "id": 2,
+    "shortId": "SEE-1",
+    "recordTypeKey": "seed_decomposition",
+    "title": "Seed decomposition",
+    "body": "Kernel KER-1; drafts consumed: none",
+    "truthLayer": "Objective canon",
+    "canonStatus": "proposed",
+    "createdAt": "2026-07-09T00:03:18.533Z",
+    "updatedAt": "2026-07-09T00:03:18.533Z"
+  },
+  "originalSeed": {
+    "id": 3,
+    "shortId": "FAC-1",
+    "recordTypeKey": "canon_fact",
+    "title": "Bundled Antarctic monolith discovery",
+    "body": "Researchers find passages into miles-deep monolithic architecture with strange remains and language-like traces while U.S. officials try to block foreign access.",
+    "truthLayer": "Objective canon",
+    "canonStatus": "proposed",
+    "createdAt": "2026-07-09T00:03:18.534Z",
+    "updatedAt": "2026-07-09T00:03:18.534Z"
+  },
+  "promptIdentity": {
+    "proposal": {
+      "flowKey": "creation",
+      "worldPath": "/tmp/worldloom-prd302/prd302-1783555398409.sqlite",
+      "flowId": 1,
+      "stepKey": "creation:decomposition_prompt",
+      "mode": "proposal",
+      "templateKey": "decomposition_pressure",
+      "recordId": 2,
+      "recordShortId": "SEE-1",
+      "recordTypeKey": "seed_decomposition",
+      "selectedSectionHeading": null,
+      "admissionLevel": null,
+      "workScale": null,
+      "admissionDraftState": "not_applicable",
+      "admissionDraftHash": null,
+      "admissionSectionKeys": [],
+      "decisionLabel": "Seed decomposition",
+      "generatedAt": "2026-07-09T00:03:18.540Z",
+      "packetHash": "e86d67a87ff5deffb7ce820740ab176b6f904a52c8ee332bcf71b43ed4eb7701",
+      "bodyHash": "49a55043db5cbb181bb1fea89abf5f986434427472b9dadb8689590120ca56ef"
+    },
+    "pressure": {
+      "flowKey": "creation",
+      "worldPath": "/tmp/worldloom-prd302/prd302-1783555398409.sqlite",
+      "flowId": 1,
+      "stepKey": "creation:decomposition_prompt",
+      "mode": "pressure",
+      "templateKey": "decomposition_pressure",
+      "recordId": 2,
+      "recordShortId": "SEE-1",
+      "recordTypeKey": "seed_decomposition",
+      "selectedSectionHeading": null,
+      "admissionLevel": null,
+      "workScale": null,
+      "admissionDraftState": "not_applicable",
+      "admissionDraftHash": null,
+      "admissionSectionKeys": [],
+      "decisionLabel": "Seed decomposition",
+      "generatedAt": "2026-07-09T00:03:18.543Z",
+      "packetHash": "dbd757382a5ccb014089415e40c0baa9ccd2073e8a5c360a732588c5fb9183be",
+      "bodyHash": "5cac1158c0abe82ababdbc25be7fe4885c35fa08d1f083e5fa9cae09abd0602d"
+    }
+  },
+  "promptIncludes": {
+    "proposal": {
+      "body": true,
+      "status": true,
+      "truthLayer": true,
+      "report": true,
+      "granularity": true,
+      "kernel": true,
+      "omissions": true,
+      "advisory": true
+    },
+    "pressure": {
+      "body": true,
+      "status": true,
+      "truthLayer": true,
+      "report": true,
+      "granularity": true,
+      "kernel": true,
+      "omissions": true,
+      "advisory": true
+    }
+  },
+  "invalidCorrection": {
+    "error": "Creation correction validation failed.",
+    "validationErrors": [
+      {
+        "key": "rationale",
+        "message": "Correction rationale is required."
+      },
+      {
+        "key": "siblings[0].body",
+        "message": "Correction body is required."
+      },
+      {
+        "key": "siblings[0].truthLayer",
+        "message": "Correction truth layer is required."
+      }
+    ],
+    "attemptedInput": {
+      "seedRecordId": 3,
+      "action": "split",
+      "rationale": "",
+      "siblings": [
+        {
+          "title": "Passage discovery",
+          "body": "",
+          "truthLayer": ""
+        }
+      ]
+    },
+    "correctionContract": {
+      "availability": "correctable",
+      "directMutationBlocked": false,
+      "originalSeedWording": "Researchers find passages into miles-deep monolithic architecture with strange remains and language-like traces while U.S. officials try to block foreign access.",
+      "correctionContext": "Creation can repair this proposed seed before Admission work begins.",
+      "actions": [
+        {
+          "key": "split",
+          "label": "Split into sibling proposed facts",
+          "available": true,
+          "blocker": null,
+          "preview": "Write steward-authored sibling canon_fact records at proposed and preserve the original seed wording."
+        },
+        {
+          "key": "retract_and_rewrite",
+          "label": "Retract and rewrite",
+          "available": true,
+          "blocker": null,
+          "preview": "Mark the original proposed seed no longer current and write replacement wording at proposed."
+        },
+        {
+          "key": "replace",
+          "label": "Replace with corrected proposed fact",
+          "available": true,
+          "blocker": null,
+          "preview": "Route a corrected proposed fact and link it as superseding the original parked seed."
+        },
+        {
+          "key": "admission_narrowing_note",
+          "label": "Carry Admission narrowing note",
+          "available": true,
+          "blocker": null,
+          "preview": "Record steward-authored caution for Admission intake without changing canon standing."
+        }
+      ],
+      "writeIntent": {
+        "willWrite": [
+          "correction context report",
+          "corrected canon_fact records at proposed"
+        ],
+        "willLink": [
+          "original parked seed",
+          "seed-decomposition report",
+          "world kernel",
+          "correction context"
+        ],
+        "willQueue": [
+          "corrected proposed facts remain visible in the Admission queue"
+        ],
+        "willLeaveUntouched": [
+          "Creation does not admit canon or assign Admission severity",
+          "pasted advisory material is not parsed into facts"
+        ]
+      },
+      "nextOrResumeState": {
+        "currentStep": "decomposition:complete",
+        "nextStep": "repair parked seed before Admission",
+        "safeExit": "Safe exit keeps the Creation handoff, original wording, entered correction material, and Admission route visible."
+      }
+    }
+  },
+  "correction": {
+    "correction": {
+      "action": "split",
+      "correctionContext": {
+        "id": 4,
+        "shortId": "CCP-1",
+        "recordTypeKey": "canon_change_proposal",
+        "title": "Creation correction: FAC-1",
+        "body": "Action: split\nOriginal seed: FAC-1 Bundled Antarctic monolith discovery\nOriginal wording: Researchers find passages into miles-deep monolithic architecture with strange remains and language-like traces while U.S. officials try to block foreign access.\nRationale: The passage discovery, artificial architecture, remains/language evidence, and foreign-access conflict need independently rejectable proposed facts.\nCreation correction remains proposed-only; Admission owns first canon standing, severity, gate results, and admission outcomes.",
+        "truthLayer": "Objective canon",
+        "canonStatus": "proposed",
+        "createdAt": "2026-07-09T00:03:18.546Z",
+        "updatedAt": "2026-07-09T00:03:18.546Z"
+      },
+      "originalSeed": {
+        "id": 3,
+        "shortId": "FAC-1",
+        "recordTypeKey": "canon_fact",
+        "title": "Bundled Antarctic monolith discovery",
+        "body": "Researchers find passages into miles-deep monolithic architecture with strange remains and language-like traces while U.S. officials try to block foreign access.",
+        "truthLayer": "Objective canon",
+        "canonStatus": "rejected",
+        "createdAt": "2026-07-09T00:03:18.534Z",
+        "updatedAt": "2026-07-09T00:03:18.546Z"
+      },
+      "correctedRecords": [
+        {
+          "id": 5,
+          "shortId": "FAC-2",
+          "recordTypeKey": "canon_fact",
+          "title": "Antarctic passages are found",
+          "body": "The research team finds passages leading below the Antarctic ice into a built environment.",
+          "truthLayer": "Objective canon",
+          "canonStatus": "proposed",
+          "createdAt": "2026-07-09T00:03:18.546Z",
+          "updatedAt": "2026-07-09T00:03:18.546Z",
+          "sourceLinks": [
+            {
+              "label": "derived_from: KER-1 World kernel",
+              "href": "/api/canon-workbench/records/1",
+              "recordId": 1,
+              "shortId": "KER-1",
+              "title": "World kernel",
+              "recordTypeKey": "world_kernel",
+              "linkTypeKey": "derived_from",
+              "note": "Corrected seed preserves world-kernel provenance"
+            },
+            {
+              "label": "derived_from: SEE-1 Seed decomposition",
+              "href": "/api/canon-workbench/records/2",
+              "recordId": 2,
+              "shortId": "SEE-1",
+              "title": "Seed decomposition",
+              "recordTypeKey": "seed_decomposition",
+              "linkTypeKey": "derived_from",
+              "note": "Corrected seed preserves seed-decomposition report provenance"
+            },
+            {
+              "label": "derived_from: FAC-1 Bundled Antarctic monolith discovery",
+              "href": "/api/canon-workbench/records/3",
+              "recordId": 3,
+              "shortId": "FAC-1",
+              "title": "Bundled Antarctic monolith discovery",
+              "recordTypeKey": "canon_fact",
+              "linkTypeKey": "derived_from",
+              "note": "Corrected seed preserves original parked seed wording"
+            },
+            {
+              "label": "derived_from: CCP-1 Creation correction: FAC-1",
+              "href": "/api/canon-workbench/records/4",
+              "recordId": 4,
+              "shortId": "CCP-1",
+              "title": "Creation correction: FAC-1",
+              "recordTypeKey": "canon_change_proposal",
+              "linkTypeKey": "derived_from",
+              "note": "Corrected seed created by Creation correction context"
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "shortId": "FAC-3",
+          "recordTypeKey": "canon_fact",
+          "title": "Monolith interpretation is contested",
+          "body": "Early reports describe artificial-looking monolithic architecture, strange remains, and language-like traces, but each claim remains interpretive until Admission tests it.",
+          "truthLayer": "Objective canon",
+          "canonStatus": "proposed",
+          "createdAt": "2026-07-09T00:03:18.547Z",
+          "updatedAt": "2026-07-09T00:03:18.547Z",
+          "sourceLinks": [
+            {
+              "label": "derived_from: KER-1 World kernel",
+              "href": "/api/canon-workbench/records/1",
+              "recordId": 1,
+              "shortId": "KER-1",
+              "title": "World kernel",
+              "recordTypeKey": "world_kernel",
+              "linkTypeKey": "derived_from",
+              "note": "Corrected seed preserves world-kernel provenance"
+            },
+            {
+              "label": "derived_from: SEE-1 Seed decomposition",
+              "href": "/api/canon-workbench/records/2",
+              "recordId": 2,
+              "shortId": "SEE-1",
+              "title": "Seed decomposition",
+              "recordTypeKey": "seed_decomposition",
+              "linkTypeKey": "derived_from",
+              "note": "Corrected seed preserves seed-decomposition report provenance"
+            },
+            {
+              "label": "derived_from: FAC-1 Bundled Antarctic monolith discovery",
+              "href": "/api/canon-workbench/records/3",
+              "recordId": 3,
+              "shortId": "FAC-1",
+              "title": "Bundled Antarctic monolith discovery",
+              "recordTypeKey": "canon_fact",
+              "linkTypeKey": "derived_from",
+              "note": "Corrected seed preserves original parked seed wording"
+            },
+            {
+              "label": "derived_from: CCP-1 Creation correction: FAC-1",
+              "href": "/api/canon-workbench/records/4",
+              "recordId": 4,
+              "shortId": "CCP-1",
+              "title": "Creation correction: FAC-1",
+              "recordTypeKey": "canon_change_proposal",
+              "linkTypeKey": "derived_from",
+              "note": "Corrected seed created by Creation correction context"
+            }
+          ]
+        }
+      ]
+    },
+    "admissionQueue": [
+      {
+        "id": 6,
+        "shortId": "FAC-3",
+        "recordTypeKey": "canon_fact",
+        "title": "Monolith interpretation is contested",
+        "body": "Early reports describe artificial-looking monolithic architecture, strange remains, and language-like traces, but each claim remains interpretive until Admission tests it.",
+        "truthLayer": "Objective canon",
+        "canonStatus": "proposed",
+        "createdAt": "2026-07-09T00:03:18.547Z",
+        "updatedAt": "2026-07-09T00:03:18.547Z",
+        "admissionLevel": null,
+        "workScale": null,
+        "constraintTags": [],
+        "decisionPointHref": "/api/admission/records/6/decision-point",
+        "sourceLinks": [
+          {
+            "id": 10,
+            "fromRecordId": 6,
+            "toRecordId": 1,
+            "linkTypeKey": "derived_from",
+            "note": "Corrected seed preserves world-kernel provenance",
+            "createdAt": "2026-07-09T00:03:18.547Z",
+            "target": {
+              "id": 1,
+              "shortId": "KER-1",
+              "title": "World kernel",
+              "recordTypeKey": "world_kernel"
+            }
+          },
+          {
+            "id": 11,
+            "fromRecordId": 6,
+            "toRecordId": 2,
+            "linkTypeKey": "derived_from",
+            "note": "Corrected seed preserves seed-decomposition report provenance",
+            "createdAt": "2026-07-09T00:03:18.547Z",
+            "target": {
+              "id": 2,
+              "shortId": "SEE-1",
+              "title": "Seed decomposition",
+              "recordTypeKey": "seed_decomposition"
+            }
+          },
+          {
+            "id": 12,
+            "fromRecordId": 6,
+            "toRecordId": 3,
+            "linkTypeKey": "derived_from",
+            "note": "Corrected seed preserves original parked seed wording",
+            "createdAt": "2026-07-09T00:03:18.547Z",
+            "target": {
+              "id": 3,
+              "shortId": "FAC-1",
+              "title": "Bundled Antarctic monolith discovery",
+              "recordTypeKey": "canon_fact"
+            }
+          },
+          {
+            "id": 13,
+            "fromRecordId": 6,
+            "toRecordId": 4,
+            "linkTypeKey": "derived_from",
+            "note": "Corrected seed created by Creation correction context",
+            "createdAt": "2026-07-09T00:03:18.547Z",
+            "target": {
+              "id": 4,
+              "shortId": "CCP-1",
+              "title": "Creation correction: FAC-1",
+              "recordTypeKey": "canon_change_proposal"
+            }
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "shortId": "FAC-2",
+        "recordTypeKey": "canon_fact",
+        "title": "Antarctic passages are found",
+        "body": "The research team finds passages leading below the Antarctic ice into a built environment.",
+        "truthLayer": "Objective canon",
+        "canonStatus": "proposed",
+        "createdAt": "2026-07-09T00:03:18.546Z",
+        "updatedAt": "2026-07-09T00:03:18.546Z",
+        "admissionLevel": null,
+        "workScale": null,
+        "constraintTags": [],
+        "decisionPointHref": "/api/admission/records/5/decision-point",
+        "sourceLinks": [
+          {
+            "id": 6,
+            "fromRecordId": 5,
+            "toRecordId": 1,
+            "linkTypeKey": "derived_from",
+            "note": "Corrected seed preserves world-kernel provenance",
+            "createdAt": "2026-07-09T00:03:18.546Z",
+            "target": {
+              "id": 1,
+              "shortId": "KER-1",
+              "title": "World kernel",
+              "recordTypeKey": "world_kernel"
+            }
+          },
+          {
+            "id": 7,
+            "fromRecordId": 5,
+            "toRecordId": 2,
+            "linkTypeKey": "derived_from",
+            "note": "Corrected seed preserves seed-decomposition report provenance",
+            "createdAt": "2026-07-09T00:03:18.546Z",
+            "target": {
+              "id": 2,
+              "shortId": "SEE-1",
+              "title": "Seed decomposition",
+              "recordTypeKey": "seed_decomposition"
+            }
+          },
+          {
+            "id": 8,
+            "fromRecordId": 5,
+            "toRecordId": 3,
+            "linkTypeKey": "derived_from",
+            "note": "Corrected seed preserves original parked seed wording",
+            "createdAt": "2026-07-09T00:03:18.546Z",
+            "target": {
+              "id": 3,
+              "shortId": "FAC-1",
+              "title": "Bundled Antarctic monolith discovery",
+              "recordTypeKey": "canon_fact"
+            }
+          },
+          {
+            "id": 9,
+            "fromRecordId": 5,
+            "toRecordId": 4,
+            "linkTypeKey": "derived_from",
+            "note": "Corrected seed created by Creation correction context",
+            "createdAt": "2026-07-09T00:03:18.546Z",
+            "target": {
+              "id": 4,
+              "shortId": "CCP-1",
+              "title": "Creation correction: FAC-1",
+              "recordTypeKey": "canon_change_proposal"
+            }
+          }
+        ]
+      }
+    ],
+    "handoff": {
+      "seedDecompositionReport": {
+        "id": 2,
+        "shortId": "SEE-1",
+        "title": "Seed decomposition",
+        "recordTypeKey": "seed_decomposition",
+        "body": "Kernel KER-1; drafts consumed: none",
+        "truthLayer": "Objective canon",
+        "canonStatus": "proposed"
+      },
+      "reportSections": [
+        {
+          "id": 7,
+          "recordId": 2,
+          "heading": "Kernel source",
+          "body": "KER-1 World kernel",
+          "position": 1
+        },
+        {
+          "id": 8,
+          "recordId": 2,
+          "heading": "Drafts consumed",
+          "body": "",
+          "position": 2
+        },
+        {
+          "id": 9,
+          "recordId": 2,
+          "heading": "Granularity decisions",
+          "body": "This deliberately parked seed is too bundled so the post-park critique has to split discovery, artificiality, remains, and access politics.",
+          "position": 3
+        },
+        {
+          "id": 10,
+          "recordId": 2,
+          "heading": "Parked seeds",
+          "body": "Bundled Antarctic monolith discovery",
+          "position": 4
+        },
+        {
+          "id": 11,
+          "recordId": 2,
+          "heading": "Thin-start boundary",
+          "body": "No seed is admitted by this flow; admission is deferred to the admission flow.\nAdmission intent: Admission should only review corrected or narrowed proposed facts with explicit correction provenance.",
+          "position": 5
+        }
+      ],
+      "parkedSeeds": [
+        {
+          "id": 3,
+          "shortId": "FAC-1",
+          "title": "Bundled Antarctic monolith discovery",
+          "recordTypeKey": "canon_fact",
+          "body": "Researchers find passages into miles-deep monolithic architecture with strange remains and language-like traces while U.S. officials try to block foreign access.",
+          "truthLayer": "Objective canon",
+          "canonStatus": "rejected",
+          "sourceLinks": [
+            {
+              "label": "Kernel KER-1: World kernel",
+              "href": "/api/canon-workbench/records/1",
+              "recordId": 1,
+              "shortId": "KER-1",
+              "title": "World kernel",
+              "recordTypeKey": "world_kernel",
+              "linkTypeKey": "derived_from",
+              "note": "Seed decomposed from world kernel"
+            },
+            {
+              "label": "Seed decomposition report SEE-1: Seed decomposition",
+              "href": "/api/canon-workbench/records/2",
+              "recordId": 2,
+              "shortId": "SEE-1",
+              "title": "Seed decomposition",
+              "recordTypeKey": "seed_decomposition",
+              "linkTypeKey": "derived_from",
+              "note": "Seed recorded by decomposition report"
+            }
+          ],
+          "correction": {
+            "availability": "not_current",
+            "directMutationBlocked": true,
+            "originalSeedWording": "Researchers find passages into miles-deep monolithic architecture with strange remains and language-like traces while U.S. officials try to block foreign access.",
+            "correctionContext": "This parked seed is no longer a current proposed seed before Admission.",
+            "actions": [
+              {
+                "key": "read_history",
+                "label": "Read correction history",
+                "available": true,
+                "blocker": null,
+                "preview": "Review the original wording, correction links, and read-side trail."
+              }
+            ],
+            "writeIntent": {
+              "willWrite": [],
+              "willLink": [],
+              "willQueue": [],
+              "willLeaveUntouched": [
+                "non-current seed wording and correction history remain read-only from Creation"
+              ]
+            },
+            "nextOrResumeState": {
+              "currentStep": "decomposition:complete",
+              "nextStep": "review corrected proposed facts or Admission queue",
+              "safeExit": "Return to the Creation handoff or read-side trail without mutating this seed."
+            }
+          }
+        },
+        {
+          "id": 5,
+          "shortId": "FAC-2",
+          "title": "Antarctic passages are found",
+          "recordTypeKey": "canon_fact",
+          "body": "The research team finds passages leading below the Antarctic ice into a built environment.",
+          "truthLayer": "Objective canon",
+          "canonStatus": "proposed",
+          "sourceLinks": [
+            {
+              "label": "Kernel KER-1: World kernel",
+              "href": "/api/canon-workbench/records/1",
+              "recordId": 1,
+              "shortId": "KER-1",
+              "title": "World kernel",
+              "recordTypeKey": "world_kernel",
+              "linkTypeKey": "derived_from",
+              "note": "Corrected seed preserves world-kernel provenance"
+            },
+            {
+              "label": "Seed decomposition report SEE-1: Seed decomposition",
+              "href": "/api/canon-workbench/records/2",
+              "recordId": 2,
+              "shortId": "SEE-1",
+              "title": "Seed decomposition",
+              "recordTypeKey": "seed_decomposition",
+              "linkTypeKey": "derived_from",
+              "note": "Corrected seed preserves seed-decomposition report provenance"
+            },
+            {
+              "label": "Source record FAC-1: Bundled Antarctic monolith discovery",
+              "href": "/api/canon-workbench/records/3",
+              "recordId": 3,
+              "shortId": "FAC-1",
+              "title": "Bundled Antarctic monolith discovery",
+              "recordTypeKey": "canon_fact",
+              "linkTypeKey": "derived_from",
+              "note": "Corrected seed preserves original parked seed wording"
+            },
+            {
+              "label": "Source record CCP-1: Creation correction: FAC-1",
+              "href": "/api/canon-workbench/records/4",
+              "recordId": 4,
+              "shortId": "CCP-1",
+              "title": "Creation correction: FAC-1",
+              "recordTypeKey": "canon_change_proposal",
+              "linkTypeKey": "derived_from",
+              "note": "Corrected seed created by Creation correction context"
+            }
+          ],
+          "correction": {
+            "availability": "correctable",
+            "directMutationBlocked": false,
+            "originalSeedWording": "The research team finds passages leading below the Antarctic ice into a built environment.",
+            "correctionContext": "Creation can repair this proposed seed before Admission work begins.",
+            "actions": [
+              {
+                "key": "split",
+                "label": "Split into sibling proposed facts",
+                "available": true,
+                "blocker": null,
+                "preview": "Write steward-authored sibling canon_fact records at proposed and preserve the original seed wording."
+              },
+              {
+                "key": "retract_and_rewrite",
+                "label": "Retract and rewrite",
+                "available": true,
+                "blocker": null,
+                "preview": "Mark the original proposed seed no longer current and write replacement wording at proposed."
+              },
+              {
+                "key": "replace",
+                "label": "Replace with corrected proposed fact",
+                "available": true,
+                "blocker": null,
+                "preview": "Route a corrected proposed fact and link it as superseding the original parked seed."
+              },
+              {
+                "key": "admission_narrowing_note",
+                "label": "Carry Admission narrowing note",
+                "available": true,
+                "blocker": null,
+                "preview": "Record steward-authored caution for Admission intake without changing canon standing."
+              }
+            ],
+            "writeIntent": {
+              "willWrite": [
+                "correction context report",
+                "corrected canon_fact records at proposed"
+              ],
+              "willLink": [
+                "original parked seed",
+                "seed-decomposition report",
+                "world kernel",
+                "correction context"
+              ],
+              "willQueue": [
+                "corrected proposed facts remain visible in the Admission queue"
+              ],
+              "willLeaveUntouched": [
+                "Creation does not admit canon or assign Admission severity",
+                "pasted advisory material is not parsed into facts"
+              ]
+            },
+            "nextOrResumeState": {
+              "currentStep": "decomposition:complete",
+              "nextStep": "repair parked seed before Admission",
+              "safeExit": "Safe exit keeps the Creation handoff, original wording, entered correction material, and Admission route visible."
+            }
+          }
+        },
+        {
+          "id": 6,
+          "shortId": "FAC-3",
+          "title": "Monolith interpretation is contested",
+          "recordTypeKey": "canon_fact",
+          "body": "Early reports describe artificial-looking monolithic architecture, strange remains, and language-like traces, but each claim remains interpretive until Admission tests it.",
+          "truthLayer": "Objective canon",
+          "canonStatus": "proposed",
+          "sourceLinks": [
+            {
+              "label": "Kernel KER-1: World kernel",
+              "href": "/api/canon-workbench/records/1",
+              "recordId": 1,
+              "shortId": "KER-1",
+              "title": "World kernel",
+              "recordTypeKey": "world_kernel",
+              "linkTypeKey": "derived_from",
+              "note": "Corrected seed preserves world-kernel provenance"
+            },
+            {
+              "label": "Seed decomposition report SEE-1: Seed decomposition",
+              "href": "/api/canon-workbench/records/2",
+              "recordId": 2,
+              "shortId": "SEE-1",
+              "title": "Seed decomposition",
+              "recordTypeKey": "seed_decomposition",
+              "linkTypeKey": "derived_from",
+              "note": "Corrected seed preserves seed-decomposition report provenance"
+            },
+            {
+              "label": "Source record FAC-1: Bundled Antarctic monolith discovery",
+              "href": "/api/canon-workbench/records/3",
+              "recordId": 3,
+              "shortId": "FAC-1",
+              "title": "Bundled Antarctic monolith discovery",
+              "recordTypeKey": "canon_fact",
+              "linkTypeKey": "derived_from",
+              "note": "Corrected seed preserves original parked seed wording"
+            },
+            {
+              "label": "Source record CCP-1: Creation correction: FAC-1",
+              "href": "/api/canon-workbench/records/4",
+              "recordId": 4,
+              "shortId": "CCP-1",
+              "title": "Creation correction: FAC-1",
+              "recordTypeKey": "canon_change_proposal",
+              "linkTypeKey": "derived_from",
+              "note": "Corrected seed created by Creation correction context"
+            }
+          ],
+          "correction": {
+            "availability": "correctable",
+            "directMutationBlocked": false,
+            "originalSeedWording": "Early reports describe artificial-looking monolithic architecture, strange remains, and language-like traces, but each claim remains interpretive until Admission tests it.",
+            "correctionContext": "Creation can repair this proposed seed before Admission work begins.",
+            "actions": [
+              {
+                "key": "split",
+                "label": "Split into sibling proposed facts",
+                "available": true,
+                "blocker": null,
+                "preview": "Write steward-authored sibling canon_fact records at proposed and preserve the original seed wording."
+              },
+              {
+                "key": "retract_and_rewrite",
+                "label": "Retract and rewrite",
+                "available": true,
+                "blocker": null,
+                "preview": "Mark the original proposed seed no longer current and write replacement wording at proposed."
+              },
+              {
+                "key": "replace",
+                "label": "Replace with corrected proposed fact",
+                "available": true,
+                "blocker": null,
+                "preview": "Route a corrected proposed fact and link it as superseding the original parked seed."
+              },
+              {
+                "key": "admission_narrowing_note",
+                "label": "Carry Admission narrowing note",
+                "available": true,
+                "blocker": null,
+                "preview": "Record steward-authored caution for Admission intake without changing canon standing."
+              }
+            ],
+            "writeIntent": {
+              "willWrite": [
+                "correction context report",
+                "corrected canon_fact records at proposed"
+              ],
+              "willLink": [
+                "original parked seed",
+                "seed-decomposition report",
+                "world kernel",
+                "correction context"
+              ],
+              "willQueue": [
+                "corrected proposed facts remain visible in the Admission queue"
+              ],
+              "willLeaveUntouched": [
+                "Creation does not admit canon or assign Admission severity",
+                "pasted advisory material is not parsed into facts"
+              ]
+            },
+            "nextOrResumeState": {
+              "currentStep": "decomposition:complete",
+              "nextStep": "repair parked seed before Admission",
+              "safeExit": "Safe exit keeps the Creation handoff, original wording, entered correction material, and Admission route visible."
+            }
+          }
+        }
+      ],
+      "supportingKernel": {
+        "id": 1,
+        "shortId": "KER-1",
+        "title": "World kernel",
+        "recordTypeKey": "world_kernel",
+        "body": "",
+        "truthLayer": "Objective canon",
+        "canonStatus": "proposed"
+      },
+      "kernelSections": [
+        {
+          "id": 2,
+          "recordId": 1,
+          "heading": "World premise",
+          "body": "In an alternate 1950s, Antarctic researchers uncover access shafts into miles-deep monolithic architecture while the U.S. tries to block foreign access.",
+          "position": 1
+        },
+        {
+          "id": 4,
+          "recordId": 1,
+          "heading": "Core promise",
+          "body": "Every discovery creates awe, logistical strain, institutional fear, and contested access claims.",
+          "position": 2
+        },
+        {
+          "id": 3,
+          "recordId": 1,
+          "heading": "Starting scale",
+          "body": "One Antarctic field station, one ice tunnel, and the first diplomatic containment perimeter.",
+          "position": 3
+        },
+        {
+          "id": 1,
+          "recordId": 1,
+          "heading": "Genre, tone, and consequence-mode commitments",
+          "body": "Cold War scientific containment with material-institutional consequence pressure and restrained awe.",
+          "position": 4
+        },
+        {
+          "id": 5,
+          "recordId": 1,
+          "heading": "Foundational facts",
+          "body": "The first shafts are real; the architecture predates known human presence; evidence is fragmentary enough that interpretation remains dangerous.",
+          "position": 5
+        },
+        {
+          "id": 6,
+          "recordId": 1,
+          "heading": "Primary pressures and initial domains",
+          "body": "Field logistics, scientific publication, military secrecy, Soviet/Allied access, polar survival, and interpretation of remains.",
+          "position": 8
+        }
+      ],
+      "granularityRationale": "This deliberately parked seed is too bundled so the post-park critique has to split discovery, artificiality, remains, and access politics.",
+      "admissionIntent": "Admission should only review corrected or narrowed proposed facts with explicit correction provenance.",
+      "admissionQueueRoute": "/api/admission/queue",
+      "currentStatus": "proposed",
+      "nextStep": "Admission queue selection",
+      "sourceLinks": [
+        {
+          "label": "Kernel KER-1: World kernel",
+          "href": "/api/canon-workbench/records/1",
+          "recordId": 1,
+          "shortId": "KER-1",
+          "title": "World kernel",
+          "recordTypeKey": "world_kernel",
+          "linkTypeKey": "derived_from",
+          "note": "Creation handoff kernel"
+        },
+        {
+          "label": "Seed decomposition report SEE-1: Seed decomposition",
+          "href": "/api/canon-workbench/records/2",
+          "recordId": 2,
+          "shortId": "SEE-1",
+          "title": "Seed decomposition",
+          "recordTypeKey": "seed_decomposition",
+          "linkTypeKey": "derived_from",
+          "note": "Creation handoff report"
+        },
+        {
+          "label": "Kernel KER-1: World kernel",
+          "href": "/api/canon-workbench/records/1",
+          "recordId": 1,
+          "shortId": "KER-1",
+          "title": "World kernel",
+          "recordTypeKey": "world_kernel",
+          "linkTypeKey": "derived_from",
+          "note": "Seed decomposed from world kernel"
+        },
+        {
+          "label": "Seed decomposition report SEE-1: Seed decomposition",
+          "href": "/api/canon-workbench/records/2",
+          "recordId": 2,
+          "shortId": "SEE-1",
+          "title": "Seed decomposition",
+          "recordTypeKey": "seed_decomposition",
+          "linkTypeKey": "derived_from",
+          "note": "Seed recorded by decomposition report"
+        },
+        {
+          "label": "Kernel KER-1: World kernel",
+          "href": "/api/canon-workbench/records/1",
+          "recordId": 1,
+          "shortId": "KER-1",
+          "title": "World kernel",
+          "recordTypeKey": "world_kernel",
+          "linkTypeKey": "derived_from",
+          "note": "Corrected seed preserves world-kernel provenance"
+        },
+        {
+          "label": "Seed decomposition report SEE-1: Seed decomposition",
+          "href": "/api/canon-workbench/records/2",
+          "recordId": 2,
+          "shortId": "SEE-1",
+          "title": "Seed decomposition",
+          "recordTypeKey": "seed_decomposition",
+          "linkTypeKey": "derived_from",
+          "note": "Corrected seed preserves seed-decomposition report provenance"
+        },
+        {
+          "label": "Source record FAC-1: Bundled Antarctic monolith discovery",
+          "href": "/api/canon-workbench/records/3",
+          "recordId": 3,
+          "shortId": "FAC-1",
+          "title": "Bundled Antarctic monolith discovery",
+          "recordTypeKey": "canon_fact",
+          "linkTypeKey": "derived_from",
+          "note": "Corrected seed preserves original parked seed wording"
+        },
+        {
+          "label": "Source record CCP-1: Creation correction: FAC-1",
+          "href": "/api/canon-workbench/records/4",
+          "recordId": 4,
+          "shortId": "CCP-1",
+          "title": "Creation correction: FAC-1",
+          "recordTypeKey": "canon_change_proposal",
+          "linkTypeKey": "derived_from",
+          "note": "Corrected seed created by Creation correction context"
+        },
+        {
+          "label": "Kernel KER-1: World kernel",
+          "href": "/api/canon-workbench/records/1",
+          "recordId": 1,
+          "shortId": "KER-1",
+          "title": "World kernel",
+          "recordTypeKey": "world_kernel",
+          "linkTypeKey": "derived_from",
+          "note": "Corrected seed preserves world-kernel provenance"
+        },
+        {
+          "label": "Seed decomposition report SEE-1: Seed decomposition",
+          "href": "/api/canon-workbench/records/2",
+          "recordId": 2,
+          "shortId": "SEE-1",
+          "title": "Seed decomposition",
+          "recordTypeKey": "seed_decomposition",
+          "linkTypeKey": "derived_from",
+          "note": "Corrected seed preserves seed-decomposition report provenance"
+        },
+        {
+          "label": "Source record FAC-1: Bundled Antarctic monolith discovery",
+          "href": "/api/canon-workbench/records/3",
+          "recordId": 3,
+          "shortId": "FAC-1",
+          "title": "Bundled Antarctic monolith discovery",
+          "recordTypeKey": "canon_fact",
+          "linkTypeKey": "derived_from",
+          "note": "Corrected seed preserves original parked seed wording"
+        },
+        {
+          "label": "Source record CCP-1: Creation correction: FAC-1",
+          "href": "/api/canon-workbench/records/4",
+          "recordId": 4,
+          "shortId": "CCP-1",
+          "title": "Creation correction: FAC-1",
+          "recordTypeKey": "canon_change_proposal",
+          "linkTypeKey": "derived_from",
+          "note": "Corrected seed created by Creation correction context"
+        }
+      ],
+      "doctrineAtPointOfUse": [
+        "Decision: Split broad steward material into smaller seed facts that can be independently rejected.",
+        "Operative rule: Decompose until each seed can be rejected without destroying its siblings, then park it as proposed for Admission.",
+        "Why the method asks: Creation finds workable pressure seeds; Admission owns first canon standing.",
+        "What good material looks like: Good seeds have a title, prose body, explicit truth layer, proposed canon status, and a granularity rationale or confirmation."
+      ]
+    },
+    "readSideTrail": [
+      {
+        "label": "Original seed FAC-1",
+        "href": "/api/canon-workbench/records/3",
+        "recordId": 3
+      },
+      {
+        "label": "Correction context CCP-1",
+        "href": "/api/canon-workbench/records/4",
+        "recordId": 4
+      },
+      {
+        "label": "Corrected proposed fact FAC-2",
+        "href": "/api/canon-workbench/records/5",
+        "recordId": 5
+      },
+      {
+        "label": "Corrected proposed fact FAC-3",
+        "href": "/api/canon-workbench/records/6",
+        "recordId": 6
+      },
+      {
+        "label": "Admission queue",
+        "href": "/api/admission/queue"
+      }
+    ]
+  },
+  "admissionQueue": {
+    "queue": [
+      {
+        "id": 6,
+        "shortId": "FAC-3",
+        "recordTypeKey": "canon_fact",
+        "title": "Monolith interpretation is contested",
+        "body": "Early reports describe artificial-looking monolithic architecture, strange remains, and language-like traces, but each claim remains interpretive until Admission tests it.",
+        "truthLayer": "Objective canon",
+        "canonStatus": "proposed",
+        "createdAt": "2026-07-09T00:03:18.547Z",
+        "updatedAt": "2026-07-09T00:03:18.547Z",
+        "admissionLevel": null,
+        "workScale": null,
+        "constraintTags": [],
+        "decisionPointHref": "/api/admission/records/6/decision-point",
+        "sourceLinks": [
+          {
+            "id": 10,
+            "fromRecordId": 6,
+            "toRecordId": 1,
+            "linkTypeKey": "derived_from",
+            "note": "Corrected seed preserves world-kernel provenance",
+            "createdAt": "2026-07-09T00:03:18.547Z",
+            "target": {
+              "id": 1,
+              "shortId": "KER-1",
+              "title": "World kernel",
+              "recordTypeKey": "world_kernel"
+            }
+          },
+          {
+            "id": 11,
+            "fromRecordId": 6,
+            "toRecordId": 2,
+            "linkTypeKey": "derived_from",
+            "note": "Corrected seed preserves seed-decomposition report provenance",
+            "createdAt": "2026-07-09T00:03:18.547Z",
+            "target": {
+              "id": 2,
+              "shortId": "SEE-1",
+              "title": "Seed decomposition",
+              "recordTypeKey": "seed_decomposition"
+            }
+          },
+          {
+            "id": 12,
+            "fromRecordId": 6,
+            "toRecordId": 3,
+            "linkTypeKey": "derived_from",
+            "note": "Corrected seed preserves original parked seed wording",
+            "createdAt": "2026-07-09T00:03:18.547Z",
+            "target": {
+              "id": 3,
+              "shortId": "FAC-1",
+              "title": "Bundled Antarctic monolith discovery",
+              "recordTypeKey": "canon_fact"
+            }
+          },
+          {
+            "id": 13,
+            "fromRecordId": 6,
+            "toRecordId": 4,
+            "linkTypeKey": "derived_from",
+            "note": "Corrected seed created by Creation correction context",
+            "createdAt": "2026-07-09T00:03:18.547Z",
+            "target": {
+              "id": 4,
+              "shortId": "CCP-1",
+              "title": "Creation correction: FAC-1",
+              "recordTypeKey": "canon_change_proposal"
+            }
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "shortId": "FAC-2",
+        "recordTypeKey": "canon_fact",
+        "title": "Antarctic passages are found",
+        "body": "The research team finds passages leading below the Antarctic ice into a built environment.",
+        "truthLayer": "Objective canon",
+        "canonStatus": "proposed",
+        "createdAt": "2026-07-09T00:03:18.546Z",
+        "updatedAt": "2026-07-09T00:03:18.546Z",
+        "admissionLevel": null,
+        "workScale": null,
+        "constraintTags": [],
+        "decisionPointHref": "/api/admission/records/5/decision-point",
+        "sourceLinks": [
+          {
+            "id": 6,
+            "fromRecordId": 5,
+            "toRecordId": 1,
+            "linkTypeKey": "derived_from",
+            "note": "Corrected seed preserves world-kernel provenance",
+            "createdAt": "2026-07-09T00:03:18.546Z",
+            "target": {
+              "id": 1,
+              "shortId": "KER-1",
+              "title": "World kernel",
+              "recordTypeKey": "world_kernel"
+            }
+          },
+          {
+            "id": 7,
+            "fromRecordId": 5,
+            "toRecordId": 2,
+            "linkTypeKey": "derived_from",
+            "note": "Corrected seed preserves seed-decomposition report provenance",
+            "createdAt": "2026-07-09T00:03:18.546Z",
+            "target": {
+              "id": 2,
+              "shortId": "SEE-1",
+              "title": "Seed decomposition",
+              "recordTypeKey": "seed_decomposition"
+            }
+          },
+          {
+            "id": 8,
+            "fromRecordId": 5,
+            "toRecordId": 3,
+            "linkTypeKey": "derived_from",
+            "note": "Corrected seed preserves original parked seed wording",
+            "createdAt": "2026-07-09T00:03:18.546Z",
+            "target": {
+              "id": 3,
+              "shortId": "FAC-1",
+              "title": "Bundled Antarctic monolith discovery",
+              "recordTypeKey": "canon_fact"
+            }
+          },
+          {
+            "id": 9,
+            "fromRecordId": 5,
+            "toRecordId": 4,
+            "linkTypeKey": "derived_from",
+            "note": "Corrected seed created by Creation correction context",
+            "createdAt": "2026-07-09T00:03:18.546Z",
+            "target": {
+              "id": 4,
+              "shortId": "CCP-1",
+              "title": "Creation correction: FAC-1",
+              "recordTypeKey": "canon_change_proposal"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "detail": {
+    "record": {
+      "id": 5,
+      "shortId": "FAC-2",
+      "recordTypeKey": "canon_fact",
+      "recordTypeLabel": "Canon fact",
+      "mutationRegime": "card",
+      "title": "Antarctic passages are found",
+      "body": "The research team finds passages leading below the Antarctic ice into a built environment.",
+      "truthLayer": "Objective canon",
+      "canonStatus": "proposed",
+      "continuityScope": "main continuity",
+      "createdAt": "2026-07-09T00:03:18.546Z",
+      "updatedAt": "2026-07-09T00:03:18.546Z"
+    },
+    "facets": [],
+    "sections": [],
+    "outgoingLinks": [
+      {
+        "id": 6,
+        "fromRecordId": 5,
+        "toRecordId": 1,
+        "linkTypeKey": "derived_from",
+        "note": "Corrected seed preserves world-kernel provenance",
+        "createdAt": "2026-07-09T00:03:18.546Z",
+        "target": {
+          "id": 1,
+          "shortId": "KER-1",
+          "title": "World kernel",
+          "recordTypeKey": "world_kernel",
+          "recordTypeLabel": "World kernel",
+          "mutationRegime": "card",
+          "truthLayer": "Objective canon",
+          "canonStatus": "proposed",
+          "continuityScope": "main continuity"
+        }
+      },
+      {
+        "id": 7,
+        "fromRecordId": 5,
+        "toRecordId": 2,
+        "linkTypeKey": "derived_from",
+        "note": "Corrected seed preserves seed-decomposition report provenance",
+        "createdAt": "2026-07-09T00:03:18.546Z",
+        "target": {
+          "id": 2,
+          "shortId": "SEE-1",
+          "title": "Seed decomposition",
+          "recordTypeKey": "seed_decomposition",
+          "recordTypeLabel": "Seed decomposition",
+          "mutationRegime": "report",
+          "truthLayer": "Objective canon",
+          "canonStatus": "proposed",
+          "continuityScope": "main continuity"
+        }
+      },
+      {
+        "id": 8,
+        "fromRecordId": 5,
+        "toRecordId": 3,
+        "linkTypeKey": "derived_from",
+        "note": "Corrected seed preserves original parked seed wording",
+        "createdAt": "2026-07-09T00:03:18.546Z",
+        "target": {
+          "id": 3,
+          "shortId": "FAC-1",
+          "title": "Bundled Antarctic monolith discovery",
+          "recordTypeKey": "canon_fact",
+          "recordTypeLabel": "Canon fact",
+          "mutationRegime": "card",
+          "truthLayer": "Objective canon",
+          "canonStatus": "rejected",
+          "continuityScope": "main continuity"
+        }
+      },
+      {
+        "id": 9,
+        "fromRecordId": 5,
+        "toRecordId": 4,
+        "linkTypeKey": "derived_from",
+        "note": "Corrected seed created by Creation correction context",
+        "createdAt": "2026-07-09T00:03:18.546Z",
+        "target": {
+          "id": 4,
+          "shortId": "CCP-1",
+          "title": "Creation correction: FAC-1",
+          "recordTypeKey": "canon_change_proposal",
+          "recordTypeLabel": "Canon change proposal",
+          "mutationRegime": "report",
+          "truthLayer": "Objective canon",
+          "canonStatus": "proposed",
+          "continuityScope": "main continuity"
+        }
+      }
+    ],
+    "incomingLinks": [],
+    "standingProvenance": {
+      "currentLivingText": "The research team finds passages leading below the Antarctic ice into a built environment.",
+      "proposalHistoryText": null,
+      "gateAuditText": null,
+      "admissionOperation": null,
+      "constraintTags": [],
+      "linkedPropagationDebt": [],
+      "typedLinkTrail": [
+        {
+          "linkTypeKey": "derived_from",
+          "note": "Corrected seed preserves world-kernel provenance",
+          "fromRecordId": 5,
+          "toRecordId": 1
+        },
+        {
+          "linkTypeKey": "derived_from",
+          "note": "Corrected seed preserves seed-decomposition report provenance",
+          "fromRecordId": 5,
+          "toRecordId": 2
+        },
+        {
+          "linkTypeKey": "derived_from",
+          "note": "Corrected seed preserves original parked seed wording",
+          "fromRecordId": 5,
+          "toRecordId": 3
+        },
+        {
+          "linkTypeKey": "derived_from",
+          "note": "Corrected seed created by Creation correction context",
+          "fromRecordId": 5,
+          "toRecordId": 4
+        }
+      ]
+    },
+    "recordHistory": [],
+    "sectionHistory": [],
+    "relatedReports": [
+      {
+        "id": 4,
+        "shortId": "CCP-1",
+        "title": "Creation correction: FAC-1",
+        "recordTypeKey": "canon_change_proposal",
+        "recordTypeLabel": "Canon change proposal",
+        "mutationRegime": "report",
+        "truthLayer": "Objective canon",
+        "canonStatus": "proposed",
+        "continuityScope": "main continuity"
+      },
+      {
+        "id": 2,
+        "shortId": "SEE-1",
+        "title": "Seed decomposition",
+        "recordTypeKey": "seed_decomposition",
+        "recordTypeLabel": "Seed decomposition",
+        "mutationRegime": "report",
+        "truthLayer": "Objective canon",
+        "canonStatus": "proposed",
+        "continuityScope": "main continuity"
+      }
+    ],
+    "canonDebt": [],
+    "skipRecords": [],
+    "advisoryArtifacts": [],
+    "advisoryDispositions": [],
+    "standingRulings": [],
+    "exportAffordance": {
+      "method": "GET",
+      "href": "/api/records/5/export/markdown"
+    }
+  }
+}

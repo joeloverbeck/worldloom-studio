@@ -757,6 +757,423 @@ describe("Creation decision-point HTTP surface", () => {
     expect(generated.prompt).toContain("Frontloaded seed audit results omitted: Admission owns that instrument and no result exists yet.");
     expect(generated.prompt).toContain("Provide pressure, risks, alternatives, and questions");
     expect(generated.prompt).not.toContain("Record context:\nKER-");
+
+    const resumedComplete = await json<{
+      flow: { id: number; state: string; current_step: string };
+      decisionPoint: {
+        currentStep: string;
+        handoff: {
+          parkedSeeds: Array<{ id: number; correction?: { availability: string } }>;
+        };
+      };
+    }>(await app.request("/api/flows/creation/start", { method: "POST" }));
+    expect(resumedComplete.flow).toMatchObject({
+      id: start.flow.id,
+      state: "complete",
+      current_step: "decomposition:complete"
+    });
+    expect(resumedComplete.decisionPoint).toMatchObject({
+      currentStep: "decomposition:complete",
+      handoff: {
+        parkedSeeds: [expect.objectContaining({
+          id: decomposedPayload.records[0]?.id,
+          correction: expect.objectContaining({ availability: "correctable" })
+        })]
+      }
+    });
+  });
+
+  it("exposes and applies governed post-park correction actions before Admission begins", async () => {
+    const app = await openWorld();
+    const start = await json<{ flow: { id: number } }>(await app.request("/api/flows/creation/start", { method: "POST" }));
+    const saved = await json<{ kernel: { id: number } }>(await app.request("/api/flows/creation/kernel-step", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        flowId: start.flow.id,
+        heading: "Genre, tone, and consequence-mode commitments",
+        body: "Weird civic horror with institutional consequence checks.",
+        consequenceMode: "weird"
+      })
+    }));
+    const decomposed = await json<{
+      records: Array<{ id: number; shortId: string; title: string; body: string; truthLayer: string; canonStatus: string }>;
+      decisionPoint: {
+        handoff: {
+          parkedSeeds: Array<{
+            id: number;
+            title: string;
+            body: string;
+            correction: {
+              availability: string;
+              originalSeedWording: string;
+              actions: Array<{ key: string; label: string; available: boolean; blocker: string | null }>;
+              writeIntent: { willWrite: string[]; willLink: string[]; willQueue: string[]; willLeaveUntouched: string[] };
+              nextOrResumeState: { currentStep: string; nextStep: string; safeExit: string };
+            };
+          }>;
+        };
+      };
+    }>(await app.request("/api/flows/creation/decompose", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        flowId: start.flow.id,
+        kernelRecordId: saved.kernel.id,
+        granularityRationale: "External critique found the first seed too bundled; each correction must become independently rejectable.",
+        admissionIntent: "Admission should review cost and jurisdiction.",
+        seeds: [
+          { title: "Bundled echo court seed", body: "Courts accept echoes and advocates monopolize the bindings.", truthLayer: "Objective canon", granularityConfirmed: true },
+          { title: "Rewrite echo seed", body: "Echoes testify freely in all courts.", truthLayer: "Objective canon", granularityConfirmed: true },
+          { title: "Replace echo seed", body: "Every echo becomes a citizen witness.", truthLayer: "Objective canon", granularityConfirmed: true },
+          { title: "Narrowing-note echo seed", body: "Mortuary advocates verify echoes in harbor courts.", truthLayer: "Objective canon", granularityConfirmed: true },
+          { title: "Late echo seed", body: "Late critique arrives after Admission starts.", truthLayer: "Objective canon", granularityConfirmed: true }
+        ]
+      })
+    }));
+
+    expect(decomposed.decisionPoint.handoff.parkedSeeds[0]?.correction).toMatchObject({
+      availability: "correctable",
+      originalSeedWording: "Courts accept echoes and advocates monopolize the bindings.",
+      actions: expect.arrayContaining([
+        expect.objectContaining({ key: "split", available: true, blocker: null }),
+        expect.objectContaining({ key: "retract_and_rewrite", available: true, blocker: null }),
+        expect.objectContaining({ key: "replace", available: true, blocker: null }),
+        expect.objectContaining({ key: "admission_narrowing_note", available: true, blocker: null })
+      ]),
+      writeIntent: {
+        willWrite: expect.arrayContaining(["correction context report", "corrected canon_fact records at proposed"]),
+        willLink: expect.arrayContaining(["original parked seed", "seed-decomposition report", "world kernel", "correction context"]),
+        willQueue: expect.arrayContaining(["corrected proposed facts remain visible in the Admission queue"]),
+        willLeaveUntouched: expect.arrayContaining(["Creation does not admit canon or assign Admission severity"])
+      },
+      nextOrResumeState: {
+        currentStep: "decomposition:complete",
+        nextStep: "repair parked seed before Admission",
+        safeExit: expect.stringContaining("Creation handoff")
+      }
+    });
+
+    const invalidSplit = await app.request("/api/flows/creation/corrections", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        seedRecordId: decomposed.records[0]?.id,
+        action: "split",
+        rationale: "",
+        siblings: [{ title: "", body: "", truthLayer: "" }]
+      })
+    });
+    expect(invalidSplit.status).toBe(400);
+    expect(await json<{
+      validationErrors: Array<{ key: string; message: string }>;
+      attemptedInput: { action: string; siblings: Array<{ title: string; body: string; truthLayer: string }> };
+    }>(invalidSplit)).toMatchObject({
+      validationErrors: expect.arrayContaining([
+        expect.objectContaining({ key: "rationale" }),
+        expect.objectContaining({ key: "siblings[0].title" }),
+        expect.objectContaining({ key: "siblings[0].body" }),
+        expect.objectContaining({ key: "siblings[0].truthLayer" })
+      ]),
+      attemptedInput: { action: "split", siblings: [{ title: "", body: "", truthLayer: "" }] }
+    });
+
+    const split = await json<{
+      correction: { action: string; correctionContext: { id: number; recordTypeKey: string; body: string }; originalSeed: { canonStatus: string; body: string }; correctedRecords: Array<{ id: number; title: string; body: string; truthLayer: string; canonStatus: string }> };
+      admissionQueue: Array<{ id: number; title: string; canonStatus: string; sourceLinks: Array<{ linkTypeKey: string; target: { id: number } | null; note: string }> }>;
+      readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
+    }>(await app.request("/api/flows/creation/corrections", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        seedRecordId: decomposed.records[0]?.id,
+        action: "split",
+        rationale: "The court rule and advocate monopoly can be rejected independently.",
+        siblings: [
+          { title: "Echo court testimony conditions", body: "Harbor courts accept echo testimony only after identity checks.", truthLayer: "Objective canon" },
+          { title: "Mortuary advocate monopoly", body: "Licensed mortuary advocates monopolize safe echo bindings.", truthLayer: "Objective canon" }
+        ]
+      })
+    }));
+    expect(split.correction).toMatchObject({
+      action: "split",
+      correctionContext: {
+        recordTypeKey: "canon_change_proposal",
+        body: expect.stringContaining("The court rule and advocate monopoly can be rejected independently.")
+      },
+      originalSeed: {
+        canonStatus: "rejected",
+        body: "Courts accept echoes and advocates monopolize the bindings."
+      },
+      correctedRecords: [
+        expect.objectContaining({ title: "Echo court testimony conditions", canonStatus: "proposed", truthLayer: "Objective canon" }),
+        expect.objectContaining({ title: "Mortuary advocate monopoly", canonStatus: "proposed", truthLayer: "Objective canon" })
+      ]
+    });
+    expect(split.admissionQueue).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        title: "Echo court testimony conditions",
+        canonStatus: "proposed",
+        sourceLinks: expect.arrayContaining([
+          expect.objectContaining({ linkTypeKey: "derived_from", target: expect.objectContaining({ id: decomposed.records[0]?.id }) }),
+          expect.objectContaining({ linkTypeKey: "derived_from", target: expect.objectContaining({ id: split.correction.correctionContext.id }) })
+        ])
+      })
+    ]));
+    expect(split.admissionQueue.map((row) => row.title)).not.toContain("Bundled echo court seed");
+    expect(split.readSideTrail).toEqual(expect.arrayContaining([
+      expect.objectContaining({ label: expect.stringContaining("Original seed") }),
+      expect.objectContaining({ label: expect.stringContaining("Correction context") }),
+      expect.objectContaining({ label: expect.stringContaining("Corrected proposed fact") }),
+      expect.objectContaining({ label: "Admission queue" })
+    ]));
+    const firstCorrected = split.correction.correctedRecords[0];
+    if (!firstCorrected) throw new Error("Expected split correction to create a corrected record.");
+    const splitDetail = await json<{
+      record: { id: number; title: string; canonStatus: string };
+      outgoingLinks: Array<{ linkTypeKey: string; target: { id: number; title: string; recordTypeKey: string } | null; note: string }>;
+      relatedReports: Array<{ id: number; title: string; recordTypeKey: string }>;
+    }>(await app.request(`/api/canon-workbench/records/${firstCorrected.id}`));
+    expect(splitDetail.record).toMatchObject({
+      id: firstCorrected.id,
+      title: "Echo court testimony conditions",
+      canonStatus: "proposed"
+    });
+    expect(splitDetail.outgoingLinks).toEqual(expect.arrayContaining([
+      expect.objectContaining({ linkTypeKey: "derived_from", target: expect.objectContaining({ id: decomposed.records[0]?.id }) }),
+      expect.objectContaining({ linkTypeKey: "derived_from", target: expect.objectContaining({ id: split.correction.correctionContext.id, recordTypeKey: "canon_change_proposal" }) })
+    ]));
+    expect(splitDetail.relatedReports).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: split.correction.correctionContext.id, recordTypeKey: "canon_change_proposal" })
+    ]));
+    const splitAdmission = await json<{
+      decisionPoint: {
+        selectedRecord: {
+          id: number;
+          title: string;
+          canonStatus: string;
+          sourceLinks: Array<{ linkTypeKey: string; target: { id: number; title: string; recordTypeKey: string } | null; note: string }>;
+        };
+        writeIntent: { willLeaveUntouched: string[] };
+        readSideTrail: Array<{ label: string; href: string }>;
+      };
+    }>(await app.request(`/api/admission/records/${firstCorrected.id}/decision-point`));
+    expect(splitAdmission.decisionPoint.selectedRecord).toMatchObject({
+      id: firstCorrected.id,
+      title: "Echo court testimony conditions",
+      canonStatus: "proposed",
+      sourceLinks: expect.arrayContaining([
+        expect.objectContaining({ linkTypeKey: "derived_from", target: expect.objectContaining({ id: decomposed.records[0]?.id, title: "Bundled echo court seed" }) }),
+        expect.objectContaining({ linkTypeKey: "derived_from", target: expect.objectContaining({ id: split.correction.correctionContext.id, recordTypeKey: "canon_change_proposal" }) })
+      ])
+    });
+    expect(splitAdmission.decisionPoint.writeIntent.willLeaveUntouched).toEqual(expect.arrayContaining([
+      "Admission does not infer truth layer, canon status, tags, or operations"
+    ]));
+    expect(splitAdmission.decisionPoint.readSideTrail.map((item) => item.label)).toEqual(expect.arrayContaining(["Current Canon", "Audit Trail", "Record detail"]));
+
+    const severityResponse = await app.request(`/api/admission/records/${firstCorrected.id}/severity`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ admissionLevel: "1", workScale: "minor" })
+    });
+    expect(severityResponse.status).toBe(200);
+    const severityDeclaredHandoff = await json<{
+      decisionPoint: {
+        handoff: {
+          parkedSeeds: Array<{ id: number; correction: { availability: string; directMutationBlocked: boolean; actions: Array<{ key: string }> } }>;
+        };
+      };
+    }>(await app.request("/api/flows/creation/start", { method: "POST" }));
+    expect(severityDeclaredHandoff.decisionPoint.handoff.parkedSeeds.find((seed) => seed.id === firstCorrected.id)?.correction).toMatchObject({
+      availability: "late_admission",
+      directMutationBlocked: true,
+      actions: expect.arrayContaining([
+        expect.objectContaining({ key: "superseding" }),
+        expect.objectContaining({ key: "re_proposal" }),
+        expect.objectContaining({ key: "admission_facing_note" })
+      ])
+    });
+    expect(severityDeclaredHandoff.decisionPoint.handoff.parkedSeeds.find((seed) => seed.id === decomposed.records[1]?.id)?.correction).toMatchObject({
+      availability: "correctable",
+      directMutationBlocked: false
+    });
+    const severityDeclaredLate = await app.request("/api/flows/creation/corrections", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        seedRecordId: firstCorrected.id,
+        action: "replace",
+        rationale: "Late critique after Admission severity is declared.",
+        replacement: { title: "Severity-declared replacement", body: "Should not mutate severity-declared Admission state.", truthLayer: "Objective canon" }
+      })
+    });
+    expect(severityDeclaredLate.status).toBe(400);
+    expect(await json<{
+      correctionContract: { availability: string; directMutationBlocked: boolean };
+      attemptedInput: { action: string };
+      validationErrors: Array<{ key: string }>;
+    }>(severityDeclaredLate)).toMatchObject({
+      correctionContract: {
+        availability: "late_admission",
+        directMutationBlocked: true
+      },
+      attemptedInput: { action: "replace" },
+      validationErrors: expect.arrayContaining([
+        expect.objectContaining({ key: "admission_started" })
+      ])
+    });
+
+    const rewrite = await json<{
+      correction: { originalSeed: { id: number; canonStatus: string; body: string }; correctedRecords: Array<{ id: number; title: string; body: string; canonStatus: string }>; correctionContext: { id: number; body: string } };
+      admissionQueue: Array<{ id: number; title: string; sourceLinks: Array<{ linkTypeKey: string; target: { id: number } | null }> }>;
+    }>(await app.request("/api/flows/creation/corrections", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        seedRecordId: decomposed.records[1]?.id,
+        action: "retract_and_rewrite",
+        rationale: "The original wording was too broad for all courts.",
+        replacement: { title: "Limited echo testimony", body: "Harbor courts accept echo testimony only for civil debts.", truthLayer: "Objective canon" }
+      })
+    }));
+    expect(rewrite.correction).toMatchObject({
+      originalSeed: { canonStatus: "rejected", body: "Echoes testify freely in all courts." },
+      correctedRecords: [expect.objectContaining({ title: "Limited echo testimony", canonStatus: "proposed" })],
+      correctionContext: { body: expect.stringContaining("retract_and_rewrite") }
+    });
+    expect(rewrite.admissionQueue).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        title: "Limited echo testimony",
+        sourceLinks: expect.arrayContaining([
+          expect.objectContaining({ linkTypeKey: "derived_from", target: expect.objectContaining({ id: rewrite.correction.originalSeed.id }) }),
+          expect.objectContaining({ linkTypeKey: "derived_from", target: expect.objectContaining({ id: rewrite.correction.correctionContext.id }) })
+        ])
+      })
+    ]));
+
+    const replace = await json<{
+      correction: { originalSeed: { id: number; canonStatus: string }; correctedRecords: Array<{ id: number; title: string; canonStatus: string; sourceLinks: Array<{ linkTypeKey: string; target: { id: number } | null }> }> };
+      admissionQueue: Array<{ id: number; title: string; sourceLinks: Array<{ linkTypeKey: string; target: { id: number } | null }> }>;
+    }>(await app.request("/api/flows/creation/corrections", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        seedRecordId: decomposed.records[2]?.id,
+        action: "replace",
+        rationale: "The citizenship claim should be replaced with a narrower witness rule.",
+        replacement: { title: "Echo witness standing", body: "Echoes can witness debt contracts but do not become citizens.", truthLayer: "Objective canon" }
+      })
+    }));
+    expect(replace.correction).toMatchObject({
+      originalSeed: { canonStatus: "rejected" },
+      correctedRecords: [expect.objectContaining({
+        title: "Echo witness standing",
+        canonStatus: "proposed",
+        sourceLinks: expect.arrayContaining([
+          expect.objectContaining({ linkTypeKey: "supersedes", recordId: decomposed.records[2]?.id })
+        ])
+      })]
+    });
+    expect(replace.admissionQueue).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        title: "Echo witness standing",
+        sourceLinks: expect.arrayContaining([
+          expect.objectContaining({ linkTypeKey: "derived_from", target: expect.objectContaining({ id: replace.correction.originalSeed.id }) })
+        ])
+      })
+    ]));
+
+    const note = await json<{
+      correction: { action: string; originalSeed: { id: number; canonStatus: string }; correctedRecords: unknown[]; correctionContext: { id: number; body: string } };
+      admissionQueue: Array<{ title: string; sourceLinks: Array<{ note: string; target: { id: number } | null }> }>;
+    }>(await app.request("/api/flows/creation/corrections", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        seedRecordId: decomposed.records[3]?.id,
+        action: "admission_narrowing_note",
+        rationale: "The seed can proceed only if Admission narrows jurisdiction.",
+        narrowingNote: "Admission should test harbor-court jurisdiction before any broader court standing."
+      })
+    }));
+    expect(note.correction).toMatchObject({
+      action: "admission_narrowing_note",
+      originalSeed: { canonStatus: "proposed" },
+      correctedRecords: [],
+      correctionContext: { body: expect.stringContaining("Admission should test harbor-court jurisdiction") }
+    });
+    expect(note.admissionQueue).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        title: "Narrowing-note echo seed",
+        sourceLinks: expect.arrayContaining([
+          expect.objectContaining({ note: expect.stringContaining("Admission narrowing note") })
+        ])
+      })
+    ]));
+    const noteAdmission = await json<{
+      decisionPoint: {
+        selectedRecord: {
+          id: number;
+          canonStatus: string;
+          sourceLinks: Array<{ note: string; target: { id: number; recordTypeKey: string } | null }>;
+        };
+      };
+    }>(await app.request(`/api/admission/records/${decomposed.records[3]?.id}/decision-point`));
+    expect(noteAdmission.decisionPoint.selectedRecord).toMatchObject({
+      id: decomposed.records[3]?.id,
+      canonStatus: "proposed",
+      sourceLinks: expect.arrayContaining([
+        expect.objectContaining({
+          note: expect.stringContaining("Admission narrowing note"),
+          target: expect.objectContaining({ id: note.correction.correctionContext.id, recordTypeKey: "canon_change_proposal" })
+        })
+      ])
+    });
+
+    expect((await app.request(`/api/admission/records/${decomposed.records[4]?.id}/start`, { method: "POST" })).status).toBe(201);
+    const lateHandoff = await json<{
+      decisionPoint: {
+        handoff: {
+          parkedSeeds: Array<{ id: number; correction: { availability: string; directMutationBlocked: boolean; actions: Array<{ key: string }> } }>;
+        };
+      };
+    }>(await app.request("/api/flows/creation/start", { method: "POST" }));
+    expect(lateHandoff.decisionPoint.handoff.parkedSeeds.find((seed) => seed.id === decomposed.records[4]?.id)?.correction).toMatchObject({
+      availability: "late_admission",
+      directMutationBlocked: true,
+      actions: expect.arrayContaining([
+        expect.objectContaining({ key: "superseding" }),
+        expect.objectContaining({ key: "re_proposal" }),
+        expect.objectContaining({ key: "admission_facing_note" })
+      ])
+    });
+    const late = await app.request("/api/flows/creation/corrections", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        seedRecordId: decomposed.records[4]?.id,
+        action: "replace",
+        rationale: "Late critique after Admission starts.",
+        replacement: { title: "Late replacement", body: "Should not mutate in-flight Admission.", truthLayer: "Objective canon" }
+      })
+    });
+    expect(late.status).toBe(400);
+    expect(await json<{
+      correctionContract: { availability: string; directMutationBlocked: boolean; actions: Array<{ key: string; available: boolean }> };
+      attemptedInput: { action: string };
+    }>(late)).toMatchObject({
+      correctionContract: {
+        availability: "late_admission",
+        directMutationBlocked: true,
+        actions: expect.arrayContaining([
+          expect.objectContaining({ key: "superseding", available: true }),
+          expect.objectContaining({ key: "re_proposal", available: true }),
+          expect.objectContaining({ key: "admission_facing_note", available: true })
+        ])
+      },
+      attemptedInput: { action: "replace" }
+    });
   });
 
   it("does not generate a kernel-only decomposition prompt when decomposition material is missing", async () => {
