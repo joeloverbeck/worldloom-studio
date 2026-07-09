@@ -50,13 +50,14 @@ const sectionContract = (heading: string) => ({
 const creationDecision = (options: {
   currentStep?: string;
   selectedHeading?: string;
+  selectedSectionHeading?: string;
   promptStepKey?: string;
   templateKey?: string;
   recordId?: number;
   decisionLabel?: string;
 } = {}) => {
   const currentStep = options.currentStep ?? "kernel:World premise";
-  const selectedHeading = options.selectedHeading ?? "World premise";
+  const selectedHeading = options.selectedHeading ?? options.selectedSectionHeading ?? "World premise";
   const promptStepKey = options.promptStepKey ?? "creation:kernel_prompt";
   const templateKey = options.templateKey ?? "kernel_pressure";
   const recordId = options.recordId ?? 1;
@@ -901,6 +902,82 @@ describe("Prompt-out lifecycle web surface", () => {
     expect(html).toContain("Download Current Packet");
     expect(classTokenCount(html, "current-prompt-packet-text")).toBe(1);
     expect(creationPromptLoader).toContain("displayedCreationDecision.currentStep.startsWith(\"kernel:\")");
+  });
+
+  it("allows saved-section Creation Pressure after section switching and marks prior section-mode packets stale", () => {
+    const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
+    const currentOrigin = snippetBetween(source, "const currentLoadedPromptOrigin = useMemo", "const loadedPromptStatusView");
+    const creationPromptModeStatus = snippetBetween(source, "const creationPromptModeStatus =", "const canLoadCreationPromptStep");
+    const staleCorePressureOrigin = loadedOrigin({
+      selectedSectionHeading: "Core promise",
+      mode: "pressure",
+      decisionLabel: "Core promise",
+      packetHash: "core-pressure-packet-hash",
+      bodyHash: "core-pressure-body-hash",
+      sourceManifestHash: "core-pressure-source-manifest-hash"
+    });
+    const html = renderToString(<App
+      initialOpenWorld="/tmp/prompt-identity.sqlite"
+      initialWorkflowMap={workflowMap as any}
+      initialDestination="creation"
+      initialCreationPromptMode="pressure"
+      initialLoadedPromptStatus={{ origin: staleCorePressureOrigin as any }}
+      initialPromptText="STALE CORE PRESSURE PACKET"
+      initialPromptPacketOrigin={staleCorePressureOrigin as any}
+      initialCreationDecision={creationDecision({
+        currentStep: "kernel:Core promise",
+        selectedHeading: "Core promise",
+        decisionLabel: "Core promise"
+      }) as any}
+    />);
+
+    expect(html).toContain("Selected mode: Pressure mode - available for selected World premise via explicit target heading.");
+    expect(html).toContain("Pressure mode selected target:");
+    expect(html).toContain("World premise");
+    expect(html).toContain("Selected section material: World premise saved body.");
+    expect(html).toContain("Stale prior decision origin");
+    expect(html).toContain("section Core promise");
+    expect(html).toContain("mode pressure");
+    expect(html).toContain("source_manifest core-pressure-source-manifest-hash");
+    expect(html).toContain("Current decision changed to Define the world&#x27;s first governing kernel section: World premise.");
+    expect(html).toContain("Stale prompt packet body");
+    expect(html).toContain("STALE CORE PRESSURE PACKET");
+    expect(html).toContain("This prompt packet body belongs to a prior origin and cannot be copied");
+    expect(html).not.toContain("Current prompt packet body");
+    expect(classTokenCount(html, "stale-prompt-packet-text")).toBe(1);
+    expect(currentOrigin).toContain("selectedSectionHeading: typeof request.selectedSectionHeading === \"string\"");
+    expect(currentOrigin).toContain("sourceManifestHash");
+    expect(creationPromptModeStatus).toContain("via explicit target heading");
+  });
+
+  it("keeps refused World premise Proposal preview bound to the selected section", () => {
+    const html = renderToString(<App
+      initialOpenWorld="/tmp/prompt-identity.sqlite"
+      initialWorkflowMap={workflowMap as any}
+      initialDestination="creation"
+      initialCreationPromptMode="proposal"
+      initialCreationDecision={creationDecision({
+        currentStep: "kernel:Core promise",
+        selectedHeading: "Core promise",
+        decisionLabel: "Core promise"
+      }) as any}
+    />);
+    const promptOutStart = html.indexOf("Prompt-out preview");
+    const promptOutEnd = html.indexOf("Seed decomposition decision", promptOutStart);
+    expect(promptOutStart).toBeGreaterThanOrEqual(0);
+    expect(promptOutEnd).toBeGreaterThan(promptOutStart);
+    const promptOutPanel = html.slice(promptOutStart, promptOutEnd);
+
+    expect(promptOutPanel).toContain("Selected mode: Proposal mode - Proposal prompts are refused");
+    expect(promptOutPanel).toContain("Consequence scout · blocked");
+    expect(promptOutPanel).toContain("Define the world&#x27;s first governing kernel section: World premise.");
+    expect(promptOutPanel).toContain("Proposal mode selected target:");
+    expect(promptOutPanel).toContain("World premise prompt.");
+    expect(promptOutPanel).toContain("Selected section material: World premise saved body.");
+    expect(promptOutPanel).toContain("Selected kernel section: World premise");
+    expect(promptOutPanel).not.toContain("Define the world&#x27;s first governing kernel section: Core promise.");
+    expect(promptOutPanel).not.toContain("Selected section material: Core promise saved body.");
+    expect(promptOutPanel).not.toContain("Selected kernel section: Core promise");
   });
 
   it("keeps Admission packet bodies current only for the matching record, mode, severity, step, and world identity", () => {

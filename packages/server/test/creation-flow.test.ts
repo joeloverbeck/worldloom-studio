@@ -420,6 +420,130 @@ describe("Creation decision-point HTTP surface", () => {
     expect(compatibility.prompt).toContain("Current kernel section: World premise");
   });
 
+  it("generates current section-mode identities for saved Creation sections without requiring a no-op save", async () => {
+    const app = await openWorld();
+    const start = await json<{ flow: { id: number } }>(await app.request("/api/flows/creation/start", { method: "POST" }));
+    let kernelId = 0;
+    for (const heading of [
+      "World premise",
+      "Core promise",
+      "Starting scale",
+      "Genre, tone, and consequence-mode commitments",
+      "Foundational facts",
+      "Foundational constraints",
+      "Initial mysteries and protected effects",
+      "Primary pressures and initial domains",
+      "Ordinary-life promise"
+    ]) {
+      const saved = await json<{
+        kernel: { id: number };
+        decisionPoint: {
+          currentStep: string;
+          selectedSection: { heading: string };
+          promptOut: {
+            modes: Array<{ mode: string; availability: string; blocker: string | null; stepRequest: { method: "POST"; href: string; body: Record<string, unknown> } | null }>;
+          };
+        };
+      }>(await app.request("/api/flows/creation/kernel-step", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          flowId: start.flow.id,
+          heading,
+          body: `${heading} steward-authored material.`,
+          consequenceMode: "weird"
+        })
+      }));
+      kernelId = saved.kernel.id;
+      if (heading === "Ordinary-life promise") {
+        expect(saved.decisionPoint).toMatchObject({
+          currentStep: "kernel:Ordinary-life promise",
+          selectedSection: { heading: "Ordinary-life promise" }
+        });
+        const pressureMode = saved.decisionPoint.promptOut.modes.find((mode) => mode.mode === "pressure");
+        expect(pressureMode).toMatchObject({ availability: "available" });
+        expect(pressureMode?.stepRequest?.body).toMatchObject({
+          mode: "pressure",
+          selectedSectionHeading: "Ordinary-life promise"
+        });
+      }
+    }
+
+    const worldPremisePressureStep = await json<{
+      step: {
+        packetIdentity: {
+          selectedSectionHeading: string | null;
+          mode: string;
+          decisionLabel: string;
+          sourceManifestHash: string | null;
+          packetHash: string | null;
+          bodyHash: string | null;
+        };
+        actions: { generate: { method: "POST"; href: string } };
+      };
+    }>(await app.request("/api/prompt-out/steps", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        flowKey: "creation",
+        flowId: start.flow.id,
+        recordId: kernelId,
+        templateKey: "kernel_pressure",
+        stepKey: "creation:kernel_prompt",
+        mode: "pressure",
+        selectedSectionHeading: "World premise",
+        label: "Pressure mode"
+      })
+    }));
+    expect(worldPremisePressureStep.step.packetIdentity).toMatchObject({
+      selectedSectionHeading: "World premise",
+      mode: "pressure",
+      decisionLabel: "World premise",
+      sourceManifestHash: null,
+      packetHash: null,
+      bodyHash: null
+    });
+
+    const worldPremisePressure = await json<{
+      prompt: string;
+      promptOut: {
+        packetIdentity: {
+          selectedSectionHeading: string | null;
+          mode: string;
+          decisionLabel: string;
+          sourceManifestHash: string | null;
+          packetHash: string | null;
+          bodyHash: string | null;
+        };
+      };
+    }>(await app.request(worldPremisePressureStep.step.actions.generate.href, {
+      method: worldPremisePressureStep.step.actions.generate.method
+    }));
+    expect(worldPremisePressure.promptOut.packetIdentity).toMatchObject({
+      selectedSectionHeading: "World premise",
+      mode: "pressure",
+      decisionLabel: "World premise",
+      sourceManifestHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      packetHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      bodyHash: expect.stringMatching(/^[a-f0-9]{64}$/)
+    });
+    expect(worldPremisePressure.prompt).toContain("Current kernel section: World premise");
+    expect(worldPremisePressure.prompt).toContain("Selected section material: World premise steward-authored material.");
+    expect(worldPremisePressure.prompt).toContain("Mode: pressure");
+    expect(worldPremisePressure.prompt).toContain("Provide pressure, risks, alternatives, and questions on the selected World premise section's steward-authored material.");
+
+    const coreProposal = await json<{ promptOut: { packetIdentity: { selectedSectionHeading: string | null; mode: string; packetHash: string | null; sourceManifestHash: string | null } } }>(await app.request("/api/prompt-out/steps/actions/generate?flowKey=creation&flowId=" + start.flow.id + "&templateKey=kernel_pressure&recordId=" + kernelId + "&stepKey=creation:kernel_prompt&mode=proposal&selectedSectionHeading=Core%20promise", {
+      method: "POST"
+    }));
+    expect(coreProposal.promptOut.packetIdentity).toMatchObject({
+      selectedSectionHeading: "Core promise",
+      mode: "proposal",
+      sourceManifestHash: expect.stringMatching(/^[a-f0-9]{64}$/)
+    });
+    expect(coreProposal.promptOut.packetIdentity.packetHash).not.toBe(worldPremisePressure.promptOut.packetIdentity.packetHash);
+    expect(coreProposal.promptOut.packetIdentity.sourceManifestHash).not.toBe(worldPremisePressure.promptOut.packetIdentity.sourceManifestHash);
+  });
+
   it("exposes saved consequence mode and selected-section contracts without browser-side inference", async () => {
     const app = await openWorld();
     const start = await json<{

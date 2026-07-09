@@ -103,6 +103,7 @@ export interface PromptPacketIdentity {
   generatedAt: string | null;
   packetHash: string | null;
   bodyHash: string | null;
+  sourceManifestHash: string | null;
 }
 
 type PromptIdentityRecord = Pick<RecordRow, "id" | "shortId" | "recordTypeKey" | "title">;
@@ -190,6 +191,9 @@ const renderDocuments = (documents: PromptDocument[]): string =>
 
 const packetHash = (prompt: string): string =>
   createHash("sha256").update(prompt).digest("hex");
+
+const manifestHash = (sourceManifest: string[]): string =>
+  packetHash(stableJson(sourceManifest));
 
 const stableJson = (value: unknown): string => {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
@@ -446,6 +450,7 @@ export const promptPacketIdentity = (
     generatedAt?: string | null;
     packetHash?: string | null;
     bodyHash?: string | null;
+    sourceManifestHash?: string | null;
   } = {}
 ): PromptPacketIdentity => {
   const stepKey = options.stepKey ?? input.stepKey ?? input.templateKey;
@@ -479,7 +484,8 @@ export const promptPacketIdentity = (
     decisionLabel: options.decisionLabel ?? selectedSectionHeading ?? record?.title ?? stepKey,
     generatedAt: options.generatedAt ?? null,
     packetHash: options.packetHash ?? null,
-    bodyHash: options.bodyHash ?? null
+    bodyHash: options.bodyHash ?? null,
+    sourceManifestHash: options.sourceManifestHash ?? null
   };
 };
 
@@ -862,7 +868,8 @@ const creationDecompositionPrompt = (
         stepKey,
         record: report,
         selectedSectionHeading: null,
-        decisionLabel: report.title
+        decisionLabel: report.title,
+        sourceManifestHash: manifestHash(sourceManifest)
       })
     }
   };
@@ -969,7 +976,8 @@ const creationKernelPrompt = (
         stepKey,
         record: selectedRecord,
         selectedSectionHeading: section.heading,
-        decisionLabel: section.heading
+        decisionLabel: section.heading,
+        sourceManifestHash: manifestHash(sourceManifest)
       })
     }
   };
@@ -1089,7 +1097,8 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
         stepKey,
         record: selectedRecord,
         selectedSectionHeading: null,
-        decisionLabel: selectedRecord?.title ?? stepKey
+        decisionLabel: selectedRecord?.title ?? stepKey,
+        sourceManifestHash: manifestHash(sourceManifest)
       })
     }
   };

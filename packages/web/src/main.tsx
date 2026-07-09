@@ -1039,6 +1039,7 @@ interface AppProps {
   initialLoadedPromptStatus?: LoadedPromptStatusState | null;
   initialPromptText?: string;
   initialPromptPacketOrigin?: LoadedPromptOrigin | null;
+  initialCreationPromptMode?: "proposal" | "pressure";
 }
 
 type PromptFlowKey = "creation" | "admission" | "propagation" | "contradiction" | "qa" | "institutional_economic_suppression" | "constraint_composition" | "temporal_timeline";
@@ -1118,6 +1119,7 @@ interface LoadedPromptOrigin {
   admissionSectionKeys: string[];
   packetHash: string | null;
   bodyHash: string | null;
+  sourceManifestHash: string | null;
 }
 
 interface PromptPacketIdentity {
@@ -1140,6 +1142,7 @@ interface PromptPacketIdentity {
   generatedAt: string | null;
   packetHash: string | null;
   bodyHash: string | null;
+  sourceManifestHash: string | null;
 }
 
 interface LoadedPromptStatusState {
@@ -1403,7 +1406,8 @@ const promptOriginsMatch = (left: LoadedPromptOrigin, right: LoadedPromptOrigin)
   && left.workScale === right.workScale
   && (left.admissionDraftState ?? "not_applicable") === (right.admissionDraftState ?? "not_applicable")
   && (left.admissionDraftHash ?? null) === (right.admissionDraftHash ?? null)
-  && sameStringList(left.admissionSectionKeys ?? [], right.admissionSectionKeys ?? []);
+  && sameStringList(left.admissionSectionKeys ?? [], right.admissionSectionKeys ?? [])
+  && (left.sourceManifestHash ?? null) === (right.sourceManifestHash ?? null);
 
 const samePromptPacketOrigin = (left: LoadedPromptOrigin, right: LoadedPromptOrigin): boolean =>
   promptOriginsMatch(left, right)
@@ -1426,6 +1430,7 @@ const describePromptOrigin = (origin: LoadedPromptOrigin): string => [
   `created ${origin.createdAt}`,
   `packet ${origin.packetHash ?? "none"}`,
   `body ${origin.bodyHash ?? "none"}`,
+  `source_manifest ${origin.sourceManifestHash ?? "none"}`,
   `admission_level ${origin.admissionLevel ?? "none"}`,
   `work_scale ${origin.workScale ?? "none"}`,
   `draft state ${origin.admissionDraftState ?? "not_applicable"}`,
@@ -1449,6 +1454,7 @@ const promptPacketExportText = (origin: LoadedPromptOrigin, promptText: string):
   `generated_at: ${origin.createdAt || "unknown"}`,
   `packet_hash: ${origin.packetHash ?? "none"}`,
   `body_hash: ${origin.bodyHash ?? "none"}`,
+  `source_manifest_hash: ${origin.sourceManifestHash ?? "none"}`,
   `admission_level: ${origin.admissionLevel ?? "none"}`,
   `work_scale: ${origin.workScale ?? "none"}`,
   `draft_state: ${origin.admissionDraftState ?? "not_applicable"}`,
@@ -1936,7 +1942,8 @@ function App({
   initialQaScorecard = null,
   initialLoadedPromptStatus = null,
   initialPromptText = "",
-  initialPromptPacketOrigin = null
+  initialPromptPacketOrigin = null,
+  initialCreationPromptMode = "proposal"
 }: AppProps = {}) {
   const [worldPath, setWorldPath] = useState("");
   const [openWorld, setOpenWorld] = useState<string | null>(initialOpenWorld);
@@ -2104,7 +2111,7 @@ function App({
   const [promptRecordId, setPromptRecordId] = useState("");
   const [promptTemplateKey, setPromptTemplateKey] = useState("kernel_pressure");
   const [promptFlowKey, setPromptFlowKey] = useState<PromptFlowKey>("creation");
-  const [creationPromptMode, setCreationPromptMode] = useState<"proposal" | "pressure">("proposal");
+  const [creationPromptMode, setCreationPromptMode] = useState<"proposal" | "pressure">(initialCreationPromptMode);
   const [admissionPromptMode, setAdmissionPromptMode] = useState<"proposal" | "pressure">("proposal");
   const [promptStep, setPromptStep] = useState<PromptOutStep | null>(null);
   const [promptText, setPromptText] = useState(initialPromptText);
@@ -2347,28 +2354,49 @@ function App({
   const creationKernelPromptTargeting = displayedCreationDecision.currentStep.startsWith("kernel:");
   const creationLocalSectionDiffers = creationKernelPromptTargeting
     && (displayedCreationDecision.selectedSection?.heading !== kernelHeading || selectedSectionHasHeldDraft);
-  const creationProposalBaseRequest = creationPromptOutStepRequest(selectedCreationPromptMode?.stepRequest)
-    ?? displayedCreationDecision.promptOut.stepRequest;
+  const creationAnyPromptRequest = creationPromptModes
+    .map((mode) => creationPromptOutStepRequest(mode.stepRequest))
+    .find((request): request is CreationPromptOutStepRequest => Boolean(request))
+    ?? null;
+  const creationPromptBaseRequest = creationPromptOutStepRequest(selectedCreationPromptMode?.stepRequest)
+    ?? displayedCreationDecision.promptOut.stepRequest
+    ?? creationAnyPromptRequest;
   const creationLocalProposalRequest = creationKernelPromptTargeting
     && creationPromptMode === "proposal"
     && kernelHeading !== "World premise"
-    && creationProposalBaseRequest
+    && creationPromptBaseRequest
     ? {
-        ...creationProposalBaseRequest,
+        ...creationPromptBaseRequest,
         body: {
-          ...creationProposalBaseRequest.body,
+          ...creationPromptBaseRequest.body,
           mode: "proposal",
           label: "Proposal mode",
           selectedSectionHeading: kernelHeading
         }
       }
     : null;
+  const creationSelectedSectionHasSavedMaterial = Boolean(selectedSectionContract?.hasSavedBody && selectedSectionContract.savedBody.trim());
+  const creationLocalPressureRequest = creationKernelPromptTargeting
+    && creationPromptMode === "pressure"
+    && creationSelectedSectionHasSavedMaterial
+    && creationPromptBaseRequest
+    ? {
+        ...creationPromptBaseRequest,
+        body: {
+          ...creationPromptBaseRequest.body,
+          mode: "pressure",
+          label: displayedCreationDecision.promptOut.role || "Pressure mode",
+          selectedSectionHeading: kernelHeading
+        }
+      }
+    : null;
+  const creationLocalPromptRequest = creationLocalProposalRequest ?? creationLocalPressureRequest;
   const serverCreationPromptRequest = selectedCreationPromptMode?.available && selectedCreationPromptMode.stepRequest
     ? creationPromptOutStepRequest(selectedCreationPromptMode.stepRequest)
     : selectedCreationPromptMode == null
       ? displayedCreationDecision.promptOut.stepRequest
       : null;
-  const creationPromptStepRequest = creationLocalProposalRequest ?? (serverCreationPromptRequest
+  const creationPromptStepRequest = creationLocalPromptRequest ?? (serverCreationPromptRequest
     ? {
         ...serverCreationPromptRequest,
         body: {
@@ -2384,11 +2412,12 @@ function App({
       ? { ...displayedCreationDecision.currentKernel, recordTypeKey: "world_kernel" }
       : null;
   const creationPromptOutBlockedByLocalSection = creationLocalSectionDiffers
-    && (creationPromptMode !== "proposal" || !creationLocalProposalRequest);
+    && !creationLocalPromptRequest;
   const creationPressureLocalSectionMessage = `Pressure Prompt-out waits for the selected section to be saved with steward-authored material before it can use ${kernelHeading}.`;
   const creationPromptOutLocalSectionMessage = creationPromptMode === "proposal" && kernelHeading === "World premise"
     ? "Proposal prompts are refused for the world's essence; the AI-assisted workflow reserves the World premise to the steward."
     : creationPressureLocalSectionMessage;
+  const creationSelectedPromptModeLabel = creationPromptMode === "pressure" ? "Pressure mode" : "Proposal mode";
   const creationPromptModesForDisplay = creationPromptModes.map((mode) => {
     if (!creationLocalSectionDiffers) return mode;
     if (mode.mode === "proposal" && creationLocalProposalRequest) {
@@ -2397,6 +2426,23 @@ function App({
         available: true,
         availability: "available" as const,
         blocker: null
+      };
+    }
+    if (mode.mode === "proposal" && kernelHeading === "World premise") {
+      return {
+        ...mode,
+        available: false,
+        availability: "blocked" as const,
+        blocker: "Proposal prompts are refused for the world's essence; the AI-assisted workflow reserves the World premise to the steward."
+      };
+    }
+    if (mode.mode === "pressure" && creationLocalPressureRequest) {
+      return {
+        ...mode,
+        available: true,
+        availability: "available" as const,
+        blocker: null,
+        stepRequest: creationLocalPressureRequest
       };
     }
     if (mode.mode === "pressure") {
@@ -2410,19 +2456,26 @@ function App({
     return mode;
   });
   const creationPromptModeStatus = creationPromptOutBlockedByLocalSection
-    ? creationPromptOutLocalSectionMessage
+    ? `Selected mode: ${creationSelectedPromptModeLabel} - ${creationPromptOutLocalSectionMessage}`
     : creationLocalProposalRequest
       ? `Selected mode: Proposal mode - available for selected ${kernelHeading} via explicit target heading.`
+      : creationLocalPressureRequest
+        ? `Selected mode: Pressure mode - available for selected ${kernelHeading} via explicit target heading.`
       : selectedCreationPromptMode
         ? `Selected mode: ${selectedCreationPromptMode.label} - ${selectedCreationPromptMode.available ? "available" : selectedCreationPromptMode.blocker ?? "blocked"}`
         : "Selected mode: loads from the server packet.";
   const canLoadCreationPromptStep = Boolean(openWorld && creationPromptStepRequest && !creationPromptOutBlockedByLocalSection);
-  const creationPromptCurrentDecision = creationLocalProposalRequest && selectedSectionContract
+  const creationPromptCurrentDecision = (creationLocalPromptRequest || creationPromptOutBlockedByLocalSection) && selectedSectionContract
     ? `Define the world's first governing kernel section: ${kernelHeading}.`
     : displayedCreationDecision.promptOut.preview.currentDecision || displayedCreationDecision.localDecision;
   const loadedCreationPromptMode = promptStep?.context.flowKey === "creation" && promptStep.context.stepKey === displayedCreationDecision.promptOut.stepKey
     ? promptStep.mode ?? null
     : null;
+  const creationPromptOutRoleLine = `${displayedCreationDecision.promptOut.role} · ${creationPromptOutBlockedByLocalSection
+    ? "blocked"
+    : displayedCreationDecision.promptOut.available
+      ? "available"
+      : "blocked"}`;
   const admissionPromptModes = admissionDecision?.promptOut.modes ?? [];
   const selectedAdmissionPromptMode = admissionPromptModes.find((mode) => mode.mode === admissionPromptMode)
     ?? admissionPromptModes[0]
@@ -2473,7 +2526,8 @@ function App({
         admissionDraftHash: activeFullGateContract ? admissionDraftIdentity : null,
         admissionSectionKeys: activeFullGateContract ? activeFullGateSectionKeys : [],
         packetHash: loadedPromptStatus?.origin.packetHash ?? null,
-        bodyHash: loadedPromptStatus?.origin.bodyHash ?? null
+        bodyHash: loadedPromptStatus?.origin.bodyHash ?? null,
+        sourceManifestHash: loadedPromptStatus?.origin.sourceManifestHash ?? null
       };
     }
 
@@ -2504,7 +2558,8 @@ function App({
         admissionDraftHash: null,
         admissionSectionKeys: [],
         packetHash: loadedPromptStatus?.origin.packetHash ?? null,
-        bodyHash: loadedPromptStatus?.origin.bodyHash ?? null
+        bodyHash: loadedPromptStatus?.origin.bodyHash ?? null,
+        sourceManifestHash: loadedPromptStatus?.origin.sourceManifestHash ?? null
       };
     }
 
@@ -2529,7 +2584,8 @@ function App({
         admissionDraftHash: null,
         admissionSectionKeys: [],
         packetHash: loadedPromptStatus?.origin.packetHash ?? null,
-        bodyHash: loadedPromptStatus?.origin.bodyHash ?? null
+        bodyHash: loadedPromptStatus?.origin.bodyHash ?? null,
+        sourceManifestHash: loadedPromptStatus?.origin.sourceManifestHash ?? null
       };
     }
 
@@ -2553,7 +2609,8 @@ function App({
         admissionDraftHash: promptStep.packetIdentity.admissionDraftHash,
         admissionSectionKeys: promptStep.packetIdentity.admissionSectionKeys,
         packetHash: loadedPromptStatus?.origin.packetHash ?? null,
-        bodyHash: loadedPromptStatus?.origin.bodyHash ?? null
+        bodyHash: loadedPromptStatus?.origin.bodyHash ?? null,
+        sourceManifestHash: loadedPromptStatus?.origin.sourceManifestHash ?? null
       };
     }
 
@@ -2697,25 +2754,35 @@ function App({
     && promptPacketOrigin?.flowKey === "creation"
     ? promptText
     : null;
-  const creationPromptPreviewForDisplay: PromptPreviewPayload = creationLocalProposalRequest && selectedSectionContract
+  const creationLocalPreviewUsesSelectedSection = creationKernelPromptTargeting
+    && selectedSectionContract
+    && (creationLocalPromptRequest || creationPromptOutBlockedByLocalSection);
+  const creationPromptPreviewForDisplay: PromptPreviewPayload = creationLocalPreviewUsesSelectedSection && selectedSectionContract
     ? {
         ...displayedCreationDecision.promptOut.preview,
         currentDecision: creationPromptCurrentDecision,
         promptText: currentCreationPromptPacketText ?? [
-          "Proposal mode selected target:",
+          creationPromptMode === "pressure" ? "Pressure mode selected target:" : "Proposal mode selected target:",
           kernelHeading,
           `Selected section prompt: ${selectedSectionContract.prompt}`,
           `Selected section material: ${selectedSectionContract.savedBody.trim() || "(empty)"}`,
-          selectedSectionContract.savedBody.trim()
-            ? "Selected section has saved steward material."
-            : "Selected section empty-state context: no saved text exists yet; proposal may request candidates, while pressure remains unavailable until steward-authored material is saved.",
-          "Mode request: draft labeled candidate material for this selected section; advisory material is not canon and saving kernel text remains a separate steward write."
+          creationPromptOutBlockedByLocalSection
+            ? `Current blocker: ${creationPromptOutLocalSectionMessage}`
+            : creationPromptMode === "pressure"
+              ? "Mode request: challenge the selected section's saved steward-authored material; advisory material is not canon and loading Prompt-out remains side-effect free."
+              : selectedSectionContract.savedBody.trim()
+                ? "Selected section has saved steward material."
+                : "Selected section empty-state context: no saved text exists yet; proposal may request candidates, while pressure remains unavailable until steward-authored material is saved.",
+          ...(creationPromptOutBlockedByLocalSection || creationPromptMode === "pressure"
+            ? []
+            : ["Mode request: draft labeled candidate material for this selected section; advisory material is not canon and saving kernel text remains a separate steward write."])
         ].join(" "),
         sourceManifest: [
           `Selected kernel section: ${kernelHeading}`,
           `Section prompt: ${selectedSectionContract.prompt}`,
           `Section obligation: ${selectedSectionContract.obligation}`,
-          `Prompt template: ${creationLocalProposalRequest.body.templateKey}`,
+          `Prompt mode: ${creationPromptMode}`,
+          `Prompt template: ${creationPromptStepRequest?.body.templateKey ?? creationPromptBaseRequest?.body.templateKey ?? displayedCreationDecision.promptOut.templateKey}`,
           ...displayedCreationDecision.promptOut.preview.sourceManifest.filter((item) => item.startsWith("Method card:") || item.startsWith("Package source:") || item.startsWith("Omissions:"))
         ],
         contextPreview: [
@@ -3489,7 +3556,8 @@ function App({
     admissionDraftHash: step.packetIdentity.admissionDraftHash ?? fallback.admissionDraftHash ?? null,
     admissionSectionKeys: step.packetIdentity.admissionSectionKeys ?? fallback.admissionSectionKeys ?? [],
     packetHash: fallback.packetHash ?? null,
-    bodyHash: step.packetIdentity.bodyHash ?? fallback.bodyHash ?? null
+    bodyHash: step.packetIdentity.bodyHash ?? fallback.bodyHash ?? null,
+    sourceManifestHash: step.packetIdentity.sourceManifestHash ?? fallback.sourceManifestHash ?? null
   });
 
   const promptOriginFromPacketIdentity = (
@@ -3514,7 +3582,8 @@ function App({
     admissionDraftHash: identity.admissionDraftHash ?? fallback.admissionDraftHash ?? null,
     admissionSectionKeys: identity.admissionSectionKeys ?? fallback.admissionSectionKeys ?? [],
     packetHash: identity.packetHash ?? fallback.packetHash ?? null,
-    bodyHash: identity.bodyHash ?? fallback.bodyHash ?? null
+    bodyHash: identity.bodyHash ?? fallback.bodyHash ?? null,
+    sourceManifestHash: identity.sourceManifestHash ?? fallback.sourceManifestHash ?? null
   });
 
   const setLoadedPromptAndPacket = (origin: LoadedPromptOrigin, text?: string | null) => {
@@ -5995,7 +6064,7 @@ function App({
           </section>
           <PromptPacketPreview
             title="Prompt-out preview"
-            roleLine={`${displayedCreationDecision.promptOut.role} · ${displayedCreationDecision.promptOut.available ? "available" : "blocked"}`}
+            roleLine={creationPromptOutRoleLine}
             modes={creationPromptModesForDisplay}
             preview={creationPromptPreviewForDisplay}
             advisoryNote="Pasted responses remain advisory artifacts and do not mutate kernel sections, seed records, reports, or proposals without explicit steward use."

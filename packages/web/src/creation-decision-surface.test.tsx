@@ -401,7 +401,7 @@ describe("Creation decision-point web surface", () => {
     expect(routedCreation).toContain("section.prompt");
   });
 
-  it("allows unsaved non-premise Proposal targeting while keeping Pressure and World premise guarded", () => {
+  it("allows local Proposal and saved-section Pressure targeting while keeping guarded cases blocked", () => {
     const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
     const promptSelection = snippetBetween(source, "const selectedCreationPromptMode =", "const loadedCreationPromptMode");
     const currentOrigin = snippetBetween(source, "const currentLoadedPromptOrigin = useMemo", "const loadedPromptStatusView");
@@ -411,8 +411,12 @@ describe("Creation decision-point web surface", () => {
     expect(promptSelection).toContain("creationPromptMode === \"proposal\"");
     expect(promptSelection).toContain("kernelHeading !== \"World premise\"");
     expect(promptSelection).toContain("creationLocalProposalRequest");
+    expect(promptSelection).toContain("creationPromptBaseRequest");
+    expect(promptSelection).toContain("creationSelectedSectionHasSavedMaterial");
+    expect(promptSelection).toContain("creationLocalPressureRequest");
+    expect(promptSelection).toContain("creationLocalPromptRequest");
     expect(promptSelection).toContain("selectedSectionHeading: kernelHeading");
-    expect(promptSelection).toContain("creationPromptMode !== \"proposal\"");
+    expect(promptSelection).toContain("&& !creationLocalPromptRequest");
     expect(promptSelection).toContain("creationPromptModesForDisplay");
     expect(promptSelection).toContain("creationPromptCurrentDecision");
     expect(source).toContain("creationPromptPreviewForDisplay");
