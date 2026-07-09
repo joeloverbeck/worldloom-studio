@@ -18,6 +18,7 @@ Before editing code, identify the authoritative work items.
 - When the requested scope is a child issue, child issue range, or single implementation issue and related tracker items are discovered, classify every related item outside the requested scope before editing. For parent PRD closeout, list all related children, including any children beyond the requested scope; mark those children as already closed, enabling prerequisites, blocking, contextual/non-blocking backlog, intentionally excluded, or not actually related.
 - If a related item outside the requested scope blocks an in-scope issue, promote it to an explicit enabling-prerequisite row in the ledger before editing. Implement and close that prerequisite only when its own acceptance criteria and conformance checks are satisfied and the user did not explicitly exclude it; otherwise leave the dependent issue or parent open and explain the blocker.
 - Do not silently collapse multiple issues into a smaller "skeleton" or "first slice" when the user asked for the issues.
+- If any acceptance criterion requires proof outside normal repo-local tests, preflight that proof mechanism before editing. This includes external services, cold LLM or fresh subagent probes, browser automation, credentials, network access, or nonlocal evidence. If the proof mechanism is unavailable, mark the affected row's closeout state `blocked`, quote the exact criterion, and ask whether to proceed with code-only partial implementation, reduced scope, or a field-test/handoff path. Do not let a missing external proof surface first at tracker closeout.
 
 Use this compact ledger shape unless the issue set needs more detail:
 
@@ -30,3 +31,11 @@ If related tracker items exist outside the requested scope, include this line im
 | #N | ... | ... | touched docs/ADRs or N/A | ... | ... | planned / in progress / satisfied / blocked / not done | ... |
 
 Post the ledger to the conversation before the first edit. Update it when dependencies, blockers, evidence, or closeout state changes materially.
+
+## First-Edit Gate
+
+Do not edit until a visible ledger or progress note includes this line:
+
+`Scope ledger posted: yes; no edits started; unrelated dirty files <listed/N/A>; in-scope issues <#...>; related tracker classification <done/N/A>.`
+
+If the first useful user update is shorter than the full table, it must still name the in-scope issues, unrelated dirty files, and whether related tracker classification is complete or N/A. Post or expand the full ledger before making the first code or docs edit.

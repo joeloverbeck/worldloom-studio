@@ -38,6 +38,7 @@ requireMatch(/(^|\n)(#{1,6}\s*)?Verification\b:?/i, "verification evidence");
 requireMatch(/TDD evidence gate passed:|N\/A because no tdd skill was invoked/i, "TDD evidence or explicit N/A");
 requireMatch(/Review:|Review fallback:/, "review evidence");
 requireMatch(/Browser evidence:|browser evidence|browser smoke/i, "browser evidence or N/A");
+requireMatch(/Console state:|Browser console state:|browser console state recorded/i, "browser console state or N/A");
 requireMatch(/Final freshness delta|Browser\/manual evidence freshness|final browser\/manual freshness/i, "final browser/manual freshness");
 requireText("| Issue | Acceptance criterion or conformance check | Evidence | Status |", "audit table header");
 requireText("Closeout body check passed:", "closeout body check line");

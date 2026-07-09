@@ -31,11 +31,16 @@ CONTEXT.md status: <present/absent/N/A>
 ADRs/principles/docs status: <present/N/A>
 Partial-red / red-first skip reasons: <none/listed>
 Evidence-only rows freshness: <none/listed with freshness reason>
+Evidence-only browser console state: <none / listed with 0 errors and 0 warnings, classified unrelated output with evidence, rerun clean session because HMR or reused session tainted proof, or N/A because no browser/manual evidence-only rows>
 Existing-test contract-change rows: <none/listed expectation-rewrite rows>
 
 | Issue | CONTEXT.md status | ADRs/principles/docs status | Seam | Red command/failure | Green command or evidence | Acceptance covered | Review fix / red-first skip reason |
 |---|---|---|---|---|---|---|---|
 | #N | <present/absent/N/A> | <present/N/A> | <seam or evidence-only row> | <red command/failure or N/A because ...> | <green command or evidence> | <acceptance criteria covered> | <N/A / review-fix red-first skip reason> |
+
+For an existing-test contract-change row, use validator-exact wording:
+
+| #N | <present/absent/N/A> | <present/N/A> | existing contract-change expectation | existing contract-change expectation in `<test file>` because <old expected behavior no longer satisfied the issue/spec contract> | `<green command>` passed | <acceptance criteria covered> | N/A |
 
 TDD evidence gate passed: durable sink <inspected body file path before tracker URL exists / comment URL>; compact table/header <present after structural check>; seams accounted for <all listed / exceptions named>; CONTEXT.md status <present/absent/N/A>; ADRs/principles/docs status <present/N/A>; partial-red / red-first skip reasons <none/listed>; evidence-only rows <none/listed>; existing-test contract-change rows <none/listed expectation-rewrite rows>.
 Review evidence:
@@ -46,6 +51,7 @@ Review evidence:
 Principles/ADR conformance: <no deliberate exceptions / approved exception / N/A>
 Browser evidence:
 - Route/action/outcome: <route and observed result / N/A because ... / blocked because ...>
+- Console state: <0 errors and 0 warnings / classified unrelated output with evidence / rerun clean session because HMR or reused session tainted proof / N/A because browser evidence is N/A or blocked>
 - Final freshness delta: files touched since the last browser/manual smoke after final commit and verification edits <paths or none>; affects UI/routes/browser-consumed API/fixtures/action path <yes/no per path/group and why>; smoke freshness <rerun / not affected because changed path <path or group> leaves the evidence route/action/API/fixture <route/action/API/fixture> untouched and targeted proof <command> passed / blocked because ...>
 Fixed child inline close comment: <exact final text inspected / stable self-referential parent rollup wording inspected / local pending-parent template inspected and later patched / N/A>
 Child state snapshot before child closeout: <exact issue numbers and states before closing children / N/A>
@@ -66,14 +72,23 @@ Closeout preflight:
 - Local-only SHA: <full explanatory sentence present/N/A>
 - TDD evidence: <present/N/A because no tdd skill was invoked>
 - Review evidence: <Review:/Review fallback: line or reference>
+- Browser console state: <0 errors and 0 warnings / classified unrelated output with evidence / rerun clean session because HMR or reused session tainted proof / N/A because browser evidence is N/A or blocked>
 - Browser evidence freshness: <files touched since smoke; affects UI/routes/browser-consumed API/fixtures/action path yes/no and why; rerun / not affected because changed path <path or group> leaves the evidence route/action/API/fixture <route/action/API/fixture> untouched and targeted proof <command> passed / blocked because ...>
 - Final post-commit freshness delta: <files touched since last browser/manual proof after final commit and verification edits; rerun / not affected because changed path <path or group> leaves the evidence route/action/API/fixture <route/action/API/fixture> untouched and targeted proof <command> passed / blocked because ...>
 - Child states verified: <yes/N/A, exact issue numbers>
 
 Closeout gate passed: audit sink <conversation/comment URL/issue reference/inspected body file path before parent URL exists>; review evidence <line/reference>; TDD evidence <present/N/A>; final SHA <sha>; Principles/ADR conformance <present/N/A>; Local-only SHA sentence <full explanatory sentence present/N/A>; child states verified <yes/N/A>; browser evidence <present/N/A/blocked>.
 
-Closeout body check passed: audit table columns exact; every acceptance checkbox or conformance check named; every status literal satisfied/blocked/not done; final SHA present; verification evidence present; TDD evidence present or N/A; review evidence present; Principles/ADR conformance string present or N/A; full Local-only SHA explanatory sentence present or N/A; browser evidence present/N/A/blocked; final browser/manual freshness delta present/N/A; exact fixed child inline comment inspected <yes/N/A>.
+Closeout body check passed: audit table columns exact; every acceptance checkbox or conformance check named; every status literal satisfied/blocked/not done; final SHA present; verification evidence present; TDD evidence present or N/A; review evidence present; Principles/ADR conformance string present or N/A; full Local-only SHA explanatory sentence present or N/A; browser evidence present/N/A/blocked; browser console state recorded when browser evidence is present or N/A/blocked; final browser/manual freshness delta present/N/A; exact fixed child inline comment inspected <yes/N/A>.
 ```
+
+After the parent rollup URL is captured and before the first fixed-template child close command, inspect the exact final inline child comment with the real URL. Paste or echo this exact string in the conversation or durable audit sink:
+
+```markdown
+Fixed child final inline close comment inspected: Completed by <sha>. Evidence: <parent rollup comment URL>
+```
+
+This mini-gate complements, and does not replace, the fixed-template sequence in [child-family-closeout.md](child-family-closeout.md).
 
 Then inspect the exact body before posting:
 
@@ -86,13 +101,52 @@ node .claude/skills/tdd/scripts/validate-tdd-closeout-body.mjs "$body" --parent-
 node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs "$body" --implement --child-family --tdd-parent-rollup
 node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body" --closing --principles --local-only --fixed-child-pending --review-fallback
 sed -n '1,240p' "$body"
-rg -n "Acceptance criterion or conformance check|Status|satisfied|blocked|not done|TDD evidence|TDD evidence gate passed|TDD closeout gate|Review:|Review fallback:|Principles/ADR conformance:|Local-only SHA:|not remote-reachable because|local-only closeout is acceptable because|browser smoke|browser evidence|Final freshness delta|Fixed child inline close comment|Closeout gate passed: audit sink" "$body"
+rg -n "Acceptance criterion or conformance check|Status|satisfied|blocked|not done|TDD evidence|TDD evidence gate passed|TDD closeout gate|Review:|Review fallback:|Principles/ADR conformance:|Local-only SHA:|not remote-reachable because|local-only closeout is acceptable because|browser smoke|browser evidence|Console state|Browser console state|Final freshness delta|Fixed child inline close comment|Closeout gate passed: audit sink" "$body"
 # If any inspection output is truncated, treat it as not inspected. Split the check into bounded token sweeps and short table/status excerpts before posting or closing.
 comment_url="$(gh issue comment <issue> --body-file "$body")"
 gh issue close <issue> --reason completed --comment "Completed; evidence: $comment_url"
 ```
 
 Do not leave temporary body files in the repo unless they are intentional committed evidence.
+
+## Blocked Closeout Handoff
+
+Use this when implementation made progress but one or more issue criteria remain `blocked` or `not done`, so tracker closeout must not run. Post it in the conversation or a durable issue comment only when it is useful for the next session; otherwise keep it in the final response.
+
+```markdown
+Blocked closeout handoff for #<parent-or-issue>
+
+Tracker state readback:
+- #<issue>: <OPEN/CLOSED> - <reason it remains open or closed>
+
+Implementation state:
+- In-scope files changed: <paths>
+- Verification run: <commands and pass/fail/blocked result>
+- Report/artifact paths: <paths or N/A>
+- Dev/browser cleanup: <stopped / intentionally left running with reason / N/A>
+
+Satisfied evidence:
+| Issue | Acceptance criterion or conformance check | Evidence | Status |
+|---|---|---|---|
+| #N | <criterion exactly named> | <tests/browser/report/readback> | satisfied |
+
+Blocked or not-done criteria:
+| Issue | Acceptance criterion or conformance check | Missing proof or blocker | Next action | Status |
+|---|---|---|---|---|
+| #N | <criterion exactly named> | <external service/cold probe/commit/SHA/etc.> | <field test, authorization, commit, rerun, or implementation follow-up> | blocked / not done |
+
+Commit/SHA decision:
+- <final SHA and reachability, or `no implementation commit; tracker closeout blocked because no final SHA represents the verified tree`>
+
+Review evidence:
+- <Review:/Review fallback: line, or N/A because tracker closeout is blocked before review>
+
+Next session priority:
+1. <exact proof or implementation step needed>
+2. <exact tracker closeout prerequisite>
+```
+
+Do not use this template as a substitute for successful closeout. Any row with status `blocked` or `not done` keeps that issue and any dependent parent PRD open.
 
 ## Closeout Preflight Scratchpad
 
@@ -110,6 +164,7 @@ Closeout preflight:
 - Local-only SHA: <full explanatory sentence present/N/A>
 - TDD evidence: <present/N/A because no tdd skill was invoked>
 - Review evidence: <Review:/Review fallback: line or reference>
+- Browser console state: <0 errors and 0 warnings / classified unrelated output with evidence / rerun clean session because HMR or reused session tainted proof / N/A because browser evidence is N/A or blocked>
 - Browser evidence freshness: <files touched since smoke; affects UI/routes/browser-consumed API/fixtures/action path yes/no and why; rerun / N/A because ... / not affected because changed path <path or group> leaves the evidence route/action/API/fixture <route/action/API/fixture> untouched and targeted proof <command> passed / blocked because ...>
 - Final post-commit freshness delta: <files touched since last browser/manual proof after final commit and verification edits; rerun / not affected because changed path <path or group> leaves the evidence route/action/API/fixture <route/action/API/fixture> untouched and targeted proof <command> passed / blocked because ...>
 - Child states verified: <yes/N/A, exact issue numbers>

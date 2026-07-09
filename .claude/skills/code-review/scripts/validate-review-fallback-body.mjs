@@ -107,6 +107,12 @@ const extractFieldValue = (label) => {
   return match?.[1]?.trim() || "";
 };
 
+const extractLooseValue = (label) => {
+  const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = body.match(new RegExp(`\\b${escapedLabel}\\b\\s*:?\\s*([^\\n;]+)`, "i"));
+  return match?.[1]?.trim().replace(/[.`]+$/g, "") || "";
+};
+
 const validateFreshnessValue = (value) => {
   const normalized = value.replace(/\s+/g, " ").trim();
   if (!normalized) return "is empty";
@@ -151,7 +157,32 @@ const validateFreshnessValue = (value) => {
   return "must state rerun proof, justified not affected, blocked/stale reason, non-semantic proof, or N/A because no browser/manual evidence was used";
 };
 
+const validateConsoleStateValue = (value) => {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) return "is empty";
+  if (/^<.*>$/.test(normalized)) return "is unresolved placeholder";
+  if (/^N\/A\b.+\bbecause\b/i.test(normalized)) return "";
+  if (/\b0 errors?\b.+\b0 warnings?\b/i.test(normalized)) return "";
+  if (/\bno console (errors?|warnings?)\b/i.test(normalized)) return "";
+  if (/\bclassified unrelated\b.+\b(evidence|because|source|reason)\b/i.test(normalized)) return "";
+  if (/\brerun clean session\b.+\b(HMR|hot reload|reused session|tainted proof)\b/i.test(normalized)) return "";
+  if (/\bclean browser session\b.+\b(passed|0 errors?|0 warnings?|observed)\b/i.test(normalized)) return "";
+  if (/\b(blocked|unavailable|not available)\b.+\b(because|reason|unable|cannot)\b/i.test(normalized)) return "";
+  return "must state clean console, classified unrelated output, clean-session rerun, blocked/unavailable reason, or N/A because no browser/manual evidence was used";
+};
+
 const splitMarkdownTableRow = (row) => row.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
+
+const sourceEnumeratesAcceptanceItems = (source) =>
+  /\b(?:AC|A)\s*#?\d+\b/i.test(source) ||
+  /\b(?:acceptance item|acceptance criterion|criterion|criteria|checkbox|checklist item|user story|story)\s*#?\d+\b/i.test(source);
+
+const sourceCitesExactAcceptanceRows = (source) =>
+  /\b(?:exact\s+)?(?:acceptance|criterion|checkbox|audit|closeout)\s+(?:table|rows?)\b/i.test(source) &&
+  /\b(?:row|rows?|range|below|above|adjacent|#\d+)\b/i.test(source);
+
+const cellClaimsNoResidualFindings = (cell) =>
+  /\b(?:no findings|none|no residuals?|residuals?\s+none|0 residuals?)\b/i.test(cell);
 
 const findRowsAfterTableHeader = (header) => {
   const lines = body.split(/\r?\n/);
@@ -182,6 +213,14 @@ requireText("Smell baseline applied:");
 requireText("## Spec");
 requireText("Findings:");
 requireMatch(/Axis summary:\s*Standards\s+.+?,\s*Spec\s+.+/i, "axis summary");
+
+const fixedPointSha = extractLooseValue("fixed point resolved SHA").match(/\b[0-9a-f]{7,40}\b/i)?.[0] || "";
+const diffCommandValue = extractLooseValue("diff command");
+if (fixedPointSha && diffCommandValue && !diffCommandValue.includes(fixedPointSha)) {
+  errors.push(
+    `diff command must use resolved fixed-point SHA ${fixedPointSha}; relative refs such as HEAD~1 are fixed-point input only`
+  );
+}
 
 const gateLine = requireGateLine();
 const gateFields = parseGateFields(gateLine);
@@ -235,6 +274,7 @@ requireGateValue(gateFields, "verification/browser freshness", yesOrNA, "yes or 
 
 if (shouldRequireImplementLine) {
   requireMatch(/^Review fallback:\s+\S.+$/m, "exact Review fallback closeout-ready line");
+  forbidMatch(/^\s*-?\s*Review:\s+.*\bfallback\b/im, "fallback review evidence labeled Review: instead of Review fallback:");
 }
 
 if (shouldRequireChildFamily) {
@@ -251,6 +291,28 @@ if (shouldRequireChildFamily) {
   if (!childIssueRows.length) {
     errors.push("PRD child coverage table has no issue rows");
   }
+
+  const rowsByIssue = new Map();
+  for (const row of childIssueRows) {
+    const [issue] = splitMarkdownTableRow(row);
+    rowsByIssue.set(issue, (rowsByIssue.get(issue) ?? 0) + 1);
+  }
+
+  for (const row of childIssueRows) {
+    const cells = splitMarkdownTableRow(row);
+    const [issue, acceptanceSource, , findingsCell] = cells;
+    const isSplitAcrossRows = (rowsByIssue.get(issue) ?? 0) > 1;
+    if (
+      cellClaimsNoResidualFindings(findingsCell ?? "") &&
+      !isSplitAcrossRows &&
+      !sourceEnumeratesAcceptanceItems(acceptanceSource ?? "") &&
+      !sourceCitesExactAcceptanceRows(acceptanceSource ?? "")
+    ) {
+      errors.push(
+        `PRD child coverage row ${issue} acceptance source is too broad for zero residual Spec findings; enumerate exact acceptance items or cite adjacent exact acceptance table rows: ${acceptanceSource}`
+      );
+    }
+  }
 }
 
 if (shouldRequireImmediateFix) {
@@ -261,6 +323,7 @@ if (shouldRequireImmediateFix) {
     "TDD closeout gate",
     "Verification rerun",
     "Browser/manual evidence freshness",
+    "Browser/manual console state",
     "Commit handling",
     "Residual findings"
   ]) {
@@ -271,6 +334,12 @@ if (shouldRequireImmediateFix) {
   const freshnessError = validateFreshnessValue(freshnessValue);
   if (freshnessError) {
     errors.push(`Browser/manual evidence freshness ${freshnessError}`);
+  }
+
+  const consoleStateValue = extractFieldValue("Browser/manual console state");
+  const consoleStateError = validateConsoleStateValue(consoleStateValue);
+  if (consoleStateError) {
+    errors.push(`Browser/manual console state ${consoleStateError}`);
   }
 }
 

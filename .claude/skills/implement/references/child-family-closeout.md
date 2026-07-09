@@ -13,7 +13,7 @@ Closeout execution order for 4+ in-scope child issues defaults to: post the pare
 For 4+ in-scope child issues, follow this command sequence unless you explicitly choose and state a different durable audit sink:
 
 1. Draft the parent rollup/audit body under `/tmp`.
-2. Inspect that exact parent body and confirm it contains the audit table, final SHA, verification evidence, TDD evidence or N/A, review evidence, `Principles/ADR conformance:`, the full `Local-only SHA: <sha> is not remote-reachable because <reason>; local-only closeout is acceptable because <reason>.` sentence when applicable, browser evidence or N/A/blocked wording with the final post-commit freshness delta, and a child state snapshot before child closeout.
+2. Inspect that exact parent body and confirm it contains the audit table, final SHA, verification evidence, TDD evidence or N/A, review evidence, `Principles/ADR conformance:`, the full `Local-only SHA: <sha> is not remote-reachable because <reason>; local-only closeout is acceptable because <reason>.` sentence when applicable, browser evidence or N/A/blocked wording with browser console state and the final post-commit freshness delta, and a child state snapshot before child closeout.
 3. Post the parent rollup with `gh issue comment <parent> --body-file <parent-body>`.
 4. Capture the returned parent comment URL.
 5. Draft or patch every child closeout body so it cites the parent rollup URL.

@@ -27,9 +27,12 @@ Hard stops:
 - Fetch exact PRD/issue bodies and comments for the requested work items. For GitHub, use exact issue lookups with comments and structured fields.
 - If a PRD issue is named, discover and verify related child issues, blockers, and linked implementation tickets before treating the parent as closable.
 - If any fetched PRD or issue has a `## Principles` section, read `docs/principles/README.md`, then read named principle and ADR docs before coding.
+- If any acceptance criterion requires proof outside normal repo-local tests, such as an external service, cold LLM or fresh subagent probe, browser automation, credentials, network access, or other nonlocal evidence, preflight that proof mechanism before editing. If it is unavailable, mark the affected issue closeout state `blocked`, name the exact criterion, and ask whether to proceed with code-only partial implementation.
 - Do not silently collapse multiple issues into a smaller "skeleton" or "first slice" when the user asked for the issues.
 
 Post the ledger to the conversation before the first edit and update it when dependencies, blockers, evidence, or closeout state changes materially. Use the compact table and related-tracker classification rules in [references/scope-ledger.md](references/scope-ledger.md).
+
+First-edit gate: do not edit until the visible ledger or progress note includes `Scope ledger posted: yes; no edits started; unrelated dirty files <listed/N/A>; in-scope issues <#...>; related tracker classification <done/N/A>.`
 
 ## 2. Work Issue-by-Issue
 
@@ -43,7 +46,7 @@ Required implementation evidence:
 - On resume, compaction, or interruption before closeout, rerun `git status --short`, revalidate any active dev server/browser/session/proof artifact that the next step depends on, and restate the next exact issue/evidence action.
 - Run focused tests/typechecks regularly. Before closeout, read root verification guidance and run the canonical gates required for the work's blast radius.
 
-Before committing, draft the pre-close audit row-by-row against each in-scope acceptance criterion and Principles/ADR check. Do not enter review with unresolved `blocked` or `not done` rows unless the right outcome is to leave that issue open. See [references/implementation-evidence.md](references/implementation-evidence.md) for the detailed test, browser, verification, and implementation commit gates.
+Before committing, draft the working pre-close audit row-by-row against each in-scope acceptance criterion and Principles/ADR check. Do not enter review with unresolved `blocked` or `not done` rows unless the right outcome is to leave that issue open. Finalize or refresh the durable closeout audit after review fixes, final SHA, final verification, and browser/manual freshness are known. See [references/implementation-evidence.md](references/implementation-evidence.md) for the detailed test, browser, verification, and implementation commit gates.
 
 ## 3. Review Before Closeout
 
@@ -56,6 +59,8 @@ Use one of these routes:
 - If the `code-review` skill cannot run because required tooling is unavailable or policy-blocked, run the local two-axis fallback against the fixed point and carry the full fallback block into the durable closeout artifact.
 
 Review evidence is a closeout hard stop. Before any close command, the conversation or durable audit must contain either `Review:` or `Review fallback:` evidence. After any review-fix commit or amend, refresh the final SHA, review frame, gates, browser/manual freshness, body files, fixed-child comments, local-only SHA wording, and validators as described in [references/review-evidence.md](references/review-evidence.md).
+
+Before tracker closeout, decide whether the verified tree is represented by an implementation-owned commit. If committing is inappropriate, forbidden, or blocked, record that decision explicitly and keep tracker closeout blocked unless the user and repo policy allow closing without a final SHA.
 
 ## 4. Completion Audit and Issue Closeout
 

@@ -150,6 +150,21 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     return "must state rerun proof, justified not affected, blocked/stale reason, non-semantic proof, N/A because, or none";
   };
 
+  const validateConsoleStateValue = (value) => {
+    const normalized = value.replace(/\s+/g, " ").trim();
+    if (!normalized) return "is empty";
+    if (/^<.*>$/.test(normalized)) return "is unresolved placeholder";
+    if (/^none\b/i.test(normalized)) return "";
+    if (/^N\/A\b.+\bbecause\b/i.test(normalized)) return "";
+    if (/\b0 errors?\b.+\b0 warnings?\b/i.test(normalized)) return "";
+    if (/\bno console (errors?|warnings?)\b/i.test(normalized)) return "";
+    if (/\bclassified unrelated\b.+\b(evidence|because|source|reason)\b/i.test(normalized)) return "";
+    if (/\brerun clean session\b.+\b(HMR|hot reload|reused session|tainted proof)\b/i.test(normalized)) return "";
+    if (/\bclean browser session\b.+\b(passed|0 errors?|0 warnings?|observed)\b/i.test(normalized)) return "";
+    if (/\b(blocked|unavailable|not available)\b.+\b(because|reason|unable|cannot)\b/i.test(normalized)) return "";
+    return "must state clean console, classified unrelated output, clean-session rerun, blocked/unavailable reason, N/A because, or none";
+  };
+
   for (let index = 0; index < lines.length; index += 1) {
     if (lines[index].trim() !== compactHeader) continue;
     for (let rowIndex = index + 2; rowIndex < lines.length; rowIndex += 1) {
@@ -239,6 +254,7 @@ export const validateTddCloseoutBody = (body, options = {}) => {
 
   const reviewFixRows = [];
   const existingTestRows = [];
+  const browserManualEvidenceRows = [];
 
   for (const { lineNumber, cells } of compactRows) {
     if (cells.length < 8) {
@@ -249,7 +265,7 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     const redCell = cells[4];
     if (!hasConcreteRedEvidence(redCell)) {
       errors.push(
-        `compact TDD row ${lineNumber} red command/failure is not concrete: ${redCell}`
+        `compact TDD row ${lineNumber} red command/failure is not concrete: ${redCell}; for expectation rewrites use \`existing contract-change expectation in <test file> because ...\`, not \`existing-test contract-change expectation\``
       );
     }
 
@@ -259,6 +275,36 @@ export const validateTddCloseoutBody = (body, options = {}) => {
 
     if ((cells[3] ?? "").trim() === "existing contract-change expectation") {
       existingTestRows.push(lineNumber);
+    }
+
+    const seamCell = cells[3] ?? "";
+    const rowText = cells.join(" ");
+    if (
+      /\b(evidence-only|browser evidence|manual|walkthrough|screenshot)\b/i.test(seamCell) &&
+      /\b(browser|manual|screenshot|walkthrough|route|action|Playwright|DOM|page)\b/i.test(rowText)
+    ) {
+      browserManualEvidenceRows.push(lineNumber);
+    }
+  }
+
+  const consoleStateValue = extractFieldValue("Evidence-only browser console state");
+  if (browserManualEvidenceRows.length && !consoleStateValue) {
+    errors.push(
+      `browser/manual evidence-only row(s) ${browserManualEvidenceRows.join(", ")} require Evidence-only browser console state`
+    );
+  }
+  const consoleStateClaimsNoBrowserRows =
+    /^none\b/i.test(consoleStateValue) ||
+    /^N\/A\b.+no browser\/manual evidence-only rows\b/i.test(consoleStateValue);
+  if (browserManualEvidenceRows.length && consoleStateClaimsNoBrowserRows) {
+    errors.push(
+      `browser/manual evidence-only row(s) ${browserManualEvidenceRows.join(", ")} cannot use Evidence-only browser console state ${consoleStateValue}`
+    );
+  }
+  if (consoleStateValue) {
+    const consoleStateError = validateConsoleStateValue(consoleStateValue);
+    if (consoleStateError) {
+      errors.push(`Evidence-only browser console state ${consoleStateError}`);
     }
   }
 
