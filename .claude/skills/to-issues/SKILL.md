@@ -30,6 +30,8 @@ If the maintainer asks whether an existing issue or PRD should be split, treat t
 
 If you have not already explored the codebase, do so to understand the current state of the code. Issue titles and descriptions should use the project's domain glossary vocabulary, and respect ADRs in the area you're touching.
 
+Keep code exploration bounded. Start from exact source/exemplar terms and likely files, prefer `rg --files` plus targeted symbol or phrase searches, constrain globs and output budgets, and rerun narrower if a result truncates. Broad repo-wide greps are a fallback only when discovery genuinely needs them.
+
 Run `git status --short` during intake. Leave unrelated, uncited changes untouched and mention them in final reporting. If the source plan cites dirty or untracked local doctrine, reports, research briefs, field-trial reports, or other source artifacts, route them through the document-blocker/durability rule below before code-bearing slices depend on them.
 
 Look for opportunities to prefactor the code to make the implementation easier. "Make the change easy, then make the easy change."
@@ -134,7 +136,15 @@ Make that self-check visible before publication. For every affected `ready-for-a
 
 Verify the chosen label exists before creating the first issue with that label (create it per the project's triage-label doc if absent; a verification earlier in the same session suffices). Prefer current same-repo issue metadata when it already shows the exact chosen label; use `gh label list` only when no current issue metadata has shown it or label creation may be needed. If label-listing is temporarily unavailable, exact label presence on an issue from the same repo is acceptable verification.
 
-Temporary issue-body files are acceptable as local transport for `gh issue create --body-file`; use the least-permission mechanism available to create and remove them. Prefer an outside-worktree path such as `/tmp/worldloom-issues-<parent-or-slug>-<slice>.md` when the active environment permits safe creation and cleanup. If shell writes or `rm` are constrained, or outside-worktree editing is awkward, use clearly temporary repo-local hidden files such as `reports/.tmp-<parent-or-slug>-issue-<n>.md`, create and delete them with the environment-approved edit mechanism, and verify cleanup with `test ! -e` plus the final `git status --short`. In Codex-style sessions, that means using `apply_patch` for repo-local temp body files rather than shell redirection, heredocs, or destructive cleanup commands. The published issue body must not cite the staging path or any machine-local artifact. Before running the first `gh issue create`, sweep every staged body assembled from local notes or temp files for machine-local paths; when sweeping temp files, use a content-only check such as `rg --no-filename` so the temp file path itself is not reported as a false positive. Rerun the sweep after placeholder substitution or body edits. Treat leak and placeholder sweeps as hard serial gates: do not run `gh issue create` in the same parallel batch as those checks; create only after the relevant sweeps complete cleanly.
+Before staging or creating child issues, run an exact-title duplicate guard for every approved child title. Prefer one compact query per title:
+
+```sh
+gh issue list --state all --search '"<child title>" in:title' --json number,title,state,url,labels --limit 10
+```
+
+Treat exact-title matches as existing work: stop and ask whether to reuse, link, or skip them unless the approval already explicitly allows duplicate issue creation. If the query returns only fuzzy or partial-title matches, record that no exact duplicate exists and continue. On resumed runs, use the same guard to avoid recreating children already published earlier in the run.
+
+Temporary issue-body files are acceptable as local transport for `gh issue create --body-file`; use the least-permission mechanism available to create and remove them. Prefer an outside-worktree path such as `/tmp/worldloom-issues-<parent-or-slug>-<slice>.md` when the active environment permits safe creation and cleanup. If shell writes or `rm` are constrained, or outside-worktree editing is awkward, use clearly temporary repo-local hidden files such as `reports/.tmp-<parent-or-slug>-issue-<n>.md`, create and delete them with the environment-approved edit mechanism, and verify cleanup with `test ! -e` plus the final `git status --short`. In Codex-style sessions, create and delete both outside-worktree (`/tmp/...`) and repo-local staged body/comment files with the environment-approved edit mechanism (`apply_patch` when available) rather than shell redirection, heredocs, or unapproved/destructive cleanup commands. The published issue body must not cite the staging path or any machine-local artifact. Before running the first `gh issue create`, sweep every staged body assembled from local notes or temp files for machine-local paths; when sweeping temp files, use a content-only check such as `rg --no-filename` so the temp file path itself is not reported as a false positive. Rerun the sweep after placeholder substitution or body edits. Treat leak and placeholder sweeps as hard serial gates: do not run `gh issue create` in the same parallel batch as those checks; create only after the relevant sweeps complete cleanly.
 
 Mandatory final checklist run sheet for affected ready-labelled issues:
 
@@ -156,6 +166,52 @@ Publication safety gates before every `gh issue create`:
 4. Confirm the sweep returns zero actionable hits, any required final checklist mapping is clean, and any same-run reference wording matches the approved dependency plan. If the mapping or relationship wording does not cleanly land, revise the body or publish with a non-ready label before creating the issue.
 5. Only then create the issue.
 
+A compact local staged-body check can make gate 1 reproducible before each create/comment. Adjust the variables per slice or ledger: `EXPECT_PARENT` is the parent token, `EXPECT_BLOCKERS` is a comma-separated list of issue refs that must appear, `EXPECT_NO_BLOCKER=1` requires the house-style no-blocker phrase, `EXPECT_STORIES=1` requires the story-coverage section, and `EXPECT_LEDGER=1` switches from child-issue sections to parent-ledger checks.
+
+```sh
+BODY_FILE=path/to/staged-body.md
+EXPECT_PARENT="PRD #<parent>"
+EXPECT_BLOCKERS="#<blocker-1>,#<blocker-2>"
+EXPECT_NO_BLOCKER=0
+EXPECT_STORIES=0
+EXPECT_LEDGER=0
+PLACEHOLDER_RE="#SLICE|PLACEHOLDER"
+export EXPECT_PARENT EXPECT_BLOCKERS EXPECT_NO_BLOCKER EXPECT_STORIES EXPECT_LEDGER PLACEHOLDER_RE
+node -e '
+const fs = require("fs");
+const body = fs.readFileSync(process.argv[1], "utf8");
+const blockers = (process.env.EXPECT_BLOCKERS || "").split(",").map(s => s.trim()).filter(Boolean);
+const placeholderRe = new RegExp(process.env.PLACEHOLDER_RE || "#SLICE|PLACEHOLDER");
+const ledger = process.env.EXPECT_LEDGER === "1";
+const checks = {
+  noTmp: !body.includes("/tmp"),
+  noHome: !body.includes("/home/"),
+  noPatchMarkers: !/\*\*\* (Begin|End) Patch/.test(body),
+  noPlaceholders: !placeholderRe.test(body),
+  hasParent: !process.env.EXPECT_PARENT || body.includes(process.env.EXPECT_PARENT),
+  hasBlockers: blockers.every(ref => body.includes(ref))
+};
+if (ledger) {
+  Object.assign(checks, {
+    hasChildMap: body.includes("Child Issue Map"),
+    hasBreakdownDecisions: body.includes("Breakdown decisions"),
+    hasStoryCoverage: body.includes("Story coverage")
+  });
+} else {
+  Object.assign(checks, {
+    hasWhat: body.includes("## What to build"),
+    hasAcceptance: body.includes("## Acceptance criteria"),
+    hasBlockedBy: body.includes("## Blocked by"),
+    hasPrinciples: body.includes("## Principles"),
+    hasStoryCoverage: process.env.EXPECT_STORIES !== "1" || body.includes("## User stories covered"),
+    hasNoBlocker: process.env.EXPECT_NO_BLOCKER !== "1" || body.includes("None - can start immediately")
+  });
+}
+console.log(JSON.stringify(checks, null, 2));
+if (Object.values(checks).some(v => !v)) process.exit(1);
+' "$BODY_FILE"
+```
+
 Do not batch the sweep/checklist mapping/same-run reference sanity checks and create commands in the same parallel tool call. When a substitution changes the body, rerun the gates before creating the next dependent issue.
 
 For multi-issue publications, an optional run sheet can keep the serial gates legible. When any child is subject to the browser-visible guidance checklist and will be published `ready-for-agent` or `ready-for-human`, the checklist portion of the run sheet is mandatory even if the rest remains optional. Keep it local-only and advisory; it is not a required output. Useful columns: `slice`, `body file`, `placeholder tokens`, `final checklist mapping`, `checklist item`, `covered by final AC ordinal/excerpt`, `N/A reason`, `same-run reference sanity`, `blocked by`, `created issue`, `sweep ok`, `verify ok`, and `substituted into`.
@@ -168,7 +224,7 @@ Before posting any parent ledger/comment body assembled from local notes or temp
 
 If the parent ledger is declined after ratifying structural, durability, coordination, dependency, or story-coverage decisions, use the fallback approved in Step 4 or the Step 4 partial-response default before publishing: either include a concise `## Breakdown decisions` note in the first relevant child issue body, or leave the rationale out of the tracker and state that choice in the final report. Do not silently drop a durability or coordination rationale that future implementers need to understand the dependency shape.
 
-Remove any temporary issue-body files you created, run `git status --short`, and include only remaining pre-existing or intentional dirty files in the final report. For OS-temp body files outside the repository, verify cleanup with file checks such as `test ! -e <path>` or an equivalent existence check; do not path-scope `git status --short` to those temp files, because Git treats paths outside the repo as invalid. Run that final `git status --short` from the repository root (or with `git -C <repo-root>`): temp cleanup typically leaves the shell cwd outside the repo, where the bare command fails with "not a git repository".
+Remove any temporary issue-body or ledger/comment body files you created with the same environment-approved edit/removal mechanism used to create them, run `git status --short`, and include only remaining pre-existing or intentional dirty files in the final report. For OS-temp body files outside the repository, verify cleanup with file checks such as `test ! -e <path>` or an equivalent existence check; do not path-scope `git status --short` to those temp files, because Git treats paths outside the repo as invalid. Run that final `git status --short` from the repository root (or with `git -C <repo-root>`): temp cleanup typically leaves the shell cwd outside the repo, where the bare command fails with "not a git repository".
 
 Final Response Blocker: before sending the final answer after publication, check the final ledger against the verified tracker readbacks. Do not summarize publication as complete unless the final answer includes: the approved-created count match; one row or compact bullet per created issue with issue URL, state/label proof, parent check, blocker or no-blocker check, placeholder/path sweep result, and `checklist mapped: yes` or `checklist mapped: N/A - <reason>`; parent ledger posted/skipped with the reason; temp-file cleanup result; and final `git status --short` with unrelated or intentional dirty files called out. If interrupted, resumed, or compacted after publication begins and before final reporting, rerun any Final Response Blocker checks whose outputs are not present in current context before reporting completion. If a parent ledger comment carries these details, the final answer may link it, but still include enough per-issue proof for the user to see the tracker verification without opening GitHub.
 

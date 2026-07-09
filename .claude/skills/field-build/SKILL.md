@@ -17,12 +17,20 @@ The **cold LLM** is the load-bearing probe. At each decision point the app gener
 Three roles, kept honest:
 
 - **steward-author** — reads the governing protocol *as the standard* and authors each decision from your own judgment first, faithful to the file and to the user's essence, never to memory.
-- **app-driver** — drives the running UI through browser automation (Puppeteer or Chrome DevTools MCP). Parity is settled in the running UI, never inferred from source or tests — the trap issues #109–#113 caught.
+- **app-driver** — drives the running UI through browser automation exposed in the session, such as Playwright, Puppeteer, or Chrome DevTools MCP. Parity is settled in the running UI, never inferred from source or tests — the trap issues #109–#113 caught.
 - **cold LLM** — a newly spawned, fresh subagent handed ONLY the app's generated prompt text saved for that exact decision and mode. It never sees the world, the docs, or this conversation. Its answer is raw candidate material, never a decision. Record the subagent id or tool limitation in the live log, save its answer, then close or release it immediately unless the tool model requires keeping it open; closeout still verifies no probe agents remain open.
 
 **Cold-probe tooling rule:** if the session does not expose an obvious fresh-subagent tool, try the session's tool-discovery mechanism once before giving up. If discovery is unavailable, policy blocks subagents, or the available tool cannot create an uncontextualized worker, record `probe unavailable` with that operational reason. Do not simulate a cold probe with the main agent, an already-contextual subagent, or a self-authored answer.
 
 **Prompt packet extraction ladder:** save the exact app-generated packet by the most direct reliable route available. Prefer a visible in-flow copy/export or the rendered preview text; if that fails, use the matching network response; if that fails, extract the rendered DOM/browser snapshot and validate it against the visible packet identity (flow, record, section/step, mode, template, and hash when available). If visible, network, and DOM routes all fail but a diagnostic app/API generation route can reproduce the same packet, you may use that route only after validating the full identity tuple and hash against the active visible packet; record it as diagnostic evidence, not active-surface parity, and still log the active-surface export/copy gap when the UI cannot reliably provide the exact packet. If a route creates an empty, truncated, or otherwise failed artifact, replace or ignore that artifact and do not cite it as evidence. Only mark the mode `probe unavailable` after every exact-packet route fails, or when the recovered text cannot be validated as the current packet.
+
+Treat hung or permission-blocked capture tooling as failed route evidence, not as a reason to improvise silently: bound each capture attempt where the tool allows, interrupt stalled commands, mark the route `failed`, discard empty or partial artifacts, and move to the next ladder rung. If the diagnostic fetch is blocked by local sandbox or network permissions, request approval and rerun from a context that can reach the app; the diagnostic artifact still needs full tuple/hash validation before cold-probing.
+
+Whenever packet capture uses anything beyond the visible active-surface copy/export path, add a route row to the live log before cold-probing so diagnostic success cannot be mistaken for workflow parity:
+
+| visible copy/export | rendered preview | network response | DOM/browser snapshot | diagnostic route | identity/hash validated | active-surface state | final coverage state |
+|---|---|---|---|---|---|---|---|
+| `exercised` / `failed` / `not exposed` | `exercised` / `failed` / `not exposed` | `exercised` / `failed` / `not attempted` | `exercised` / `failed` / `not attempted` | route or `N/A` | hash/tuple or `N/A` | `exercised` / `blocked by app` / `probe unavailable` | `active=<state>; diagnostic=<state>; prompt=<path>; output=<path>; subagent=<id or N/A>` |
 
 ## Step 1 — Take the seed and set up
 
@@ -33,7 +41,28 @@ Three roles, kept honest:
 - **Load prior-art framing surfaces.** Before report writing, every P/R/F cluster must be framed as **confirming**, **extending**, or **new** against issues #109–#113, PRDs #201/#202/#204/#205–#210, and prior `reports/*field*` / `*parity*` reports. In setup, record which of those surfaces are available or unreachable so the final report's framing is deliberate rather than an afterthought.
 - **Baseline the worktree.** Run `git status --short` before the walk and record existing dirt in the live log, so you never later claim it.
 - **Start or reuse the app.** If no repo-root dev server answers, run `pnpm dev` in the background (builds `@worldloom/shared`, Hono API on `127.0.0.1:4173`, Vite UI on `127.0.0.1:5173` with `/api` proxied); `pnpm install --frozen-lockfile` first if deps are missing. Reuse a running server only after verifying UI and API answer, and record the reuse and observed URLs. If Vite drifts off `5173`, use and log the actual URL. If the server prints healthy URLs but the browser or `curl` context cannot reach them, treat it as a local binding/sandbox-visibility blocker: log the printed and observed URLs, restart or reuse the server from a context visible to browser automation with approval as needed, then continue.
-- **Open a live log and evidence dirs** under `/tmp/worldloom-field-build/`: use `build-log.md` for the append-only raw log, `screenshots/` for browser screenshots, and `cold-llm/` for verbatim prompt packets and cold-subagent outputs. These scratch artifacts are the build's evidence trail and resume point, not the deliverable — polish belongs in the report. Keep screenshots and cold-LLM artifacts out of the repo unless the user explicitly asks to commit evidence. After any resume, compaction, or interruption, append a resume checkpoint before continuing; before writing the final report, reconcile the live log through the final frontier so it names every resumed action, final decision point, and stop reason.
+- **Open a live log and evidence dirs** under `/tmp/worldloom-field-build/`: use `build-log.md` for the append-only raw log, `screenshots/` for browser screenshots, and `cold-llm/` for verbatim prompt packets and cold-subagent outputs. These scratch artifacts are the build's evidence trail and resume point, not the deliverable — polish belongs in the report. Keep screenshots and cold-LLM artifacts out of the repo unless the user explicitly asks to commit evidence. Initialize this log before the first browser action; do not drive the UI until it records the seed, baseline `git status --short`, current HEAD, chosen report number/slug if known, regression-set source, mandatory/opportunistic regression IDs, prior-art surfaces checked or unreachable, app/server URL plan, and user-directed evidence targets. After any resume, compaction, or interruption, append a resume checkpoint before continuing; before writing the final report, reconcile the live log through the final frontier so it names every resumed action, final decision point, and stop reason.
+
+  Live-log bootstrap:
+
+  ```md
+  ## Bootstrap
+  - Seed:
+  - Baseline worktree:
+  - Current HEAD:
+  - Report number/slug:
+  - Prior run for this seed:
+  - Latest canonical report loaded:
+  - Regression gate:
+  - Mandatory regression set:
+  - Opportunistic regression set:
+  - Prior-art surfaces:
+  - User-directed evidence targets:
+  - App/API URLs:
+
+  ## Resume checkpoints
+  - <timestamp/context>: resumed from <last evidence>; verified <world path/server/browser/subagents>; next action <...>.
+  ```
 - **Open browser automation** at the live Vite URL and screenshot the entry screen into the screenshots evidence dir.
 - **Create or reopen the world.** There is no URL routing and no separate "world name" field — a world is a local SQLite file identified by its path. On the setup panel, type a stable path (e.g. `…/<world-slug>.worldloom.sqlite`) into **World file path** and click **Create world** (new world) or **Open world** (resume); record the path — resumes must reopen the same file. On success the app switches to the Workflow-map home.
 - **Handle setup blockers honestly.** If world creation/opening or port visibility blocks reaching methodology work, screenshot, capture the console/network/disk evidence that explains it, log it as a finding, and — if the build cannot start at all — go straight to the report.
@@ -54,7 +83,21 @@ Before the new-world walk, resolve the regression set loaded in Step 1. If the c
 
 **Friction and cosmetic** findings in the opportunistic set are not re-driven up front — re-verify each when the walk naturally re-reaches its screen and give it a verdict there. **On a same-seed resume the walk starts at the frontier and never re-walks completed stages**, so an opportunistic finding *behind* the resume point (e.g. a kernel finding when the resume sits at seed decomposition) would otherwise never be re-reached: either deliberately re-drive its screen up front alongside the mandatory set — you are already navigating there — or, if you defer it, record the deferral and carry the ID forward as **not-reverifiable-this-run**, never a silent drop. Every verdict feeds the report's *Regression of prior findings* section (Step 3): **fixed** becomes a fresh `V` citing the prior ID; **partially-fixed** / **still-broken** re-fire under the **same** finding ID, marked *carried* / *regressed*, and carry to the Frontier for the next run.
 
-A **decision point** is one coherent block of material the method asks you to author — W-1's prompt grain and the app's `decision-point/v1` unit, not a single naked field. For the kernel, treat the World premise as its own essence decision. The remaining kernel sections may be worked as one coherent kernel-authoring block unless the live app exposes section-specific decision-point packets; if it does, test those sections separately. If section-specific packets are exposed, maintain a small kernel coverage table in the live log: each exposed kernel section gets `proposal` and `pressure` state, or an explicit `deferred because frontier moved` / `probe unavailable` reason before leaving Creation. If the app keeps a generic packet while a section is selected, one representative cold-LLM test is enough to log the binding gap instead of exploding the kernel into artificial single-field tests. At each decision point, run this beat and log every line of it:
+A **decision point** is one coherent block of material the method asks you to author — W-1's prompt grain and the app's `decision-point/v1` unit, not a single naked field. For the kernel, treat the World premise as its own essence decision. The remaining kernel sections may be worked as one coherent kernel-authoring block unless the live app exposes section-specific decision-point packets; if it does, test those sections separately. If section-specific packets are exposed, maintain a small kernel coverage table in the live log: each exposed kernel section gets `proposal` and `pressure` state, or an explicit `deferred because frontier moved` / `probe unavailable` reason before leaving Creation. If the app keeps a generic packet while a section is selected, one representative cold-LLM test is enough to log the binding gap instead of exploding the kernel into artificial single-field tests. If the run stops after a coherent kernel-complete frontier before exercising every section-specific mode, label the stop a partial prompt-out coverage frontier; the coverage table must list every deferred section/mode, and the report Frontier must state whether the next run must finish those deferred kernel prompt probes before seed decomposition or may proceed because the deferral reason has been accepted. Before leaving Creation, the live log must contain this kernel coverage table (or state that the app exposed only generic kernel packets):
+
+| kernel section | packet grain (`section-specific` / `generic`) | proposal state | pressure state | prompt packet path(s) | cold output path(s) | cold subagent id(s) | deferral / probe-unavailable reason |
+|---|---|---|---|---|---|---|---|
+| World premise |  |  |  |  |  |  |  |
+| Core promise |  |  |  |  |  |  |  |
+| Starting scale |  |  |  |  |  |  |  |
+| Genre, tone, and consequence-mode commitments |  |  |  |  |  |  |  |
+| Foundational facts |  |  |  |  |  |  |  |
+| Foundational constraints |  |  |  |  |  |  |  |
+| Initial mysteries and protected effects |  |  |  |  |  |  |  |
+| Primary pressures and initial domains |  |  |  |  |  |  |  |
+| Ordinary-life promise |  |  |  |  |  |  |  |
+
+At each decision point, run this beat and log every line of it:
 
 1. **Author (docs-first).** Read the governing protocol for this decision point. Author the material yourself from the essence and the current world state — your draft, *before* the app says anything. This is the steward judgment the whole loop serves.
 2. **Propose.** In the app, reach this decision point and find its prompt-out. Generate the **proposal** prompt (draft-candidate mode). *Confirm the preview renders* — the `Prompt-out preview` panel showing the packet text (anchor `pre.prompt-packet-text`, or the admin panel's textarea). **No visible preview is an app failure — log P.** Copy the packet verbatim into `/tmp/worldloom-field-build/cold-llm/field-build-<NN>-<decision-slug>-proposal-prompt.md`; then hand that exact saved packet to a newly spawned **cold LLM** subagent (only the packet, no other context), record the subagent id in the live log, and read the answer: fitting for *this* world's current state, or generic/off-tone? Save the raw cold answer verbatim at `/tmp/worldloom-field-build/cold-llm/field-build-<NN>-<decision-slug>-proposal.md`, close or release the subagent once the output is saved, and cite both paths plus the subagent id in the live log. If the exact packet cannot be extracted, or a fresh subagent is unavailable, record `probe unavailable` with the reason instead of summarizing the packet yourself; if the app refuses proposal correctly, record `refused` instead of creating an artifact. Then, as steward, select/edit/discard and author the surviving material into the real field — adoption is authorship; never paste a raw answer into a canon field. *(Essence exception: at the kernel World premise the app refuses proposal — that refusal is correct; log it a V and go to Pressure.)*
@@ -115,6 +158,20 @@ When the walk ends (or the user halts it), consolidate the live log into `report
 
 Preserve raw prompt packets and cold-LLM raw outputs verbatim in `/tmp/worldloom-field-build/cold-llm/`. The report may inline short raw answers; for long answers, include a faithful excerpt or summary plus the artifact path. The report must expose the disposition and enough evidence to lift the finding later, but it does not need to paste every long token block inline.
 
+Write the report skeleton first, before prose polishing. Do not omit a section because it seems empty: write `none` / `N/A - <reason>` under required sections such as **For the methodology** when no findings landed there. The minimum heading skeleton is:
+
+```md
+# Field Build <NN> — <world name>
+## Findings
+## Regression of prior findings
+## Decision-point log (evidence)
+## For the app (PRD seeds)
+## For the methodology
+## Frontier
+```
+
+If no prior canonical report existed, omit `## Regression of prior findings` only after writing a one-line note in the live log explaining why the section is intentionally absent. Otherwise the heading is mandatory.
+
 ```
 # Field Build <NN> — <world name>
 
@@ -167,7 +224,15 @@ Cluster the M findings; name the doc file and the wording to revise. This is the
 - World state: …
 ```
 
-Before finalizing, run this checklist against the report. This is a hard closeout gate, not a reminder. First build a finding-field audit table in the live log with one row per finding ID and columns for every required label: **Where**, **What happened**, **What the methodology requires**, **The snag**, **Fix direction**, **Touches**, plus **Repro** for blocking findings and **Design verdict** / **Recommendation** for R findings, redesign candidates, and structural F/P findings about missing or incorrect screen structure. Mark each cell `present` or `N/A - <reason>`; if any required cell is blank, revise the report before cleanup or final response.
+Before finalizing, run this checklist against the report. This is a hard closeout gate, not a reminder. Start with a heading check, then build the field audit table:
+
+```bash
+rg -n "^(#|##) " reports/field-build-<NN>-<world-slug>.md
+```
+
+Verify the heading output includes `## Findings`, `## Regression of prior findings` when a prior canonical report existed, `## Decision-point log (evidence)`, `## For the app (PRD seeds)`, `## For the methodology`, and `## Frontier`. If a required heading is missing, stop and revise the report before cleanup or final response.
+
+Then build a finding-field audit table in the live log with one row per finding ID and columns for every required label: **Where**, **What happened**, **What the methodology requires**, **The snag**, **Fix direction**, **Touches**, plus **Repro** for blocking findings and **Design verdict** / **Recommendation** for R findings, redesign candidates, and structural F/P findings about missing or incorrect screen structure. Mark each cell `present` or `N/A - <reason>`; if any required cell is blank, revise the report before cleanup or final response.
 
 - **Findings** includes every P/R/M/F/V/Q from the live log.
 - Every finding includes the template's mandatory fields: **Where**, **What happened**, **What the methodology requires**, **The snag**, **Fix direction**, and **Touches**. If a field is genuinely not applicable for a V/Q finding, write `N/A - <reason>` rather than omitting it.

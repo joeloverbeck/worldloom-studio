@@ -7,6 +7,8 @@ body files, closeout preflight scratchpads, or final body-check commands.
 
 Large tracker body workflow: for long parent rollups or child-family audits, compose the body in a temporary file under `/tmp`, inspect the exact file contents before posting, post with the tracker CLI's `--body-file` option, capture the resulting issue/comment URL or exact reference, and keep the staging path out of the published body. Use an interactive editor when available; when no editor is available or shell writes are constrained, create the `/tmp` body with the environment-approved file-edit mechanism, keep it outside the repo, and still inspect the exact file before posting. For GitHub, `gh issue close` only accepts an inline `--comment`, not `--body-file`; post long evidence first with `gh issue comment --body-file <file>`, capture that comment URL, then close with a short inline pointer to the evidence comment. Use this pattern for parent rollups and any long child comment; reserve inline `--body` for short child comments only.
 
+For large bodies in constrained editors or Codex sessions, build the `/tmp` file in bounded sections. After construction, verify the file exists and has the expected rough shape with `test -f "$body"`, `wc -l "$body"`, targeted `sed -n` ranges, and the applicable validators before any tracker mutation. If creation output, inspection output, or context compaction makes completeness uncertain, treat the body as untrusted: first rerun `test -f`, `wc -l`, targeted excerpts for the header, TDD/review/browser sections, audit table, and closeout gate lines, then rerun every applicable validator before posting or closing.
+
 Long parent rollup or child-family audit bodies must include this table shape, either inline or by linking an already-posted durable audit sink:
 
 | Issue | Acceptance criterion or conformance check | Evidence | Status |
@@ -54,6 +56,7 @@ Browser evidence:
 - Console state: <0 errors and 0 warnings / classified unrelated output with evidence / rerun clean session because HMR or reused session tainted proof / N/A because browser evidence is N/A or blocked>
 - Final freshness delta: files touched since the last browser/manual smoke after final commit and verification edits <paths or none>; affects UI/routes/browser-consumed API/fixtures/action path <yes/no per path/group and why>; smoke freshness <rerun / not affected because changed path <path or group> leaves the evidence route/action/API/fixture <route/action/API/fixture> untouched and targeted proof <command> passed / blocked because ...>
 Fixed child inline close comment: <exact final text inspected / stable self-referential parent rollup wording inspected / local pending-parent template inspected and later patched / N/A>
+Fixed child final inline close comment inspected: <exact `Completed by <sha>. Evidence: <parent rollup comment URL>` line after parent URL captured / N/A before parent URL exists or non-fixed-template closeout>
 Child state snapshot before child closeout: <exact issue numbers and states before closing children / N/A>
 Post-child closure verification before parent closeout: <exact issue numbers and CLOSED states, or pending later parent rollup patch/follow-up parent comment/parent close comment before parent closeout>
 
@@ -66,6 +69,7 @@ Closeout preflight:
 - Body file(s) inspected: <paths or N/A>
 - Parent rollup URL: <URL / pending because first tracker mutation has not posted it yet / N/A>
 - Fixed child inline close comment: <stable self-referential parent rollup wording inspected / local pending-parent template inspected and later patched / exact final text inspected once after parent URL captured / N/A>
+- Fixed child final inline close comment inspected: <exact `Completed by <sha>. Evidence: <parent rollup comment URL>` line after parent URL captured / N/A before parent URL exists or non-fixed-template closeout>
 - Final SHA: <sha>
 - Remote reachability: <remote branch contains sha / no remote branch contains sha>
 - Principles/ADR conformance: <present/N/A>
@@ -96,6 +100,11 @@ Then inspect the exact body before posting:
 body="/tmp/worldloom-closeout-<issue-or-prd>.md"
 $EDITOR "$body"
 # If no interactive editor is available, create the body with the environment-approved file-edit mechanism instead.
+# If the body is large or creation output was truncated, verify existence and shape before validation.
+test -f "$body"
+wc -l "$body"
+sed -n '1,120p' "$body"
+sed -n '121,240p' "$body"
 # Run the applicable validator commands before posting; omit commands whose evidence type is N/A and drop only flags whose conditions do not apply.
 node .claude/skills/tdd/scripts/validate-tdd-closeout-body.mjs "$body" --parent-rollup
 node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs "$body" --implement --child-family --tdd-parent-rollup
@@ -162,6 +171,7 @@ Closeout preflight:
 - Body file(s) inspected: <paths or N/A>
 - Parent rollup URL: <URL / pending because first tracker mutation has not posted it yet / N/A>
 - Fixed child inline close comment: <stable self-referential parent rollup wording inspected / local pending-parent template inspected and later patched / exact final text inspected once after parent URL captured / N/A>
+- Fixed child final inline close comment inspected: <exact `Completed by <sha>. Evidence: <parent rollup comment URL>` line after parent URL captured / N/A before parent URL exists or non-fixed-template closeout>
 - Final SHA: <sha>
 - Remote reachability: <remote branch contains sha / no remote branch contains sha>
 - Principles/ADR conformance: <present/N/A>
