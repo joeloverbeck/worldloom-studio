@@ -7,7 +7,7 @@ body files, closeout preflight scratchpads, or final body-check commands.
 
 Large tracker body workflow: for long parent rollups or child-family audits, compose the body in a temporary file under `/tmp`, inspect the exact file contents before posting, post with the tracker CLI's `--body-file` option, capture the resulting issue/comment URL or exact reference, and keep the staging path out of the published body. Use an interactive editor when available; when no editor is available or shell writes are constrained, create the `/tmp` body with the environment-approved file-edit mechanism, keep it outside the repo, and still inspect the exact file before posting. For GitHub, `gh issue close` only accepts an inline `--comment`, not `--body-file`; post long evidence first with `gh issue comment --body-file <file>`, capture that comment URL, then close with a short inline pointer to the evidence comment. Use this pattern for parent rollups and any long child comment; reserve inline `--body` for short child comments only.
 
-For large bodies in constrained editors or Codex sessions, build the `/tmp` file in bounded sections. After construction, verify the file exists and has the expected rough shape with `test -f "$body"`, `wc -l "$body"`, targeted `sed -n` ranges, and the applicable validators before any tracker mutation. If creation output, inspection output, or context compaction makes completeness uncertain, treat the body as untrusted: first rerun `test -f`, `wc -l`, targeted excerpts for the header, TDD/review/browser sections, audit table, and closeout gate lines, then rerun every applicable validator before posting or closing.
+For large bodies in constrained editors or Codex sessions, build the `/tmp` file in bounded sections. After construction, verify the file exists and has the expected rough shape with `test -f "$body"`, `wc -l "$body"`, targeted `sed -n` ranges, a placeholder sweep for unresolved angle-token placeholders such as `<context>` or `<parent-rollup-url pending>`, and the applicable validators before any tracker mutation. If creation output, inspection output, or context compaction makes completeness uncertain, treat the body as untrusted: first rerun `test -f`, `wc -l`, targeted excerpts for the header, TDD/review/browser sections, audit table, and closeout gate lines, then rerun the placeholder sweep and every applicable validator before posting or closing.
 
 Long parent rollup or child-family audit bodies must include this table shape, either inline or by linking an already-posted durable audit sink:
 
@@ -104,14 +104,17 @@ $EDITOR "$body"
 # If the body is large or creation output was truncated, verify existence and shape before validation.
 test -f "$body"
 wc -l "$body"
-sed -n '1,120p' "$body"
-sed -n '121,240p' "$body"
+sed -n '1,80p' "$body"
+sed -n '81,160p' "$body"
+sed -n '161,240p' "$body"
 # Run the applicable validator commands before posting; omit commands whose evidence type is N/A and drop only flags whose conditions do not apply.
 node .claude/skills/tdd/scripts/validate-tdd-closeout-body.mjs "$body" --parent-rollup
 node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs "$body" --implement --child-family --tdd-parent-rollup
 node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body" --closing --principles --local-only --fixed-child-pending --review-fallback
-sed -n '1,240p' "$body"
-rg -n "Acceptance criterion or conformance check|Status|satisfied|blocked|not done|TDD evidence|TDD evidence gate passed|TDD closeout gate|Pre-red recovery status|Review:|Review fallback:|Principles/ADR conformance:|Local-only SHA:|not remote-reachable because|local-only closeout is acceptable because|browser smoke|browser evidence|Console state|Browser console state|Final freshness delta|Fixed child inline close comment|Closeout gate passed: audit sink" "$body"
+rg -n "<[^>\n]{1,120}>" "$body"
+rg -n "Closeout gate passed: audit sink|Closeout body check passed|Final SHA:|Verification:|Review:|Review fallback:|TDD evidence gate passed|Principles/ADR conformance:|Local-only SHA:" "$body"
+rg -n "Acceptance criterion or conformance check|Status|satisfied|blocked|not done" "$body"
+rg -n "browser smoke|browser evidence|Console state|Browser console state|Final freshness delta|Fixed child inline close comment|Fixed child final inline close comment inspected" "$body"
 # If any inspection output is truncated, treat it as not inspected. Split the check into bounded token sweeps and short table/status excerpts before posting or closing.
 comment_url="$(gh issue comment <issue> --body-file "$body")"
 gh issue close <issue> --reason completed --comment "Completed; evidence: $comment_url"

@@ -33,6 +33,34 @@ const forbidMatch = (regex, label) => {
   if (regex.test(body)) errors.push(`forbidden ${label}`);
 };
 
+const allowedHtmlTags = new Set([
+  "br",
+  "code",
+  "details",
+  "em",
+  "li",
+  "ol",
+  "p",
+  "pre",
+  "strong",
+  "summary",
+  "table",
+  "tbody",
+  "td",
+  "th",
+  "thead",
+  "tr",
+  "ul"
+]);
+
+const isAllowedAngleToken = (token) => {
+  if (/^<https?:\/\/[^>\s]+>$/i.test(token)) return true;
+  if (/^<mailto:[^>\s]+>$/i.test(token)) return true;
+
+  const htmlTag = token.match(/^<\/?([a-z][a-z0-9-]*)(?:\s[^<>]*)?\/?>$/i);
+  return htmlTag ? allowedHtmlTags.has(htmlTag[1].toLowerCase()) : false;
+};
+
 requireText("Final SHA:");
 requireMatch(/(^|\n)(#{1,6}\s*)?Verification\b:?/i, "verification evidence");
 requireMatch(/TDD evidence gate passed:|N\/A because no tdd skill was invoked/i, "TDD evidence or explicit N/A");
@@ -91,6 +119,13 @@ if (flags.has("--review-fallback")) {
 }
 
 forbidMatch(/PARENT_ROLLUP_URL|<parent-rollup-url pending>|<sha>|<reason>|<issue>|<parent>|<child>/, "unresolved placeholder");
+
+for (const match of body.matchAll(/<[^>\n]{1,120}>/g)) {
+  const token = match[0];
+  if (!isAllowedAngleToken(token)) {
+    errors.push(`forbidden unresolved angle-token placeholder ${token}`);
+  }
+}
 
 const lines = body.split(/\r?\n/);
 const statusRows = [];

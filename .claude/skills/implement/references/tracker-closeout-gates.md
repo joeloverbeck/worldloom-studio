@@ -59,6 +59,7 @@ Drop only the flags whose conditions do not apply. After the parent rollup URL i
 - Every acceptance checkbox or conformance check is named explicitly; no row hides multiple unnamed criteria.
 - Every row for the issue being closed uses the literal status `satisfied`; any `blocked` or `not done` row keeps that issue open.
 - Acceptance exactness challenge passed: compare each `satisfied` row against the original issue/PRD wording and ensure the evidence proves the exact required condition. Reject softened or substituted proof such as `equivalent`, `representative`, `nearby`, `legacy surface`, `API-only`, `same data`, or `same session class` unless the acceptance criterion itself permits that substitution. If exact evidence is missing, mark the row `blocked` or `not done` and keep the issue open.
+- Placeholder sweep passed: the closeout body has no unresolved placeholder-like angle tokens such as `<context>`, `<sha>`, `<reason>`, `<issue>`, `<parent>`, `<child>`, or `<parent-rollup-url pending>` in evidence rows, URLs, final comments, or preflight fields. Use prose or a filled concrete value instead. URL autolinks and common Markdown/HTML tags are allowed only when intentional.
 - Final SHA is known and matches the tree that passed required verification.
 - Verification evidence is present.
 - TDD evidence is present when the repo `tdd` skill was invoked, including the `Pre-red recovery status:` closeout preflight field, the full fielded `TDD evidence gate passed: durable sink ...` line, or an explicit `N/A because no tdd skill was invoked`.
@@ -140,15 +141,18 @@ Last body-check before first tracker mutation: immediately before the first `gh 
 
 `Closeout body check passed: audit table columns exact; every acceptance checkbox or conformance check named; every status literal satisfied/blocked/not done; final SHA present; verification evidence present; TDD evidence present or N/A; review evidence present; Principles/ADR conformance string present or N/A; full Local-only SHA explanatory sentence present or N/A; browser evidence present/N/A/blocked; browser console state recorded when browser evidence is present or N/A/blocked; final browser/manual freshness delta present/N/A; exact fixed child inline comment inspected <yes/N/A>.`
 
-Use a targeted grep plus visual inspection. This command is a starting point, not a substitute for checking grouped criteria and literal status values:
+Use targeted greps plus visual inspection. These commands are starting points, not substitutes for checking grouped criteria and literal status values:
 
 ```bash
-rg -n "Acceptance criterion or conformance check|Status|satisfied|blocked|not done|TDD evidence|TDD evidence gate passed|TDD closeout gate|Pre-red recovery status|Review:|Review fallback:|Principles/ADR conformance:|Local-only SHA:|not remote-reachable because|local-only closeout is acceptable because|browser smoke|browser evidence|Console state|Browser console state|Final freshness delta|Fixed child inline close comment|Closeout gate passed: audit sink|Closeout body check passed" "$body"
+rg -n "<[^>\n]{1,120}>" "$body"
+rg -n "Closeout gate passed: audit sink|Closeout body check passed|Final SHA:|Verification:|Review:|Review fallback:|TDD evidence gate passed|Principles/ADR conformance:|Local-only SHA:" "$body"
+rg -n "Acceptance criterion or conformance check|Status|satisfied|blocked|not done" "$body"
+rg -n "browser smoke|browser evidence|Console state|Browser console state|Final freshness delta|Fixed child inline close comment|Fixed child final inline close comment inspected" "$body"
 ```
 
 If any inspection output is truncated, treat that output as not inspected. Split the check into bounded token sweeps and targeted excerpts before any tracker mutation, for example one command for gate/evidence labels, one command for the audit table header and status literals, and a short table excerpt around the affected issue rows. The body-check line is valid only after an untruncated inspection plus visual confirmation of grouped criteria and literal statuses.
 
-If the body uses `Complete`, `PASS`, `OK`, checkmarks, or prose instead of literal `satisfied`, `blocked`, or `not done`, if any row hides multiple acceptance checkboxes without naming them, if an affected issue or parent PRD has a `## Principles` section but the body lacks the exact string `Principles/ADR conformance:`, if local-only closeout lacks the exact `Local-only SHA:` label and full explanatory sentence, or if the visible gate line lacks `Closeout gate passed: audit sink`, stop and repair the body before any tracker mutation.
+If the body uses `Complete`, `PASS`, `OK`, checkmarks, or prose instead of literal `satisfied`, `blocked`, or `not done`, if any row hides multiple acceptance checkboxes without naming them, if an affected issue or parent PRD has a `## Principles` section but the body lacks the exact string `Principles/ADR conformance:`, if local-only closeout lacks the exact `Local-only SHA:` label and full explanatory sentence, if the visible gate line lacks `Closeout gate passed: audit sink`, or if an unresolved placeholder-like angle token remains, stop and repair the body before any tracker mutation.
 
 ## Closeout Command Gate
 
