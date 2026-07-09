@@ -97,6 +97,12 @@ A **decision point** is one coherent block of material the method asks you to au
 | Primary pressures and initial domains |  |  |  |  |  |  |  |
 | Ordinary-life promise |  |  |  |  |  |  |  |
 
+Once seed decomposition begins, maintain a **seed-decomposition coverage table** in the live log. The rows are the kernel seed families the steward can identify from the current kernel, not just the facts already parked by the app. Each row gets a state: `parked`, `corrected`, `queued`, `deferred as debt`, `intentionally out of scope`, or `not yet decomposed`. Before leaving Creation seed decomposition, reconcile this table against the app's Workflow-map state: if the map routes onward while rows remain `not yet decomposed`, log that as a P/R/F finding instead of accepting the route as method-complete.
+
+| kernel seed family | decomposition state | proposed/current records | prompt packet path(s) | cold output path(s) | cold subagent id(s) | deferral / debt / out-of-scope reason |
+|---|---|---|---|---|---|---|
+| <seed family from kernel> |  |  |  |  |  |  |
+
 At each decision point, run this beat and log every line of it:
 
 1. **Author (docs-first).** Read the governing protocol for this decision point. Author the material yourself from the essence and the current world state — your draft, *before* the app says anything. This is the steward judgment the whole loop serves.
@@ -112,6 +118,8 @@ Maintain a **prompt-out coverage ledger** in the live log for every reached deci
 When entering data through browser automation, prefer user-like typing and selection for active form controls. Before submitting a mutation, verify the visible control value or active DOM value matches the intended payload. If a synthetic fill or direct DOM mutation diverges from the controlled UI state, rerun with real typing before treating the result as app behavior; log the automation mismatch separately only when it affects the field-build evidence.
 
 After every app action that claims to mutate world state, immediately perform a **post-mutation readback** before logging success or advancing. Read the affected app-owned truth through the active read-side surface when it exists, or through the app/API read endpoint when that endpoint is the only exposed read model, and compare the persisted state to the intended payload. Check the living card/report body, sections or facets, status/tags, links/history, debt or queue state, and any generated record the action should have touched. If the readback does not match, log the mismatch as a finding with the readback evidence; do not count the mutation as successful just because the UI accepted the click or returned a toast.
+
+If a submit result is ambiguous — the card still looks actionable, the toast is unclear, the read-side trail did not visibly update, or automation may have missed the transition — do a fresh persisted readback before retrying the mutation. Do not replay a non-idempotent mutation endpoint as a diagnostic shortcut unless the explicit test is duplicate-submit behavior. When a deliberate retry creates duplicate world data, record the duplicate records/links as evidence contamination, stop relying on that world state as clean authoring material, and carry the caveat into the live log, report, and Frontier.
 
 **Drive the UI; never infer a flow works from its code or tests.** Screenshot each screen into `/tmp/worldloom-field-build/screenshots/`; name shots `field-build-<NN>-<shot>-<slug>.png` so they do not collide across runs, and record the names in the log. **Cold-LLM subagents get the saved packet and nothing else** — that isolation *is* the packet-context test; leaking world or doc context into them destroys the finding. Do not use an already-contextual subagent for a later cold probe. If a true fresh subagent/tool is unavailable, do not simulate the probe with the main agent's context; mark the prompt test `probe unavailable`, log Q if the packet exists but the probe is unavailable, log P if the app failed to supply the packet, and carry that limitation into the report.
 
@@ -224,13 +232,15 @@ Cluster the M findings; name the doc file and the wording to revise. This is the
 - World state: …
 ```
 
-Before finalizing, run this checklist against the report. This is a hard closeout gate, not a reminder. Start with a heading check, then build the field audit table:
+Before finalizing, run this checklist against the report. This is a hard closeout gate, not a reminder. Start with a heading check, then build the report-metadata and finding-field audit tables:
 
 ```bash
 rg -n "^(#|##) " reports/field-build-<NN>-<world-slug>.md
 ```
 
 Verify the heading output includes `## Findings`, `## Regression of prior findings` when a prior canonical report existed, `## Decision-point log (evidence)`, `## For the app (PRD seeds)`, `## For the methodology`, and `## Frontier`. If a required heading is missing, stop and revise the report before cleanup or final response.
+
+Then build a report-metadata audit table in the live log before the finding-field table. Use one row with columns for **Date**, **App commit**, **Method version**, **Essence**, **World file**, **Path walked**, **Evidence**, **Prior-art frame**, and **P/R/F cluster prior-art disposition**. Mark each cell `present` or `N/A - <reason>`; if any required metadata cell is blank, or if any P/R/F cluster is not marked `confirming`, `extending`, or `new` against the prior-art frame, revise the report before cleanup or final response.
 
 Then build a finding-field audit table in the live log with one row per finding ID and columns for every required label: **Where**, **What happened**, **What the methodology requires**, **The snag**, **Fix direction**, **Touches**, plus **Repro** for blocking findings and **Design verdict** / **Recommendation** for R findings, redesign candidates, and structural F/P findings about missing or incorrect screen structure. Mark each cell `present` or `N/A - <reason>`; if any required cell is blank, revise the report before cleanup or final response.
 

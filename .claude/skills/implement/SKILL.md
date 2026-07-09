@@ -48,6 +48,10 @@ Required implementation evidence:
 
 Before committing, draft the working pre-close audit row-by-row against each in-scope acceptance criterion and Principles/ADR check. Do not enter review with unresolved `blocked` or `not done` rows unless the right outcome is to leave that issue open. Finalize or refresh the durable closeout audit after review fixes, final SHA, final verification, and browser/manual freshness are known. See [references/implementation-evidence.md](references/implementation-evidence.md) for the detailed test, browser, verification, and implementation commit gates.
 
+Before staging or committing, make this implementation commit gate visible in the conversation or ledger:
+
+`Implementation commit gate passed: working pre-close audit drafted <sink/reference>; blocked/not done rows <none/listed>; unrelated dirty files <listed/N/A>; staged files scoped <yes/no>.`
+
 ## 3. Review Before Closeout
 
 Once implementation is ready, invoke the repo `code-review` skill before pushing or closing issues. The review must be anchored to a fixed point.
@@ -57,8 +61,9 @@ Use one of these routes:
 - Commit the completed implementation locally, then run `code-review` against `HEAD~1` or another fixed point.
 - If committing first is inappropriate, run an explicit pre-commit review against `git diff HEAD` and state that no committed fixed point exists.
 - If the `code-review` skill cannot run because required tooling is unavailable or policy-blocked, run the local two-axis fallback against the fixed point and carry the full fallback block into the durable closeout artifact.
+- If one review axis completes but another axis times out, fails, or becomes stale, preserve the completed axis evidence, run local fallback for the missing or stale axis, label the closeout evidence `Review fallback: partial-axis fallback`, and carry the full fallback block and validators from [references/review-evidence.md](references/review-evidence.md).
 
-Review evidence is a closeout hard stop. Before any close command, the conversation or durable audit must contain either `Review:` or `Review fallback:` evidence. After any review-fix commit or amend, refresh the final SHA, review frame, gates, browser/manual freshness, body files, fixed-child comments, local-only SHA wording, and validators as described in [references/review-evidence.md](references/review-evidence.md).
+Review evidence is a closeout hard stop. Before any close command, the conversation or durable audit must contain either `Review:` or `Review fallback:` evidence. After any review-fix commit or amend, refresh the final SHA, review frame, gates, browser/manual freshness, body files, fixed-child comments, local-only SHA wording, and validators as described in [references/review-evidence.md](references/review-evidence.md). Repeat that loop after each review-fix amend or follow-up commit until the final `HEAD` is covered by current review evidence with no unhandled Standards/Spec findings, or with explicitly recorded accepted residuals.
 
 Before tracker closeout, decide whether the verified tree is represented by an implementation-owned commit. If committing is inappropriate, forbidden, or blocked, record that decision explicitly and keep tracker closeout blocked unless the user and repo policy allow closing without a final SHA.
 

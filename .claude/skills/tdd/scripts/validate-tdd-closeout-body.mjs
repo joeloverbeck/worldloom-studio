@@ -46,6 +46,7 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     "Durable sink/body inspected:",
     "Compact table/header:",
     "Rows accounted for:",
+    "Pre-red recovery status:",
     "CONTEXT.md status:",
     "ADRs/principles/docs status:",
     "Partial-red / red-first skip reasons:",
@@ -172,10 +173,26 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     if (/\b0 errors?\b.+\b0 warnings?\b/i.test(normalized)) return "";
     if (/\bno console (errors?|warnings?)\b/i.test(normalized)) return "";
     if (/\bclassified unrelated\b.+\b(evidence|because|source|reason)\b/i.test(normalized)) return "";
-    if (/\brerun clean session\b.+\b(HMR|hot reload|reused session|tainted proof)\b/i.test(normalized)) return "";
+    if (/\brerun clean session\b.+\b(HMR|hot reload|reused session|agent-induced setup\/request error|tainted proof)\b/i.test(normalized)) {
+      return "";
+    }
     if (/\bclean browser session\b.+\b(passed|0 errors?|0 warnings?|observed)\b/i.test(normalized)) return "";
     if (/\b(blocked|unavailable|not available)\b.+\b(because|reason|unable|cannot)\b/i.test(normalized)) return "";
     return "must state clean console, classified unrelated output, clean-session rerun, blocked/unavailable reason, N/A because, or none";
+  };
+
+  const validatePreRedRecoveryStatusValue = (value) => {
+    const normalized = value.replace(/\s+/g, " ").trim();
+    if (!normalized) return "is empty";
+    if (/^<.*>$/.test(normalized)) return "is unresolved placeholder";
+    if (/^N\/A\b(?:\s*[-:]\s*|\s+because\s+).*pre-red preflight\/table was visible before first red/i.test(normalized)) {
+      return "";
+    }
+    if (/^N\/A\b.+\bno red commands? (?:were )?run\b/i.test(normalized)) return "";
+    if (/^N\/A\b.+\bno tdd skill was invoked\b/i.test(normalized)) return "";
+    if (/\blisted with TDD recovery addendum\b/i.test(normalized)) return "";
+    if (/\bblocked\b.+\b(because|reason|unable|cannot)\b/i.test(normalized)) return "";
+    return "must state N/A because the pre-red preflight/table was visible before first red, listed with TDD recovery addendum, N/A because no red commands were run, or blocked because";
   };
 
   for (let index = 0; index < lines.length; index += 1) {
@@ -234,6 +251,14 @@ export const validateTddCloseoutBody = (body, options = {}) => {
   const evidenceFreshnessError = validateFreshnessValue(evidenceFreshnessValue);
   if (evidenceFreshnessError) {
     errors.push(`Evidence-only rows freshness ${evidenceFreshnessError}`);
+  }
+
+  if (body.includes("Pre-red recovery status:")) {
+    const preRedRecoveryStatusValue = extractFieldValue("Pre-red recovery status");
+    const preRedRecoveryStatusError = validatePreRedRecoveryStatusValue(preRedRecoveryStatusValue);
+    if (preRedRecoveryStatusError) {
+      errors.push(`Pre-red recovery status ${preRedRecoveryStatusError}`);
+    }
   }
 
   if (claimsCompact) {

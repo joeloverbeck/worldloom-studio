@@ -19,7 +19,7 @@ For 4+ in-scope child issues, follow this command sequence unless you explicitly
 5. Draft or patch every child closeout body so it cites the parent rollup URL.
 6. Inspect every child body before posting.
 7. Post each child closeout with `gh issue comment <child> --body-file <child-body>`, capture the returned child comment URL, then close with `gh issue close <child> --reason completed --comment "Completed; evidence: <child-comment-url>"`. Never use `--comment-file` with `gh issue close`; this GitHub command accepts inline `--comment` only.
-8. Verify each child state by exact issue number, then comment on or patch the parent rollup with post-child closure verification before closing the parent.
+8. Verify each child state by exact issue number, then record post-child closure verification in a follow-up parent comment, parent rollup patch, or inspected parent close comment before closing the parent. The durable text must name exact issue numbers and CLOSED states before the parent is considered ready to close.
 
 ## Fixed-Template Child Closeout
 
@@ -30,7 +30,7 @@ Fixed-template child closeout alternate: if every child closeout is the same sho
 3. The inspection artifact must be the exact child close comment text with the real parent URL. A sentence such as "child comments should cite the parent rollup URL" is not inspection and does not satisfy this gate.
 4. Close each child with `gh issue close <child> --reason completed --comment "<inspected exact inline string>"`; do not shorten, reword, or replace it at the command line.
 5. Verify each child state by exact issue number before commenting on or closing the parent.
-6. For small child-family fixed-template closeout, record the post-child closure verification in a parent rollup patch, a follow-up parent comment, or the parent close comment. The durable text must name exact issue numbers and CLOSED states before the parent is considered ready to close.
+6. For fixed-template child closeout, record the post-child closure verification in a parent rollup patch, a follow-up parent comment, or an inspected parent close comment. The durable text must name exact issue numbers and CLOSED states before the parent is considered ready to close, regardless of child-family size.
 
 Any child-specific evidence, wording, or variation still needs its own inspected child body or full inline comment before posting.
 

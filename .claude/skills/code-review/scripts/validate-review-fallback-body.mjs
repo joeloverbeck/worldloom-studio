@@ -178,7 +178,9 @@ const validateConsoleStateValue = (value) => {
   if (/\b0 errors?\b.+\b0 warnings?\b/i.test(normalized)) return "";
   if (/\bno console (errors?|warnings?)\b/i.test(normalized)) return "";
   if (/\bclassified unrelated\b.+\b(evidence|because|source|reason)\b/i.test(normalized)) return "";
-  if (/\brerun clean session\b.+\b(HMR|hot reload|reused session|tainted proof)\b/i.test(normalized)) return "";
+  if (/\brerun clean session\b.+\b(HMR|hot reload|reused session|agent-induced setup\/request error|tainted proof)\b/i.test(normalized)) {
+    return "";
+  }
   if (/\bclean browser session\b.+\b(passed|0 errors?|0 warnings?|observed)\b/i.test(normalized)) return "";
   if (/\b(blocked|unavailable|not available)\b.+\b(because|reason|unable|cannot)\b/i.test(normalized)) return "";
   return "must state clean console, classified unrelated output, clean-session rerun, blocked/unavailable reason, or N/A because no browser/manual evidence was used";

@@ -61,12 +61,13 @@ Drop only the flags whose conditions do not apply. After the parent rollup URL i
 - Acceptance exactness challenge passed: compare each `satisfied` row against the original issue/PRD wording and ensure the evidence proves the exact required condition. Reject softened or substituted proof such as `equivalent`, `representative`, `nearby`, `legacy surface`, `API-only`, `same data`, or `same session class` unless the acceptance criterion itself permits that substitution. If exact evidence is missing, mark the row `blocked` or `not done` and keep the issue open.
 - Final SHA is known and matches the tree that passed required verification.
 - Verification evidence is present.
-- TDD evidence is present when the repo `tdd` skill was invoked, including the full fielded `TDD evidence gate passed: durable sink ...` line or an explicit `N/A because no tdd skill was invoked`.
+- TDD evidence is present when the repo `tdd` skill was invoked, including the `Pre-red recovery status:` closeout preflight field, the full fielded `TDD evidence gate passed: durable sink ...` line, or an explicit `N/A because no tdd skill was invoked`.
 - Review evidence is present as `Review:` or `Review fallback:`, and local fallback includes or links the full fallback block from [review-evidence.md](review-evidence.md).
 - `Principles/ADR conformance:` is present when any affected issue or parent PRD has a `## Principles` section; otherwise it is explicitly N/A.
 - Local-only commits use the full `Local-only SHA: <sha> is not remote-reachable because <reason>; local-only closeout is acceptable because <reason>.` sentence before tracker closeout.
 - Browser evidence is present, N/A with reason, or blocked with reason; console state is recorded when browser evidence is present or explicitly N/A/blocked; and freshness has been checked against files touched after the smoke.
 - Browser/manual freshness is checked after the final commit and final verification edits, not just after the last behavior edit. If files changed after the last browser/manual proof, list each path or group, classify whether it affects UI/routes/browser-consumed API/fixtures/action path, and record rerun/not-affected/blocked in the closeout body.
+- For an active browser/manual rerun on the final tree, use validator-safe wording from [closeout-templates.md](closeout-templates.md), such as `browser smoke rerun passed on final tree`, and name the route/action/API/fixture plus observed outcome.
 - For fixed-template child closeout, the exact inline child close comment has been inspected once before the first child close command, after the parent rollup URL is available when the comment cites a parent rollup.
 - For fixed-template child closeout after a parent rollup URL is captured, the conversation or durable audit sink contains this exact line before the first child close command: `Fixed child final inline close comment inspected: Completed by <sha>. Evidence: <parent rollup comment URL>`.
 
@@ -142,7 +143,7 @@ Last body-check before first tracker mutation: immediately before the first `gh 
 Use a targeted grep plus visual inspection. This command is a starting point, not a substitute for checking grouped criteria and literal status values:
 
 ```bash
-rg -n "Acceptance criterion or conformance check|Status|satisfied|blocked|not done|TDD evidence|TDD evidence gate passed|TDD closeout gate|Review:|Review fallback:|Principles/ADR conformance:|Local-only SHA:|not remote-reachable because|local-only closeout is acceptable because|browser smoke|browser evidence|Console state|Browser console state|Final freshness delta|Fixed child inline close comment|Closeout gate passed: audit sink|Closeout body check passed" "$body"
+rg -n "Acceptance criterion or conformance check|Status|satisfied|blocked|not done|TDD evidence|TDD evidence gate passed|TDD closeout gate|Pre-red recovery status|Review:|Review fallback:|Principles/ADR conformance:|Local-only SHA:|not remote-reachable because|local-only closeout is acceptable because|browser smoke|browser evidence|Console state|Browser console state|Final freshness delta|Fixed child inline close comment|Closeout gate passed: audit sink|Closeout body check passed" "$body"
 ```
 
 If any inspection output is truncated, treat that output as not inspected. Split the check into bounded token sweeps and targeted excerpts before any tracker mutation, for example one command for gate/evidence labels, one command for the audit table header and status literals, and a short table excerpt around the affected issue rows. The body-check line is valid only after an untruncated inspection plus visual confirmation of grouped criteria and literal statuses.
@@ -155,7 +156,7 @@ Do not run `gh issue close`, `glab issue close`, or equivalent until all of thes
 
 - The pre-close audit table has been posted or otherwise captured, and every row for the issue being closed is `satisfied`.
 - Review evidence from [review-evidence.md](review-evidence.md) is present, either as `code-review` output or an explicit fallback record.
-- TDD evidence is present when the repo `tdd` skill was invoked, including the full fielded `TDD evidence gate passed: durable sink ...` line, or the closeout evidence explicitly says it is N/A because no `tdd` skill was invoked.
+- TDD evidence is present when the repo `tdd` skill was invoked, including the `Pre-red recovery status:` closeout preflight field and the full fielded `TDD evidence gate passed: durable sink ...` line, or the closeout evidence explicitly says it is N/A because no `tdd` skill was invoked.
 - The final commit SHA is known and matches the tree that passed required verification.
 - If any affected issue or parent PRD has a `## Principles` section, the closeout comment or linked durable audit sink includes `Principles/ADR conformance: no deliberate exceptions` or names the deliberate steward-approved exception.
 - For remote tracker closeout that cites a commit, the final SHA is reachable from the intended remote branch, or closeout evidence includes the full `Local-only SHA: <sha> is not remote-reachable because <reason>; local-only closeout is acceptable because <reason>.` sentence. Local-only closeout is acceptable only when the user requested implementation/tracker closeout without push/PR and no repo policy requires remote-linked commits; in that case, the closeout comments and final response must explicitly say the SHA is not remote-reachable. If the user requested push/PR/publish or repo policy requires remote-linked commits, push before closeout.
