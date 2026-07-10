@@ -121,6 +121,198 @@ describe("workflow map HTTP payload", () => {
     expect(await json(await app.request("/api/records"))).toEqual(before);
   });
 
+  it("foregrounds routeable owed Propagation before further Admission without hiding either queue", async () => {
+    const app = await createWorld();
+    await postJson(app, "/api/records", {
+      recordTypeKey: "world_kernel",
+      title: "Noon bridge kernel",
+      body: "The city governs testimony carried by bridges.",
+      truthLayer: "Objective canon",
+      canonStatus: "accepted"
+    });
+    await postJson(app, "/api/records", {
+      recordTypeKey: "canon_fact",
+      title: "Bell testimony proposal",
+      body: "Bells may carry testimony into another court.",
+      truthLayer: "Objective canon",
+      canonStatus: "proposed"
+    });
+    const source = await json<{ record: { id: number; title: string } }>(await postJson(app, "/api/records", {
+      recordTypeKey: "canon_fact",
+      title: "Noon bridge testimony",
+      body: "The noon bridge can bind testimony to a crossing.",
+      truthLayer: "Objective canon",
+      canonStatus: "accepted with constraints"
+    }));
+    await postJson(app, `/api/records/${source.record.id}/facets`, { vocabulary: "admission_level", term: "3" });
+    await postJson(app, `/api/records/${source.record.id}/facets`, { vocabulary: "work_scale", term: "major" });
+    const debt = await json<{ debt: { id: number; title: string } }>(await postJson(app, "/api/canon-debt", {
+      name: "Propagate noon bridge testimony",
+      scope: "propagation",
+      assignee: "steward",
+      body: "Work the accepted fact's owed shock cone."
+    }));
+    expect((await postJson(app, "/api/links", {
+      fromRecordId: debt.debt.id,
+      toRecordId: source.record.id,
+      linkTypeKey: "derived_from",
+      note: "Admission-created propagation debt source fact"
+    })).status).toBe(201);
+    const beforeRecords = await json<{ records: unknown[] }>(await app.request("/api/records"));
+    const beforeLinks = await json<{ links: unknown[] }>(await app.request(`/api/links?recordId=${debt.debt.id}`));
+
+    const response = await app.request("/api/workflow-map");
+    expect(response.status).toBe(200);
+    const payload = await json<{
+      readOnly: true;
+      queues: Array<{ key: string; count: number; destinationKey: string; href: string }>;
+      stages: Array<{ key: string; state: string }>;
+      destinations: Array<{ key: string; state: string }>;
+      nextDecision: { destinationKey: string; label: string; reason: string; href: string };
+    }>(response);
+
+    expect(payload.readOnly).toBe(true);
+    expect(payload.queues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "admission", count: 1, destinationKey: "admission", href: "/api/admission/queue" }),
+      expect.objectContaining({ key: "owed-propagation", count: 1, destinationKey: "propagation", href: "/api/propagation/queue" })
+    ]));
+    expect(payload.stages).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "admission", state: "active" }),
+      expect.objectContaining({ key: "propagation", state: "owed" })
+    ]));
+    expect(payload.destinations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "admission", state: "active" }),
+      expect.objectContaining({ key: "propagation", state: "owed" })
+    ]));
+    expect(payload.nextDecision).toMatchObject({
+      destinationKey: "propagation",
+      label: "Work owed propagation",
+      reason: expect.stringMatching(/accepted canon.*owed shock cone.*before further.*Admission/i),
+      href: "/api/propagation/queue"
+    });
+
+    const propagation = await json<{ queue: Array<any> }>(await app.request("/api/propagation/queue"));
+    expect(propagation.queue).toEqual([
+      expect.objectContaining({
+        id: debt.debt.id,
+        sourceFact: expect.objectContaining({ id: source.record.id, title: "Noon bridge testimony" }),
+        route: {
+          method: "POST",
+          href: "/api/propagation/runs/start",
+          body: { factRecordId: source.record.id, debtRecordId: debt.debt.id }
+        }
+      })
+    ]);
+
+    await app.request("/api/workflow-map");
+    expect(await json(await app.request("/api/records"))).toEqual(beforeRecords);
+    expect(await json(await app.request(`/api/links?recordId=${debt.debt.id}`))).toEqual(beforeLinks);
+  });
+
+  it("preserves Propagation-only priority for routeable owed debt", async () => {
+    const app = await createWorld();
+    await postJson(app, "/api/records", {
+      recordTypeKey: "world_kernel",
+      title: "Bridge court kernel",
+      body: "Bridge courts bind testimony to crossings.",
+      truthLayer: "Objective canon",
+      canonStatus: "accepted"
+    });
+    const source = await json<{ record: { id: number } }>(await postJson(app, "/api/records", {
+      recordTypeKey: "canon_fact",
+      title: "Bridge court testimony",
+      body: "Accepted testimony remains bound to its bridge.",
+      truthLayer: "Objective canon",
+      canonStatus: "accepted"
+    }));
+    const debt = await json<{ debt: { id: number } }>(await postJson(app, "/api/canon-debt", {
+      name: "Propagate bridge court testimony",
+      scope: "propagation",
+      assignee: "steward",
+      body: "Work the bridge court shock cone."
+    }));
+    await postJson(app, "/api/links", {
+      fromRecordId: debt.debt.id,
+      toRecordId: source.record.id,
+      linkTypeKey: "derived_from",
+      note: "Propagation debt source fact"
+    });
+
+    const payload = await json<{ nextDecision: { destinationKey: string; href: string } }>(await app.request("/api/workflow-map"));
+    expect(payload.nextDecision).toMatchObject({ destinationKey: "propagation", href: "/api/propagation/queue" });
+  });
+
+  it("does not foreground unrouteable Propagation debt ahead of Admission", async () => {
+    const app = await createWorld();
+    await postJson(app, "/api/records", {
+      recordTypeKey: "world_kernel",
+      title: "Unlinked debt kernel",
+      body: "The city tracks obligations by named source.",
+      truthLayer: "Objective canon",
+      canonStatus: "accepted"
+    });
+    await postJson(app, "/api/records", {
+      recordTypeKey: "canon_fact",
+      title: "Waiting Admission proposal",
+      body: "A proposed fact is waiting for governance.",
+      truthLayer: "Objective canon",
+      canonStatus: "proposed"
+    });
+    const debt = await json<{ debt: { id: number } }>(await postJson(app, "/api/canon-debt", {
+      name: "Unlinked propagation debt",
+      scope: "propagation",
+      assignee: "steward",
+      body: "This prose names no authoritative source relationship."
+    }));
+
+    const queuePayload = await json<{ queue: Array<{ id: number; sourceFact: unknown; route: unknown }> }>(await app.request("/api/propagation/queue"));
+    expect(queuePayload.queue).toEqual([
+      expect.objectContaining({ id: debt.debt.id, sourceFact: null, route: null })
+    ]);
+    const mapPayload = await json<{
+      queues: Array<{ key: string; count: number }>;
+      nextDecision: { destinationKey: string; label: string };
+    }>(await app.request("/api/workflow-map"));
+    expect(mapPayload.queues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "admission", count: 1 }),
+      expect.objectContaining({ key: "owed-propagation", count: 1 })
+    ]));
+    expect(mapPayload.nextDecision).toMatchObject({ destinationKey: "admission", label: "Work Admission queue" });
+  });
+
+  it("does not apply the Admission-Propagation collision rule before a world kernel exists", async () => {
+    const app = await createWorld();
+    await postJson(app, "/api/records", {
+      recordTypeKey: "canon_fact",
+      title: "Premature Admission proposal",
+      body: "This proposed work exists before Creation has established a kernel.",
+      truthLayer: "Objective canon",
+      canonStatus: "proposed"
+    });
+    const source = await json<{ record: { id: number } }>(await postJson(app, "/api/records", {
+      recordTypeKey: "canon_fact",
+      title: "Imported accepted fact",
+      body: "Imported canon has routeable Propagation debt but no world kernel.",
+      truthLayer: "Objective canon",
+      canonStatus: "accepted"
+    }));
+    const debt = await json<{ debt: { id: number } }>(await postJson(app, "/api/canon-debt", {
+      name: "Imported propagation debt",
+      scope: "propagation",
+      assignee: "steward",
+      body: "Work the imported fact's shock cone after Creation prerequisites."
+    }));
+    await postJson(app, "/api/links", {
+      fromRecordId: debt.debt.id,
+      toRecordId: source.record.id,
+      linkTypeKey: "derived_from",
+      note: "Propagation debt source fact"
+    });
+
+    const payload = await json<{ nextDecision: { destinationKey: string; label: string } }>(await app.request("/api/workflow-map"));
+    expect(payload.nextDecision).toMatchObject({ destinationKey: "admission", label: "Work Admission queue" });
+  });
+
   it("surfaces admission, propagation, boundary, canon-debt, and skip queues from live world state", async () => {
     const app = await createWorld();
     await postJson(app, "/api/records", {

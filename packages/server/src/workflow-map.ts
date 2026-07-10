@@ -43,6 +43,8 @@ const acceptedOrUnderReviewRecords = (records: RecordRow[]): RecordRow[] =>
     (record.canonStatus === "accepted" || record.canonStatus === "under review" || record.canonStatus === "accepted with constraints")
   );
 
+const admittedCanonStatuses = new Set(["accepted", "accepted with constraints", "localized", "contested", "branch-only"]);
+
 const stage = (
   key: string,
   label: string,
@@ -120,9 +122,20 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
   const skipCount = records.filter((record) => record.recordTypeKey === "skip_record").length;
   const temporalDebt = openCanonDebt.filter((debt) => /\btemporal\b|\btimeline\b/i.test(`${debt.title}\n${debt.body}`));
   const minimalViableWorldOwed = MinimalViableWorld.owedQueueCount(world);
+  const routeablePropagationCollision =
+    hasKernel &&
+    !coverageBlocksAdmission &&
+    admissionQueue.length > 0 &&
+    propagationQueue.some((item) =>
+      item.sourceFact != null &&
+      item.route != null &&
+      admittedCanonStatuses.has(item.sourceFact.canonStatus ?? "")
+    ) &&
+    owedBoundaries.length === 0;
 
   const activeDestination =
     coverageBlocksAdmission ? "creation"
+      : routeablePropagationCollision ? "propagation"
       : admissionQueue.length > 0 ? "admission"
       : !hasKernel || preAdmissionSeedDecompositionOwed ? "creation"
         : flows[0] ? flowDestination(String(flows[0].flow_key)) : null;
@@ -258,6 +271,13 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
           : creationCoverage?.state.summary ?? "Creation seed-family coverage must be resolved before Admission handoff.",
         href: "/api/flows/creation/start"
       }
+    : routeablePropagationCollision
+      ? {
+          destinationKey: "propagation",
+          label: "Work owed propagation",
+          reason: "Accepted canon has an owed shock cone that should be worked before further dependency-bearing Admission.",
+          href: "/api/propagation/queue"
+        }
     : admissionQueue.length > 0
     ? { destinationKey: "admission", label: "Work Admission queue", reason: "Proposed facts are waiting for governance.", href: "/api/admission/queue" }
     : owedBoundaries.length > 0

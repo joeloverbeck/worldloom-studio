@@ -23,6 +23,14 @@ The flow works a fact's shock cone. It never admits facts and never generates co
 15. **Skips.** Declined propagation steps write `skip_record` mechanically. A reason is required only at major-or-higher thresholds.
 16. **Provenance.** Records keep actor/timestamp provenance; propagation consequence, domain, disposition, proposal, and flow rows record the flow step that produced them.
 
+## Cross-Flow Admission Priority
+
+Owed Propagation remains a paved path rather than a gate. After Creation prerequisites and required seed-family coverage are clear, a world with both proposed Admission work and open routeable Propagation debt from accepted canon foregrounds owed Propagation as the workflow map's primary next decision when no separately preserved destination case governs the payload. A routeable owed item has both its existing typed source-fact relationship and its existing non-null start/resume route. The server-owned reason explains that the accepted fact's shock cone is owed before further dependency-bearing Admission.
+
+Admission retains ownership of canon standing and remains visible, active when its queue has work, and directly navigable. Foregrounding Propagation does not infer that the queued proposal depends on the debt source, block Admission, admit canon, close debt, create a run, write a deferral or skip, or otherwise mutate the world. Debt without the typed source fact or start/resume route remains visible with its missing-source blocker and does not qualify as the primary startable decision.
+
+The workflow map consumes the existing Propagation queue's debt identity, source-fact identity, declared severity context, blocker state, and action route. The browser renders that server-owned state without recomputing severity, source linkage, routeability, or cross-queue priority. The existing workflow-map payload is sufficient; this contract adds no schema field, record type, persistence store, controlled vocabulary, scheduler, or generalized priority framework. Creation coverage precedence and the established Admission-only, Propagation-only, owed-boundary, Temporal/Timeline, Minimal Viable World, QA, and other destination cases remain unchanged.
+
 ## Step Map
 
 | Step | Package source | Decision point | Dependency-bearing | Severity path | Prompt-out modes and pressure role |

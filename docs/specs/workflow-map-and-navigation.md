@@ -82,6 +82,18 @@ The map displays queue signals with counts for:
 
 Counts come from the server's existing flow, queue, debt, and record reads. A zero-count queue may remain visible when it teaches the next prerequisite; it must not imply hidden work.
 
+### Admission and routeable owed Propagation
+
+After Creation prerequisites and required seed-family coverage are clear, the map applies one narrow cross-queue rule. When Admission has proposed work and at least one open propagation-scoped `canon_debt` item from accepted canon has both a typed source-fact relationship and the existing non-null Propagation start/resume route, owed Propagation is the primary next decision unless a separately preserved destination case governs the payload. The primary label names owed Propagation work, and the reason explains that accepted canon has an owed shock cone that should be worked before further dependency-bearing Admission.
+
+This recommendation is a paved path, not a gate. Both queue counts remain truthful. Admission remains visible, active when its queue has work, and directly navigable; the map does not mark it done, blocked, hidden, or unavailable merely because Propagation is primary. The steward remains free to enter Admission because open canon debt is a warning rather than a hard block (`workflow-principles.md` W-4).
+
+Eligibility comes only from the server's existing typed source-fact and start/resume route data. Debt without either does not become a startable primary Propagation decision and retains its missing-source blocker in the Propagation destination. The map does not parse titles or prose, infer a dependency between the queued proposal and the debt source, or reproduce routeability policy in the browser.
+
+Priority changes orientation only. It does not admit canon, change canon standing, close debt, create a Propagation run, write a deferral or skip, or otherwise mutate the world. It reuses the existing workflow-map response contract: `nextDecision.destinationKey`, `label`, `reason`, and `href`, plus the existing queues, stages, and destinations. No schema field, record type, persistence store, controlled vocabulary, scheduler, or generalized priority framework is introduced.
+
+This pairwise rule leaves current behavior unchanged for unresolved Creation coverage, Admission-only, Propagation-only, owed-boundary, Temporal/Timeline, Minimal Viable World, QA, and other destination combinations outside this proven collision.
+
 ## Destinations
 
 The map owns destination entry for:
@@ -160,6 +172,7 @@ A browser workflow slice that changes navigation must show:
 - for Creation-to-Admission handoff changes, a walkthrough from open early-world state through seed parking, prompt preview or governed skip, and Admission handoff, with unrelated advanced flows presented as not-current or prerequisite surfaces where the slice touches them.
 - for pre-Admission handoff changes, a cognitive walkthrough that starts with a saved kernel before seed parking, identifies seed decomposition as the owed decision, distinguishes unlock guidance from provenance, predicts that the map writes nothing, follows the Creation resume destination, parks proposed seeds, and returns to a refreshed Admission queue state.
 - for seed-family coverage changes, a walkthrough that starts with parked proposed seeds and unresolved required coverage, verifies Creation remains current or owed, verifies Admission queue visibility is secondary, resolves or deliberately disposes coverage rows, refreshes the map, and verifies Admission becomes the primary next decision only after server-owned coverage state is resolved.
+- for Admission-versus-routeable-Propagation arbitration, a cognitive walkthrough that starts after major-or-higher Admission completion with another proposal waiting and open source-linked Propagation debt; reloads the map; identifies owed Propagation as primary and understands the accepted-canon shock-cone reason; verifies both queue counts and destinations remain truthful and Admission remains directly navigable; follows the primary route into the debt item with source, debt, severity, blocker, and start/resume state visible; predicts that map reads and navigation do not write; and returns safely to a freshly reloaded map. Package provenance, the decision contract, routeability and severity context, doctrine at point of use, blockers, current/next/resume state, source/debt provenance, read-only behavior, and the cognitive walkthrough are required at this seam. Prompt-out packets, advisory material, and skip recording are N/A for this map-priority rule.
 
 ## Principles
 

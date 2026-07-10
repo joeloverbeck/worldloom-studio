@@ -3133,6 +3133,19 @@ function App({
     setCanonAuditTrail(canonAuditPayload.spine);
   };
 
+  const navigateWorkflow = async (destinationKey: string) => {
+    if (destinationKey !== "map") {
+      setActiveDestination(destinationKey);
+      return;
+    }
+    try {
+      await loadWorldData();
+      setActiveDestination("map");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    }
+  };
+
   const resetAdmissionFullGateDraftState = (decision: AdmissionDecisionPoint | null = null) => {
     setGateConsequence("");
     setGateQuietDomain("");
@@ -5829,7 +5842,7 @@ function App({
         </div>
         <p>{displayedPropagationContract?.nextOrResumeState.safeExit ?? "Return to the workflow map; this propagation run can be resumed."}</p>
         <div className="row">
-          <button onClick={() => setActiveDestination("map")}>Safe Return to Workflow Map</button>
+          <button onClick={() => void navigateWorkflow("map")}>Safe Return to Workflow Map</button>
           <button onClick={() => propagationFlowId != null && loadPropagationRun(propagationFlowId)} disabled={!openWorld || propagationFlowId == null}>Refresh Run</button>
           <button onClick={closePropagation} disabled={!openWorld || propagationFlowId == null}>Close Run</button>
         </div>
@@ -6865,7 +6878,7 @@ function App({
               {message && <p className="status">{message}</p>}
             </>
           ) : null}
-          onNavigate={setActiveDestination}
+          onNavigate={(destinationKey) => void navigateWorkflow(destinationKey)}
         />
       </main>
     );

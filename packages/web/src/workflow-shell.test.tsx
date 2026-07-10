@@ -57,6 +57,31 @@ const preAdmissionWorkflowMap = {
   ]
 };
 
+const bothQueuesWorkflowMap = {
+  ...workflowMap,
+  world: { path: "/tmp/admission-propagation.sqlite" },
+  stages: [
+    { key: "creation", label: "Creation", state: "done", summary: "Creation prerequisites and seed-family coverage are clear.", destinationKey: "creation" },
+    { key: "admission", label: "Admission", state: "active", summary: "Admission is the only path from proposed fact to canon standing.", destinationKey: "admission" },
+    { key: "propagation", label: "Propagation", state: "owed", summary: "Major facts owe a shock cone and stopping-rule dispositions.", destinationKey: "propagation" }
+  ],
+  queues: [
+    { key: "admission", label: "Admission queue", count: 1, destinationKey: "admission", href: "/api/admission/queue", summary: "Proposed or under-review facts awaiting governance." },
+    { key: "owed-propagation", label: "Owed propagation", count: 1, destinationKey: "propagation", href: "/api/propagation/queue", summary: "Propagation-scoped debt and owed shock cones." }
+  ],
+  nextDecision: {
+    destinationKey: "propagation",
+    label: "Work owed propagation",
+    reason: "Accepted canon has an owed shock cone that should be worked before further dependency-bearing Admission.",
+    href: "/api/propagation/queue"
+  },
+  destinations: [
+    { key: "admission", label: "Admission", kind: "guided-flow", summary: "Govern proposed facts into canon standing.", state: "active" },
+    { key: "propagation", label: "Propagation", kind: "guided-flow", summary: "Work shock cones and consequence dispositions.", state: "owed" },
+    { key: "substrate", label: "Substrate", kind: "substrate", summary: "Generic record, link, search, draft, and Prompt-out admin tools.", state: "available" }
+  ]
+};
+
 describe("workflow map shell", () => {
   it("opens an existing world on the workflow map rather than the stacked workspace", () => {
     const html = renderToString(<App initialOpenWorld="/tmp/map-first.sqlite" initialWorkflowMap={workflowMap as any} />);
@@ -126,5 +151,30 @@ describe("workflow map shell", () => {
     expect(creationHtml).toContain("Creation decision point");
     expect(creationHtml).toContain("Back to workflow map");
     expect(creationHtml).not.toContain("QA flow");
+  });
+
+  it("renders server-owned owed-Propagation priority while keeping Admission visible and routeable", () => {
+    const html = renderToString(<App
+      initialOpenWorld="/tmp/admission-propagation.sqlite"
+      initialWorkflowMap={bothQueuesWorkflowMap as any}
+    />);
+    const shellSource = readFileSync(new URL("./workflow-shell.tsx", import.meta.url), "utf8");
+
+    expect(html).toContain("Work owed propagation");
+    expect(html).toContain("Accepted canon has an owed shock cone that should be worked before further dependency-bearing Admission.");
+    expect(html).toContain("Admission queue");
+    expect(html).toContain("Owed propagation");
+    expect(html).toContain("Proposed or under-review facts awaiting governance.");
+    expect(html).toContain("Propagation-scoped debt and owed shock cones.");
+    expect(html).toContain("Govern proposed facts into canon standing.");
+    expect(html).toContain("Work shock cones and consequence dispositions.");
+    expect(html).toContain("Go to decision");
+    expect(html.match(/>1</g)).toHaveLength(2);
+    expect(shellSource).toContain("workflowMap.nextDecision.destinationKey");
+    expect(shellSource).toContain("queue.destinationKey");
+    expect(shellSource).not.toContain("work_scale");
+    expect(shellSource).not.toContain("sourceFact");
+    expect(shellSource).not.toContain("derived_from");
+    expect(shellSource).not.toContain("canon_debt");
   });
 });
