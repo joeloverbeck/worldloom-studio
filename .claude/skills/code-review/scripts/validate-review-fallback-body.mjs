@@ -2,6 +2,7 @@
 
 import { readFileSync } from "node:fs";
 import { validateTddCloseoutBody } from "../../tdd/scripts/validate-tdd-closeout-body.mjs";
+import { validateAcceptedResiduals } from "./validate-review-normal-body.mjs";
 
 const args = process.argv.slice(2);
 const file = args.find((arg) => !arg.startsWith("--"));
@@ -228,6 +229,7 @@ requireText("Smell baseline applied:");
 requireText("## Spec");
 requireText("Findings:");
 requireMatch(/Axis summary:\s*Standards\s+.+?,\s*Spec\s+.+/i, "axis summary");
+validateAcceptedResiduals(body, errors);
 
 const fixedPointSha = extractLooseValue("fixed point resolved SHA").match(/\b[0-9a-f]{7,40}\b/i)?.[0] || "";
 const diffCommandValue = extractLooseValue("diff command");

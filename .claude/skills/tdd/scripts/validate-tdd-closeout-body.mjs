@@ -164,6 +164,23 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     return "must state rerun proof, justified not affected, blocked/stale reason, non-semantic proof, N/A because, or none";
   };
 
+  const validateRegressionDurabilityValue = (value) => {
+    const normalized = value.replace(/\s+/g, " ").trim();
+    if (!normalized) return "is empty";
+    if (/^<.*>$/.test(normalized)) return "is unresolved placeholder";
+    if (/^durable (?:automated )?(?:regression )?test added at\b.+/i.test(normalized)) return "";
+    if (
+      /^evidence-only\b.+\bbecause\b.+\b(no supported committed harness|no committed (?:browser|e2e|test) harness|supported committed harness (?:does not|doesn't) exist)\b/i.test(
+        normalized
+      )
+    ) {
+      return "";
+    }
+    if (/^blocked\b.+\bbecause\b.+/i.test(normalized)) return "";
+    if (/^N\/A\b.+\bbecause\b.+\bnot (?:a )?transient browser\/manual probe\b/i.test(normalized)) return "";
+    return "must state durable test added at a path, evidence-only because no supported committed harness exists, blocked because, or N/A because the intended red was not a transient browser/manual probe";
+  };
+
   const validateConsoleStateValue = (value) => {
     const normalized = value.replace(/\s+/g, " ").trim();
     if (!normalized) return "is empty";
@@ -222,6 +239,26 @@ export const validateTddCloseoutBody = (body, options = {}) => {
 
     return /`[^`]+`/.test(normalized) && /\b(fail(?:ed|ing|ure)?|expected failure|assertion|error|exit code|no test files|red)\b/i.test(normalized);
   };
+
+  const hasConcreteGreenEvidence = (cell) => {
+    const normalized = cell.replace(/\s+/g, " ").trim();
+    if (!normalized || /^<.*>$/.test(normalized) || /^N\/A\b/i.test(normalized)) return false;
+
+    const namesProofSurface =
+      /`[^`]+`/.test(normalized) ||
+      /\b(?:same|shared|linked|focused)\b.+\bcommand\b/i.test(normalized) ||
+      /\b(?:browser|Playwright|route|action|request|response|HTTP|DOM|page|artifact|screenshot)\b/i.test(normalized);
+    const namesObservedResult = /\b(pass(?:ed|ing)?|observed|received|rendered|returned|verified|confirmed|assert(?:ed|ion)?|HTTP\s+\d{3})\b/i.test(
+      normalized
+    );
+
+    return namesProofSurface && namesObservedResult;
+  };
+
+  const hasExactAcceptanceReference = (cell, refs) =>
+    refs.size > 0 ||
+    /["'`][^"'`]{3,}["'`]/.test(cell) ||
+    /\b(?:criterion|checkbox)\s*(?:#?\d+|["'`:][^|]+|named\b)/i.test(cell);
 
   const reviewCellNeedsAddendum = (cell) => {
     const normalized = cell.replace(/\s+/g, " ").trim();
@@ -369,6 +406,17 @@ export const validateTddCloseoutBody = (body, options = {}) => {
 
     const issueId = (cells[0]?.match(/^#\d+/) ?? [])[0];
     const acceptanceRefs = collectCriterionRefs(acceptanceCell);
+    const claimsCoverageOnlyExistingBehavior = /\bcoverage-only existing behavior\b/i.test(rowText);
+    if (claimsCoverageOnlyExistingBehavior && !hasConcreteGreenEvidence(greenCell)) {
+      errors.push(
+        `compact TDD row ${lineNumber} claims coverage-only existing behavior without concrete Green command or evidence that names the proof surface and observed passing result`
+      );
+    }
+    if (claimsCoverageOnlyExistingBehavior && !hasExactAcceptanceReference(acceptanceCell, acceptanceRefs)) {
+      errors.push(
+        `compact TDD row ${lineNumber} claims coverage-only existing behavior without exact AC/US, quoted criterion, or checkbox references in Acceptance covered`
+      );
+    }
     const externalAuditRefs = externalProofAuditRefsByIssue.get(issueId) ?? new Set();
     const citesSameSinkExternalProof = intersects(acceptanceRefs, externalAuditRefs);
     const sameRowExternalProofCitation =
@@ -446,10 +494,13 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     errors.push("preflight says Existing-test contract-change rows none but compact table has existing contract-change expectation row(s)");
   }
 
+  const hasExplicitNoReviewFixAddendum =
+    /^\s*TDD review-fix addendum:\s*N\/A\b.+\bbecause\b/im.test(body);
   const hasReviewFixSignal =
     reviewFixRows.length > 0 ||
-    /TDD\/review-fix evidence|Review-fix red evidence|TDD review-fix addendum:/i.test(body);
-  const hasReviewFixAddendum = body.includes("TDD review-fix addendum:");
+    /TDD\/review-fix evidence|Review-fix red evidence/i.test(body) ||
+    (body.includes("TDD review-fix addendum:") && !hasExplicitNoReviewFixAddendum);
+  const hasReviewFixAddendum = body.includes("TDD review-fix addendum:") && !hasExplicitNoReviewFixAddendum;
   const hasReviewFixEquivalent = reviewFixEquivalentLabels.every((label) => body.includes(label));
 
   if (hasReviewFixSignal && !hasReviewFixAddendum && !hasReviewFixEquivalent) {
@@ -463,6 +514,17 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     const browserFreshnessError = validateFreshnessValue(browserFreshnessValue);
     if (browserFreshnessError) {
       errors.push(`Browser/manual freshness ${browserFreshnessError}`);
+    }
+
+    const intendedRedValue = extractFieldValue("Intended red command/failure");
+    const usesTransientBrowserRed =
+      /\b(?:Playwright|browser|run-code|waitForResponse|page\.|manual probe|manual assertion)\b/i.test(intendedRedValue);
+    if (usesTransientBrowserRed) {
+      const regressionDurabilityValue = extractFieldValue("Regression durability");
+      const regressionDurabilityError = validateRegressionDurabilityValue(regressionDurabilityValue);
+      if (regressionDurabilityError) {
+        errors.push(`Regression durability ${regressionDurabilityError}`);
+      }
     }
   }
 

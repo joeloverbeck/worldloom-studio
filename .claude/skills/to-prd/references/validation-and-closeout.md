@@ -1,0 +1,59 @@
+# Validation and Closeout
+
+Read this file in full during Step 3 of [`to-prd`](../SKILL.md) before validating, creating, or recovering an intended issue.
+
+## Staged-body validator
+
+For a staged body file, run the skill-local validator before `gh issue create`. Pass every cited durable local path with a repeated `--approved-source`; any extracted local or root authority path omitted from that allowlist fails validation. Pass every summarized, dirty, untracked, temp-only, or publication-ref-missing source with a repeated `--disallowed-source`. Add `--expect-checklist` whenever the browser-visible guidance checklist gate applies:
+
+```sh
+BODY_FILE=path/to/prd-body.md
+node .claude/skills/to-prd/scripts/validate-prd-body.mjs "$BODY_FILE" \
+  --expect-checklist \
+  --approved-source docs/principles/example.md \
+  --approved-source CONTEXT.md \
+  --disallowed-source reports/example-local-prep.md
+```
+
+If any item fails, edit the body before publishing. Omit `--expect-checklist` only when the gate does not apply; the validator rejects a checklist marker whose expectation was not declared. For a checklist-gated PRD, `checklistMissing` must be empty: every current issue-tracker checklist item must have a row or stable anchor in the PRD body, and each row must identify a covering PRD home or `N/A - <reason>`.
+
+The validator also emits `localSourcePaths`, `unexpectedLocalSourcePaths`, `adrShorthands`, `resolvedAdrPaths`, and `unresolvedAdrShorthands`; its resolver does not replace the direct Git durability checks on the emitted paths. After publication, if validation shows a section is malformed or incomplete, edit the issue and re-run verification before final reporting.
+
+## Final status-language pass
+
+After all pre-create checks pass and before `gh issue create`, run a final status-language pass over the staged body. Completed intake, durability, template, checklist, label-existence, duplicate, and seam-confirmation gates should be recorded as facts, not future work: replace stale gate phrasing such as "should be checked", "must be checked before publication", or "if the body passes" with "was checked", "passed", or "is appropriate because..." when that proof has actually been gathered. Keep provisional language only for implementation decisions, sequenced follow-ons, or genuinely open decisions.
+
+A compact sweep is useful before create; inspect hits rather than treating them as automatic failures:
+
+```sh
+BODY_FILE=path/to/prd-body.md
+rg -n "should be checked|must be checked before publication|if the body passes|pending publication|TBD before publication" "$BODY_FILE"
+```
+
+## Published-body readback
+
+After creation, verify tracker metadata with `gh issue view`: the exact title, chosen labels, state, URL, and issue number. Run the same skill-local validator against the published body with `--stdin` and the exact staged-body checklist, approved-source, and disallowed-source options. This readback verifies the required PRD sections, seam note, browser-visible checklist when applicable, machine-local path exclusion, local and root authority citation allowlist, disallowed-source exclusion, and ADR resolution.
+
+```sh
+gh issue view <number> --json number,title,labels,state,url \
+  --jq '{number,title,state,url,labels:[.labels[].name]}'
+
+gh issue view <number> --json body --jq '.body' \
+  | node .claude/skills/to-prd/scripts/validate-prd-body.mjs --stdin \
+      --expect-checklist \
+      --approved-source docs/principles/example.md \
+      --approved-source CONTEXT.md \
+      --disallowed-source reports/example-local-prep.md
+```
+
+Use the published validator output only when it matches the staged validator configuration and returns no failures. Rerun the [source-durability gate](source-durability.md#durability-gate) for every emitted `localSourcePaths` and `resolvedAdrPaths` entry; the helper does not replace Git durability proof.
+
+An unresolved or ambiguous ADR shorthand, unexpected local source, leaked disallowed source, dirty source, untracked source, or publication-ref-missing source is a verification failure. Repair the issue body or durability posture and rerun both the helper and the direct Git checks before final reporting.
+
+## Interruption, recovery, and cleanup
+
+If interrupted, resumed, or compacted before issue creation begins, do not rely on remembered pre-create state. Re-run `git status --short`, the exact-title duplicate search, cited-source durability checks, ADR shorthand resolution, label proof, staged-body template/checklist/local-path validation, and the final status-language pass before publishing.
+
+If interrupted, resumed, or compacted after issue creation begins, first recover the issue number without creating a duplicate. When the number is unknown, do not retry `gh issue create` until you have searched by exact title with `gh issue list --state all --search '"<title>" in:title' --json number,title,state,url,labels,updatedAt --limit 10`; use the single exact-title match, stop and report if multiple matches exist, and retry creation only after proving no matching issue was created. Then re-run the compact `gh issue view` verification, re-check the published body's local-source paths against the approved durable citation list, resolve any published ADR shorthands and re-check the resolved ADR paths, check whether any temporary body file still exists and remove it if needed, then re-run `git status --short` before final reporting.
+
+Remove any temporary body file you created using the environment-approved edit/removal mechanism, run `git status --short`, and include only remaining pre-existing or intentional dirty files in the final report. For temporary body files outside the repository, verify cleanup with direct existence checks such as `test ! -e <path>`; repo-local Git status cannot prove cleanup of files outside the worktree.

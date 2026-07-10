@@ -138,19 +138,21 @@ Iterate until the user approves the breakdown. If the environment provides a tim
 
 For each approved slice, publish a new issue to the issue tracker. Use the issue body template below. Choose the triage label per slice before creation. Match the full label set of the fetched house-style child issues, including whether they carry a category label alongside the triage label; when house style omits a label that a sibling skill's hygiene rules expect (for example a category role), follow the house precedent and note the divergence in the final report so the maintainer can settle the doctrine once instead of every run re-deciding. A slice gets `ready-for-agent` only when it is fully specified for an AFK agent: its dependencies are explicit, no provisional/timed-out/unratified/open-to-veto decision remains, and any repo-specific implementability checklist passes. If any unresolved decision remains, or the slice cannot yet satisfy the repo's implementable-issue checklist, publish it with `needs-triage` instead and state in the final ledger why it is not AFK-ready.
 
-Before applying `ready-for-agent` or `ready-for-human` to any guided-flow, Prompt-out, Canon Workbench provenance, or browser workflow navigation issue, read the project's issue-tracker doc and apply its browser-visible guidance acceptance checklist. The child issue must include acceptance criteria for the applicable checklist items — package source, decision-point contract, required/optional/skippable/severity-dependent fields, doctrine at point of use, prompt packet preview/source manifest/cold external LLM test when Prompt-out is in scope, advisory/canon separation when advisory material is in scope, skip path and reason storage, blockers/substance validation, current/next/resume state, read-side audit/provenance links for writes, and cognitive walkthrough when browser task grammar changes. If the checklist does not apply, note that during drafting; if it applies and is not satisfied, revise the issue before `ready-for-agent` publication or use `needs-triage`. Before applying `ready-for-agent`, self-check that each applicable checklist item above maps to at least one acceptance criterion in the slice; this is a manual check, since the compact verification query confirms section presence, not checklist-item coverage.
+Before applying `ready-for-agent` or `ready-for-human` to any guided-flow, Prompt-out, Canon Workbench provenance, or browser workflow navigation issue, read the project's issue-tracker doc and apply its browser-visible guidance acceptance checklist. The child issue must include acceptance criteria for the applicable checklist items — package source, decision-point contract, required, optional, skippable, and severity-dependent fields, doctrine at point of use, prompt packet preview/source manifest/cold external LLM test when Prompt-out is in scope, advisory/canon separation when advisory material is in scope, skip path and reason storage, blockers/substance validation, current/next/resume state, read-side audit/provenance links for writes, and cognitive walkthrough when browser task grammar changes. If the checklist does not apply, note that during drafting; if it applies and is not satisfied, revise the issue before `ready-for-agent` publication or use `needs-triage`. Before applying `ready-for-agent`, self-check that each applicable checklist item above maps to at least one acceptance criterion in the slice; this is a manual check, since the compact verification query confirms section presence, not checklist-item coverage.
 
 Make that self-check visible before publication. For every affected `ready-for-agent` or `ready-for-human` issue, keep a mandatory local checklist run sheet before creation that marks each applicable checklist item as `covered by AC <n>` or `covered by "<short staged criterion excerpt>"`, or `N/A - <reason>`. Use a concrete table or equivalent row set shaped as `slice | checklist item | covered by final AC ordinal/excerpt | N/A reason`; do not rely on a single generic `Browser-visible guidance checklist mapped` acceptance criterion as the mapping. Do not publish the mapping as a required issue-body section unless house style already does; the point is to force a concrete coverage pass before the label is applied. In the final ledger or verification report, include `checklist mapped: yes` for each affected issue, or `checklist mapped: N/A - <reason>` for unaffected issues, so checklist coverage is not silently replaced by section/placeholder readback; that final `yes` is a summary of the concrete local mapping, not a substitute for it.
 
 Verify the chosen label exists before creating the first issue with that label (create it per the project's triage-label doc if absent; a verification earlier in the same session suffices). Prefer current same-repo issue metadata when it already shows the exact chosen label; record and reuse label proof already fetched during intake or house-style reads before calling `gh label list`. Use `gh label list` only when no current issue metadata has shown it or label creation may be needed. If label-listing is temporarily unavailable, exact label presence on an issue from the same repo is acceptable verification.
 
-Before staging or creating child issues, run an exact-title duplicate guard for every approved child title. Prefer one compact query per title:
+Before staging or creating child issues, run an exact-title duplicate guard for every approved child title. Use tracker search only to collect candidates, then filter the returned JSON by exact `.title` equality:
 
 ```sh
-gh issue list --state all --search '"<child title>" in:title' --json number,title,state,url,labels --limit 10
+TITLE='<child title>'
+gh issue list --state all --search "\"$TITLE\" in:title" --json number,title,state,url,labels --limit 10 \
+  | jq --arg title "$TITLE" '[.[] | select(.title == $title)]'
 ```
 
-Treat exact-title matches as existing work: stop and ask whether to reuse, link, or skip them unless the approval already explicitly allows duplicate issue creation. If the query returns only fuzzy or partial-title matches, record that no exact duplicate exists and continue. On resumed runs, use the same guard to avoid recreating children already published earlier in the run.
+Zero exact matches permits creation. One exact match is existing work: stop and ask whether to reuse, link, or skip it unless the approval already explicitly allows duplicate issue creation. Multiple exact matches are ambiguous: stop and report them rather than choosing silently. Fuzzy or partial-title candidates are not duplicates. On resumed runs, use the same guard to avoid recreating children already published earlier in the run.
 
 Temporary issue-body files are acceptable as local transport for `gh issue create --body-file`; use the least-permission mechanism available to create and remove them. Prefer an outside-worktree path such as `/tmp/worldloom-issues-<parent-or-slug>-<slice>.md` when the active environment permits safe creation and cleanup. If shell writes or `rm` are constrained, or outside-worktree editing is awkward, use clearly temporary repo-local hidden files such as `reports/.tmp-<parent-or-slug>-issue-<n>.md`, create and delete them with the environment-approved edit mechanism, and verify cleanup with `test ! -e` plus the final `git status --short`. In Codex-style sessions, create and delete both outside-worktree (`/tmp/...`) and repo-local staged body/comment files with the environment-approved edit mechanism (`apply_patch` when available) rather than shell redirection, heredocs, or unapproved/destructive cleanup commands. The published issue body must not cite the staging path or any machine-local artifact. Before running the first `gh issue create`, sweep every staged body assembled from local notes or temp files for machine-local paths; when sweeping temp files, use a content-only check such as `rg --no-filename` so the temp file path itself is not reported as a false positive. For these negative `rg` sweeps, exit code `1` with no output is a clean no-hit result, exit code `0` means inspect the hits, and exit code greater than `1` is a command failure. Rerun the sweep after placeholder substitution or body edits. Treat leak and placeholder sweeps as hard serial gates: do not run `gh issue create` in the same parallel batch as those checks; create only after the relevant sweeps complete cleanly.
 
@@ -161,10 +163,18 @@ Mandatory final checklist run sheet for affected ready-labelled issues:
 |---|---|---|---|
 | <slice title> | package source cited | AC <n> or "<short staged criterion excerpt>" | - |
 | <slice title> | decision-point contract named | AC <n> or "<short staged criterion excerpt>" | - |
-| <slice title> | required/optional/skippable/severity-dependent fields visible where relevant | AC <n> or "<short staged criterion excerpt>" | N/A - <reason> |
+| <slice title> | required, optional, skippable, and severity-dependent fields visible where relevant | AC <n> or "<short staged criterion excerpt>" | N/A - <reason> |
+| <slice title> | doctrine at the actual decision point | AC <n> or "<short staged criterion excerpt>" | - |
+| <slice title> | prompt packet preview, source manifest, and cold external LLM test | AC <n> or "<short staged criterion excerpt>" | N/A - <reason when not in scope> |
+| <slice title> | advisory/canon separation visible | AC <n> or "<short staged criterion excerpt>" | N/A - <reason when not in scope> |
+| <slice title> | skip path and reason storage | AC <n> or "<short staged criterion excerpt>" | N/A - <reason when not in scope> |
+| <slice title> | blockers/substance validation | AC <n> or "<short staged criterion excerpt>" | - |
+| <slice title> | current, next, and resume state | AC <n> or "<short staged criterion excerpt>" | - |
+| <slice title> | read-side audit or provenance link | AC <n> or "<short staged criterion excerpt>" | N/A - <reason when no write/provenance surface exists> |
+| <slice title> | cognitive walkthrough scenario | AC <n> or "<short staged criterion excerpt>" | N/A - <reason when browser task grammar is unaffected> |
 ```
 
-Publishing with `ready-for-agent` or `ready-for-human` is blocked until every applicable browser-visible guidance item has a final AC ordinal/excerpt in this run sheet, or a specific `N/A - <reason>`. A generic body criterion such as `Browser-visible guidance checklist mapped` may summarize the result, but it never substitutes for this concrete row-by-row mapping.
+Repeat all eleven canonical rows for every affected slice. For an unaffected slice, use one row whose checklist item is `browser-visible guidance checklist` and whose reason is `N/A - <specific reason>`. Publishing with `ready-for-agent` or `ready-for-human` is blocked until every affected slice has exactly these eleven items with no missing, duplicate, or unexpected rows; every applicable item has a final AC ordinal or quoted excerpt; every AC ordinal exists in the staged body; and every inapplicable item has a specific `N/A - <reason>`. A generic body criterion such as `Browser-visible guidance checklist mapped` may summarize the result, but it never substitutes for this concrete row-by-row mapping.
 
 Publication safety gates before every `gh issue create`:
 
@@ -174,55 +184,36 @@ Publication safety gates before every `gh issue create`:
 4. Confirm the sweep returns zero actionable hits, any required final checklist mapping is clean, and any same-run reference wording matches the approved dependency plan. If the mapping or relationship wording does not cleanly land, revise the body or publish with a non-ready label before creating the issue.
 5. Only then create the issue.
 
-A compact local staged-body check can make gate 1 reproducible before each create/comment. Adjust the variables per slice or ledger: `EXPECT_PARENT` is the parent token, `EXPECT_BLOCKERS` is a comma-separated list of issue refs that must appear, `EXPECT_NO_BLOCKER=1` requires the house-style no-blocker phrase, `EXPECT_STORIES=1` requires the story-coverage section, `EXPECT_CHECKLIST_NA=1` requires a checklist-N/A summary for an unaffected ready-labelled issue, and `EXPECT_LEDGER=1` switches from child-issue sections to parent-ledger checks.
+A skill-local validator makes the staged child, ledger, and checklist gates reproducible. It prints JSON and exits nonzero when a required check fails. In child mode, repeat `--blocker` for every expected backward reference, or use `--expect-no-blocker`; add `--expect-stories`, `--expect-checklist-na`, and `--expect-ac-count` when those contracts apply:
 
 ```sh
 BODY_FILE=path/to/staged-body.md
-EXPECT_PARENT="PRD #<parent>"
-EXPECT_BLOCKERS="#<blocker-1>,#<blocker-2>"
-EXPECT_NO_BLOCKER=0
-EXPECT_STORIES=0
-EXPECT_CHECKLIST_NA=0
-EXPECT_LEDGER=0
-PLACEHOLDER_RE="#SLICE|PLACEHOLDER"
-export EXPECT_PARENT EXPECT_BLOCKERS EXPECT_NO_BLOCKER EXPECT_STORIES EXPECT_CHECKLIST_NA EXPECT_LEDGER PLACEHOLDER_RE
-node -e '
-const fs = require("fs");
-const body = fs.readFileSync(process.argv[1], "utf8");
-const blockers = (process.env.EXPECT_BLOCKERS || "").split(",").map(s => s.trim()).filter(Boolean);
-const placeholderRe = new RegExp(process.env.PLACEHOLDER_RE || "#SLICE|PLACEHOLDER");
-const ledger = process.env.EXPECT_LEDGER === "1";
-const checks = {
-  noTmp: !body.includes("/tmp"),
-  noHome: !body.includes("/home/"),
-  noPatchMarkers: !/\*\*\* (Begin|End) Patch/.test(body),
-  noPlaceholders: !placeholderRe.test(body),
-  hasParent: !process.env.EXPECT_PARENT || body.includes(process.env.EXPECT_PARENT),
-  hasBlockers: blockers.every(ref => body.includes(ref))
-};
-if (ledger) {
-  Object.assign(checks, {
-    hasChildMap: body.includes("Child Issue Map"),
-    hasBreakdownDecisions: body.includes("Breakdown decisions"),
-    hasStoryCoverage: body.includes("Story coverage")
-  });
-} else {
-  Object.assign(checks, {
-    hasWhat: body.includes("## What to build"),
-    hasAcceptance: body.includes("## Acceptance criteria"),
-    hasBlockedBy: body.includes("## Blocked by"),
-    hasPrinciples: body.includes("## Principles"),
-    hasStoryCoverage: process.env.EXPECT_STORIES !== "1" || body.includes("## User stories covered"),
-    hasChecklistNA: process.env.EXPECT_CHECKLIST_NA !== "1" || /(?:Browser-visible guidance checklist mapped|checklist mapped): N\/A/i.test(body),
-    hasNoBlocker: process.env.EXPECT_NO_BLOCKER !== "1" || body.includes("None - can start immediately")
-  });
-}
-console.log(JSON.stringify(checks, null, 2));
-if (Object.values(checks).some(v => !v)) process.exit(1);
-' "$BODY_FILE"
+node .claude/skills/to-issues/scripts/validate-publication.mjs child "$BODY_FILE" \
+  --parent "PRD #<parent>" \
+  --blocker "#<blocker-1>" \
+  --blocker "#<blocker-2>" \
+  --expect-stories \
+  --expect-ac-count <count>
 ```
 
-Codex/single-command caution: do not inline the helper as `BODY_FILE=path node -e '...' "$BODY_FILE"` in one shell segment, because `"$BODY_FILE"` can expand before the temporary assignment is applied and become empty. Either pass the body path as a literal final argument, assign/export `BODY_FILE` in an earlier shell segment, or wrap the helper in `sh -c 'node -e ... "$1"' sh "$BODY_FILE"` when you need a one-line invocation.
+Validate a parent ledger with every expected child reference:
+
+```sh
+LEDGER_FILE=path/to/staged-ledger.md
+node .claude/skills/to-issues/scripts/validate-publication.mjs ledger "$LEDGER_FILE" \
+  --child "#<child-1>" \
+  --child "#<child-2>"
+```
+
+Validate the mandatory checklist run sheet against each affected staged body. The label before `=` must exactly match the run sheet's `Slice` cell. Use `--unaffected-slice "<slice title>"` instead for a slice whose single row records a specific checklist N/A reason:
+
+```sh
+RUN_SHEET=path/to/run-sheet.md
+node .claude/skills/to-issues/scripts/validate-publication.mjs run-sheet "$RUN_SHEET" \
+  --slice-body "<slice title>=path/to/staged-body.md"
+```
+
+The helper checks artifact shape, machine-local paths, patch markers, unresolved placeholders, exact blocker references, optional story/checklist/no-blocker requirements, exact checklist row coverage, and AC-reference bounds. It does not replace the gate-3 prose sanity pass for relationship and tense words, the separate tracker readbacks, or direct temporary-file cleanup proof.
 
 Do not batch the sweep/checklist mapping/same-run reference sanity checks and create commands in the same parallel tool call. When a substitution changes the body, rerun the gates before creating the next dependent issue.
 

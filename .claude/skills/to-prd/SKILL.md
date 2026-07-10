@@ -4,7 +4,7 @@ description: Turn the current conversation into a PRD and publish it to the proj
 disable-model-invocation: true
 ---
 
-This skill takes the current conversation context and codebase understanding and produces a PRD — or, when the invocation covers a ratified program of several, one PRD per program entry (see the Program of PRDs note in Step 3). Do NOT interview the user about requirements — synthesize what you already know; the Step 2 seam confirmation is the sole sanctioned checkpoint.
+This skill takes the current conversation context and codebase understanding and produces a PRD — or, when the invocation covers a ratified program of several, one PRD per program entry. Do NOT interview the user about requirements — synthesize what you already know; the Step 2 seam confirmation is the sole sanctioned checkpoint.
 
 The issue tracker and triage label vocabulary should have been provided to you — run `/setup-matt-pocock-skills` if not. Before publishing, read the project's issue-tracker and triage-label docs (per `CLAUDE.md` or `AGENTS.md`) if you haven't this session.
 
@@ -12,24 +12,19 @@ The issue tracker and triage label vocabulary should have been provided to you �
 
 When another skill says to consult `/to-prd` for house style only, do not draft, stage, publish, label, or verify an issue. Reuse only the publication expectations that make the upstream artifact PRD-ready: the PRD template shape, source-durability posture, publication-package taxonomy, browser-visible checklist mapping, seam input expectations, label-readiness inputs, and final note that `/to-prd` was consulted for house style only.
 
+In that branch, load only the needed sections of the [PRD body contract](references/prd-body.md), [source-durability rules](references/source-durability.md), and [publication-package and label rules](references/publication.md). Do not run the publication or closeout steps.
+
 ## Process
 
-1. Explore the repo to understand the current state of the codebase, if you haven't already. Run `git status --short` during intake. If dirty files are unrelated to the PRD and are not cited by it, continue and mention them in final reporting; if a dirty or untracked file is cited by the PRD, apply the durability rule in Step 3 before publishing. If repo entrypoint guidance (`CLAUDE.md` or `AGENTS.md`) is not already loaded this session, read it and follow it to the domain vocabulary source, relevant ADRs, principles authority, issue tracker docs, and triage-label docs before drafting. When a source artifact, exemplar, or entrypoint names an ADR by number, resolve the exact `docs/adr/<number>-*.md` path with the uniqueness rule in Step 3 before opening it; do not guess ADR filenames. Before drafting, make the intake state explicit in your working notes: `git status` checked; entrypoint guidance read or still in context; domain vocabulary source read or intentionally N/A; domain workflow doc named by the entrypoint read or N/A; issue-tracker and triage-label docs read; relevant ADRs and principles authority read; source artifact loaded; and same-kind PRD exemplars fetched. If an entrypoint-named item does not exist, record it as absent rather than silently skipping it. Use the project's domain glossary vocabulary throughout the PRD, and respect any ADRs in the area you're touching. Fetch the most recent published PRD issue(s) of the same kind/shape (e.g. feature-flow vs. architecture-seam vs. doc-pack) and match their house style — title format, provenance preamble, story phrasing, and cross-referencing conventions. The tracker mixes PRD kinds, so the most recent PRD overall may be a different shape than what you're writing; when it is, fall back to the most recent same-kind PRD for house style. Start with a compact issue list that fetches only small fields such as number, title, state, URL, labels, and updated time; do not include full bodies in a broad PRD list. Broad issue search can match issue bodies or backlog notes, so filter exemplar candidates to issue titles that start with `PRD:` before selecting the same-kind PRDs to emulate. Then fetch the one or two relevant PRDs by number with `gh issue view`; for very large exemplars, start with compact metadata plus a bounded body slice or named key sections, and fetch the full body only if house style remains unclear.
+### 1. Establish intake and publication scope
 
-For same-kind PRD exemplar intake, prefer this bounded shape before any full-body fetch:
+Run `git status --short`, then read and complete the [intake and scope checklist](references/intake.md) in full. It covers entrypoint authority, domain vocabulary, ADR and principle intake, issue-tracker conventions, same-kind exemplar selection, and PRD-ready determination artifacts.
 
-```sh
-gh issue list --state all --search '"PRD:" in:title <topic terms>' --json number,title,state,url,labels,updatedAt --limit 20
-gh issue view <number> --json number,title,state,url,labels,body --jq '{number,title,state,url,labels:[.labels[].name],preamble:(.body|split("## Problem Statement")[0]),testing:((.body|split("## Testing Decisions"))[1] // "" | split("## Principles")[0]),outOfScope:((.body|split("## Out of Scope"))[1] // "" | split("## Further Notes")[0])}'
-```
+Done when the working notes explicitly account for every required intake item, the current source artifact is trusted, and the intended publication scope is known.
 
-If a candidate body is still too large or the house style remains unclear, fetch only the named section needed for the decision you are making before falling back to the full body.
+### 2. Ratify testing seams and publication package
 
-If the conversation or user references a PRD-ready determination artifact such as `reports/*-prd-prep.md`, read it before drafting. Refresh its source durability, tracker freshness, and any cited authority that could have drifted. Treat its selected first PRD as the intended publication scope unless the user revises it, asks only for a draft, or keeps decisions open. Preserve its deferred follow-on candidates in Out of Scope or Further Notes unless the user explicitly asks to publish a multi-PRD program or bundle them into the current PRD.
-
-For long PRD-ready determination artifacts, rebuild trust with bounded reads before drafting or asking the seam checkpoint. First run a line count such as `wc -l <artifact>` and a heading/key-field search such as `rg -n "^(#|##|###|Decision:|Suggested|Publication package|Recommended testing seams|Likely labels|Source durability|Tracker freshness|Browser-visible guidance checklist)" <artifact>`. Then read targeted slices around the selected scope, deferred follow-ons, publication inputs, and freshness/boundaries. If a broad read or parallel read truncates the evidence surface, rerun with smaller slices and do not carry forward conclusions from the truncated output.
-
-2. Sketch out the seams at which you're going to test the feature. Existing seams should be preferred to new ones. Use the highest seam possible. If new seams are needed, propose them at the highest point you can. The fewer seams across the codebase, the better - the ideal number is one.
+Sketch out the seams at which you're going to test the feature. Existing seams should be preferred to new ones. Use the highest seam possible. If new seams are needed, propose them at the highest point you can. The fewer seams across the codebase, the better - the ideal number is one.
 
 When the PRD's scope includes non-code deliverables (ADRs, specs, doc packs), sketch seams for the implementation surface only, and state in Testing Decisions which deliverables are covered by review/conformance mechanisms rather than tests.
 
@@ -41,202 +36,21 @@ If `/to-prd` follows a same-session determination that selected an intended PRD 
 
 Before drafting, classify the publication package as one of: a single intended PRD, a ratified multi-PRD program, or a first PRD plus deferred follow-on candidates. If a source artifact names follow-on PRD candidates but also selects a recommended first PRD, publish only that first PRD unless the user explicitly asks to publish the whole program; record the deferred candidates in Out of Scope or Further Notes so they are not silently ratified.
 
-3. Write the PRD using the template below, then publish it to the project issue tracker. Title the issue `PRD: <name> — <key mechanisms>`, matching prior PRDs. Preserve the same published title punctuation as same-kind exemplars, including the em dash in `PRD: <name> — <key mechanisms>` when that is the house style; ASCII-only local editing defaults do not require downgrading tracker issue titles unless the tracker or CLI rejects the character. The issue title is set via `--title`; the body (or `--body-file`) begins at the preamble and must not repeat the title as an H1 heading.
+Done when the exact testing seams and publication package are either ratified in-session or covered by the unchanged-existing-seam timeout exception; any new unratified seam stops the run before publication.
 
-Program of PRDs: when the invocation or its source determination covers several sequenced PRDs (for example "create PRDs as necessary" over a ratified program), the per-PRD workflow in this step applies to each body — every body gets its own artifact sweep, template validation, publication, and verification. Publication packaging (how many issues now, their sequence and dependencies, and — when the label is not fully determined by decision status — the publication label) rides the Step 2 checkpoint as one additional question in the same call — still the sole checkpoint. Bodies drafted before issue numbers exist reference siblings generically ("the first program PRD"); after creation, resolve those references to concrete numbers via a sequence comment on each issue or a body edit, stating each PRD's position and any label flip condition. If sequence comments are used, post the same concrete sequence comment to every issue in the program and verify each issue with `gh issue view --json comments` that the comment is present and names the concrete issue numbers. If body edits are used instead, verify each edited body contains the concrete sibling numbers before final reporting.
+### 3. Draft, validate, publish, and verify
 
-Before publishing, sweep the whole PRD for ephemeral local paths (for example `/tmp/...`, temp files, or machine-local scratchpads); durable PRDs should summarize those artifacts' relevant conclusions or first archive the artifact somewhere durable before citing it. When the user cited a temporary report or scratch artifact, preserve the selected finding/title and a short "temporary source summarized, not cited" note in the preamble or Further Notes instead of publishing the local path. Temporary body files are fine as local staging, but sweep the PRD body itself and never cite the staging path in the published issue.
+For every intended PRD in the package:
 
-For staged issue bodies, prefer an outside-worktree path such as `/tmp/worldloom-prd-<slug>.md` when the active environment permits creating it safely. If the active editing rules forbid shell write tricks or make outside-worktree editing awkward, use a clearly temporary repo-local hidden file such as `reports/.tmp-prd-<slug>.md`, create and delete it with the environment-approved edit mechanism, and verify cleanup before final reporting. In Codex-style sessions, create and delete both `/tmp` and repo-local staged body files with the environment-approved edit mechanism (`apply_patch` when available) rather than shell redirection, heredocs, or unapproved `rm`.
+1. Read the [PRD body contract](references/prd-body.md) in full before drafting.
+2. Read the [source-durability rules](references/source-durability.md) in full before creating a staged body or relying on local sources.
+3. Read the [publication-package and label rules](references/publication.md) in full before finalizing the title, staging the issue, or choosing labels.
+4. Read the [validation and closeout procedure](references/validation-and-closeout.md) in full before validation or issue creation, then follow it through published-body readback, recovery if needed, and cleanup.
 
-When the PRD cites a local ADR, spec, principle, methodology document, report, research brief, field-trial report, issue/PR, or other source artifact that was created or modified in this session — or ratified this session as a decision to author later but not yet written — check its repo durability before publishing. If a cited local document or source artifact is untracked or otherwise not yet durable, do not silently present it as a stable published artifact: either summarize its ratified conclusion without durable-citation wording, or record in Further Notes that the artifact is pending local repo publication (for a ratified-but-unwritten artifact, note it as pending authoring and publication, not merely publication). Do not add a second user checkpoint for this; the seam confirmation remains the sole checkpoint.
+Apply all four references separately to every issue in a ratified program. Do not publish until the staged body, source-durability gate, exact-title duplicate guard, label decision, and applicable browser-visible checklist gate all pass.
 
-For staged bodies, run a repo-local artifact sweep before the template check. Extract local-looking source paths, decide which are actual source citations rather than examples, and verify each cited artifact is tracked or otherwise durable. A compact helper can list likely paths:
+## Final Response Blocker
 
-```sh
-BODY_FILE=path/to/prd-body.md
-node -e 'const fs=require("fs"); const b=fs.readFileSync(process.argv[1],"utf8"); const paths=[...new Set([...b.matchAll(/(?:^|[\s([`])((?:docs|reports|archive)\/[A-Za-z0-9._/-]+)/g)].map(m=>m[1].replace(/[).,;:`]+$/,"")))]; console.log(paths.join("\n"));' "$BODY_FILE"
-```
+Do not send the final answer until a final ledger reconciles the verified tracker readbacks and local cleanup evidence. Include the issue number, URL, exact title, state, and labels; staged- and published-body validator results; cited-source and ADR durability results with the publication ref; seam and browser-checklist outcome; deferred follow-ons or program sequencing; temporary-body cleanup proof; and final branch plus `git status --short`, listing every remaining dirty path and classifying it as intentional or pre-existing. Do not claim any gate that lacks current evidence. If interrupted, resumed, or compacted after publication begins, rerun every blocker check whose output is no longer in context before reporting completion.
 
-For each emitted path that the PRD relies on as a source citation, run `git ls-files --error-unmatch <path>` or an equivalent repo-durability check before publishing. Tracked-ness alone is not durability: also intersect the cited paths with `git status --porcelain` — a cited file that is modified, staged, or untracked carries content no commit contains yet, and when the citation leans on that session-authored content, it gets the same treatment as an untracked artifact. Also verify publication-ref visibility for every tracked/clean cited source path: resolve the repository publication ref, normally `origin/main` or the default branch remote ref, and run `git ls-tree -r --name-only <publication-ref> -- <paths>`. If a cited artifact is missing from the publication ref, replace the citation with a conclusion summary plus "pending local publication" wording, or stop before publishing when the PRD cannot be accurate without a stable source citation. If a cited artifact fails any tracked, clean, or publication-ref check, replace the citation with a conclusion summary plus "temporary source summarized, not cited" wording, or record that the artifact is pending authoring/commit/publication as appropriate.
-
-Use direct repo commands for the durability proof rather than wrapping `git` calls inside a helper that can fail under the active sandbox: after path extraction and ADR shorthand resolution, run `git status --porcelain -- <paths>`, `git ls-files --error-unmatch <paths>`, and `git ls-tree -r --name-only origin/main -- <paths>`. A clean status, tracked-path readback, and publication-ref readback together are the durable-citation proof; if the publication ref is not `origin/main`, substitute the resolved default branch ref and name it in the final report.
-
-Also scan for ADR shorthand such as `ADR 0006`, `ADR 0008`, or `ADR 0009`. Resolve each unique shorthand reference to exactly one `docs/adr/<number>-*.md` file and run the same tracked/dirty durability checks on that resolved path. If no ADR file resolves, or more than one file resolves, treat the shorthand as unresolved and either cite a durable explicit path, summarize the decision without a stable citation, or stop before publishing if the PRD cannot be accurate without it.
-
-Before creating the issue, run a template-conformance pass over the body, not just a section-presence scan:
-
-- The body starts with an untitled provenance preamble and does not repeat the title as an H1.
-- `## User Stories` is a numbered list, and each story follows `As an <actor>, I want <feature>, so that <benefit>` rather than a looser bullet or `I can` format.
-- `## Testing Decisions` states the external-behavior testing rule, names the tested modules or surfaces, names prior-art tests descriptively rather than by file path, and records the seam-confirmation outcome.
-- `## Principles` names the touched principle documents and ADRs, affirms non-contradiction with them, and flags any deliberate exception before implementation.
-- `## Further Notes` records the seam-confirmation outcome: answered with the ratified seams, or timed out with the seams open to veto.
-
-For a staged body file, a compact local validation pass can check the same shape before `gh issue create`. Set `EXPECT_CHECKLIST=1` for PRDs subject to the browser-visible guidance checklist gate:
-
-```sh
-BODY_FILE=path/to/prd-body.md
-# For checklist-gated PRDs, uncomment this before running the block:
-# export EXPECT_CHECKLIST=1
-node -e '
-const fs=require("fs");
-const b=fs.readFileSync(process.argv[1],"utf8");
-const expectsChecklist=process.env.EXPECT_CHECKLIST==="1";
-const storyRe=/^[0-9]+\. As an? .+, I want .+, so that .+$/;
-const storyLines=[...b.matchAll(/^[0-9]+\. As .+$/gm)].map(m=>m[0]);
-const badStories=storyLines.filter(s=>!storyRe.test(s));
-const checklistItems=[
-  "package source cited",
-  "decision-point contract named",
-  "required, optional, skippable, and severity-dependent fields visible",
-  "doctrine at the actual decision point",
-  "prompt packet preview, source manifest, and cold external LLM test",
-  "advisory/canon separation visible",
-  "skip path and reason storage",
-  "blockers/substance validation",
-  "current, next, and resume state",
-  "read-side audit or provenance link",
-  "cognitive walkthrough scenario"
-];
-const lines=b.split(/\r?\n/);
-const hasChecklistMarker=b.includes("Browser-visible guidance checklist mapping");
-if(!expectsChecklist&&hasChecklistMarker){
-  console.error("Body contains Browser-visible guidance checklist mapping, but EXPECT_CHECKLIST=1 was not set.");
-  process.exit(1);
-}
-const checklistMissing=expectsChecklist?checklistItems.filter(item=>!lines.some(line=>line.includes(item)&&(/N\/A - .+/.test(line)||/(preamble|Problem Statement|Solution|User Stories|Implementation Decisions|Testing Decisions|Principles|Further Notes|covered|covers|home)/i.test(line)))):[];
-const checks={expectsChecklist,startsUntitled:!b.startsWith("#"),hasProblem:b.includes("## Problem Statement"),hasSolution:b.includes("## Solution"),hasStories:b.includes("## User Stories"),hasImplementation:b.includes("## Implementation Decisions"),hasTesting:b.includes("## Testing Decisions"),hasPrinciples:b.includes("## Principles"),hasOutOfScope:b.includes("## Out of Scope"),hasFurtherNotes:b.includes("## Further Notes"),hasSeam:b.includes("Seam confirmation"),hasChecklist:hasChecklistMarker,hasChecklistItems:!expectsChecklist||checklistMissing.length===0,hasNoTmp:!b.includes("/tmp"),hasNoHome:!b.includes("/home/"),hasNoH1:!/^# /m.test(b),storyCount:storyLines.length-badStories.length};
-console.log(JSON.stringify({...checks,checklistMissing},null,2));
-if(badStories.length){console.log("Non-conforming stories:"); badStories.forEach(s=>{const why=[]; if(!/^[0-9]+\. As an? /.test(s))why.push("As a/As an prefix"); if(s.indexOf(", I want ")<0)why.push("comma before I want"); if(s.indexOf("so that ")<0)why.push("missing so-that benefit clause"); else if(s.indexOf(", so that ")<0)why.push("comma before so that"); console.log("  "+s+"  [missing: "+(why.join(", ")||"clause order/format")+"]");});}
-if(checklistMissing.length){console.log("Missing checklist rows/items:"); checklistMissing.forEach(item=>console.log("  "+item));}
-const requiredFailures=Object.entries(checks).filter(([k,v])=>!["storyCount","hasChecklist","hasChecklistItems"].includes(k)&&!v);
-if(expectsChecklist&&!checks.hasChecklist) requiredFailures.push(["hasChecklist",false]);
-if(expectsChecklist&&!checks.hasChecklistItems) requiredFailures.push(["hasChecklistItems",false]);
-if(requiredFailures.length||checks.storyCount<1||badStories.length) process.exit(1);
-' "$BODY_FILE"
-```
-
-If any item fails, edit the body before publishing. Treat `expectsChecklist: false` as invalid whenever the PRD is subject to the browser-visible guidance checklist gate. With `EXPECT_CHECKLIST=1`, `checklistMissing` must be empty: every current issue-tracker checklist item must have a row or stable anchor in the PRD body, and each row must identify a covering PRD home or `N/A - <reason>`. After publication, if the verification query shows a section exists but the section is malformed or incomplete under this checklist, edit the issue and re-run verification before final reporting.
-
-After all pre-create checks pass and before `gh issue create`, run a final status-language pass over the staged body. Completed intake, durability, template, checklist, label-existence, duplicate, and seam-confirmation gates should be recorded as facts, not future work: replace stale gate phrasing such as "should be checked", "must be checked before publication", or "if the body passes" with "was checked", "passed", or "is appropriate because..." when that proof has actually been gathered. Keep provisional language only for implementation decisions, sequenced follow-ons, or genuinely open decisions.
-
-A compact sweep is useful before create; inspect hits rather than treating them as automatic failures:
-
-```sh
-BODY_FILE=path/to/prd-body.md
-rg -n "should be checked|must be checked before publication|if the body passes|pending publication|TBD before publication" "$BODY_FILE"
-```
-
-Choose the publication label from the PRD's decision status before creating the issue. Label proof order: first use current same-kind exemplar metadata or exact issue metadata that already shows the chosen labels; call `gh label list` only when no current issue metadata proves the exact labels or label creation may be needed. For this label decision, the explicit create/publish request described in Step 2 ratifies only the selected product scope; unresolved seam decisions, draft-only requests, named open decisions, or revised recommendations still count as unresolved. Distinguish a blocking open decision — an unresolved scope or seam choice that leaves the PRD not AFK-actionable — from a recommended-default note, a specified implementation direction the body records as open to groomer refinement: a recommended-default note does not by itself force `needs-triage` when product scope and seams are ratified and an AFK agent could implement the specified direction as written. If the user makes an explicit label choice at the Step 2 publication/packaging checkpoint, that choice governs the label and is recorded as ratification. If no provisional, unratified, timed-out, or open-to-veto decisions remain, verify the `ready-for-agent` label exists (create it per the project's triage-label doc if absent; a verification earlier in the same session suffices), then apply it — no additional triage round-trip is needed, but pre-label acceptance checks the project's issue-tracker doc imposes still apply: in this repo, a PRD touching a guided flow, prompt-out, Canon Workbench provenance, or browser workflow navigation must satisfy the issue-tracker doc's browser-visible guidance acceptance checklist before `ready-for-agent` is applied. Treat this as a checked gate, not a self-assertion: before applying `ready-for-agent`, enumerate the issue-tracker doc's acceptance items and confirm each maps to a PRD section that carries it (the provenance preamble, Problem Statement/Solution, User Stories, Implementation Decisions, Testing Decisions, or Principles — package-source and doctrine citations typically live in the preamble and Principles), applying the same mechanized rigor as the template-conformance and post-publication checks. For every PRD subject to this gate, add an explicit body paragraph or table headed with the exact marker `Browser-visible guidance checklist mapping` before publication; for each checklist item, record the PRD home that covers it or `N/A - <reason>`. For staged bodies subject to this gate, check that the marker is present before publication, and include a `hasChecklist` or equivalent body readback check after publication. Distinguish an item whose trigger condition is absent from an item that applies but is unhomed: many issue-tracker acceptance items are conditional ("where relevant", "when prompt-out is in scope", "when the slice writes records", "when an instrument can be declined", "when the browser task grammar changes"), and an item whose condition does not hold is N/A — record it and move on; it does not force `needs-triage`. Only an item that applies but has no home in the body is unmet; if any applicable item is unmet, apply `needs-triage` instead and name the unmet items in the final report. If any provisional, unratified, timed-out, or open-to-veto decision remains, do not apply `ready-for-agent`; apply `needs-triage` instead, verify that label exists the same way, and record in the final report that the PRD is not AFK-ready until those decisions are ratified. A third case is sequencing, not ratification: a fully-ratified PRD whose start is blocked by an unclosed predecessor may carry `needs-triage` (or the repo's blocked-equivalent label) with the flip condition recorded on the issue itself; report it as sequenced, not as unratified. A current `gh issue list` or `gh issue view` response from the same repo that shows the exact chosen label is sufficient label-existence verification; use `gh label list` only when no current issue metadata has shown it or label creation may be needed. Apply the chosen triage label alongside whatever non-triage type label the same-kind exemplar PRDs carry (for example `enhancement`), confirmed from the exemplar's fetched metadata rather than assumed. After creation, verify the published issue with `gh issue view`: confirm the title, body, chosen label, state, URL, every required PRD section, seam-confirmation note, template-conformance checklist, browser-visible checklist mapping when applicable, and absence of machine-local path leakage before final reporting. Mirror the pre-publication source-path sweep against the published body: extract `docs/`, `reports/`, and `archive/` paths from the issue body and compare them with the staged body's approved durable citation list. Also mirror the ADR shorthand sweep against the published body: extract every `ADR [0-9]{4}` reference, resolve each to exactly one `docs/adr/<number>-*.md` path, rerun tracked, clean, and publication-ref checks on the resolved paths, and record `adrShorthands`, `resolvedAdrPaths`, and `unresolvedAdrShorthands` in the issue verification notes or query output. When an untracked, dirty, temp-only, or publication-ref-missing source was summarized rather than cited, explicitly verify that its local path did not leak into the published body. Prefer a compact verification query that checks key fields and body sections and exposes local-source paths for comparison instead of dumping the full body, for example:
-
-```sh
-gh issue view <number> --json number,title,body,labels,state,url --jq '(.body) as $body | (["package source cited","decision-point contract named","required, optional, skippable, and severity-dependent fields visible","doctrine at the actual decision point","prompt packet preview, source manifest, and cold external LLM test","advisory/canon separation visible","skip path and reason storage","blockers/substance validation","current, next, and resume state","read-side audit or provenance link","cognitive walkthrough scenario"]) as $checklistItems | {number,title,state,url,labels:[.labels[].name],hasReady:(any(.labels[].name; . == "ready-for-agent")),hasNeedsTriage:(any(.labels[].name; . == "needs-triage")),hasProblem:($body | contains("## Problem Statement")),hasSolution:($body | contains("## Solution")),hasStories:($body | contains("## User Stories")),hasImplementation:($body | contains("## Implementation Decisions")),hasTesting:($body | contains("## Testing Decisions")),hasPrinciples:($body | contains("## Principles")),hasOutOfScope:($body | contains("## Out of Scope")),hasFurtherNotes:($body | contains("## Further Notes")),hasSeam:($body | contains("Seam confirmation")),hasChecklist:($body | contains("Browser-visible guidance checklist mapping")),hasChecklistItems:(($checklistItems | map(. as $item | select(($body | contains($item)) | not)) | length) == 0),checklistMissing:($checklistItems | map(. as $item | select(($body | contains($item)) | not))),hasNoTmp:(($body | contains("/tmp")) | not),hasNoHome:(($body | contains("/home/")) | not),hasNoH1:(($body | test("(?m)^# ")) | not),localSourcePaths:([$body | scan("(?m)(?:docs|reports|archive)/[A-Za-z0-9._/-]+")] | unique),adrShorthands:([$body | scan("ADR [0-9]{4}")] | unique),storyCount:([$body | scan("(?m)^[0-9]+\\. As an? .+, I want .+, so that .+$")] | length)}'
-```
-
-For each `adrShorthands` entry emitted by that query, resolve it locally and record the result beside the issue readback. The resolver output does not replace the tracked, clean, and publication-ref checks on `resolvedAdrPaths`:
-
-In Codex-style sessions, do not create a published-body file solely to resolve ADR shorthand. If the compact `gh issue view` readback already emitted `adrShorthands`, resolve each number directly from the repo and then run the same direct git durability checks:
-
-```sh
-NUMBER=0007
-find docs/adr -maxdepth 1 -type f -name "${NUMBER}-*.md" -print
-```
-
-Use the result only when exactly one path is printed; then run `git status --porcelain -- <resolved-path>`, `git ls-files --error-unmatch <resolved-path>`, and `git ls-tree -r --name-only origin/main -- <resolved-path>`. Record unresolved or ambiguous ADR shorthand as a verification failure before final reporting.
-
-```sh
-BODY_FILE=path/to/published-issue-body.md
-node -e '
-const fs=require("fs");
-const b=fs.readFileSync(process.argv[1],"utf8");
-const adrDir="docs/adr";
-const adrFiles=fs.existsSync(adrDir)?fs.readdirSync(adrDir):[];
-const adrShorthands=[...new Set([...b.matchAll(/\bADR [0-9]{4}\b/g)].map(m=>m[0]))];
-const resolvedAdrPaths=[];
-const unresolvedAdrShorthands=[];
-for(const shorthand of adrShorthands){
-  const number=shorthand.match(/[0-9]{4}/)[0];
-  const matches=adrFiles.filter(name=>name.startsWith(number+"-")).map(name=>`${adrDir}/${name}`);
-  if(matches.length===1) resolvedAdrPaths.push(matches[0]);
-  else unresolvedAdrShorthands.push(shorthand);
-}
-console.log(JSON.stringify({adrShorthands,resolvedAdrPaths,unresolvedAdrShorthands},null,2));
-if(unresolvedAdrShorthands.length) process.exit(1);
-' "$BODY_FILE"
-```
-
-When the PRD summarizes untracked, dirty, temp-only, or publication-ref-missing sources instead of citing them, do not leave that comparison as a mental check. Record two working lists before publication: approved durable citation paths and summarized/disallowed local source paths. Extend the staged-body and published-body readbacks with a pass/fail field such as `hasNoDisallowedLocalSources` plus `unexpectedLocalSourcePaths`; final reporting may proceed only when the disallowed list is absent from the body and every emitted `localSourcePaths` entry is in the approved durable citation list. For example, replace the path-list constants in the query shape below before running it:
-
-```sh
-gh issue view <number> --json body --jq '(.body) as $body | (["docs/specs/example.md"]) as $approvedDurableSourcePaths | (["reports/example-local-prep.md"]) as $disallowedLocalSources | ([$body | scan("(?m)(?:docs|reports|archive)/[A-Za-z0-9._/-]+")] | unique) as $localSourcePaths | {localSourcePaths:$localSourcePaths,unexpectedLocalSourcePaths:($localSourcePaths - $approvedDurableSourcePaths),hasNoDisallowedLocalSources:($disallowedLocalSources | all(. as $p | ($body | contains($p) | not)))}'
-```
-
-If interrupted, resumed, or compacted before issue creation begins, do not rely on remembered pre-create state. Re-run `git status --short`, the exact-title duplicate search, cited-source durability checks, ADR shorthand resolution, label proof, staged-body template/checklist/local-path validation, and the final status-language pass before publishing.
-
-If interrupted, resumed, or compacted after issue creation begins, first recover the issue number without creating a duplicate. When the number is unknown, do not retry `gh issue create` until you have searched by exact title with `gh issue list --state all --search '"<title>" in:title' --json number,title,state,url,labels,updatedAt --limit 10`; use the single exact-title match, stop and report if multiple matches exist, and retry creation only after proving no matching issue was created. Then re-run the compact `gh issue view` verification, re-check the published body's local-source paths against the approved durable citation list, resolve any published ADR shorthands and re-check the resolved ADR paths, check whether any temporary body file still exists and remove it if needed, then re-run `git status --short` before final reporting.
-
-Remove any temporary body file you created using the environment-approved edit/removal mechanism, run `git status --short`, and include only remaining pre-existing or intentional dirty files in the final report. For temporary body files outside the repository, verify cleanup with direct existence checks such as `test ! -e <path>`; repo-local Git status cannot prove cleanup of files outside the worktree.
-
-<prd-template>
-
-[Preamble — an untitled paragraph before the first section: provenance (which session or decision determined this PRD), what prior PRD or commitment it follows or discharges, and the ratification status of its decisions.]
-
-## Problem Statement
-
-The problem that the user is facing, from the user's perspective.
-
-## Solution
-
-The solution to the problem, from the user's perspective.
-
-## User Stories
-
-A LONG, numbered list of user stories. Each user story should be in the format of:
-
-1. As an <actor>, I want a <feature>, so that <benefit>
-
-Keep a literal comma directly before `so that` (and before `I want`) — an em-dash, semicolon, or other punctuation in place of that comma fails the staged-body story-conformance check even when the sentence reads fine.
-
-<user-story-example>
-1. As a mobile bank customer, I want to see balance on my accounts, so that I can make better informed decisions about my spending
-</user-story-example>
-
-This list of user stories should be extremely extensive and cover all aspects of the feature.
-
-## Implementation Decisions
-
-A list of implementation decisions that were made. This can include:
-
-- The modules that will be built/modified
-- The interfaces of those modules that will be modified
-- Technical clarifications from the developer
-- Architectural decisions
-- Schema changes
-- API contracts
-- Specific interactions
-
-Do NOT include specific file paths, code snippets, or volatile code symbols (function, variable, or private-helper names). They may end up being outdated very quickly. Stable data-model identifiers, by contrast, are acceptable and expected — schema table and column names, controlled-vocabulary names, link-type and record-type keys, and route/endpoint names — since they match house style (prior flow PRDs cite them freely) and are themselves conformance anchors. Citations of principle, ADR, spec, prior issue/PR, and methodology-module documents are exempt — they are stable identifiers and are themselves the conformance mechanism.
-
-Exception: if a prototype produced a snippet that encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it within the relevant decision and note briefly that it came from a prototype. Trim to the decision-rich parts — not a working demo, just the important bits.
-
-## Testing Decisions
-
-A list of testing decisions that were made. Include:
-
-- A description of what makes a good test (only test external behavior, not implementation details)
-- Which modules will be tested
-- Prior art for the tests (i.e. similar types of tests in the codebase), named descriptively (package + kind of test) rather than by file path, consistent with the Implementation Decisions rule
-
-## Principles
-
-The conformance-rule section this repo requires of every implementable issue (`docs/principles/README.md`): name the principle documents and ADRs this PRD touches, affirm non-contradiction with them, and flag any deliberate exception to the steward before implementation.
-
-## Out of Scope
-
-A description of the things that are out of scope for this PRD.
-
-## Further Notes
-
-Any further notes about the feature. When the synthesized requirements rest on provisional or unratified decisions (e.g., an interview the user never answered), say so here and mark them open to veto before grooming — and record the seam-confirmation outcome either way (answered: name the seams ratified; timed out: open to veto), so a groomer can tell which parts of the PRD stand ratified and which do not.
-
-</prd-template>
+Done only when every intended issue satisfies this blocker and every temporary body is absent.

@@ -1,356 +1,310 @@
-# Field Build 14 PRD-Ready Determination: Admission Prompt-Out Preview Currentness And Search Punctuation Hardening
+# Field Build 14 PRD-Ready Determination: Covered Admission Currentness And Search Hardening
 
 Source artifact: `reports/field-build-14-jon-urena-chrononaut.md`
 
-Selected source sections: `Findings` entries `R-01` and `F-01`, validation findings `V-01` through `V-05`, `Regression of prior findings`, `Decision-point log`, `For the app (PRD seeds)`, and `Frontier`.
+Selected source sections: `Findings` entries `V-01` through `V-05`, `R-01`, and `F-01`; `Regression of prior findings`; `Decision-point log`; `For the app (PRD seeds)`; `For the methodology`; and `Frontier`.
 
-Source durability status: untracked local report. The source report is present in this checkout but is not known to git and is not publication-ref visible. A later PRD should summarize this report's conclusions rather than cite it as a stable published source unless the report is committed, clean, and visible on the publication ref. The screenshots, SQLite world file, prompt packets, API readbacks, cold-LLM outputs, and dev-server logs named by the report are temp-only evidence and should be summarized rather than cited by machine-local path.
+Existing same-stem prep artifact classification: superseded and partially consumed. The previous version selected two independent candidates: first Admission pre-load Prompt-out preview currentness and second substrate search punctuation hardening. Live tracker and source now show both candidates were published and closed. This update replaces the stale publication recommendation with a covered/no-new-PRD determination.
 
-Authored artifact status: new untracked PRD-ready determination artifact. This file is a local prep artifact until tracked, committed, and publication-ref visible.
+Source durability status: durable local report. Current-session checks showed the source report is tracked, clean, and visible on `origin/main`. The report still summarizes machine-local field-build evidence, screenshots, prompt packets, API readbacks, cold-LLM outputs, and a world file; a future tracker artifact may summarize those conclusions but must not cite machine-local paths as stable sources.
 
-Live checkout snapshot: branch `main`, HEAD `4487ce5`. Pre-write worktree dirt was `.claude/skills/field-build/SKILL.md` modified plus untracked `reports/field-build-14-jon-urena-chrononaut.md`. Those were treated as pre-existing artifacts for this prep.
+Authored artifact status: this prep file was tracked, clean, and visible on `origin/main` before this update. This update intentionally makes the authored artifact dirty and pending local publication until committed and visible on the publication ref.
 
-Tracker freshness: current open issue readback returned no open duplicate for Admission prompt preview currentness, pre-load packet preview, search punctuation, FTS5 syntax errors, or `FAC-` search on 2026-07-10. Relevant closed tracker work inspected: PRD #250 and child #260 for origin-bound Admission packet stale-state guards, PRD #297 for active packet ownership, exact export, and Admission mode selection, PRD #336 and children #337-#338 for Field Build 11 Creation current-packet clarity, PRD #321 and PRD #339 for Creation coverage fixes validated by Field Build 13, and PRD #328 for correction-note idempotence/readback.
+Primary evidence summarized: Field Build 14 report, current source around Admission Prompt-out pre-load currentness and substrate search, focused server/web tests present in the repo, exact GitHub issue readbacks for #328, #336, #338, #343, #344, #345, #346, and #347, and open-overlap searches for Field Build 14 Admission/search terms.
 
-Deliverable status: PRD-ready determination only. No code, tracker, methodology, principle, ADR, spec, or domain glossary mutation happened in this prep.
+Live checkout snapshot: branch `main`, HEAD `bb82150`. Intake worktree status was clean. The Field Build 14 report itself records app commit `4487ce5`; this prep reconciles that older field-build observation against current HEAD.
 
-External research: skipped. The task is repo/report determination and all governing facts are local repo authorities plus GitHub tracker state.
+Tracker freshness: refreshed on 2026-07-10. Open overlap search for Admission pre-load Prompt-out/currentness, Field Build 14, search punctuation, FTS5, and `FAC-` terms returned no open issues. Exact tracker readbacks show #343, #344, #345, #346, and #347 are closed; adjacent Field Build 11 coverage issues #328, #336, and #338 are also closed.
 
-Decision: RATIFIED artifact home and selected scope -> write `reports/field-build-14-jon-urena-chrononaut-prd-prep.md` with two independent PRD candidates: first Admission pre-load Prompt-out preview currentness, second substrate search punctuation hardening; rationale: the user accepted the recommendation after the report, current source, authorities, and tracker overlap were inspected.
+Deliverable status: PRD-ready determination only. No code, tracker issue, label, PRD publication, `/to-prd` seam checkpoint, methodology, principle, ADR, spec, or domain glossary mutation happened in this prep run.
+
+External research: skipped. This is a repo/report/tracker reconciliation task; governing facts are local repo authorities plus GitHub tracker state.
 
 ## Reassessment Verdict
 
-Field Build 14 is mostly validation. The existing Jon world resumes at the Admission frontier, Admission queue selection preserves the governance boundary, `FAC-3` queue/severity Prompt-out packets are self-contained in Proposal and Pressure modes, severity declaration persists without admitting canon, and stale loaded packet status after severity declaration is clearly marked as stale.
+Field Build 14 is now coverage and validation, not a source of fresh product scope.
 
-The remaining codebase-wide product work is two independent candidates:
+The report's five validation findings still stand as no-product-scope evidence:
 
-1. Admission pre-load Prompt-out preview currentness. The selected Admission record can render a pressure packet body before the steward explicitly loads a Prompt-out mode, while the visible selector defaults to Proposal mode and loaded mode is none. This is a narrow browser/server contract polish gap against the already-implemented active packet ownership family.
-2. Substrate search punctuation hardening. The read-side search API can 500 on short-id-style punctuation such as `FAC-` because the raw query is passed directly into SQLite FTS `MATCH`.
+1. The existing Jon world reopens at the Admission frontier.
+2. Admission queue selection carries the governance boundary.
+3. `FAC-3` queue/severity Prompt-out packets are self-contained in both modes after explicit load.
+4. Severity declaration persists without admitting canon.
+5. The prior loaded packet is clearly marked stale after severity changes the active decision.
 
-Recommended publication package: two independent candidates, not one bundled PRD. If the next `/to-prd` pass creates one PRD now, publish the Admission Prompt-out preview currentness PRD first and preserve search punctuation hardening as a deferred follow-on. If the user explicitly asks for the full small program, publish two PRDs or one PRD plus one focused issue, with separate testing seams and acceptance proof.
+The two app seeds from the report are now covered:
 
-Coverage-only items: `V-01` through `V-05` require no product scope. Field Build 11 `P-01` and `F-02` are covered by closed tracker work unless a later replay disproves the fixes on current source. Field Build 13 validated the Field Build 12 Creation coverage fixes and should not be reopened from this report.
+1. `R-01` / App Seed 1, Admission pre-load Prompt-out preview currentness, was published as PRD #343 with children #344 and #345. The issues are closed, and current source now renders pre-load Admission packet text as explicitly non-current with current packet actions disabled.
+2. `F-01` / App Seed 2, search query punctuation hardening, was published as PRD #346 with child #347. The issues are closed, and current source now handles short-ID prefixes and safe FTS tokenization with focused server tests for `FAC-`, exact short IDs, punctuation, quotes, ordinary prose, empty input, and read-only preservation.
 
-Supporting skill result: Domain model unchanged. This prep uses existing app and methodology language: `Admission flow`, `Admission queue`, `Prompt-out step`, `Prompt packet`, `decision point`, `World file`, and read-side search. No root `CONTEXT.md` term change or ADR-worthy domain decision is owed by this prep.
+Recommended publication package: no new PRD now. A later `/to-prd` pass should not publish the old two-candidate package from this prep unless fresh replay proves a current regression. If replay contradicts the current source/tracker claims, reopen or publish only the contradicted scope.
+
+Follow-on posture: verification/reopen candidates only. The Jon Urena full-gate frontier remains the next field-build work, but it is world-authoring frontier work rather than a product PRD seed from this report.
+
+Supporting skill result: domain model unchanged. This prep uses the existing terms `Admission flow`, `Admission queue`, `Prompt-out step`, `Prompt packet`, `decision point`, `World file`, `short ID`, and read-side search from `CONTEXT.md` and repo authorities.
 
 ## Evidence Checked
 
 | Finding or candidate | Status | PRD impact |
 |---|---|---|
-| `V-01` existing Jon world reopens at Admission frontier | Validated | No product scope. Preserve explicit world-path readback and Workflow map resume state as field-build evidence practice. |
-| `V-02` Admission queue selection carries governance boundary | Validated | No product scope. Preserve no-default severity behavior, source/origin links, and canon-debt warning. |
-| `V-03` `FAC-3` queue/severity Prompt-out packets are self-contained | Validated | No packet-content PRD. Proposal and Pressure packet content worked after explicit load. |
-| `V-04` severity declaration persists without admitting canon | Validated | No product scope. Preserve severity declaration as gate-depth selection only. |
-| `V-05` stale prior packet is clearly marked after severity changes the decision | Validated | No product scope for loaded stale-state handling. Use it as acceptance baseline for the pre-load preview fix. |
-| `R-01` selected Admission record shows pressure packet preview before explicit mode load | Fresh product scope | Selected first PRD candidate. The active packet generation works, but pre-load preview body, selected mode, and loaded mode can disagree. |
-| `F-01` search endpoint 500s on `FAC-` | Fresh product scope | Independent second candidate. Harden read-side search query handling and response behavior. |
-| Field Build 11 `P-01` stale secondary Prompt-out preview after correction/mode switch | Covered by tracker | No fresh scope. Closed PRD #336 targeted and closed this Creation follow-on. |
-| Field Build 11 `F-02` duplicate narrowing-note correction contexts | Covered by tracker | No fresh scope. Closed PRD #328 targeted and closed this follow-on. |
+| `V-01` existing Jon world reopens at Admission frontier | validated/no product scope | Preserve as field-build evidence practice; no product issue. |
+| `V-02` Admission queue selection carries governance boundary | validated/no product scope | Preserve no-default severity, source/origin links, and canon-debt warning. |
+| `V-03` `FAC-3` queue/severity Prompt-out packets are self-contained | validated/no product scope | No packet-content PRD; explicit Proposal and Pressure load worked in the report. |
+| `V-04` severity declaration persists without admitting canon | validated/no product scope | Preserve severity declaration as gate-depth selection only. |
+| `V-05` stale prior packet is clearly marked after severity changes the decision | validated/no product scope | Acceptance baseline for closed #343/#344/#345; no remaining scope. |
+| `R-01` selected Admission record shows pressure packet preview before explicit mode load | covered | Covered by closed #343/#344/#345 and current Admission source. No new PRD unless active-route replay contradicts current behavior. |
+| `F-01` search endpoint 500s on `FAC-` | covered | Covered by closed #346/#347 and current search source/tests. No new PRD unless API replay contradicts current behavior. |
+| App Seed 1 - Admission pre-load prompt preview currentness polish | covered | Same covered scope as `R-01`; old first-PRD recommendation is consumed. |
+| App Seed 2 - Search query punctuation hardening | covered | Same covered scope as `F-01`; old follow-on recommendation is consumed. |
+| Field Build 11 `P-01` stale secondary Prompt-out preview after correction/mode switch | covered | Closed #336/#337/#338 targeted and closed this Creation current-packet replay family. |
+| Field Build 11 `F-02` duplicate narrowing-note correction contexts | covered | Closed #328/#329/#330 targeted and closed the correction-note visibility/idempotence family. |
+| Field Build 13 open findings | validated/no product scope | Report says none; no reopening from Field Build 14. |
+| `For the methodology` | validated/no product scope | No methodology source change proposed by Field Build 14 and no contradiction found in current authorities. |
+| Frontier: resume at `FAC-3` full gate before `FAC-2` | coverage follow-up | Field-build/world-authoring frontier only; not a product PRD seed by itself. |
 
-Live source checks:
+Current source checks:
 
-- `packages/server/src/admission-flow.ts` builds the Admission selected-record preview by calling Prompt-out generation with `mode: "pressure"` unconditionally. The same function advertises both Proposal and Pressure modes and provides separate step requests.
-- `packages/web/src/main.tsx` renders `admissionDecision.promptOut.preview` directly in the Admission Prompt packet preview. The browser defaults `admissionPromptMode` to Proposal mode and shows `Loaded mode: none yet` until the steward clicks `Load Admission Prompt-out Step`.
-- `packages/web/src/main.tsx` correctly generates and binds a current loaded packet from the selected mode after `Load Admission Prompt-out Step`. That means `R-01` is about pre-load preview presentation/currentness, not the loaded packet identity guard.
-- `packages/server/src/world-file.ts` trims the search query and passes it directly to `records_fts MATCH ?`. A punctuation query such as `FAC-` can therefore hit SQLite FTS syntax handling.
-- `packages/server/src/http/substrate-routes.ts` exposes `/api/search` by calling `world.search(c.req.query("q") ?? "")` with no route-level validation or escaping.
-- Existing tests cover basic search success and FTS freshness for simple words. They do not cover punctuation-only or short-id-prefix query text.
+- `packages/server/src/admission-flow.ts` now builds pre-load Admission prompt text with "No selected-mode Admission Prompt packet is loaded yet" and an explicit non-current warning. The preview currentness state is `not_loaded`, loaded mode is `null`, current packet actions are disabled, and the load action tells the steward to choose Proposal or Pressure then load the step.
+- `packages/web/src/main.tsx` renders `preview.currentness` beside selected/loaded mode information and still renders packet/source manifest/context/advisory warning through the shared prompt preview component.
+- `packages/web/src/main.tsx` still derives `admissionPromptStepRequest` from the selected Admission prompt mode and binds loaded Admission packet identity to `flowKey: "admission"` plus the active step key.
+- `packages/server/src/world-file.ts` now recognizes short-ID-like queries with a short-ID pattern, uses exact or prefix lookup for those, tokenizes other search text to quoted FTS tokens, and returns an empty result for punctuation-only input that has no safe FTS tokens.
+- `packages/server/src/http/substrate-routes.ts` continues to expose `/api/search` through the world search operation; the hardened behavior lives below the route.
+- `packages/server/test/world-file.test.ts` and `packages/server/test/app.test.ts` include coverage for `FAC-`, `FAC-1`, missing short-ID prefixes, empty and whitespace queries, punctuation-only input, dangling quotes, ordinary prose, title/body/report search, and read-only preservation.
 
-Tracker overlap:
+Tracker overlap and consumption:
 
-- No open issues were found for Admission pre-load prompt preview/currentness, stale preview, search punctuation, FTS5 syntax, or `FAC-` search.
-- PRD #250 and child #260 hardened Admission packet stale-state guards after a packet has an origin. Field Build 14 validates the post-severity stale-state behavior and exposes a pre-load preview state before a current packet origin exists.
-- PRD #297 already intended Admission mode selection to drive generated packets and exact export. Current source does drive loaded generation by selected mode, but the server-supplied pre-load preview remains pressure-shaped. Treat `R-01` as a follow-on/regression against the closed PRD family, not as a new Prompt-out architecture program.
-- PRD #336 and children #337-#338 are Creation-specific current-packet clarity work. They are adjacent prior art but do not cover the Admission pre-load preview mismatch.
-- No inspected closed issue appears to own read-side search punctuation hardening. Broad searches matched unrelated old PRDs only through generic terms.
+- #343 `PRD: Admission pre-load Prompt-out preview currentness` is closed. Its child issue map names #344 and #345. Its closeout records final SHA `bcfaa7b...`, focused server/web tests, `pnpm test`, `pnpm typecheck`, and `pnpm build`.
+- #344 `Admission pre-load Prompt-out currentness guard` is closed and owns the implementation guard plus focused tests for pre-load/current/stale states.
+- #345 `Field Build 14 Admission Prompt-out active-route replay and closeout` is closed and owns active-route proof for the Field Build 14 Admission path.
+- #346 `PRD: Substrate search punctuation hardening` is closed. Its closeout records final SHA `efc9c75...`, focused server search tests, server package test/typecheck/build, `pnpm test`, and `pnpm typecheck`.
+- #347 `Substrate search punctuation and short-ID prefix hardening` is closed and owns the server/API search behavior behind #346.
+- #328 is closed and covers Field Build 11 duplicate narrowing-note correction contexts.
+- #336 and #338 are closed and cover Field Build 11 current-packet active-route replay.
+- Open overlap search for Field Build 14 Admission/search terms returned `[]`, so there is no current open duplicate found by the checked terms.
 
 ## Authority Findings
 
-No upstream methodology, principle, ADR, or domain glossary change is owed before the next PRD.
+No upstream methodology, principle, ADR, spec, domain glossary, or tracker-convention change is owed from this prep.
 
-Existing authorities require the selected first candidate:
+Existing authorities that continue to govern the covered Admission currentness family:
 
-- `docs/specs/admission-flow.md` defines Admission queue/severity as a decision point, requires no inferred severity, and binds pre-severity Prompt-out to `admission_queue_severity` / `admission:queue-severity`.
-- `docs/specs/prompt-out-context-assembly.md` says loaded or copied Prompt-out status is scoped to exact packet origin, and stale/current identity must be unambiguous.
-- `docs/principles/canon-sovereignty.md` W-1 and `docs/principles/workflow-principles.md` W-1 require Proposal and Pressure Prompt-out modes at decision points with clear advisory/canon boundaries.
-- `docs/principles/guided-workflow-usability.md` W-8/W-9 require the browser decision surface and prompt packet to represent the current decision without requiring the steward to inspect hidden API state.
-- ADR 0007 keeps Prompt-out assembly and lifecycle server-owned. The fix should consume server-owned packet identity or preview state rather than inventing browser-only prompt policy.
-- ADR 0009 keeps browser guided-flow surfaces as renderers of server-owned policy and current decision state.
+- `CONTEXT.md` defines `Admission flow`, `Admission queue`, `Prompt-out step`, `decision point`, and `Prompt packet`; the closed work uses those terms without needing a glossary change.
+- `docs/specs/admission-flow.md` binds queue selection to `admission_queue_severity` / `admission.queue-severity`, says severity is undeclared until steward declaration, and says Admission prompts must not assign final severity, canon standing, truth layer, status, operations, or automatic admission.
+- `docs/specs/prompt-out-context-assembly.md` says the prompt packet and screen context are two renderings of one assembly, and loaded Prompt-out status is scoped to exact packet origin including flow, step, mode, selected record, and Admission severity context.
+- `docs/specs/browser-visible-guidance-acceptance.md` requires active-route proof for field-build blockers, including current/stale state, prompt packet proof, source manifest, advisory/canon warning, and explicit non-mutation when Prompt-out is involved.
+- `docs/principles/canon-sovereignty.md` W-1 keeps Prompt-out optional and advisory, with Proposal and Pressure modes and no automatic canon adoption.
+- `docs/principles/workflow-principles.md` W-1 says Prompt-out is part of the decision point, with available modes, role/framing, packet preview, advisory/canon warning, and context omissions before copy-out.
+- `docs/principles/guided-workflow-usability.md` W-8/W-9 require the browser decision surface and prompt packet to carry the current decision without forcing hidden API inspection.
+- ADR 0006 keeps Admission policy server-owned; ADR 0007 keeps Prompt-out mechanics server-owned; ADR 0009 keeps the browser as a renderer of server-owned guided-flow policy.
 
-Existing authorities require the second candidate:
+Existing authorities that continue to govern the covered search hardening family:
 
-- `docs/principles/data-principles.md` W-5 says records are viewable across read surfaces. A read-side search query must be reliable enough for diagnostic and browse work.
-- `docs/principles/data-principles.md` T-3 says short IDs are app-owned citation identifiers. Short-id-style lookup text such as `FAC-` is ordinary steward or agent input, not exceptional attacker input.
-- The substrate search route is not a guided-flow decision point, so it does not need a new browser-visible guidance program unless implementation changes browser task grammar. It should still return stable responses and avoid server 500s for ordinary query text.
+- `docs/specs/schema-v1.md` defines app-minted short IDs such as `FAC-1` and includes full-text search in the walking skeleton acceptance surface.
+- `docs/principles/data-principles.md` W-5 keeps records viewable across read surfaces, and T-3 says identifiers are the app's job; short-ID-like lookup text is ordinary app input.
+- ADR 0001 owns SQLite/FTS5 as the world-file search substrate.
+- ADR 0004 owns the TypeScript/Hono/React/better-sqlite3 stack and Vitest testing surface.
 
-Spec changes are optional and should be scoped by the future PRD. For the Admission candidate, `docs/specs/prompt-out-context-assembly.md` or `docs/specs/admission-flow.md` may need a narrow clarification that pre-load preview text is preview-only/non-current unless it matches the selected mode and current load/export state. For the search candidate, a short note in the relevant substrate/search spec area may be warranted only if the product behavior chooses validation semantics rather than transparent literal search fallback.
+No new ADR is warranted. The current covered behavior affirms the existing boundaries rather than changing them.
 
 ## Recommended First PRD
 
-### Admission Pre-Load Prompt-Out Preview Currentness
+### No New PRD Recommended
 
-Purpose: make the Admission selected-record Prompt-out preview unambiguous before explicit mode load. A steward should not see a pressure packet body in the primary preview while the selector says Proposal mode and the loaded packet state says none.
+Purpose: avoid duplicate tracker work after Field Build 14's two app seeds have already been converted into PRDs/issues and closed.
 
 Sources:
 
-- Field Build 14 `R-01`, summarized from the untracked local report.
-- Closed PRD #297 as direct prior art for Admission mode selection and active packet ownership.
-- Closed PRD #250 and child #260 as prior art for Admission stale-state guards.
-- Closed PRD #336 and children #337-#338 as adjacent Creation currentness prior art.
-- `docs/specs/admission-flow.md`.
-- `docs/specs/prompt-out-context-assembly.md`.
-- `docs/specs/browser-visible-guidance-acceptance.md`.
-- `docs/principles/canon-sovereignty.md`, `workflow-principles.md`, `guided-workflow-usability.md`, `data-principles.md`, and `domain-fidelity.md`.
-- ADR 0006, ADR 0007, and ADR 0009.
+- Field Build 14 report, now durable as a tracked/clean/origin-visible repo file.
+- Current source checks listed above.
+- Closed #343/#344/#345 for Admission pre-load Prompt-out currentness.
+- Closed #346/#347 for substrate search punctuation and short-ID prefix hardening.
+- Closed #328/#336/#338 for carried Field Build 11 context.
+- Repo authorities listed in `Authority Findings`.
 
 Problem:
 
-After selecting `FAC-3` in Admission, the main Prompt packet preview can render pressure-mode packet text before the steward clicks `Load Admission Prompt-out Step`. At the same time, the visible control says Proposal mode and the loaded status says none yet. Loading Proposal corrects the active current packet and status, and post-severity stale labeling works. The defect is the pre-load state: it looks like usable packet body text even though it does not match the selected mode/load state.
+The previous same-stem prep artifact was accurate for its earlier moment, but it is stale now. Leaving a first-PRD recommendation in place would invite `/to-prd` to republish already-closed work.
 
-Recommended product rule:
+Recommended product rule or seam:
 
-An Admission prompt packet body is current or copy-worthy only after the steward explicitly loads or generates the selected mode for the active Admission decision identity. Before that load, the Admission surface should either suppress packet body text or label it as preview-only/non-current with no current packet copy/export/store affordance. The selected mode, preview label, source manifest, loaded mode, and current packet status must not imply that a pressure packet is the active Proposal packet.
+No product rule change is recommended from this report at current HEAD. Treat Field Build 14 `R-01` and `F-01` as closed unless a new replay shows current source diverges from the closed issue acceptance.
 
 Scope:
 
-- Adjust the Admission decision payload and/or browser rendering so pre-load preview state cannot present a pressure body as a selected Proposal current packet.
-- Preserve server-owned Prompt-out assembly and mode step requests.
-- Keep the existing current loaded packet identity behavior after explicit load.
-- Keep the validated post-severity stale prior-origin labeling from Field Build 14 `V-05`.
-- Make selected mode, loaded mode, and preview body status visible together.
-- Ensure Proposal and Pressure remain reachable through the active Admission selector.
-- Add focused tests and active-route proof for selected Admission record, pre-load preview, Proposal load, Pressure load, and severity transition stale state.
+- Preserve this updated determination as the current same-stem prep posture.
+- Do not publish a duplicate Admission pre-load Prompt-out PRD.
+- Do not publish a duplicate substrate search punctuation PRD.
+- If future evidence contradicts current source/tracker claims, open a verification/reopen candidate against only the contradicted route.
 
-Acceptance:
+Acceptance for this prep:
 
-- Selecting an Admission queue record with Proposal selected and no loaded packet does not show an unqualified pressure packet body as the main current packet preview.
-- If any packet-like text appears before explicit load, it is labeled preview-only or non-current and has no current packet copy/export/store affordance.
-- The pre-load state tells the steward what action loads the selected mode.
-- Loading Proposal produces a Proposal current packet whose visible body, loaded mode, source manifest, hashes or identity, and copy/export affordance agree.
-- Loading Pressure produces a Pressure current packet with the same currentness guarantees.
-- Changing selected mode before load updates the pre-load label or suppresses body text; it does not leave the prior mode body looking current.
-- Declaring severity after a loaded queue/severity packet still renders the old packet as stale prior-origin evidence and disables current packet actions.
-- Browser-visible proof maps Field Build 14 `R-01` to the exact active Admission route, not only a lower-level packet-generation test.
-- The implementation does not infer severity, assign canon standing, parse advisory material, auto-link advisory use, or duplicate server-owned Prompt-out policy in the browser.
+- Every Field Build 14 finding and seed has a status.
+- The stale prior recommendation is explicitly superseded.
+- Tracker freshness names the exact closed issues and the no-open-overlap search.
+- Source durability and authored-artifact posture are recorded.
+- A later `/to-prd` pass can see that no new PRD is currently recommended without rereading the entire report.
 
-Likely issue slices:
-
-1. Admission Prompt-out preview contract and spec clarification for pre-load non-current state.
-2. Browser Admission preview rendering/currentness guard for selected mode versus loaded mode.
-3. Server/browser tests plus active-route replay for `R-01` and `V-05` regression.
+Likely issue slices: none.
 
 Out of scope:
 
-- Prompt packet content rewrites after explicit load.
-- New Prompt-out templates or modes.
-- Direct LLM integration, API keys, vendor coupling, or advisory parsing.
-- Admission full-gate substance, severity policy, canon-standing transitions, or gate completion.
-- Creation Prompt-out currentness, already handled by the prior Creation PRDs.
-- Substrate search punctuation hardening, unless the user explicitly bundles the independent second candidate.
+- Code changes.
+- Tracker issue creation, labels, comments, or closures.
+- `/to-prd` seam confirmation.
+- Replaying the app or rerunning product tests.
+- Reopening closed issues without fresh contradictory evidence.
+- Admission full-gate world authoring for `FAC-3`; that remains field-build frontier work, not a PRD seed by itself.
 
 ## Follow-On Candidates
 
-### Substrate Search Punctuation Hardening
+### Verification/Reopen Candidate: Admission Currentness Replay
 
-Purpose: make read-side search robust for ordinary short-id-style query text.
+Purpose: use only if a future active-route replay shows the current Admission route still exposes a wrong-current pre-load packet or regresses stale prior-origin handling.
 
-Sources:
+Sources: Field Build 14 `R-01`, closed #343/#344/#345, current Admission source, and `docs/specs/browser-visible-guidance-acceptance.md`.
 
-- Field Build 14 `F-01`, summarized from the untracked local report.
-- `docs/specs/schema-v1.md` short-ID convention.
-- `docs/principles/data-principles.md` W-5 and T-3.
-- Current substrate search route and world-file FTS implementation.
+Problem: no current problem is confirmed. This candidate exists only to avoid reopening closed work from stale prep text.
 
-Problem:
+Recommended rule or open design point: if replay fails, target the exact failing Admission route and currentness state. Do not reopen Prompt-out architecture broadly unless the failure crosses routes.
 
-A diagnostic request to `/api/search?q=FAC-` returns `Internal Server Error` because the raw query text is passed to SQLite FTS `MATCH`. This is ordinary steward/agent lookup text: short IDs use prefixes like `FAC-1`, and a partial prefix search should not crash the server.
+Scope: active routed Admission decision surface, selected Admission record, selected mode, loaded mode, pre-load currentness state, Proposal and Pressure load, severity declaration, stale prior-origin state, advisory/canon warning, source manifest, and explicit non-mutation.
 
-Recommended rule or open design point:
+Acceptance: replay either confirms current source and leaves no issue, or captures a current failing route with enough evidence to triage a focused reopen.
 
-Search should return a stable response for punctuation-bearing and short-id-prefix queries. The implementation can choose literal-token escaping, a safe fallback to LIKE/prefix search for short IDs, or a stable 4xx validation response for unsupported FTS syntax. The product preference is literal-token or prefix search for short-id-like input because `FAC-` is a natural partial lookup, but validation is acceptable if it is browser-visible and non-500.
+### Verification/Reopen Candidate: Search Punctuation API Replay
 
-Scope:
+Purpose: use only if a current API replay shows `/api/search?q=FAC-` or other recoverable punctuation input still returns an unstable failure.
 
-- Harden `/api/search` and `WorldFile.search` against FTS syntax errors from punctuation and malformed query strings.
-- Add server tests for `FAC-`, `FAC-1`, punctuation-only, quoted text, empty/whitespace, and ordinary word queries.
-- Preserve existing ranking and simple word search behavior.
-- If the route returns validation errors instead of fallback results, make the browser search surface show a stable message instead of a generic failure.
+Sources: Field Build 14 `F-01`, closed #346/#347, current search source and tests, `docs/specs/schema-v1.md`, and `docs/principles/data-principles.md`.
 
-Acceptance:
+Problem: no current problem is confirmed. Current source and tests cover the reported failure.
 
-- `GET /api/search?q=FAC-` no longer returns 500.
-- `GET /api/search?q=FAC-1` can find a record with short ID `FAC-1` or returns a documented stable validation response if exact short-ID lookup is not chosen.
-- Punctuation-bearing queries do not throw uncaught SQLite FTS syntax errors.
-- Empty or whitespace queries still return an empty result set.
-- Existing simple word search and FTS freshness tests continue to pass.
-- The route returns a stable response shape for recoverable invalid search input.
-- No canon records, advisory artifacts, flow state, or methodology state are mutated by search.
+Recommended rule or open design point: if replay fails, target route/search behavior for the failing input class while preserving read-only behavior and ordinary prose search.
 
-Open design point for `/to-prd`: choose literal/prefix search behavior or stable validation behavior. Recommendation: literal-token/prefix fallback for short-id-like input, because generated short IDs are app-owned citation identifiers and partial lookup is a natural read-side workflow.
+Scope: `/api/search`, short-ID prefix/exact lookup, safe FTS tokenization, malformed punctuation handling, stable response shape, and read-only preservation.
 
-### Field-Build Replay After Admission Preview Fix
-
-Purpose: prove that the active Admission route no longer presents mismatched pre-load packet text in a real or representative world.
-
-Sources: Field Build 14 `R-01`, the future implementation, and prior currentness replay patterns from PRD #297 and PRD #336.
-
-Scope: active-route evidence only, not new product behavior.
-
-Acceptance: open or create a world with at least one proposed Admission record, select the record, verify pre-load preview state is non-current or suppressed, load Proposal and Pressure, declare severity, and verify stale prior-origin behavior still matches Field Build 14 `V-05`.
+Acceptance: replay either confirms stable non-500 responses and leaves no issue, or captures the current failing input plus response/log evidence for a focused reopen.
 
 ## Coverage Follow-Up
 
-After the Admission preview PRD lands, resume the Jon Urena world or an equivalent fixture at Admission `FAC-3` queue/severity. The replay should prove:
+Field-build continuation should resume the Jon Urena world at Admission `FAC-3` full gate before `FAC-2`. That is methodology/world-authoring frontier coverage, not product scope from this prep.
 
-- the selected record has no unqualified pre-load pressure body while Proposal is selected and loaded mode is none;
-- Proposal and Pressure modes both load exact current packets;
-- the cold packet can be copied/exported only when current;
-- declaring severity moves the prior queue/severity packet into stale prior-origin state;
-- no canon standing changes until Admission gate completion;
-- no methodology docs are needed to know which packet is current.
+Useful coverage checks before opening more product scope:
 
-After the search hardening candidate lands, run read-side API tests or a browser search smoke proving that `FAC-`, exact short IDs, ordinary terms, empty queries, and punctuation-heavy inputs return stable non-500 responses.
+- Active-route Admission replay confirms pre-load state is non-current or suppressed, Proposal and Pressure produce current packets, and severity transition still marks the prior packet stale.
+- Search API replay confirms `FAC-`, `FAC-1`, missing prefixes, empty input, punctuation-only input, dangling quote text, and ordinary prose return stable read-only results.
+- Full-gate field build records whether the app now carries enough method guidance for `FAC-3` without relying on external docs.
+
+These checks become product work only when they expose current behavior that contradicts closed issue acceptance or repo authorities.
 
 ## Rejected Or No-Op Alternatives
 
-- Bundle `R-01` and `F-01` into one PRD. Rejected because they touch different product routes, decision points, seams, and acceptance proof. Admission preview currentness is guided-flow Prompt-out behavior; search hardening is substrate/read-side robustness.
-- Treat `R-01` as covered by PRD #297. Rejected because the closed PRD made loaded Admission mode selection work, but current source still ships a pressure-generated pre-load preview beside Proposal selected/none loaded state.
-- Reopen PRD #250 or child #260. Rejected because Field Build 14 validates the loaded stale-state guard after severity change; the fresh gap exists before explicit load.
-- Treat `R-01` as only cosmetic and skip product work. Rejected because Prompt-out correctness depends on exact packet identity and cold-copy confidence. A body that looks copyable but is not the selected mode undermines W-1/W-8 even if loaded generation works.
-- Treat `F-01` as a field-build-only diagnostic failure. Rejected because short-id-like search is ordinary read-side behavior for stewards and agents, and the server should not 500 on it.
-- Fix search by swallowing all SQLite errors and returning empty results. Rejected as insufficient if it hides real store corruption or SQL errors. The future implementation should target expected FTS syntax/input failures and leave unexpected faults observable.
-- Add a new ADR. Rejected because the existing Admission, Prompt-out, browser guided-flow, and data principles already decide the relevant boundaries.
-- Change the methodology package. Rejected because both candidates are app implementation/currentness and read-side robustness issues, not methodology gaps.
-- Skip a written prep artifact. Rejected by user confirmation; this file is the agreed PRD-ready determination home.
+- Publish the old Admission first PRD recommendation. Rejected because #343/#344/#345 are closed and current source reflects the non-current pre-load guard.
+- Publish the old search follow-on recommendation. Rejected because #346/#347 are closed and current source/tests cover the reported `FAC-` failure class.
+- Bundle Admission currentness and search hardening into a new PRD. Rejected because they were independent scopes and are both already closed.
+- Reopen #343 or #346 from stale prep text alone. Rejected because exact tracker readbacks and current source support covered status; reopen needs fresh contradictory replay.
+- Treat all Field Build 14 findings as product work. Rejected because `V-01` through `V-05` are validation evidence and the report's methodology section proposes no docs change.
+- Add methodology, principle, ADR, or glossary changes. Rejected because existing authorities already govern the behavior and no contradiction was found.
+- Cite machine-local field-build evidence in a future PRD. Rejected because machine-local evidence should be summarized, not cited as durable source material.
 
 ## PRD Publication Inputs
 
-Suggested first PRD title:
+Suggested title: none. No new PRD is recommended at current HEAD.
 
-`PRD: Admission pre-load Prompt-out preview currentness - selected mode, loaded mode, and non-current packet body`
+Publication package: no package now. The previous "first PRD plus deferred follow-on" package is consumed by closed #343/#344/#345 and #346/#347.
 
-Suggested second PRD or issue title:
+Recommended testing seam and seam checkpoint:
 
-`PRD: Substrate search punctuation hardening - short-ID prefixes and safe FTS input`
+- No `/to-prd` seam checkpoint is owed because no PRD publication is recommended.
+- If Admission currentness reopens, reuse existing server Admission/Prompt-out decision-point seams, the routed web Admission decision surface, and active-route browser evidence for the Field Build 14 route.
+- If search hardening reopens, reuse server HTTP/API route tests against temp-file worlds plus focused world-file search tests where fallback/tokenization lives.
 
-Publication package: first PRD plus deferred independent follow-on. Do not publish `R-01` and `F-01` as one bundled PRD unless the user explicitly revises this packaging. If the user asks for a two-PRD program, publish them as separate PRDs because they do not share a seam or acceptance proof.
+`/to-prd` usage: consulted for house style only during this prep. It was not invoked, no body was drafted, no issue was staged or published, and no seam checkpoint was run.
 
-Recommended testing seams:
+Likely label and downgrades:
 
-- Admission candidate: reuse existing server Prompt-out/Admission decision-point seams and the routed web Admission decision surface. Add active-route browser evidence for the selected record pre-load state, mode loading, and severity stale transition. No new architecture seam is expected.
-- Search candidate: reuse server HTTP/API tests against temp-file world databases plus focused `WorldFile.search` tests if escaping/fallback behavior lives below the route. Browser search smoke is useful only if the route returns user-facing validation errors or browser task grammar changes.
+- No label now because no issue is recommended.
+- A future Admission reopen could be `ready-for-agent` only if current failing evidence is concrete, the browser-visible guidance checklist is mapped, and the fix reuses existing seams. Downgrade to `needs-triage` if the failure implies a broader Prompt-out architecture decision or the evidence is ambiguous.
+- A future search reopen could be `ready-for-agent` only if the failing input/response is concrete and the desired fallback/validation behavior is specified. Downgrade to `needs-triage` if the product behavior choice is unresolved.
 
-The later `/to-prd` pass still owes its seam checkpoint.
+Issue-tracker and triage-label docs consulted: `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md`. The browser-visible checklist applies to any future guided-flow/Prompt-out Admission reopen and is generally N/A for server-only substrate search unless browser search behavior changes.
 
-`/to-prd` usage: consulted for house style only during this prep. It was not invoked, and no issue was published.
+Authorities to cite if reopened:
 
-Likely labels:
+- Admission currentness: `docs/specs/admission-flow.md`, `docs/specs/prompt-out-context-assembly.md`, `docs/specs/browser-visible-guidance-acceptance.md`, `docs/worldbuilding-system/20_ai_assisted_workflow.md`, `docs/principles/README.md`, `docs/principles/canon-sovereignty.md`, `docs/principles/workflow-principles.md`, `docs/principles/guided-workflow-usability.md`, `docs/principles/data-principles.md`, `docs/principles/domain-fidelity.md`, ADR 0006, ADR 0007, ADR 0009, and closed #343/#344/#345.
+- Search hardening: `docs/specs/schema-v1.md`, `docs/principles/README.md`, `docs/principles/data-principles.md`, `docs/principles/domain-fidelity.md`, ADR 0001, ADR 0004, and closed #346/#347.
 
-- Admission PRD: `ready-for-agent` after `/to-prd` seam confirmation if the PRD body maps the browser-visible guidance checklist and leaves no open design decision about suppress-versus-label behavior. Downgrade to `needs-triage` if the PRD leaves selected behavior open, proposes a new Prompt-out architecture seam, or lacks active-route browser-visible acceptance.
-- Search PRD or issue: `ready-for-agent` if the future body chooses fallback behavior or stable validation behavior and includes route/store tests. Downgrade to `needs-triage` if the behavior choice remains open or if browser-facing validation copy is undecided.
+Browser-visible guidance checklist needs:
 
-Principles, ADRs, specs, and prior PRDs/issues to cite:
+- Admission reopen: package source cited; decision-point contract named; selected/loaded/currentness fields visible; doctrine at point of use; prompt packet preview and source manifest; advisory/canon separation; blockers/currentness validation; current/next/resume state; read-side/provenance or explicit non-mutation; and a cognitive walkthrough of selecting a proposed Admission record, loading modes, declaring severity, and seeing stale prior-origin state.
+- Search reopen: N/A unless browser task grammar or validation copy changes. If it changes, add stable recovery-text acceptance and read-only proof.
 
-- `docs/specs/admission-flow.md`
-- `docs/specs/prompt-out-context-assembly.md`
-- `docs/specs/browser-visible-guidance-acceptance.md`
-- `docs/specs/schema-v1.md` for short-ID examples if publishing search hardening
-- `docs/principles/README.md`
-- `docs/principles/canon-sovereignty.md`
-- `docs/principles/workflow-principles.md`
-- `docs/principles/guided-workflow-usability.md`
-- `docs/principles/data-principles.md`
-- `docs/principles/domain-fidelity.md`
-- ADR 0006, ADR 0007, and ADR 0009 for the Admission candidate
-- ADR 0001 and ADR 0004 only if the search candidate needs SQLite/Hono implementation context
-- PRD #250, #260, #297, #336, #337, and #338 for prompt-currentness prior art
-- PRD #321 and #339 as validated Creation coverage context, not as new scope
-- PRD #328 as covered correction-note context
-
-Browser-visible guidance checklist mapping requirements for the Admission candidate:
-
-| Checklist item | Future PRD home |
-|---|---|
-| package source cited | Preamble and Principles should cite Admission flow, Prompt-out context assembly, AI-assisted workflow doctrine, and prior Prompt-out PRDs. |
-| decision-point contract named | Problem/Solution/Implementation should name Admission queue/severity Prompt-out for the selected Admission record. |
-| required, optional, skippable, and severity-dependent fields visible | In scope for selected mode, loaded mode, current/non-current packet state, severity-declared transition, and advisory actions. Gate fields are N/A unless full-gate preview is touched. |
-| doctrine at the actual decision point | In scope. The preview state should preserve Admission queue/severity doctrine and advisory/canon warning. |
-| prompt packet preview, source manifest, and cold external LLM test | In scope. The PRD should require visible preview/source manifest state and exact current packet proof after load. Cold LLM proof is useful for loaded Proposal/Pressure packets, but the defect itself is pre-load currentness. |
-| advisory/canon separation visible | In scope. Prompt-out remains advisory and cannot assign severity or canon standing. |
-| skip path and reason storage | N/A unless implementation changes Prompt-out skip behavior; it should not. |
-| blockers/substance validation | In scope for non-current/stale/incomplete packet states and disabled current actions. |
-| current, next, and resume state | In scope for selected record, selected mode, loaded mode, and severity transition. |
-| read-side audit or provenance link | N/A for writes because this PRD should not write records. Source manifest and prompt identity provide packet provenance. |
-| cognitive walkthrough scenario | In scope. Use Field Build 14 route: select `FAC-3`, inspect pre-load state, load Proposal/Pressure, declare severity, verify stale prior-origin state. |
-
-Browser-visible guidance checklist mapping for the search candidate: generally N/A because it is substrate/read-side API robustness, not a guided-flow issue. If the future PRD changes browser search behavior or validation copy, include a compact browser recovery acceptance row for stable non-500 feedback.
-
-Canonical gates:
+Canonical gates for any future implementation:
 
 - `pnpm test`
 - `pnpm typecheck`
 - `pnpm build`
 
-Focused likely gates:
+Focused likely gates if reopened:
 
-- Admission candidate: server Admission decision-point/Prompt-out tests, web Admission decision-surface tests, web Prompt-out lifecycle/currentness tests if touched, and active-route browser evidence for the Field Build 14 route.
-- Search candidate: server app route tests for `/api/search`, `WorldFile.search` tests for FTS escaping/fallback, and package-level server typecheck/build if server-only.
+- Admission currentness: focused server Admission/Prompt-out tests, focused web Admission decision-surface tests, active-route browser evidence, and root gates before closeout because the work crosses server/web behavior.
+- Search hardening: focused server route/world-file tests and server typecheck/build; root gates before closeout if workflow/package or cross-package surfaces change.
 
-Browser/cold-LLM evidence expectations:
+Evidence expectations:
 
-- Admission candidate: browser active-route replay with selected record pre-load state, Proposal load, Pressure load, severity declaration, stale prior-origin state, source manifest, advisory/canon warning, and console status.
-- Admission cold-LLM proof is optional if packet content does not change, but if the PRD claims packet context remains self-contained, use exact loaded Proposal/Pressure packets.
-- Search candidate: no cold-LLM evidence expected. API readback and, if applicable, browser search feedback are sufficient.
+- Admission currentness: active browser route proof, selected record, selected mode, loaded mode, current/non-current/stale state, packet body/source manifest/omissions/advisory warning, current actions disabled/enabled as appropriate, explicit non-mutation, and console state.
+- Search hardening: API readbacks for exact failing inputs, stable status/shape, returned short-ID records where expected, ordinary search preservation, and read-only table/record-count preservation where relevant.
 
 Source durability warnings and temporary-path handling:
 
-- `reports/field-build-14-jon-urena-chrononaut.md` is untracked at prep time. Do not cite it as durable until it is tracked, clean, and publication-ref visible.
-- Temp field-build evidence from the report should be summarized, not cited by local path.
-- This prep file is new/untracked until committed and publication-ref visible. If `/to-prd` cites this file before that happens, mark it pending local publication or summarize it without durable-citation wording.
-- Durable authorities checked in this prep, including specs, principles, ADRs, and prior reports `reports/field-build-13-jon-urena-chrononaut.md` and `reports/field-build-12-jon-urena-chrononaut-prd-prep.md`, were tracked, clean, and visible on `origin/main` at prep time.
+- `reports/field-build-14-jon-urena-chrononaut.md` is durable in the current checkout, but its embedded machine-local evidence remains summarized, not cited.
+- This updated prep artifact is dirty/pending local publication until committed and visible on the publication ref.
+- Future PRD bodies should cite durable specs, principles, ADRs, and issue numbers rather than machine-local field-build artifacts.
 
 ## Completion Self-Check
 
 - `/to-prd` consulted for house style only: yes.
-- Source artifact posture recorded: yes, Field Build 14 source report is untracked/pending local publication; temp evidence should be summarized.
-- Authored artifact posture recorded: yes, new untracked prep artifact.
-- Tracker freshness recorded: yes, no open duplicate and relevant closed PRDs/issues named.
-- Selected first PRD recorded: yes, Admission pre-load Prompt-out preview currentness.
-- Follow-on candidate recorded: yes, substrate search punctuation hardening.
-- Recommended testing seams recorded: yes, existing Admission/Prompt-out/web guided surface seams and server search route/store seams.
-- Likely labels and downgrade conditions recorded: yes.
+- Source artifact posture recorded: yes; source report is tracked, clean, and publication-ref visible, with embedded machine-local evidence summarized only.
+- Authored artifact posture recorded: yes; this update is pending local publication until committed and visible on the publication ref.
+- Existing same-stem prep artifact classified: yes; superseded and partially consumed.
+- Tracker freshness recorded: yes; no open overlap by checked terms, and exact closed issues named.
+- Every finding and report seed assigned a status: yes.
+- Selected first PRD or verdict recorded: yes; no new PRD recommended now.
+- Follow-on candidates recorded: yes; verification/reopen candidates only.
+- Recommended testing seams recorded for future reopen only: yes.
+- Likely labels and downgrade conditions recorded for future reopen only: yes.
+- Issue-tracker and triage-label docs consulted: yes.
 - Canonical and focused gates recorded: yes.
-- Browser-visible checklist mapping recorded for guided-flow candidate: yes.
-- Domain-model result recorded: yes, unchanged.
+- Browser-visible checklist mapping recorded for future Admission reopen and N/A posture for search: yes.
+- Machine-local path leakage avoided except summarized durability warnings: yes.
 
 ## Freshness And Boundaries
 
 Refreshed in this session:
 
 - `reports/field-build-14-jon-urena-chrononaut.md`.
-- `reports/field-build-13-jon-urena-chrononaut.md`.
+- The pre-existing `reports/field-build-14-jon-urena-chrononaut-prd-prep.md`.
+- `.claude/skills/field-build-prd-prep/SKILL.md`.
+- `.claude/skills/to-prd/SKILL.md` for house style only.
+- `.claude/skills/grilling/references/prd-ready-determination-artifact.md`.
 - `docs/agents/issue-tracker.md` and `docs/agents/triage-labels.md`.
 - `CONTEXT.md` and `docs/agents/domain.md`.
 - `docs/principles/README.md` and relevant principle files.
-- `docs/specs/admission-flow.md`.
-- `docs/specs/prompt-out-context-assembly.md`.
-- `docs/specs/browser-visible-guidance-acceptance.md`.
-- ADR 0006, ADR 0007, and ADR 0009.
-- Current implementation surfaces in Admission flow, Prompt-out preview rendering, substrate search route, world-file search, and relevant tests.
-- GitHub tracker state for open overlap and relevant closed PRDs/issues.
+- `docs/specs/admission-flow.md`, `docs/specs/prompt-out-context-assembly.md`, `docs/specs/browser-visible-guidance-acceptance.md`, and `docs/specs/schema-v1.md`.
+- ADR 0001, ADR 0004, ADR 0006, ADR 0007, and ADR 0009.
+- Current implementation surfaces in Admission flow, Prompt-out preview rendering, substrate search route, world-file search, and focused tests.
+- GitHub tracker state for open overlap and exact closed issues #328, #336, #338, #343, #344, #345, #346, and #347.
 
 Not done:
 
 - No app run, Playwright replay, product test, or cold-LLM rerun was performed during this prep. The task was PRD-ready determination from the report plus live repo/tracker reconciliation.
-- No GitHub issue was created.
+- No GitHub issue was created, edited, labeled, commented on, or closed.
 - No code or spec was changed.
 - No methodology package, principle, ADR, or domain glossary edit was made.
+- No `/to-prd` seam checkpoint happened.
 
-Pre-existing worktree dirt left untouched:
-
-- `.claude/skills/field-build/SKILL.md` modified.
-- `reports/field-build-14-jon-urena-chrononaut.md` untracked.
+Pre-existing worktree dirt at intake: none.
 
 Intentional file change:
 
-- Added `reports/field-build-14-jon-urena-chrononaut-prd-prep.md`.
+- Updated `reports/field-build-14-jon-urena-chrononaut-prd-prep.md`.

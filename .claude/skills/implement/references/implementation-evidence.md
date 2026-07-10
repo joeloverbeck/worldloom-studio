@@ -39,12 +39,13 @@ Run typechecking regularly and single test files regularly. After a focused test
 
 Before closeout, read the root verification guidance and run the canonical gates required for the work's blast radius. In this repo, workflow, package, cross-package, or closeout-scale changes require `pnpm test`, `pnpm typecheck`, and `pnpm build`; do not report a lint, browser/e2e, or hard-audit gate as satisfied unless the repo adds that script and policy.
 
-Before committing, draft a working pre-close audit row-by-row against each in-scope issue's acceptance criteria and Principles/ADR checks. Patch any row that would be `blocked` or `not done` before entering review, unless the right outcome is to leave that issue open. This working audit is a review-entry checklist; finalize or refresh the durable closeout artifact after review fixes, final SHA, required verification, and browser/manual freshness are known.
+Before committing, draft a working pre-close audit row-by-row against each in-scope issue's acceptance criteria and Principles/ADR checks. For every row marked `satisfied`, run a pre-review acceptance exactness challenge: compare the evidence with the original issue or PRD wording and require proof of the exact condition. Planned, intended, nearby, or substituted behavior is not evidence that the criterion already passes. Mark an unsupported row `blocked` or `not done` and patch it before entering review, unless the right outcome is to leave that issue open. This working audit is a review-entry checklist; finalize or refresh the durable closeout artifact after review fixes, final SHA, required verification, and browser/manual freshness are known.
 
 Implementation commit gate:
 
 - Before staging or committing, make this line visible in the conversation or ledger: `Implementation commit gate passed: working pre-close audit drafted <sink/reference>; blocked/not done rows <none/listed>; unrelated dirty files <listed/N/A>; staged files scoped <yes/no>.`
 - Working pre-close audit drafted with every in-scope criterion and Principles/ADR check mapped to evidence and status.
+- Pre-review acceptance exactness challenge passed for every `satisfied` row; unsupported exact conditions are `blocked` or `not done` rather than deferred to review.
 - Any `blocked` or `not done` rows are either fixed before review or explicitly justify leaving the issue open.
 - `git status --short` has been rerun and unrelated dirty files are identified.
 - Only implementation-owned files are staged for the implementation commit.

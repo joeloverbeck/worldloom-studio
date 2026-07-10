@@ -1,8 +1,10 @@
 # Tracker Closeout Gates
 
 Read this before declaring completion, before drafting issue closeout evidence,
-and immediately before any tracker mutation such as `gh issue comment`,
-`gh issue close`, `glab issue close`, or equivalent.
+and immediately before the first tracker mutation in a continuous closeout
+sequence. Re-read it before resuming after interruption or compaction, or after
+the final SHA, evidence, or closeout body changes. Mutation-specific state and
+inline-comment gates still apply before later commands in the same sequence.
 
 For child-family sequencing, fixed-template child comments, and parent rollup URL
 handling, also read [child-family-closeout.md](child-family-closeout.md).
@@ -15,6 +17,7 @@ For long body files and copy-ready body templates, also read
 - [Tracker Mutation Hard-Stop Checklist](#tracker-mutation-hard-stop-checklist)
 - [Non-Bypassable Closeout Gate](#non-bypassable-closeout-gate)
 - [General Closeout Rules](#general-closeout-rules)
+- [Post-Mutation Readback Failure](#post-mutation-readback-failure)
 - [Local-Only SHA and Body Checks](#local-only-sha-and-body-checks)
 - [Closeout Command Gate](#closeout-command-gate)
 
@@ -116,6 +119,25 @@ Drop only flags whose conditions do not apply. If the parent rollup URL has alre
 - If the session resumes or compacts after the pre-close audit but before issue-close commands, treat the audit as still usable only when current context contains the original audit table or a compacted summary preserving issue, acceptance criterion or conformance check, evidence, status, and that every in-scope row is `satisfied`. If that shape is missing or ambiguous, repost or expand the audit before running any close command.
 - If the issue breakdown is wrong, comment with the proposed tracker correction instead of closing mismatched issues.
 - Run a final `git status --short`. For untracked verification artifacts, either remove them if safe, stage them if they are intended evidence, or explicitly report them in the final response.
+
+## Post-Mutation Readback Failure
+
+If a tracker mutation reports success or returns a comment URL but a required
+exact-state readback later fails because of network, API, or tool availability,
+preserve the mutation output and URL as evidence. Do not replay the comment or
+close command solely because verification failed; replay can duplicate comments
+or obscure which mutation took effect.
+
+Retry only the exact read-only lookup needed to verify the affected issue state,
+using the permitted network or escalation path when applicable. Treat a mutation
+whose result is ambiguous in the same way: verify with a read-only lookup before
+considering any replay. Replay a mutation only after readback proves that it did
+not take effect.
+
+If exact readback remains unavailable, report the tracker state as unverified and
+do not claim closeout completion. Keep a parent closeout blocked while any child
+state is unverified, and hand off the preserved mutation outputs, returned URLs,
+failed readback command, and next exact read-only lookup.
 
 ## Local-Only SHA and Body Checks
 
