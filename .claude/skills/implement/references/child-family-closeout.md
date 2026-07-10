@@ -8,6 +8,17 @@ will cite.
 
 Small child-family parent rollup: a parent PRD rollup is allowed for 2-3 child issues when it is the clearest durable sink for shared evidence, such as local-only SHA rationale, TDD evidence, review fallback evidence, or parent closeout. Use the validator matrix in [tracker-closeout-gates.md](tracker-closeout-gates.md) according to the evidence shape: `--child-family` when review fallback covers a PRD child family, `--tdd-parent-rollup` when TDD evidence uses the parent-rollup compact table, and `--fixed-child-pending` or `--fixed-child` according to the fixed-child state below. Still keep the ledger and audit rows per issue.
 
+For 2-3 child issues using a parent rollup plus fixed-template child comments, use this compact sequence:
+
+1. Draft the parent rollup/audit body under `/tmp` or another allowed durable sink, inspect the exact body, and run the applicable validators with `--fixed-child-pending` before the parent rollup URL exists.
+2. Post the parent rollup, capture the returned URL or exact comment reference, and keep that URL as the only evidence pointer for the fixed child comments.
+3. If the posted parent rollup must contain the real child inline close comment URL, patch the local body and posted comment, verify no placeholder remains, and rerun the implement validator with `--fixed-child`.
+4. Inspect the exact final inline child close comment once, including the real parent rollup URL, using the `Fixed child final inline close comment inspected: Completed by <sha>. Evidence: <parent rollup comment URL>` line.
+5. Close each child with `gh issue close <child> --reason completed --comment "<inspected exact inline string>"`; do not reword the inline comment between children.
+6. Verify every child state by exact issue number and record post-child closure verification in a parent rollup patch, follow-up parent comment, or inspected parent close comment.
+7. Close the parent only after that durable post-child verification names the exact child issue numbers and CLOSED states.
+8. Exact-read the parent and children again before the final response.
+
 Closeout execution order for 4+ in-scope child issues defaults to: post the parent PRD rollup/audit comment first, capture its URL or exact comment reference, cite that rollup from each child closeout comment, close child issues, verify child states by exact issue number, then close the parent. Use per-child full audit comments instead only when no parent rollup is used.
 
 For 4+ in-scope child issues, follow this command sequence unless you explicitly choose and state a different durable audit sink:

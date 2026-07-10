@@ -74,7 +74,7 @@ If findings were fixed before closeout, include this block before the axis summa
 
 - **Findings found**: `<count and short titles>`
 - **Fixes made**: `<files/behavior changed, proof/coverage added>`
-- **TDD/review-fix evidence**: `<red command/failure per behavior-changing fix, partial red - wrong reason: <reason> plus follow-up intended red if applicable, coverage-only review fix reason, explicit red-first skipped because ..., or linked TDD review-fix addendum>`
+- **TDD/review-fix evidence**: `<red command/failure per behavior-changing fix, partial red - wrong reason: <reason> plus follow-up intended red if applicable, coverage-only review fix reason, red-first skipped because Standards-only/conformance-only fix did not change behavior, explicit red-first skipped because ..., or linked TDD review-fix addendum>`
 - **Verification rerun**: `<commands and browser/manual checks>`
 - **Browser/manual evidence freshness**: `<rerun evidence on final tree / not affected because changed path <path> is outside the earlier evidence route/action/API/fixture <route/action/API/fixture> and targeted proof <command> passed / not affected because changed path <path> is non-semantic formatting, comment wording, documentation, or closeout text; earlier evidence route/action/API/fixture <route/action/API/fixture> is untouched; diff inspected and targeted proof <command> passed / explicit blocked or stale reason / N/A because no browser/manual evidence was used>`
 - **Browser/manual console state**: `<0 errors and 0 warnings / classified unrelated output with evidence / rerun clean session because HMR, reused session, or agent-induced setup/request error tainted proof / N/A because no browser/manual evidence was used>`

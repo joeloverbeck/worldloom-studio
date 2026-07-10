@@ -16,6 +16,7 @@ Default to one issue at a time. If child issues are technically inseparable and 
 For each issue:
 
 - Identify the issue's acceptance criteria, required principles/ADR conformance checks, and required proof seams before coding.
+- Before adding or moving any helper, store/query function, persistence call, or cross-module entrypoint, name the owning module, the relevant principle or ADR if one applies, and why the target file is the right home. If ownership is unclear, inspect the nearest existing callers and module boundary before coding; do not park single-caller or flow-specific behavior in a broader shared helper merely because it is convenient.
 - Write or update tests for the acceptance criteria where a test seam is available.
 - Keep the issue open if required seam tests or other required proof are missing.
 - Mark blockers explicitly in the ledger instead of skipping the issue.

@@ -40,6 +40,7 @@ Whenever packet capture uses anything beyond the visible active-surface copy/exp
 - **Load the regression set.** Read the *latest* canonical field-build run report — the highest `<NN>`, since `<NN>` is a global run counter across all seeds (Step 3) — of **any** seed; findings are app-level, so a fix proven in one world is owed a check here even when this run builds a different world. From it, take every open **blocking** finding into the *mandatory* regression set and note every open friction/cosmetic finding as the *opportunistic* set. Record that report's **App commit** and diff it against current HEAD (`git rev-parse --short HEAD`); the gate is HEAD **plus working-tree state**, because the app you drive serves the working tree, not committed HEAD. **HEAD unchanged since that report *and* no uncommitted app-source changes (`git status --short` clean of `apps/`/`packages/`) ⇒ no fix could have landed:** carry its open findings forward untouched and skip the hardened re-test — never silently drop them. **HEAD advanced, *or* the working tree carries uncommitted app-source changes ⇒ run the regression pass.** No prior report at all ⇒ empty regression set; note it. *(The **regression pass** replays a prior finding to see whether a fix holds; never call it a "pressure test" — that name belongs to the challenge-mode work on world material.)*
 - **Load prior-art framing surfaces.** Before report writing, every P/R/F cluster must be framed as **confirming**, **extending**, or **new** against issues #109–#113, PRDs #201/#202/#204/#205–#210, and prior `reports/*field*` / `*parity*` reports. In setup, record which of those surfaces are available or unreachable so the final report's framing is deliberate rather than an afterthought.
 - **Baseline the worktree.** Run `git status --short` before the walk and record existing dirt in the live log, so you never later claim it.
+- **Reconcile final worktree state.** Before final response, run `git status --short` again and compare it to the bootstrap baseline. Leave unrelated dirt untouched. If new out-of-scope dirt appeared during the run and was not caused by the field build, record it as `external/unowned dirty files observed after baseline` in the live log or final note. Only newly observed `apps/` or `packages/` dirt affects the regression gate or app evidence; record those paths explicitly and rerun or qualify any app behavior that depended on the changed surface.
 - **Start or reuse the app.** If no repo-root dev server answers, run `pnpm dev` in the background (builds `@worldloom/shared`, Hono API on `127.0.0.1:4173`, Vite UI on `127.0.0.1:5173` with `/api` proxied); `pnpm install --frozen-lockfile` first if deps are missing. Reuse a running server only after verifying UI and API answer, and record the reuse and observed URLs. If Vite drifts off `5173`, use and log the actual URL. If the server prints healthy URLs but the browser or `curl` context cannot reach them, treat it as a local binding/sandbox-visibility blocker: log the printed and observed URLs, restart or reuse the server from a context visible to browser automation with approval as needed, then continue.
 - **Open a live log and evidence dirs** under `/tmp/worldloom-field-build/`: use `build-log.md` for the append-only raw log, `screenshots/` for browser screenshots, and `cold-llm/` for verbatim prompt packets and cold-subagent outputs. These scratch artifacts are the build's evidence trail and resume point, not the deliverable — polish belongs in the report. Keep screenshots and cold-LLM artifacts out of the repo unless the user explicitly asks to commit evidence. Initialize this log before the first browser action; do not drive the UI until it records the seed, baseline `git status --short`, current HEAD, chosen report number/slug if known, regression-set source, mandatory/opportunistic regression IDs, prior-art surfaces checked or unreachable, app/server URL plan, and user-directed evidence targets. After any resume, compaction, or interruption, append a resume checkpoint before continuing; before writing the final report, reconcile the live log through the final frontier so it names every resumed action, final decision point, and stop reason.
 
@@ -222,6 +223,11 @@ Per decision point, in walk order:
 ## For the app (PRD seeds)
 Cluster the P/R/F findings into fixable scopes; name the likeliest spec/component; flag principle-reinforcement candidates (W-#). For every systemic R finding, repeated local R pattern, redesign candidate, or structural F/P finding about missing or incorrect screen structure, say whether the app work is local polish or redesign, and name the recommended UX direction before turning it into PRD seed material. For every P/R/F cluster, state whether it confirms, extends, or is new relative to the prior-art frame above.
 
+For each app seed, include these subfields before any prose:
+- Disposition: `confirming` | `extending` | `new` relative to <issue/PRD/report surfaces>
+- Likely spec/component: <path, flow, or component surface>
+- UX scope: `local polish` | `redesign` | `N/A - not UX`
+
 ## For the methodology
 Cluster the M findings; name the doc file and the wording to revise. This is the field evidence the README's untested surfaces owe — `10`, `11`, `14`, `15`, `16`, `17`, and the proposal mode of `20`.
 
@@ -242,6 +248,16 @@ Verify the heading output includes `## Findings`, `## Regression of prior findin
 
 Then build a report-metadata audit table in the live log before the finding-field table. Use one row with columns for **Date**, **App commit**, **Method version**, **Essence**, **World file**, **Path walked**, **Evidence**, **Prior-art frame**, and **P/R/F cluster prior-art disposition**. Mark each cell `present` or `N/A - <reason>`; if any required metadata cell is blank, or if any P/R/F cluster is not marked `confirming`, `extending`, or `new` against the prior-art frame, revise the report before cleanup or final response.
 
+Use this exact live-log table shape:
+
+```md
+Report-metadata audit:
+
+| Date | App commit | Method version | Essence | World file | Path walked | Evidence | Prior-art frame | P/R/F cluster prior-art disposition |
+|---|---|---|---|---|---|---|---|---|
+| present | present | present | present | present | present | present | present | present |
+```
+
 Then build a finding-field audit table in the live log with one row per finding ID and columns for every required label: **Where**, **What happened**, **What the methodology requires**, **The snag**, **Fix direction**, **Touches**, plus **Repro** for blocking findings and **Design verdict** / **Recommendation** for R findings, redesign candidates, and structural F/P findings about missing or incorrect screen structure. Mark each cell `present` or `N/A - <reason>`; if any required cell is blank, revise the report before cleanup or final response.
 
 - **Findings** includes every P/R/M/F/V/Q from the live log.
@@ -258,7 +274,7 @@ Then build a finding-field audit table in the live log with one row per finding 
 
 At closeout, stop any dev server started solely for this build unless the user asked to keep it running; close the browser automation session unless the user asked to keep it open; close or release cold-subagent sessions; and record any intentionally running server or browser session in the final note.
 
-**Complete when:** report written under `reports/field-build-<NN>-<world-slug>.md`, every live-log finding and decision point carried in, the Regression of prior findings section resolved (or omitted when no prior canonical report existed), the Frontier block set, the live log reconciled through that frontier, screenshot, raw prompt packet, and cold-output evidence kept under `/tmp/worldloom-field-build/` and cited from the report, closeout cleanup handled, and `git status --short` shows no newly introduced repo dirt except the report (the world SQLite file lives at its recorded path, uncommitted unless the user asks).
+**Complete when:** report written under `reports/field-build-<NN>-<world-slug>.md`, every live-log finding and decision point carried in, the Regression of prior findings section resolved (or omitted when no prior canonical report existed), the Frontier block set, the live log reconciled through that frontier, screenshot, raw prompt packet, and cold-output evidence kept under `/tmp/worldloom-field-build/` and cited from the report, closeout cleanup handled, and final `git status --short` is reconciled against the baseline with no field-build-owned repo dirt except the report (the world SQLite file lives at its recorded path, uncommitted unless the user asks; external/unowned dirt observed after baseline is reported, not cleaned).
 
 ## Guardrails
 

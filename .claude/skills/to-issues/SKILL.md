@@ -18,6 +18,10 @@ Work from whatever is already in the conversation context. An in-context body sa
 
 When the source is described deictically, such as "the newly-created PRD" or "the issue we just made," resolve it to the most recent in-session published issue/PRD, state the resolved number before drafting, and verify it with an exact `gh issue view <n> --comments` read.
 
+If no in-context issue number is visible for a deictic source, run a compact recent-PRD lookup rather than guessing. Pick the newest candidate only when the result is unambiguous, state the assumption, and verify it with an exact `gh issue view <n> --comments` read before drafting. If multiple plausible PRDs or source issues exist, stop and ask for the intended issue number.
+
+After fetching the source and fresh comments, check whether a parent child-map ledger already decomposes the same source. When a ledger lists existing child issues, verify those children directly, run exact-title duplicate confirmation as needed, report the existing breakdown, and stop before drafting, approval, or publication unless the user explicitly asks to re-break down, replace, or supplement the existing child set.
+
 If the source body or comments name sibling PRDs/issues, program-sequence entries, coordination notes, "in flight" caveats, or related tracker items whose state could affect dependency wording, fetch those exact related items before Step 4. At minimum confirm their title, state, labels, and fresh comments, then classify them in the proposal as hard blockers, current context, or coordination-only. Do not rely on stale sequence comments when a sibling may already be implemented, closed, or materially changed.
 
 Keep related-item fetches compact when exact issue or PRD numbers are already known. Prefer exact `gh issue view <n>` queries that project only title, state, labels, URL, comment count, and short comment excerpts through `--jq`; fetch full bodies only for the source issue and the few prior child issues needed for house style. Avoid broad `gh issue list` calls that include bodies or comments unless discovery is genuinely needed, because they are easy to truncate and then must be redone.
