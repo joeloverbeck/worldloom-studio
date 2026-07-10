@@ -35,6 +35,7 @@ Whenever packet capture uses anything beyond the visible active-surface copy/exp
 ## Step 1 — Take the seed and set up
 
 - **Get the essence.** The user's world seed *is* the world's essence — the generating tension the world exists to explore (`05` Phase 1). If the invocation carried no seed, ask for one before anything else; a one-line premise is enough (e.g. "sentient humanoid animals; a skill-and-grit sport resolves the disputes war doesn't"). Never proposal-mode the essence — `20` reserves it to the steward and the app refuses proposal on the kernel World premise; you author it from the user's words.
+- **Handle report-path resumes.** If the invocation supplies a canonical field-build report path or glob such as `reports/field-build-13-<world>*`, treat that as an explicit resume target, not as a missing seed. Resolve it to one canonical run report, derive the essence, world name, world file path, and frontier from that report, and log the report path as the seed/frontier source before continuing. If the glob resolves to zero or multiple canonical reports, stop and ask for the intended report.
 - **Extract user-directed evidence targets.** If the invocation names specific PRDs, regressions, probes, packets, or stop-frontier requirements, convert them into a small coverage checklist in the live log before broad exploration. Each target gets a final state: `satisfied`, `blocked`, `probe unavailable`, or `not exercised — why`. Satisfy those targets before optional end-to-end progression, and let them define a useful stable frontier when the user explicitly asked for targeted evidence rather than a full walk.
 - **Read the frontier.** If a prior canonical field-build run report or its live log exists *for this seed*, read it: the world's name, which stages are walked, where to resume. Canonical run reports are `reports/field-build-<NN>-<world-slug>.md` where `<NN>` is all digits; exclude derivative artifacts such as `*-change-spec*`, `*-research-brief*`, and other files that reuse the prefix but are not run reports. No prior run for this seed ⇒ this is a cold start (a fresh world) — though it may still owe a regression pass against another seed's report (next bullet).
 - **Load the regression set.** Read the *latest* canonical field-build run report — the highest `<NN>`, since `<NN>` is a global run counter across all seeds (Step 3) — of **any** seed; findings are app-level, so a fix proven in one world is owed a check here even when this run builds a different world. From it, take every open **blocking** finding into the *mandatory* regression set and note every open friction/cosmetic finding as the *opportunistic* set. Record that report's **App commit** and diff it against current HEAD (`git rev-parse --short HEAD`); the gate is HEAD **plus working-tree state**, because the app you drive serves the working tree, not committed HEAD. **HEAD unchanged since that report *and* no uncommitted app-source changes (`git status --short` clean of `apps/`/`packages/`) ⇒ no fix could have landed:** carry its open findings forward untouched and skip the hardened re-test — never silently drop them. **HEAD advanced, *or* the working tree carries uncommitted app-source changes ⇒ run the regression pass.** No prior report at all ⇒ empty regression set; note it. *(The **regression pass** replays a prior finding to see whether a fix holds; never call it a "pressure test" — that name belongs to the challenge-mode work on world material.)*
@@ -103,6 +104,12 @@ Once seed decomposition begins, maintain a **seed-decomposition coverage table**
 | kernel seed family | decomposition state | proposed/current records | prompt packet path(s) | cold output path(s) | cold subagent id(s) | deferral / debt / out-of-scope reason |
 |---|---|---|---|---|---|---|
 | <seed family from kernel> |  |  |  |  |  |  |
+
+When the active Creation step is **seed-family coverage** (for example `decomposition:coverage`), treat it as a first-class decision point rather than an appendix to seed decomposition. Author the coverage inventory from the kernel seed families, drive the visible coverage-row controls, and keep the app's allowed dispositions separate: link already parked proposed seeds, defer as governed seed debt, or mark out of scope with rationale. After row creation, read back the unresolved blockers; after every row disposition, read back the affected coverage state before advancing. Maintain this table in the live log and carry it into the report when the run touches coverage:
+
+| coverage row label | source context | required? | disposition | linked seed(s) | debt / out-of-scope rationale | readback path |
+|---|---|---|---|---|---|---|
+| <kernel seed family row> |  |  | `covered` / `deferred` / `out_of_scope` / `unresolved` |  |  |  |
 
 At each decision point, run this beat and log every line of it:
 
@@ -193,6 +200,7 @@ If no prior canonical report existed, omit `## Regression of prior findings` onl
 
 ## Findings
 For each `[P/R/M/F/V/Q]-NN` — one-line title. Severity is type-appropriate: P/R/M/F use `blocking | friction | cosmetic`; V may use `validation`; Q may use `question`. P also names its mode.
+- Severity: <blocking | friction | cosmetic | validation | question>
 - Where: <app destination / protocol §>
 - What happened: <what you saw / what the cold LLM returned> — cite the screenshot + DOM/packet excerpt
 - What the methodology requires: <doc § reference>
@@ -228,6 +236,8 @@ For each app seed, include these subfields before any prose:
 - Likely spec/component: <path, flow, or component surface>
 - UX scope: `local polish` | `redesign` | `N/A - not UX`
 
+If the run produces no P/R/F clusters and only validates prior fixes, still keep this heading. Write `No new PRD seed`, name the prior PRD/issue/report surfaces validated, and mark the report-metadata audit's P/R/F cluster prior-art disposition as `N/A - validation-only run`.
+
 ## For the methodology
 Cluster the M findings; name the doc file and the wording to revise. This is the field evidence the README's untested surfaces owe — `10`, `11`, `14`, `15`, `16`, `17`, and the proposal mode of `20`.
 
@@ -238,13 +248,14 @@ Cluster the M findings; name the doc file and the wording to revise. This is the
 - World state: …
 ```
 
-Before finalizing, run this checklist against the report. This is a hard closeout gate, not a reminder. Start with a heading check, then build the report-metadata and finding-field audit tables:
+Before finalizing, run this checklist against the report. This is a hard closeout gate, not a reminder. Start a `Closeout run sheet:` block in the live log, paste or summarize the command outputs there, then run the heading check and build the report-metadata, finding-field, and worktree delta audit tables:
 
 ```bash
 rg -n "^(#|##) " reports/field-build-<NN>-<world-slug>.md
+rg -n "Report-metadata audit|Finding-field audit|Worktree delta audit" /tmp/worldloom-field-build/build-log.md
 ```
 
-Verify the heading output includes `## Findings`, `## Regression of prior findings` when a prior canonical report existed, `## Decision-point log (evidence)`, `## For the app (PRD seeds)`, `## For the methodology`, and `## Frontier`. If a required heading is missing, stop and revise the report before cleanup or final response.
+Verify the heading output includes `## Findings`, `## Regression of prior findings` when a prior canonical report existed, `## Decision-point log (evidence)`, `## For the app (PRD seeds)`, `## For the methodology`, and `## Frontier`. Verify the live-log grep shows all required audit labels. If a required heading or audit label is missing, stop and revise the report or live log before cleanup or final response.
 
 Then build a report-metadata audit table in the live log before the finding-field table. Use one row with columns for **Date**, **App commit**, **Method version**, **Essence**, **World file**, **Path walked**, **Evidence**, **Prior-art frame**, and **P/R/F cluster prior-art disposition**. Mark each cell `present` or `N/A - <reason>`; if any required metadata cell is blank, or if any P/R/F cluster is not marked `confirming`, `extending`, or `new` against the prior-art frame, revise the report before cleanup or final response.
 
@@ -258,10 +269,20 @@ Report-metadata audit:
 | present | present | present | present | present | present | present | present | present |
 ```
 
-Then build a finding-field audit table in the live log with one row per finding ID and columns for every required label: **Where**, **What happened**, **What the methodology requires**, **The snag**, **Fix direction**, **Touches**, plus **Repro** for blocking findings and **Design verdict** / **Recommendation** for R findings, redesign candidates, and structural F/P findings about missing or incorrect screen structure. Mark each cell `present` or `N/A - <reason>`; if any required cell is blank, revise the report before cleanup or final response.
+Then build a finding-field audit table in the live log with one row per finding ID and columns for every required label: **Severity**, **Where**, **What happened**, **What the methodology requires**, **The snag**, **Fix direction**, **Touches**, plus **Repro** for blocking findings and **Design verdict** / **Recommendation** for R findings, redesign candidates, and structural F/P findings about missing or incorrect screen structure. Mark each cell `present` or `N/A - <reason>`; if any required cell is blank, revise the report before cleanup or final response.
+
+Then build a worktree delta audit table in the live log. Compare final `git status --short` against the bootstrap baseline path by path. Mark whether each delta is field-build-owned, external/unowned, or unchanged; use the final note wording from this table so the final response does not collapse newly observed dirt into the baseline.
+
+```md
+Worktree delta audit:
+
+| path | baseline state | final state | field-build-owned? | final note wording |
+|---|---|---|---|---|
+| reports/field-build-<NN>-<world-slug>.md | absent | untracked | yes | new field-build report |
+```
 
 - **Findings** includes every P/R/M/F/V/Q from the live log.
-- Every finding includes the template's mandatory fields: **Where**, **What happened**, **What the methodology requires**, **The snag**, **Fix direction**, and **Touches**. If a field is genuinely not applicable for a V/Q finding, write `N/A - <reason>` rather than omitting it.
+- Every finding includes the template's mandatory fields: **Severity**, **Where**, **What happened**, **What the methodology requires**, **The snag**, **Fix direction**, and **Touches**. If a field is genuinely not applicable for a V/Q finding, write `N/A - <reason>` rather than omitting it.
 - **Regression of prior findings** is present with this exact heading when a prior canonical report existed, or intentionally omitted only when none existed.
 - **Prior-art frame** is present, and each P/R/F cluster in **For the app** is marked confirming, extending, or new against the named prior surfaces.
 - Every blocking finding includes a concrete **Repro** line; if a blocking finding cannot be replayed, the line says exactly why.
@@ -272,9 +293,9 @@ Then build a finding-field audit table in the live log with one row per finding 
 - **Evidence paths** for screenshots, raw prompt packets, and cold-LLM outputs are cited when such artifacts exist.
 - After any resume, compaction, or interruption, the live log has been reconciled through the final frontier and stop reason.
 
-At closeout, stop any dev server started solely for this build unless the user asked to keep it running; close the browser automation session unless the user asked to keep it open; close or release cold-subagent sessions; and record any intentionally running server or browser session in the final note.
+At closeout, stop any dev server started solely for this build unless the user asked to keep it running; close the browser automation session unless the user asked to keep it open; close or release cold-subagent sessions; and record any intentionally running server or browser session in the final note. If cleanup surfaces new evidence that changes the report, such as server stderr, browser console output, failed shutdown behavior, unclosed probe sessions, or a newly discovered finding, update the live log and report first, then rerun the heading check, report-metadata audit, finding-field audit, and worktree delta audit before final response.
 
-**Complete when:** report written under `reports/field-build-<NN>-<world-slug>.md`, every live-log finding and decision point carried in, the Regression of prior findings section resolved (or omitted when no prior canonical report existed), the Frontier block set, the live log reconciled through that frontier, screenshot, raw prompt packet, and cold-output evidence kept under `/tmp/worldloom-field-build/` and cited from the report, closeout cleanup handled, and final `git status --short` is reconciled against the baseline with no field-build-owned repo dirt except the report (the world SQLite file lives at its recorded path, uncommitted unless the user asks; external/unowned dirt observed after baseline is reported, not cleaned).
+**Complete when:** report written under `reports/field-build-<NN>-<world-slug>.md`, every live-log finding and decision point carried in, the Regression of prior findings section resolved (or omitted when no prior canonical report existed), the Frontier block set, the live log reconciled through that frontier, screenshot, raw prompt packet, and cold-output evidence kept under `/tmp/worldloom-field-build/` and cited from the report, closeout run sheet and audit tables present, closeout cleanup handled, and final `git status --short` is reconciled against the baseline with no field-build-owned repo dirt except the report (the world SQLite file lives at its recorded path, uncommitted unless the user asks; external/unowned dirt observed after baseline is reported, not cleaned).
 
 ## Guardrails
 

@@ -34,7 +34,10 @@ If any amend or follow-up commit happens after review starts or after closeout a
 Review evidence is a closeout hard stop. Before running any issue-close command, record one of these lines in the conversation or closeout audit:
 
 - `Review: code-review against <fixed point>; outcome <no findings / findings fixed in SHA ...>; verification rerun <commands>.`
+- `Review: code-review against <fixed point>; outcome accepted residuals recorded <count/source/rationale>; unhandled findings none beyond accepted residuals; verification rerun <commands>.`
 - `Review fallback: <why code-review could not run>; standards/spec result <...>; fixes <none / SHA ...>; verification rerun <commands>.`
+
+If normal `code-review` reports findings that are intentionally accepted rather than fixed, the durable closeout sink must name each accepted residual's axis, source, and rationale, and must state that no unhandled findings remain beyond the accepted residuals. Do not summarize that outcome as `no findings`.
 
 ## Commit/SHA Decision Before Tracker Closeout
 
@@ -65,6 +68,13 @@ Sources reviewed: <exact issue/PRD/spec files, named Principles/ADRs when applic
 | Issue | Acceptance source | Evidence reviewed | Findings/residuals |
 |---|---|---|---|
 | #N | <issue/spec/criterion; enumerate named list items such as AC1/criterion 2/checklist IDs when present, or cite adjacent exact acceptance table rows/range> | <diff/tests/docs reviewed> | <none / finding> |
+
+For zero-residual child-family reviews, this exactness rule also applies to
+parent PRD rows. A broad parent summary is not enough. Either enumerate the
+parent's concrete PRD sections or cite the exact audit rows in the same durable
+sink, for example:
+
+| #PARENT | exact acceptance audit table rows below for #PARENT PRD solution, implementation decisions, testing decisions, principles, and child map | <diff/tests/docs reviewed> | none |
 
 Findings: <none / bullets with quoted spec line>.
 

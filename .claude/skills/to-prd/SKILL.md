@@ -27,6 +27,8 @@ If a candidate body is still too large or the house style remains unclear, fetch
 
 If the conversation or user references a PRD-ready determination artifact such as `reports/*-prd-prep.md`, read it before drafting. Refresh its source durability, tracker freshness, and any cited authority that could have drifted. Treat its selected first PRD as the intended publication scope unless the user revises it, asks only for a draft, or keeps decisions open. Preserve its deferred follow-on candidates in Out of Scope or Further Notes unless the user explicitly asks to publish a multi-PRD program or bundle them into the current PRD.
 
+For long PRD-ready determination artifacts, rebuild trust with bounded reads before drafting or asking the seam checkpoint. First run a line count such as `wc -l <artifact>` and a heading/key-field search such as `rg -n "^(#|##|###|Decision:|Suggested|Publication package|Recommended testing seams|Likely labels|Source durability|Tracker freshness|Browser-visible guidance checklist)" <artifact>`. Then read targeted slices around the selected scope, deferred follow-ons, publication inputs, and freshness/boundaries. If a broad read or parallel read truncates the evidence surface, rerun with smaller slices and do not carry forward conclusions from the truncated output.
+
 2. Sketch out the seams at which you're going to test the feature. Existing seams should be preferred to new ones. Use the highest seam possible. If new seams are needed, propose them at the highest point you can. The fewer seams across the codebase, the better - the ideal number is one.
 
 When the PRD's scope includes non-code deliverables (ADRs, specs, doc packs), sketch seams for the implementation surface only, and state in Testing Decisions which deliverables are covered by review/conformance mechanisms rather than tests.
@@ -74,6 +76,8 @@ For a staged body file, a compact local validation pass can check the same shape
 
 ```sh
 BODY_FILE=path/to/prd-body.md
+# For checklist-gated PRDs, uncomment this before running the block:
+# export EXPECT_CHECKLIST=1
 node -e '
 const fs=require("fs");
 const b=fs.readFileSync(process.argv[1],"utf8");
@@ -95,8 +99,13 @@ const checklistItems=[
   "cognitive walkthrough scenario"
 ];
 const lines=b.split(/\r?\n/);
+const hasChecklistMarker=b.includes("Browser-visible guidance checklist mapping");
+if(!expectsChecklist&&hasChecklistMarker){
+  console.error("Body contains Browser-visible guidance checklist mapping, but EXPECT_CHECKLIST=1 was not set.");
+  process.exit(1);
+}
 const checklistMissing=expectsChecklist?checklistItems.filter(item=>!lines.some(line=>line.includes(item)&&(/N\/A - .+/.test(line)||/(preamble|Problem Statement|Solution|User Stories|Implementation Decisions|Testing Decisions|Principles|Further Notes|covered|covers|home)/i.test(line)))):[];
-const checks={startsUntitled:!b.startsWith("#"),hasProblem:b.includes("## Problem Statement"),hasSolution:b.includes("## Solution"),hasStories:b.includes("## User Stories"),hasImplementation:b.includes("## Implementation Decisions"),hasTesting:b.includes("## Testing Decisions"),hasPrinciples:b.includes("## Principles"),hasOutOfScope:b.includes("## Out of Scope"),hasFurtherNotes:b.includes("## Further Notes"),hasSeam:b.includes("Seam confirmation"),hasChecklist:b.includes("Browser-visible guidance checklist mapping"),hasChecklistItems:!expectsChecklist||checklistMissing.length===0,hasNoTmp:!b.includes("/tmp"),hasNoHome:!b.includes("/home/"),hasNoH1:!/^# /m.test(b),storyCount:storyLines.length-badStories.length};
+const checks={expectsChecklist,startsUntitled:!b.startsWith("#"),hasProblem:b.includes("## Problem Statement"),hasSolution:b.includes("## Solution"),hasStories:b.includes("## User Stories"),hasImplementation:b.includes("## Implementation Decisions"),hasTesting:b.includes("## Testing Decisions"),hasPrinciples:b.includes("## Principles"),hasOutOfScope:b.includes("## Out of Scope"),hasFurtherNotes:b.includes("## Further Notes"),hasSeam:b.includes("Seam confirmation"),hasChecklist:hasChecklistMarker,hasChecklistItems:!expectsChecklist||checklistMissing.length===0,hasNoTmp:!b.includes("/tmp"),hasNoHome:!b.includes("/home/"),hasNoH1:!/^# /m.test(b),storyCount:storyLines.length-badStories.length};
 console.log(JSON.stringify({...checks,checklistMissing},null,2));
 if(badStories.length){console.log("Non-conforming stories:"); badStories.forEach(s=>{const why=[]; if(!/^[0-9]+\. As an? /.test(s))why.push("As a/As an prefix"); if(s.indexOf(", I want ")<0)why.push("comma before I want"); if(s.indexOf("so that ")<0)why.push("missing so-that benefit clause"); else if(s.indexOf(", so that ")<0)why.push("comma before so that"); console.log("  "+s+"  [missing: "+(why.join(", ")||"clause order/format")+"]");});}
 if(checklistMissing.length){console.log("Missing checklist rows/items:"); checklistMissing.forEach(item=>console.log("  "+item));}
@@ -107,7 +116,7 @@ if(requiredFailures.length||checks.storyCount<1||badStories.length) process.exit
 ' "$BODY_FILE"
 ```
 
-If any item fails, edit the body before publishing. With `EXPECT_CHECKLIST=1`, `checklistMissing` must be empty: every current issue-tracker checklist item must have a row or stable anchor in the PRD body, and each row must identify a covering PRD home or `N/A - <reason>`. After publication, if the verification query shows a section exists but the section is malformed or incomplete under this checklist, edit the issue and re-run verification before final reporting.
+If any item fails, edit the body before publishing. Treat `expectsChecklist: false` as invalid whenever the PRD is subject to the browser-visible guidance checklist gate. With `EXPECT_CHECKLIST=1`, `checklistMissing` must be empty: every current issue-tracker checklist item must have a row or stable anchor in the PRD body, and each row must identify a covering PRD home or `N/A - <reason>`. After publication, if the verification query shows a section exists but the section is malformed or incomplete under this checklist, edit the issue and re-run verification before final reporting.
 
 After all pre-create checks pass and before `gh issue create`, run a final status-language pass over the staged body. Completed intake, durability, template, checklist, label-existence, duplicate, and seam-confirmation gates should be recorded as facts, not future work: replace stale gate phrasing such as "should be checked", "must be checked before publication", or "if the body passes" with "was checked", "passed", or "is appropriate because..." when that proof has actually been gathered. Keep provisional language only for implementation decisions, sequenced follow-ons, or genuinely open decisions.
 
@@ -125,6 +134,15 @@ gh issue view <number> --json number,title,body,labels,state,url --jq '(.body) a
 ```
 
 For each `adrShorthands` entry emitted by that query, resolve it locally and record the result beside the issue readback. The resolver output does not replace the tracked, clean, and publication-ref checks on `resolvedAdrPaths`:
+
+In Codex-style sessions, do not create a published-body file solely to resolve ADR shorthand. If the compact `gh issue view` readback already emitted `adrShorthands`, resolve each number directly from the repo and then run the same direct git durability checks:
+
+```sh
+NUMBER=0007
+find docs/adr -maxdepth 1 -type f -name "${NUMBER}-*.md" -print
+```
+
+Use the result only when exactly one path is printed; then run `git status --porcelain -- <resolved-path>`, `git ls-files --error-unmatch <resolved-path>`, and `git ls-tree -r --name-only origin/main -- <resolved-path>`. Record unresolved or ambiguous ADR shorthand as a verification failure before final reporting.
 
 ```sh
 BODY_FILE=path/to/published-issue-body.md

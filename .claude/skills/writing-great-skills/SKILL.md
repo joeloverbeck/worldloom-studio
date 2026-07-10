@@ -10,18 +10,24 @@ A skill exists to wrangle determinism out of a stochastic system. **Predictabili
 
 **Writing one from zero?** These are levers, not a sequence — but a serviceable order is: settle **invocation** first (it sets what every other choice costs), mine the **leading words** you already say when you want the skill, draft, then prune and self-check the draft against the **failure modes** below. If the skill names anything in the codebase — files, symbols, flows, selectors, IDs — verify every reference against the live repo before shipping; a pointer to a target that doesn't exist is a silent variance bug that misfires the same way every run. Editing an existing skill, jump straight to the lever at issue.
 
+When creating a skill in a live repo, use this skill for design judgment and the repo's skill-creation/scaffolding workflow for file creation, metadata, validation, and mirrors.
+
 ## Invocation
 
 Two choices, trading different costs:
 
-- A **model-invoked** skill keeps a **description**, so the agent can fire it autonomously _and_ other skills can reach it (you can still type its name too). It contributes to **context load** — the description sits in the window every turn. Mechanics: omit `disable-model-invocation`, and write a model-facing description with rich trigger phrasing ("Use when the user wants…, mentions…").
-- A **user-invoked** skill strips the description from the agent's reach: only you, typing its name, can invoke it — and no other skill can. Zero context load, but it spends **cognitive load**: _you_ are the index that must remember it exists. Mechanics: set `disable-model-invocation: true`; the `description` becomes human-facing — a single sentence with trigger lists stripped. The constraint is on triggers, not length: it may be richly descriptive, since it is the human's only cue for what the skill does.
+- A **model-invoked** skill exposes a model-facing **description** or equivalent invocation pointer, so the agent can fire it autonomously _and_ other skills can reach it (you can still type its name too). It contributes to **context load** — the pointer sits in the window every turn. Mechanics: follow the host's model-discovery convention, and write model-facing trigger phrasing ("Use when the user wants…, mentions…").
+- A **user-invoked** skill disables the model-facing invocation pointer: only you, typing its name, can invoke it — and no other skill can. Zero context load, but it spends **cognitive load**: _you_ are the index that must remember it exists. Mechanics: follow the host's explicit-only convention, such as `disable-model-invocation: true` or `agents/openai.yaml` policy; any remaining `description` is human-facing. The constraint is on triggers, not length: it may be richly descriptive, since it is the human's only cue for what the skill does.
 
 Pick model-invocation only when the agent must reach the skill on its own, or another skill must. If it only ever fires by hand, make it user-invoked and pay no context load.
 
 Beyond this axis, the rest of a skill's front matter is plumbing, not a predictability lever — for a human-facing `description`, or to declare the `arguments` a skill accepts, copy the shape from a sibling skill rather than deriving it here.
 
+After choosing invocation, inspect sibling skills and sync every host metadata surface the repo uses: front matter, UI metadata such as `agents/openai.yaml`, and discovery mirrors such as `.agents/skills` symlinks. Treat generic validator output as a check on that host's schema, not as authority to overwrite the repo's house shape.
+
 When user-invoked skills multiply past what you can remember, that piled-up cognitive load is cured by a **router skill**: one user-invoked skill that names the others and when to reach for each.
+
+Before shipping a new skill, run this pre-ship check: initializer placeholders removed, every context pointer resolves to current material, invocation metadata matches sibling skills, optional UI metadata is coherent, repo mirrors resolve where the repo uses them, and the final text has passed the failure-mode scan.
 
 ## Writing the description
 

@@ -13,6 +13,8 @@ Before filling the skeleton:
 - Include a "recap only, no file" option in the artifact-home prompt.
 - For prep-only requests that name a later `/to-prd` pass, consult `/to-prd` for house style only. Do not invoke publication, issue creation, or `/to-prd`'s seam checkpoint.
 
+When fresh findings are independently implementable and do not belong in one PRD, choose the first candidate by this priority order: blocker severity, guided-flow or methodology-conformance risk, direct field-build frontier, dependency order, and proof readiness. If that still leaves no clear winner, mark the result as a multi-PRD program or ask the user to choose the first publication target.
+
 ## Header
 
 Include:
@@ -123,6 +125,7 @@ Before closing or writing the final summary, scan the drafted artifact for these
 - Issue-tracker and triage-label docs consulted when label or browser-visible checklist fields are present.
 - Canonical gates and focused gates.
 - Source and authored-artifact durability warnings.
+- Post-write sweep for machine-local path leakage and stale publication phrasing. At minimum, scan for `/tmp`, `/home`, and wording such as "should be checked", "must be checked before publication", "if the body passes", or "TBD before publication"; fix any accidental leak or stale status language before the final summary.
 
 ## Freshness And Boundaries
 

@@ -15,7 +15,7 @@ Long parent rollup or child-family audit bodies must include this table shape, e
 |---|---|---|---|
 | #N | ... | commit/tests/browser route/store seam/etc. | satisfied / blocked / not done |
 
-For parent PRD rollups, including 4+ child issues and small child families that choose a parent rollup as the durable sink, start from this body shape unless the issue set needs a richer audit:
+For parent PRD rollups, including a single child plus parent PRD closeout, 4+ child issues, and small child families that choose a parent rollup as the durable sink, start from this body shape unless the issue set needs a richer audit:
 
 ```markdown
 Implementation closeout for #<parent>
@@ -47,14 +47,16 @@ For an existing-test contract-change row, use validator-exact wording:
 
 TDD evidence gate passed: durable sink <inspected body file path before tracker URL exists / comment URL>; compact table/header <present after structural check>; seams accounted for <all listed / exceptions named>; CONTEXT.md status <present/absent/N/A>; ADRs/principles/docs status <present/N/A>; partial-red / red-first skip reasons <none/listed>; evidence-only rows <none/listed>; existing-test contract-change rows <none/listed expectation-rewrite rows>.
 Review evidence:
-- Review: <code-review fixed point/outcome/verification rerun>
+- Review: <code-review fixed point/outcome/verification rerun; for accepted residuals use `Review: code-review against <fixed point>; outcome accepted residuals recorded <count/source/rationale>; unhandled findings none beyond accepted residuals; verification rerun <commands>.`>
 - Review fallback: <fallback line, or N/A because code-review ran normally>
 - Normal review findings fixed: N/A because review had no findings / findings found <count and source>; fixes made <files/SHA>; final Standards re-review <outcome>; final Spec re-review <outcome>; verification rerun <commands>
+- Normal review accepted residuals: N/A because none / <axis, finding source, rationale, and why closeout is allowed>; unhandled findings <none/listed>
 - Full review fallback block: <embedded below or linked adjacent durable sink; N/A because code-review ran normally>
+- Review fallback child coverage exactness: when the embedded fallback block includes `| Issue | Acceptance source | Evidence reviewed | Findings/residuals |` and a row has zero residual findings, every row including parent PRD rows must enumerate exact AC/list items or cite exact audit table rows in this same durable sink; example parent row: `| #PARENT | exact acceptance audit table rows below for #PARENT PRD solution, implementation decisions, testing decisions, principles, and child map | <diff/tests/docs reviewed> | none |`
 - TDD closeout gate: <copy the code-review fallback block's TDD closeout gate field when both TDD and local review fallback were used, including the full TDD evidence gate reference; N/A because no tdd skill was invoked or code-review ran normally>
 Principles/ADR conformance: <no deliberate exceptions / approved exception / N/A>
 Browser evidence:
-- Route/action/outcome: <route and observed result / N/A because ... / blocked because ...>
+- Route/action/outcome: <route and observed result / N/A because exact issue/PRD says browser/manual proof is N/A and browser contract/routes/rendered behavior/validation response/fixtures/action path are unchanged / N/A because ... / blocked because ...>
 - Console state: <0 errors and 0 warnings / classified unrelated output with evidence / rerun clean session because HMR, reused session, or agent-induced setup/request error tainted proof / N/A because browser evidence is N/A or blocked>
 - Final freshness delta: files touched since the last browser/manual smoke after final commit and verification edits <paths or none>; affects UI/routes/browser-consumed API/fixtures/action path <yes/no per path/group and why>; smoke freshness <rerun / not affected because changed path <path or group> leaves the evidence route/action/API/fixture <route/action/API/fixture> untouched and targeted proof <command> passed / blocked because ...>
 Fixed child inline close comment: <exact final text inspected / stable self-referential parent rollup wording inspected / local pending-parent template inspected and later patched / N/A>

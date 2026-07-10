@@ -1,14 +1,14 @@
 # Child-Family Closeout
 
-Read this whenever implementation scope includes parent PRDs, 2+ child issues,
-fixed-template child closeout comments, or a parent rollup URL that child issues
-will cite.
+Read this whenever implementation scope includes parent PRDs, one or more child
+issues under a parent PRD, fixed-template child closeout comments, or a parent
+rollup URL that child issues will cite.
 
 ## Parent Rollup Choice
 
-Small child-family parent rollup: a parent PRD rollup is allowed for 2-3 child issues when it is the clearest durable sink for shared evidence, such as local-only SHA rationale, TDD evidence, review fallback evidence, or parent closeout. Use the validator matrix in [tracker-closeout-gates.md](tracker-closeout-gates.md) according to the evidence shape: `--child-family` when review fallback covers a PRD child family, `--tdd-parent-rollup` when TDD evidence uses the parent-rollup compact table, and `--fixed-child-pending` or `--fixed-child` according to the fixed-child state below. Still keep the ledger and audit rows per issue.
+Single-child or small child-family parent rollup: a parent PRD rollup is allowed for a single child plus parent closeout, or for 2-3 child issues, when it is the clearest durable sink for shared evidence, such as local-only SHA rationale, TDD evidence, review fallback evidence, or parent closeout. Use the validator matrix in [tracker-closeout-gates.md](tracker-closeout-gates.md) according to the evidence shape: `--child-family` when review fallback covers a PRD child family, `--tdd-parent-rollup` when TDD evidence uses the parent-rollup compact table, and `--fixed-child-pending` or `--fixed-child` according to the fixed-child state below. Still keep the ledger and audit rows per issue.
 
-For 2-3 child issues using a parent rollup plus fixed-template child comments, use this compact sequence:
+For a single child or 2-3 child issues using a parent rollup plus fixed-template child comments, use this compact sequence:
 
 1. Draft the parent rollup/audit body under `/tmp` or another allowed durable sink, inspect the exact body, and run the applicable validators with `--fixed-child-pending` before the parent rollup URL exists.
 2. Post the parent rollup, capture the returned URL or exact comment reference, and keep that URL as the only evidence pointer for the fixed child comments.

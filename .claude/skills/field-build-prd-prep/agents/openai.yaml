@@ -1,0 +1,6 @@
+interface:
+  display_name: "Field Build PRD Prep"
+  short_description: "Prep field-build reports for PRDs"
+  default_prompt: "Use $field-build-prd-prep on reports/field-build-14-jon-urena-chrononaut.md."
+policy:
+  allow_implicit_invocation: false

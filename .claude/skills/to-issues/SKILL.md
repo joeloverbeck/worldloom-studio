@@ -28,6 +28,8 @@ Keep related-item fetches compact when exact issue or PRD numbers are already kn
 
 Scan the source body and fresh comments for decisions marked provisional, unratified, timed out, open to veto, or otherwise awaiting steward confirmation. Treat those as unresolved decisions, even if the source issue already carries `ready-for-agent`. Carry the unresolved-decision list into the Step 4 approval checkpoint; do not publish `ready-for-agent` child issues from those assumptions until the checkpoint explicitly ratifies or revises them. If they remain unresolved after the checkpoint, either stop before publication or publish only `needs-triage` child issues and state that they are not AFK-ready.
 
+Use a compact unresolved-decision scan before classifying the source as AFK-ready. For tracker issues, prefer a body-plus-comments read such as `gh issue view <n> --json body,comments --jq '[.body, (.comments[].body?)] | join("\n---COMMENT---\n")' | rg -n "provisional|unratified|timed out|open to veto|TBD|open design|grooming decision|leading candidate|may |should "`; for local files, run the same `rg -n` pattern against the source file. If this compact tracker scan fails from transient tracker/API connectivity but a fresh exact body/comments read for the source is already in current context, retry once; if it still fails, inspect the already-fetched body/comments against the same phrase list, state that fallback in the Step 4 proposal, and proceed only after classifying any relevant modal or open-decision wording. If no fresh body/comments read is available, stop instead of guessing. Inspect every hit and classify it before Step 4 as one of: blocking open decision, ratifiable implementation latitude, or irrelevant prose. Modal words such as `may` or `should` are not automatic blockers; when they describe acceptable implementation latitude, encode the chosen interpretation in the proposal and ask the steward to ratify it.
+
 Also scan for decisions the source explicitly delegates to grooming, issue breakdown, or later implementer judgment — phrases such as "grooming decision", "leading candidate", "record shape", "TBD", or "open design question". Treat these as structural decisions owed by the breakdown unless the source or fresh comments already ratified them. Carry them into the Step 4 approval checkpoint; either ask the steward to ratify the decision as encoded in the slices, route the decision into a first spec/document blocker before code-bearing slices depend on it, or leave affected children `needs-triage`.
 
 If the maintainer asks whether an existing issue or PRD should be split, treat that as an assessment request first. Fetch the source issue and comments, run the granularity check, and decide whether child issues would reduce implementation risk. If the right answer is **do not split** — because the work is already a single coherent document/process issue, narrow bug fix, or one complete vertical slice — report that rationale and stop before house-style lookup, quiz, or publication. Do not create a no-op child issue just to exercise this skill.
@@ -172,7 +174,7 @@ Publication safety gates before every `gh issue create`:
 4. Confirm the sweep returns zero actionable hits, any required final checklist mapping is clean, and any same-run reference wording matches the approved dependency plan. If the mapping or relationship wording does not cleanly land, revise the body or publish with a non-ready label before creating the issue.
 5. Only then create the issue.
 
-A compact local staged-body check can make gate 1 reproducible before each create/comment. Adjust the variables per slice or ledger: `EXPECT_PARENT` is the parent token, `EXPECT_BLOCKERS` is a comma-separated list of issue refs that must appear, `EXPECT_NO_BLOCKER=1` requires the house-style no-blocker phrase, `EXPECT_STORIES=1` requires the story-coverage section, and `EXPECT_LEDGER=1` switches from child-issue sections to parent-ledger checks.
+A compact local staged-body check can make gate 1 reproducible before each create/comment. Adjust the variables per slice or ledger: `EXPECT_PARENT` is the parent token, `EXPECT_BLOCKERS` is a comma-separated list of issue refs that must appear, `EXPECT_NO_BLOCKER=1` requires the house-style no-blocker phrase, `EXPECT_STORIES=1` requires the story-coverage section, `EXPECT_CHECKLIST_NA=1` requires a checklist-N/A summary for an unaffected ready-labelled issue, and `EXPECT_LEDGER=1` switches from child-issue sections to parent-ledger checks.
 
 ```sh
 BODY_FILE=path/to/staged-body.md
@@ -180,9 +182,10 @@ EXPECT_PARENT="PRD #<parent>"
 EXPECT_BLOCKERS="#<blocker-1>,#<blocker-2>"
 EXPECT_NO_BLOCKER=0
 EXPECT_STORIES=0
+EXPECT_CHECKLIST_NA=0
 EXPECT_LEDGER=0
 PLACEHOLDER_RE="#SLICE|PLACEHOLDER"
-export EXPECT_PARENT EXPECT_BLOCKERS EXPECT_NO_BLOCKER EXPECT_STORIES EXPECT_LEDGER PLACEHOLDER_RE
+export EXPECT_PARENT EXPECT_BLOCKERS EXPECT_NO_BLOCKER EXPECT_STORIES EXPECT_CHECKLIST_NA EXPECT_LEDGER PLACEHOLDER_RE
 node -e '
 const fs = require("fs");
 const body = fs.readFileSync(process.argv[1], "utf8");
@@ -210,6 +213,7 @@ if (ledger) {
     hasBlockedBy: body.includes("## Blocked by"),
     hasPrinciples: body.includes("## Principles"),
     hasStoryCoverage: process.env.EXPECT_STORIES !== "1" || body.includes("## User stories covered"),
+    hasChecklistNA: process.env.EXPECT_CHECKLIST_NA !== "1" || /(?:Browser-visible guidance checklist mapped|checklist mapped): N\/A/i.test(body),
     hasNoBlocker: process.env.EXPECT_NO_BLOCKER !== "1" || body.includes("None - can start immediately")
   });
 }
@@ -217,6 +221,8 @@ console.log(JSON.stringify(checks, null, 2));
 if (Object.values(checks).some(v => !v)) process.exit(1);
 ' "$BODY_FILE"
 ```
+
+Codex/single-command caution: do not inline the helper as `BODY_FILE=path node -e '...' "$BODY_FILE"` in one shell segment, because `"$BODY_FILE"` can expand before the temporary assignment is applied and become empty. Either pass the body path as a literal final argument, assign/export `BODY_FILE` in an earlier shell segment, or wrap the helper in `sh -c 'node -e ... "$1"' sh "$BODY_FILE"` when you need a one-line invocation.
 
 Do not batch the sweep/checklist mapping/same-run reference sanity checks and create commands in the same parallel tool call. When a substitution changes the body, rerun the gates before creating the next dependent issue.
 

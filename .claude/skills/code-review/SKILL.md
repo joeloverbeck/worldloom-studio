@@ -88,8 +88,10 @@ After collecting sub-agent outputs, close every review sub-agent or session star
 - Reuse the same Standards and Spec inputs below, including standards-source files, spec sources, principle/ADR material, the diff command or WIP diff inputs, commit list, and the smell baseline.
 - Keep the outputs separated under `## Standards` and `## Spec`.
 - For PRD child issue families, include the compact per-child coverage table `Issue | Acceptance source | Evidence reviewed | Findings/residuals` before reporting zero residual Spec findings.
-- When a child issue, PRD criterion, or acceptance source contains a named list of required items, enumerate those items in the `Acceptance source` cell or split them into multiple rows before reporting zero residual Spec findings. A single child row is not enough if it hides partial list coverage. A row satisfies exact-acceptance only when `Acceptance source` lists concrete items such as `AC1`, `criterion 2`, or checklist IDs, or cites an adjacent exact acceptance table/range in the same durable sink; broad child summaries such as `server contract`, `active-route replay`, or `context parity` are not enough for zero residual Spec findings.
+- If the review is part of implementation closeout and the parent PRD itself will be closed, include a parent PRD row in that table, or cite exact same-sink audit rows that cover the parent PRD's solution, implementation decisions, testing decisions, principles, and child map. Do not let child rows alone stand in for parent closeout coverage.
+- When a child issue, parent PRD row, PRD criterion, or acceptance source contains a named list of required items, enumerate those items in the `Acceptance source` cell or split them into multiple rows before reporting zero residual Spec findings. A single child or parent PRD row is not enough if it hides partial list coverage. A row satisfies exact-acceptance only when `Acceptance source` lists concrete items such as `AC1`, `criterion 2`, or checklist IDs, or cites an adjacent exact acceptance table/range in the same durable sink; broad parent or child summaries such as `parent PRD solution`, `server contract`, `active-route replay`, or `context parity` are not enough for zero residual Spec findings.
 - For routed, guided-flow, or multi-surface UI acceptance, verify the requirement on the production route and action path the user actually reaches. Do not count legacy, adjacent, inactive, or full-workspace-only surfaces as satisfying a routed active-surface requirement.
+- When an issue or PRD acceptance item explicitly declares browser/manual proof N/A, verify the diff does not change browser contract, routes, rendered behavior, validation response, fixtures, or action path. If any such browser-consumed surface changed, require browser/manual evidence or report a Spec residual finding instead of accepting the N/A label.
 - Before reporting zero residual Spec findings, run an exact-acceptance challenge: each acceptance item must map to evidence for the exact condition the source names. Reject broad labels such as `equivalent`, `representative`, `active-route replay`, or nearby-surface proof unless the spec explicitly permits substitution.
 - For cold external LLM, fresh subagent, packet-read, credentialed service, or other nonlocal proof requirements, verify the exact proof artifact, result, blocker, or same-sink per-criterion audit row before reporting zero residual Spec findings. Repo-local tests, generated packets, or browser screenshots do not satisfy this class of acceptance unless the spec explicitly says they are a substitute.
 - Cite the concrete standards/spec sources used for each axis.
@@ -124,7 +126,7 @@ Sources reviewed: <exact issue/PRD/spec files, named Principles/ADRs when applic
 
 | Issue | Acceptance source | Evidence reviewed | Findings/residuals |
 |---|---|---|---|
-| #N | <issue/spec/criterion; enumerate named list items such as AC1/criterion 2/checklist IDs when present, or cite adjacent exact acceptance table rows/range> | <diff/tests/docs reviewed> | <none / finding> |
+| #N | <issue/spec/criterion; for child or parent PRD rows, enumerate named list items such as AC1/criterion 2/checklist IDs when present, or cite adjacent exact acceptance table rows/range> | <diff/tests/docs reviewed> | <none / finding> |
 
 Findings: <none / bullets with quoted spec line>.
 
@@ -151,14 +153,26 @@ Caller handoff stop for `implement`: before emitting or returning the closeout-r
 
 Normal review immediate-fix handoff stop for `implement`: when sub-agent review ran normally and any findings were fixed before closeout, inspect the durable sink before returning the closeout-ready `Review:` line. It must contain the initial and final Standards/Spec outcomes, exact `Findings found`, `Fixes made`, `Review subagents`, `Verification rerun`, `Residual findings`, and `Axis summary` fields; when browser/manual evidence was used, it must also contain `Browser/manual evidence freshness` and `Browser/manual console state`; when TDD/review-fix evidence was required, it must contain `TDD/review-fix evidence` and `TDD closeout gate`. If any required field is missing or label-drifted, stop and fill it before handing back to `implement`.
 
+Normal review no-fix handoff stop for `implement`: when sub-agent review ran normally and no findings were fixed before closeout, preserve this compact handoff evidence in the conversation, implementation ledger, or durable closeout sink before returning the closeout-ready `Review:` line:
+
+- **Review subagents**: `<Standards and Spec sub-agent IDs and final statuses>`
+- **Axis summary**: `Standards <count/worst>, Spec <count/worst>`
+- **Residual findings**: `<none / accepted residuals with axis, source, rationale, and no unhandled findings beyond accepted residuals>`
+- **Parent PRD coverage**: `<N/A / parent PRD row present / same-sink exact audit rows cited>` when parent PRD closeout is in scope
+- **Browser/manual N/A checked**: `<N/A / exact issue or PRD criterion plus unchanged browser contract/routes/rendered behavior/validation response/fixtures/action path>` when issue-level browser/manual N/A is part of the acceptance source
+- **Review evidence line**: `<copy-ready Review: line below>`
+
 When invoked by the repo `implement` skill, also emit one closeout-ready review evidence line after the two-axis report, matching the caller's format:
 
 - `Review: code-review against <fixed point>; outcome <no findings / findings fixed in SHA ...>; verification rerun <commands>.`
+- `Review: code-review against <fixed point>; outcome accepted residuals recorded <count/source/rationale>; unhandled findings none beyond accepted residuals; verification rerun <commands>.`
 - `Review fallback: <why code-review could not run>; standards/spec result <...>; fixes <none / SHA ...>; verification rerun <commands>.`
 
 If fallback was used, the closeout-ready line must start `Review fallback:` exactly. Do not use `Review:` for fallback reviews.
 
-If review reports no findings and no files change after review, `verification rerun` may state that no rerun was needed after review because the unchanged final tree already passed named gates. In that case, cite those gates explicitly and keep the implementation commit SHA as the reviewed SHA.
+If normal sub-agent review reports accepted residuals, do not summarize the outcome as `no findings`. The durable handoff must name each residual's axis, source, and rationale, and must state that no unhandled findings remain beyond accepted residuals.
+
+If review reports no findings, or only accepted residuals, and no files change after review, `verification rerun` may state that no rerun was needed after review because the unchanged final tree already passed named gates. In that case, cite those gates explicitly and keep the implementation commit SHA as the reviewed SHA.
 
 For behavior-changing review fixes that touch UI, route handlers, browser-consumed API shapes, fixtures, or an action path adjacent to earlier browser/manual evidence, `not affected` is acceptable only when the review evidence names the changed path, explains why the earlier evidence route/action path and browser-consumed API/fixtures were untouched, and reruns targeted proof for the changed path. Otherwise rerun the browser/manual evidence on the final tree or mark it blocked/stale.
 
@@ -179,8 +193,10 @@ If the final browser/manual proof ran on the same tracked file content that was 
 - Any staged/unstaged WIP diff inputs captured in step 1.
 - The path(s), issue number(s), or fetched contents for every spec source.
 - If the spec source is a PRD child issue family, require a compact per-child coverage table: `Issue | Acceptance source | Evidence reviewed | Findings/residuals`. Every child issue under review should have a row before reporting zero residual Spec findings.
-- If a child issue, PRD criterion, or acceptance source contains a named list of required items, require the `Acceptance source` cell to enumerate concrete items such as `AC1`, `criterion 2`, or checklist IDs, split them into multiple rows, or cite adjacent exact acceptance table rows/range before reporting zero residual Spec findings. Broad child summaries are not enough.
+- If the parent PRD itself is being closed by the implementation workflow, require a parent PRD row in that table, or a citation to exact same-sink audit rows that cover the parent PRD's solution, implementation decisions, testing decisions, principles, and child map.
+- If a child issue, parent PRD row, PRD criterion, or acceptance source contains a named list of required items, require the `Acceptance source` cell to enumerate concrete items such as `AC1`, `criterion 2`, or checklist IDs, split them into multiple rows, or cite adjacent exact acceptance table rows/range before reporting zero residual Spec findings. Broad parent or child summaries are not enough.
 - For routed, guided-flow, or multi-surface UI work, require the reviewer to verify acceptance on the production route and action path the user actually reaches, and to reject legacy, adjacent, inactive, or full-workspace-only surfaces as proof for active routed requirements.
+- If an acceptance item says browser/manual proof is N/A, require the reviewer to verify that the diff does not change browser contract, routes, rendered behavior, validation response, fixtures, or action path. If any of those browser-consumed surfaces changed, the reviewer must require browser/manual evidence or report a residual finding.
 - Require an exact-acceptance challenge before zero Spec findings: every acceptance item must map to evidence for the exact condition the source names, and broad `equivalent`, `representative`, `active-route replay`, or nearby-surface proof must be rejected unless the spec explicitly permits substitution.
 - If an acceptance item requires cold external LLM, fresh subagent, packet-read, credentialed service, or other nonlocal proof, require the reviewer to verify the exact artifact/result, blocker, or same-sink audit row before reporting zero residual Spec findings; repo-local tests alone are not proof for those criteria.
 - Any `## Principles` section from the spec source, plus `docs/principles/README.md` and named principle/ADR docs read in step 2.
