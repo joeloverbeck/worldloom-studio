@@ -141,7 +141,14 @@ const preSeverityAdmissionDecision = {
     },
     preview: {
       currentDecision: "Choose and classify the proposed fact before Admission changes canon standing.",
-      promptText: "Queue/severity classification readiness. Ask for risks, dependencies, missing information, uncertainty, and candidate questions. Do not complete the minor ledger.",
+      promptText: "No selected-mode Admission Prompt packet is loaded yet. This pre-load preview is non-current and cannot be copied, exported, stored, or treated as the selected-mode packet.",
+      currentness: {
+        state: "not_loaded",
+        label: "No selected-mode packet loaded",
+        loadedMode: null,
+        currentPacketActions: "disabled",
+        loadAction: "Choose Proposal mode or Pressure mode, then use Load Admission Prompt-out Step."
+      },
       sourceManifest: ["Record FAC-7: Toll bell law", "Prompt template: admission_queue_severity", "Method card: admission.queue-severity (method-card/v1)"],
       contextPreview: "FAC-7 Toll bell law",
       omissions: ["Minor ledger completion omitted until severity is declared."],
@@ -417,8 +424,16 @@ describe("Admission decision-point browser surface", () => {
     expect(html).toContain("Reason required: no");
     expect(html).toContain("Open canon debt warnings are non-blocking");
     expect(html).toContain("Prompt packet preview");
+    expect(html).toContain("Packet status:");
+    expect(html).toContain("No selected-mode packet loaded");
+    expect(html).toContain("Loaded packet mode:");
+    expect(html).toContain("Current packet actions:");
+    expect(html).toContain("disabled");
+    expect(html).toContain("Choose Proposal mode or Pressure mode, then use Load Admission Prompt-out Step.");
     expect(html).toContain("Source manifest");
     expect(html).toContain("Advisory/canon warning");
+    expect(html).toContain("Selected mode: Proposal mode - available");
+    expect(html).toContain("Loaded mode: none yet");
     expect(html).toContain("advisory_artifact");
     expect(html).toContain("Close preview");
     expect(html).toContain("What will be written");
@@ -427,6 +442,9 @@ describe("Admission decision-point browser surface", () => {
     expect(html).toContain("Read-side views stay read-only");
     expect(html).toContain("admission_queue_severity");
     expect(html).toContain("Method card: admission.queue-severity");
+    expect(html).not.toContain("Queue/severity classification readiness. Ask for risks");
+    expect(html).not.toContain("Current prompt packet body");
+    expect(html).not.toContain("Copy Current Packet");
     expect(html).not.toContain("Complete Gate");
     expect(html).not.toContain("Admit Minor Row");
 

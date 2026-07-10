@@ -478,8 +478,20 @@ describe("HTTP API", () => {
           templateKey: string;
           stepKey: string;
           role: string;
-          modes: Array<{ mode: string; availability: string; blocker: string | null }>;
-          preview: { promptText: string; sourceManifest: string[]; omissions: string[]; advisoryCanonWarning: string };
+          modes: Array<{ mode: string; availability: string; blocker: string | null; stepRequest: { body: Record<string, unknown> } | null }>;
+          preview: {
+            promptText: string;
+            sourceManifest: string[];
+            omissions: string[];
+            advisoryCanonWarning: string;
+            currentness: {
+              state: string;
+              label: string;
+              loadedMode: string | null;
+              currentPacketActions: string;
+              loadAction: string;
+            };
+          };
         };
         writeIntent: { willWrite: string[]; willLink: string[]; willLeaveUntouched: string[] };
         readSideTrail: Array<{ label: string; href: string }>;
@@ -514,7 +526,14 @@ describe("HTTP API", () => {
           expect.objectContaining({ mode: "pressure", availability: "available", blocker: null })
         ]),
         preview: expect.objectContaining({
-          promptText: expect.stringContaining("classification readiness"),
+          promptText: expect.stringContaining("No selected-mode Admission Prompt packet is loaded yet."),
+          currentness: {
+            state: "not_loaded",
+            label: "No selected-mode packet loaded",
+            loadedMode: null,
+            currentPacketActions: "disabled",
+            loadAction: "Choose Proposal mode or Pressure mode, then use Load Admission Prompt-out Step."
+          },
           sourceManifest: expect.arrayContaining([
             expect.stringContaining("Method card: admission.queue-severity"),
             expect.stringContaining("Prompt template: admission_queue_severity"),
@@ -536,14 +555,38 @@ describe("HTTP API", () => {
         expect.objectContaining({ label: "Record detail" })
       ])
     });
-    expect(queuedDecision.decisionPoint.promptOut.preview.promptText).toContain("risks");
-    expect(queuedDecision.decisionPoint.promptOut.preview.promptText).toContain("dependencies");
-    expect(queuedDecision.decisionPoint.promptOut.preview.promptText).toContain("missing information");
-    expect(queuedDecision.decisionPoint.promptOut.preview.promptText).toContain("candidate questions");
-    expect(queuedDecision.decisionPoint.promptOut.preview.promptText).toContain("do not assign canon standing");
-    expect(queuedDecision.decisionPoint.promptOut.preview.promptText).toContain("do not assign truth layer");
+    expect(queuedDecision.decisionPoint.promptOut.preview.promptText).toContain("non-current");
+    expect(queuedDecision.decisionPoint.promptOut.preview.promptText).toContain("cannot be copied, exported, stored, or treated as the selected-mode packet");
+    expect(queuedDecision.decisionPoint.promptOut.preview.promptText).not.toContain("<compact_top_block>");
+    expect(queuedDecision.decisionPoint.promptOut.preview.promptText).not.toContain("Role stance");
+    expect(queuedDecision.decisionPoint.promptOut.preview.promptText).not.toContain("Prerequisite auditor");
     expect(queuedDecision.decisionPoint.promptOut.preview.promptText).not.toContain("minor-ledger completion");
     expect(queuedDecision.decisionPoint.promptOut.preview.promptText).not.toContain("admission_prerequisite_audit");
+
+    const proposalMode = queuedDecision.decisionPoint.promptOut.modes.find((mode) => mode.mode === "proposal");
+    const pressureMode = queuedDecision.decisionPoint.promptOut.modes.find((mode) => mode.mode === "pressure");
+    expect(proposalMode?.stepRequest?.body).toMatchObject({ mode: "proposal", recordId: seed.record.id, stepKey: "admission:queue-severity" });
+    expect(pressureMode?.stepRequest?.body).toMatchObject({ mode: "pressure", recordId: seed.record.id, stepKey: "admission:queue-severity" });
+
+    const proposalStep = await json<{ step: { actions: { generate: { href: string; method: "POST" } } } }>(
+      await postJson(app, "/api/prompt-out/steps", proposalMode?.stepRequest?.body)
+    );
+    const proposalPacket = await json<{ prompt: string; promptOut: { packetIdentity: { mode: string; recordId: number; stepKey: string } } }>(
+      await postJson(app, proposalStep.step.actions.generate.href)
+    );
+    expect(proposalPacket.promptOut.packetIdentity).toMatchObject({ mode: "proposal", recordId: seed.record.id, stepKey: "admission:queue-severity" });
+    expect(proposalPacket.prompt).toContain("Proposal mode");
+    expect(proposalPacket.prompt).toContain("Seed fact");
+
+    const pressureStep = await json<{ step: { actions: { generate: { href: string; method: "POST" } } } }>(
+      await postJson(app, "/api/prompt-out/steps", pressureMode?.stepRequest?.body)
+    );
+    const pressurePacket = await json<{ prompt: string; promptOut: { packetIdentity: { mode: string; recordId: number; stepKey: string } } }>(
+      await postJson(app, pressureStep.step.actions.generate.href)
+    );
+    expect(pressurePacket.promptOut.packetIdentity).toMatchObject({ mode: "pressure", recordId: seed.record.id, stepKey: "admission:queue-severity" });
+    expect(pressurePacket.prompt).toContain("Pressure mode");
+    expect(pressurePacket.prompt).toContain("Seed fact");
 
     const severity = await postJson(app, `/api/admission/records/${proposedJson.record.id}/severity`, { admissionLevel: "4", workScale: "severe" });
     expect(severity.status).toBe(200);

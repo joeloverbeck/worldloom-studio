@@ -162,6 +162,13 @@ export interface AdmissionDecisionPayload {
       contextPreview: string;
       omissions: string[];
       advisoryCanonWarning: string;
+      currentness: {
+        state: "not_loaded";
+        label: string;
+        loadedMode: null;
+        currentPacketActions: "disabled";
+        loadAction: string;
+      };
     };
   };
   writeIntent: {
@@ -870,6 +877,13 @@ const readSideTrailFor = (recordId: number): AdmissionDecisionReference[] => [
   { label: "Export", href: `/api/records/${recordId}/export/markdown` }
 ];
 
+const preLoadPromptPacketText = (record: AdmissionQueueRow): string => [
+  "No selected-mode Admission Prompt packet is loaded yet.",
+  "This pre-load preview is non-current and cannot be copied, exported, stored, or treated as the selected-mode packet.",
+  `Selected Admission record: ${record.shortId} ${record.title}.`,
+  "Choose Proposal mode or Pressure mode, then use Load Admission Prompt-out Step to generate the current packet for this selected Admission record."
+].join("\n");
+
 const promptOutFor = (
   worldFile: WorldFile,
   record: AdmissionQueueRow,
@@ -896,13 +910,6 @@ const promptOutFor = (
     : fullGate
       ? "Constraint challenger"
       : "Prerequisite auditor";
-  const generated = PromptOut.generatePrompt(worldFile, {
-    flowKey: "admission",
-    templateKey,
-    recordId: record.id,
-    stepKey,
-    mode: "pressure"
-  });
   const sourceManifest = [
     `Record ${record.shortId}: ${record.title}`,
     ...sourceLinks.map((link) => `Source link ${link.linkTypeKey}: ${link.target ? `${link.target.shortId} ${link.target.title}` : `record ${link.toRecordId}`} (${link.note || "no note"})`),
@@ -983,14 +990,21 @@ const promptOutFor = (
     stepRequest: pressureStepRequest,
     preview: {
       currentDecision: localDecision,
-      promptText: generated.prompt,
+      promptText: preLoadPromptPacketText(record),
       sourceManifest,
       contextPreview: `${record.shortId} ${record.title}\n${record.body || "No body supplied."}`,
       omissions: [
         ...(queueSeverity ? ["Minor ledger completion omitted until severity is declared."] : []),
         "No hidden repository context is required; any unavailable world context must be named before copy-out."
       ],
-      advisoryCanonWarning: "Prompt-out is optional advisory pressure. Pasted responses remain advisory artifacts and are not admitted canon."
+      advisoryCanonWarning: "Prompt-out is optional advisory pressure. Pasted responses remain advisory artifacts and are not admitted canon.",
+      currentness: {
+        state: "not_loaded",
+        label: "No selected-mode packet loaded",
+        loadedMode: null,
+        currentPacketActions: "disabled",
+        loadAction: "Choose Proposal mode or Pressure mode, then use Load Admission Prompt-out Step."
+      }
     }
   };
 };

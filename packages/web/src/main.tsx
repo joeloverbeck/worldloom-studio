@@ -779,6 +779,7 @@ interface AdmissionDecisionPoint {
       contextPreview: string;
       omissions: string[];
       advisoryCanonWarning: string;
+      currentness?: PromptPreviewCurrentness;
     };
   };
   writeIntent: {
@@ -1456,6 +1457,14 @@ function CreationCorrectionPanel({
   );
 }
 
+interface PromptPreviewCurrentness {
+  state: string;
+  label: string;
+  loadedMode: string | null;
+  currentPacketActions: string;
+  loadAction: string;
+}
+
 interface PromptPreviewPayload {
   currentDecision: string;
   promptText: string;
@@ -1463,6 +1472,7 @@ interface PromptPreviewPayload {
   sourceManifest: string[];
   omissions: string[];
   advisoryCanonWarning: string;
+  currentness?: PromptPreviewCurrentness;
 }
 
 function PromptPacketPreview({
@@ -1493,6 +1503,14 @@ function PromptPacketPreview({
         </div>
       ))}
       <p>{preview?.currentDecision ?? "Prompt-out appears after server context is loaded."}</p>
+      {preview?.currentness && (
+        <div className="doctrine prompt-preview-currentness" data-prompt-preview-currentness={preview.currentness.state}>
+          <strong>Packet status: {preview.currentness.label}</strong>
+          <span>Loaded packet mode: {preview.currentness.loadedMode ?? "none"}</span>
+          <span>Current packet actions: {preview.currentness.currentPacketActions}</span>
+          <span>{preview.currentness.loadAction}</span>
+        </div>
+      )}
       <pre className="prompt-packet-preview-text" data-prompt-packet-preview="true">{preview?.promptText ?? "No prompt packet loaded yet."}</pre>
       <strong>Source manifest</strong>
       {(preview?.sourceManifest ?? ["No source manifest loaded yet."]).map((item) => <p key={item}>{item}</p>)}
