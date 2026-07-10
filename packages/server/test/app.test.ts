@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
 import { RECORD_TYPES } from "@worldloom/shared";
 import { createApp } from "../src/app.js";
@@ -26,6 +27,39 @@ const postJson = (app: ReturnType<typeof createApp>, path: string, payload?: unk
     headers: { "content-type": "application/json" },
     body: payload === undefined ? undefined : JSON.stringify(payload)
   });
+
+const tableCounts = (path: string): Record<string, number> => {
+  const db = new Database(path, { readonly: true });
+  const tables = [
+    "records",
+    "record_history",
+    "record_links",
+    "record_facets",
+    "record_sections",
+    "record_section_history",
+    "advisory_dispositions",
+    "flow_instances",
+    "propagation_consequences",
+    "advisory_artifact",
+    "canon_debt",
+    "skip_record",
+    "reports"
+  ];
+
+  try {
+    return Object.fromEntries(tables.map((table) => {
+      if (["advisory_artifact", "canon_debt", "skip_record", "reports"].includes(table)) {
+        const recordTypeKey = table === "reports" ? "propagation_report" : table;
+        const row = db.prepare("SELECT COUNT(*) AS count FROM records WHERE record_type_key = ?").get(recordTypeKey) as { count: number };
+        return [table, row.count];
+      }
+      const row = db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get() as { count: number };
+      return [table, row.count];
+    }));
+  } finally {
+    db.close();
+  }
+};
 
 afterEach(() => {
   for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
@@ -170,6 +204,100 @@ describe("HTTP API", () => {
     });
     expect(reopened.status).toBe(200);
     expect(await json(reopened)).toMatchObject({ records: expect.arrayContaining([expect.objectContaining({ id: firstJson.record.id })]) });
+  });
+
+  it("keeps search stable for short IDs and malformed punctuation through the HTTP seam", async () => {
+    const app = createApp();
+    const path = tempPath("search-world.sqlite");
+    expect((await app.request("/api/worlds/create", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path })
+    })).status).toBe(201);
+
+    const first = await json<{ record: { id: number; shortId: string } }>(await app.request("/api/records", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recordTypeKey: "canon_fact", title: "Amber lantern", body: "Ordinary prose before edit", ...explicitJudgment })
+    }));
+    const second = await json<{ record: { id: number; shortId: string } }>(await app.request("/api/records", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recordTypeKey: "canon_fact", title: "Glass toll", body: "Ordinary prose around toll gates", ...explicitJudgment })
+    }));
+    const constraint = await json<{ record: { id: number; shortId: string } }>(await app.request("/api/records", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recordTypeKey: "constraint", title: "Constraint mirror", body: "Punctuation should not target this", ...explicitJudgment })
+    }));
+    const report = await json<{ record: { id: number } }>(await app.request("/api/records", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recordTypeKey: "propagation_report", title: "Search report", body: "Append-only report", ...explicitJudgment })
+    }));
+    await app.request(`/api/records/${first.record.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ body: "Edited body keeps the lantern current." })
+    });
+    await app.request(`/api/records/${first.record.id}/facets`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ vocabulary: "admission_decision_operation", term: "accept" })
+    });
+    await app.request("/api/links", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ fromRecordId: first.record.id, toRecordId: constraint.record.id, linkTypeKey: "constrains" })
+    });
+    await app.request("/api/records", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recordTypeKey: "canon_debt", title: "Search debt", body: "Search must not close debt.", ...explicitJudgment })
+    });
+    await app.request("/api/records", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recordTypeKey: "skip_record", title: "Search skip", body: "Search must not rewrite skips.", ...explicitJudgment })
+    });
+    await app.request("/api/records", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recordTypeKey: "advisory_artifact", title: "Search advisory", body: "Search must not rewrite advisory artifacts.", ...explicitJudgment })
+    });
+
+    const beforeRecords = await json<{ records: unknown[] }>(await app.request("/api/records"));
+    const beforeCounts = tableCounts(path);
+    const search = async (query: string) => {
+      const response = await app.request(`/api/search?q=${encodeURIComponent(query)}`);
+      expect(response.status, query).toBe(200);
+      const payload = await json<{ records: Array<{ id: number; shortId: string; body?: string }> }>(response);
+      expect(payload).toHaveProperty("records");
+      expect(Array.isArray(payload.records), query).toBe(true);
+      return payload.records;
+    };
+
+    expect(first.record.shortId).toBe("FAC-1");
+    expect(second.record.shortId).toBe("FAC-2");
+    expect(await search("FAC-")).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: first.record.id, shortId: "FAC-1" }),
+      expect.objectContaining({ id: second.record.id, shortId: "FAC-2" })
+    ]));
+    expect(await search("FAC-")).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: constraint.record.id })
+    ]));
+    expect(await search("FAC-1")).toEqual([expect.objectContaining({ id: first.record.id, shortId: "FAC-1" })]);
+    expect(await search("ZZZ-")).toEqual([]);
+    expect(await search("")).toEqual([]);
+    expect(await search("   ")).toEqual([]);
+    expect(await search("--!!")).toEqual([]);
+    expect(await search("\"")).toEqual([]);
+    expect(await search("lantern \"")).toEqual([expect.objectContaining({ id: first.record.id })]);
+    expect(await search("ordinary prose")).toEqual([expect.objectContaining({ id: second.record.id })]);
+    expect(await search("Append-only report")).toEqual([expect.objectContaining({ id: report.record.id })]);
+
+    expect(await json(await app.request("/api/records"))).toEqual(beforeRecords);
+    expect(tableCounts(path)).toEqual(beforeCounts);
   });
 
   it("exercises facets, sections, drafts, prompts, skips, and seed parking through the HTTP seam", async () => {

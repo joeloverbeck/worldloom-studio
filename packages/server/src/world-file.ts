@@ -213,6 +213,11 @@ const rowToQaScore = (row: Record<string, unknown>): QaScoreRow => ({
 });
 
 const quoteSqlPath = (path: string): string => `'${path.replaceAll("'", "''")}'`;
+const shortIdQueryPattern = /^([A-Za-z]+)-(\d*)$/;
+const searchTokenPattern = /[\p{L}\p{N}]+/gu;
+
+const toSafeFtsQuery = (query: string): string =>
+  (query.match(searchTokenPattern) ?? []).map((token) => `"${token.replaceAll('"', '""')}"`).join(" ");
 
 export class WorldFile {
   readonly db: Database.Database;
@@ -538,6 +543,28 @@ export class WorldFile {
   search(query: string): RecordRow[] {
     const trimmed = query.trim();
     if (!trimmed) return [];
+    const shortIdQuery = shortIdQueryPattern.exec(trimmed);
+    if (shortIdQuery) {
+      const normalized = `${shortIdQuery[1]!.toUpperCase()}-${shortIdQuery[2]!}`;
+      if (shortIdQuery[2]) {
+        return this.db.prepare(`
+          SELECT *
+          FROM records
+          WHERE upper(short_id) = ?
+          ORDER BY id
+          LIMIT 50
+        `).all(normalized).map((row) => rowToRecord(row as Record<string, unknown>));
+      }
+      return this.db.prepare(`
+        SELECT *
+        FROM records
+        WHERE upper(short_id) LIKE ?
+        ORDER BY id
+        LIMIT 50
+      `).all(`${normalized}%`).map((row) => rowToRecord(row as Record<string, unknown>));
+    }
+    const ftsQuery = toSafeFtsQuery(trimmed);
+    if (!ftsQuery) return [];
     return this.db.prepare(`
       SELECT r.*
       FROM records_fts f
@@ -545,7 +572,7 @@ export class WorldFile {
       WHERE records_fts MATCH ?
       ORDER BY bm25(records_fts, -3.0, -8.0, -1.0), r.updated_at DESC
       LIMIT 50
-    `).all(trimmed).map((row) => rowToRecord(row as Record<string, unknown>));
+    `).all(ftsQuery).map((row) => rowToRecord(row as Record<string, unknown>));
   }
 
   vocabularies(): unknown[] {

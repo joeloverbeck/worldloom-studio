@@ -662,6 +662,61 @@ describe("WorldFile", () => {
     store.close();
   });
 
+  it("searches short IDs directly and treats malformed punctuation as recoverable input", () => {
+    const store = WorldFile.create(tempPath("search.sqlite"));
+    const first = store.createRecord({ recordTypeKey: "canon_fact", title: "Amber lantern", body: "Ordinary prose before edit", ...explicitJudgment });
+    const second = store.createRecord({ recordTypeKey: "canon_fact", title: "Glass toll", body: "Ordinary prose around toll gates", ...explicitJudgment });
+    const constraint = store.createRecord({ recordTypeKey: "constraint", title: "Constraint mirror", body: "Punctuation should not target this", ...explicitJudgment });
+    const report = store.createRecord({ recordTypeKey: "propagation_report", title: "Search report", body: "Append-only report", ...explicitJudgment });
+    store.createRecord({ recordTypeKey: "advisory_artifact", title: "Search advisory", body: "Search must not rewrite advisory artifacts.", ...explicitJudgment });
+    store.createRecord({ recordTypeKey: "canon_debt", title: "Search debt", body: "Search must not close debt.", ...explicitJudgment });
+    store.createRecord({ recordTypeKey: "skip_record", title: "Search skip", body: "Search must not rewrite skips.", ...explicitJudgment });
+    store.updateRecord(first.id, { body: "Edited body keeps the lantern current." });
+    store.addFacet(first.id, { vocabulary: "admission_decision_operation", term: "accept" });
+    store.createLink(first.id, constraint.id, "constrains");
+
+    const counts = () => ({
+      records: (store.db.prepare("SELECT COUNT(*) AS count FROM records").get() as { count: number }).count,
+      recordHistory: (store.db.prepare("SELECT COUNT(*) AS count FROM record_history").get() as { count: number }).count,
+      recordLinks: (store.db.prepare("SELECT COUNT(*) AS count FROM record_links").get() as { count: number }).count,
+      recordFacets: (store.db.prepare("SELECT COUNT(*) AS count FROM record_facets").get() as { count: number }).count,
+      advisoryDispositions: (store.db.prepare("SELECT COUNT(*) AS count FROM advisory_dispositions").get() as { count: number }).count,
+      flowInstances: (store.db.prepare("SELECT COUNT(*) AS count FROM flow_instances").get() as { count: number }).count,
+      advisoryArtifacts: (store.db.prepare("SELECT COUNT(*) AS count FROM records WHERE record_type_key = 'advisory_artifact'").get() as { count: number }).count,
+      canonDebt: (store.db.prepare("SELECT COUNT(*) AS count FROM records WHERE record_type_key = 'canon_debt'").get() as { count: number }).count,
+      skipRecords: (store.db.prepare("SELECT COUNT(*) AS count FROM records WHERE record_type_key = 'skip_record'").get() as { count: number }).count,
+      reports: (store.db.prepare("SELECT COUNT(*) AS count FROM records WHERE record_type_key = 'propagation_report'").get() as { count: number }).count
+    });
+    const beforeRecords = store.listRecords();
+    const beforeCounts = counts();
+
+    expect(first.shortId).toBe("FAC-1");
+    expect(second.shortId).toBe("FAC-2");
+    expect(store.search("FAC-")).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: first.id, shortId: "FAC-1" }),
+      expect.objectContaining({ id: second.id, shortId: "FAC-2" })
+    ]));
+    expect(store.search("FAC-")).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: constraint.id })
+    ]));
+    expect(store.search("FAC-1")).toEqual([expect.objectContaining({ id: first.id, shortId: "FAC-1" })]);
+    expect(store.search("ZZZ-")).toEqual([]);
+    expect(store.search("")).toEqual([]);
+    expect(store.search("   ")).toEqual([]);
+    expect(store.search("--!!")).toEqual([]);
+    expect(store.search("\"")).toEqual([]);
+    expect(store.search("lantern \"")).toEqual([expect.objectContaining({ id: first.id })]);
+    expect(store.search("ordinary prose")).toEqual([expect.objectContaining({ id: second.id })]);
+    expect(store.search("Append-only report")).toEqual([expect.objectContaining({ id: report.id })]);
+    expect(store.listRecords()).toEqual(beforeRecords);
+    expect(counts()).toEqual(beforeCounts);
+    store.close();
+
+    const closedStore = WorldFile.create(tempPath("closed-search.sqlite"));
+    closedStore.close();
+    expect(() => closedStore.search("ordinary")).toThrow();
+  });
+
   it("enforces admission invariants at the store and SQL seams", () => {
     const store = WorldFile.create(tempPath("admission.sqlite"));
     const fact = store.createRecord({ recordTypeKey: "canon_fact", title: "Flood writ", body: "A writ redirects floodwater", ...explicitJudgment });
