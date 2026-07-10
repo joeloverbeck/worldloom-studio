@@ -231,6 +231,35 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     return /\b(review[- ]fix|finding fixed|coverage-only|partial-red|red-first skip)\b/i.test(normalized);
   };
 
+  const externalProofKeywords =
+    /\b(cold|external(?:[- ](?:LLM|model|probe|proof|evidence))?|LLM|subagent|packet[- ]read|probe)\b/i;
+  const externalProofEvidenceKeywords =
+    /\b(proof|evidence|result|artifact|report|output|recorded|passed|verified|readback|packet|citation|audit row|same durable sink|per-criterion)\b/i;
+  const collectCriterionRefs = (text) => {
+    const refs = new Set();
+    for (const match of text.matchAll(/\b(AC|US)\s*(\d+)(?:\s*[-–]\s*(?:AC|US)?\s*(\d+))?/gi)) {
+      const prefix = match[1].toUpperCase();
+      const start = Number(match[2]);
+      const end = Number(match[3] ?? match[2]);
+      if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+      const lower = Math.min(start, end);
+      const upper = Math.max(start, end);
+      if (upper - lower > 200) continue;
+      for (let value = lower; value <= upper; value += 1) refs.add(`${prefix}${value}`);
+    }
+    return refs;
+  };
+  const intersects = (left, right) => {
+    for (const value of left) {
+      if (right.has(value)) return true;
+    }
+    return false;
+  };
+  const hasExternalProofEvidence = (cell) => {
+    const normalized = cell.replace(/\s+/g, " ").trim();
+    return externalProofKeywords.test(normalized) && externalProofEvidenceKeywords.test(normalized);
+  };
+
   const gateLine = requireGateLine();
   const existingTestRowsField = firstLineMatching(/^-?\s*Existing-test contract-change rows:/i);
   const hasCompactHeader = body.includes(compactHeader);
@@ -297,6 +326,30 @@ export const validateTddCloseoutBody = (body, options = {}) => {
   const reviewFixRows = [];
   const existingTestRows = [];
   const browserManualEvidenceRows = [];
+  const compactRowLineNumbers = new Set(compactRows.map(({ lineNumber }) => lineNumber));
+  const externalProofAuditRefsByIssue = new Map();
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const lineNumber = index + 1;
+    if (compactRowLineNumbers.has(lineNumber)) continue;
+
+    const line = lines[index].trim();
+    if (!line.startsWith("|")) continue;
+
+    const cells = splitTableRow(line);
+    const issueId = (cells[0]?.match(/^#\d+/) ?? [])[0];
+    if (!issueId) continue;
+
+    const rowText = cells.join(" ");
+    if (!externalProofKeywords.test(rowText)) continue;
+
+    const refs = collectCriterionRefs(rowText);
+    if (!refs.size) continue;
+
+    const issueRefs = externalProofAuditRefsByIssue.get(issueId) ?? new Set();
+    for (const ref of refs) issueRefs.add(ref);
+    externalProofAuditRefsByIssue.set(issueId, issueRefs);
+  }
 
   for (const { lineNumber, cells } of compactRows) {
     if (cells.length < 8) {
@@ -305,9 +358,32 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     }
 
     const redCell = cells[4];
+    const greenCell = cells[5] ?? "";
+    const acceptanceCell = cells[6] ?? "";
+    const rowText = cells.join(" ");
     if (!hasConcreteRedEvidence(redCell)) {
       errors.push(
         `compact TDD row ${lineNumber} red command/failure is not concrete: ${redCell}; for expectation rewrites use \`existing contract-change expectation in <test file> because ...\`, not \`existing-test contract-change expectation\``
+      );
+    }
+
+    const issueId = (cells[0]?.match(/^#\d+/) ?? [])[0];
+    const acceptanceRefs = collectCriterionRefs(acceptanceCell);
+    const externalAuditRefs = externalProofAuditRefsByIssue.get(issueId) ?? new Set();
+    const citesSameSinkExternalProof = intersects(acceptanceRefs, externalAuditRefs);
+    const sameRowExternalProofCitation =
+      externalProofKeywords.test(rowText) &&
+      /\b(per-criterion|acceptance audit|audit row|same durable sink|closeout row|linked row|cites?)\b/i.test(rowText);
+    const claimsExternalProof = externalProofKeywords.test(acceptanceCell) || citesSameSinkExternalProof;
+
+    if (
+      claimsExternalProof &&
+      !hasExternalProofEvidence(greenCell) &&
+      !citesSameSinkExternalProof &&
+      !sameRowExternalProofCitation
+    ) {
+      errors.push(
+        `compact TDD row ${lineNumber} claims external/cold/subagent proof without Green command or evidence naming that proof, or a same-sink audit citation naming it`
       );
     }
 
@@ -320,7 +396,6 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     }
 
     const seamCell = cells[3] ?? "";
-    const rowText = cells.join(" ");
     if (
       /\b(evidence-only|browser evidence|manual|walkthrough|screenshot)\b/i.test(seamCell) &&
       /\b(browser|manual|screenshot|walkthrough|route|action|Playwright|DOM|page)\b/i.test(rowText)

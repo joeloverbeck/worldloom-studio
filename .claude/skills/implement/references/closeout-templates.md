@@ -49,6 +49,7 @@ TDD evidence gate passed: durable sink <inspected body file path before tracker 
 Review evidence:
 - Review: <code-review fixed point/outcome/verification rerun>
 - Review fallback: <fallback line, or N/A because code-review ran normally>
+- Normal review findings fixed: N/A because review had no findings / findings found <count and source>; fixes made <files/SHA>; final Standards re-review <outcome>; final Spec re-review <outcome>; verification rerun <commands>
 - Full review fallback block: <embedded below or linked adjacent durable sink; N/A because code-review ran normally>
 - TDD closeout gate: <copy the code-review fallback block's TDD closeout gate field when both TDD and local review fallback were used, including the full TDD evidence gate reference; N/A because no tdd skill was invoked or code-review ran normally>
 Principles/ADR conformance: <no deliberate exceptions / approved exception / N/A>
@@ -123,6 +124,10 @@ gh issue close <issue> --reason completed --comment "Completed; evidence: $comme
 Validator-safe active browser rerun freshness example: if browser/manual proof was rerun on the final tree after the last content change, prefer wording that says the rerun passed and names the route/action/API/fixture. Example wording:
 
 > Final freshness delta: files touched since the last browser/manual proof after final commit and verification edits: <paths or none>; browser smoke rerun passed on final tree for route/action/API/fixture <route/action/API/fixture> with observed outcome <outcome>.
+
+Post-smoke content-change without rerun example: if tracked files changed after browser/manual proof and the proof was not rerun, keep the route/action/outcome evidence historical. Do not say the smoke passed on the final tree. Use `Final freshness delta` to justify not-affected or blocked freshness for the changed paths. Example wording:
+
+> Final freshness delta: files touched since the last browser/manual proof after final commit and verification edits: <paths>; not affected because changed path <path or group> leaves the evidence route/action/API/fixture <route/action/API/fixture> untouched and targeted proof `<command>` passed. / blocked because changed path <path or group> may affect the evidence route/action/API/fixture <route/action/API/fixture> and browser/manual proof was not rerun.
 
 Post-smoke commit-only freshness example: if the final browser/manual proof ran on the same file content that was later committed, and the only post-smoke change was creating the commit metadata/SHA, write the freshness fields as content-unchanged proof rather than forcing a fake rerun. Example wording:
 

@@ -8,6 +8,7 @@ Before filling the skeleton:
 
 - Classify the run as determination/recommendation, diagnostic/audit, or report-cited stress-test. If no plan exists yet, survey broadly enough to assemble the candidate set before asking the root candidate/scope question.
 - Reconcile the cited report's date, commit, and freshness claims against current source plus relevant open and closed tracker work. If live evidence contradicts a reported finding, classify it as covered unless replay disproves it, or as a verification/reopen candidate, rather than fresh product scope.
+- For local source artifacts intended as stable citations, verify they are tracked, clean, and publication-ref-visible before treating them as durable. If that proof is missing, mark repo-local sources as pending local publication or summarize them without stable citation wording.
 - Resolve scope boundary and artifact home. One artifact-home prompt may name both the selected scope and target path; if scope was already confirmed in a prior question, ask only artifact home next. In both cases, the artifact-home confirmation is the terminal downstream-artifact checkpoint unless new user-owned scope appears.
 - Include a "recap only, no file" option in the artifact-home prompt.
 - For prep-only requests that name a later `/to-prd` pass, consult `/to-prd` for house style only. Do not invoke publication, issue creation, or `/to-prd`'s seam checkpoint.
@@ -17,7 +18,7 @@ Before filling the skeleton:
 Include:
 
 - Source artifact path or identifier, plus selected section/title when applicable.
-- Source durability status: durable, dirty, untracked, or temp-only.
+- Source durability status: durable, dirty, untracked, or temp-only. For durable local source artifacts, include tracked, clean, and publication-ref-visible proof; otherwise mark pending local publication or summarize without stable citation wording.
 - Authored artifact status: for the determination file being written, state whether it is new/untracked, dirty, tracked-clean, or publication-ref-visible as applicable.
 - Primary evidence summarized from local files, tracker state, reports, issue IDs, screenshots, or runtime captures.
 - Live checkout or freshness snapshot, including branch and relevant worktree dirt.
@@ -96,10 +97,11 @@ List the major alternatives that were considered and rejected, including no-op d
 Include the details a later `/to-prd` pass needs:
 
 - Suggested title.
-- Publication package: one PRD, multi-PRD program, or first PRD plus deferred follow-ons.
+- Publication package: one PRD, multi-PRD program, or first PRD plus deferred follow-ons. Package coupled fresh findings into one PRD when they share the same active route, decision point, seam, and acceptance proof. Use a multi-PRD program only when findings are independently implementable product outcomes or a sequenced program.
 - Recommended testing seam and the seam checkpoint still owed.
 - Whether `/to-prd` was consulted for house style only, when applicable.
 - Likely label and what would downgrade it.
+- Issue-tracker and triage-label docs consulted when likely label, downgrade conditions, or browser-visible guidance mapping is present.
 - Principles, ADRs, specs, tracker IDs, and prior PRDs to cite.
 - Browser-visible guidance checklist mapping requirements when applicable.
 - Canonical gates and focused gates.
@@ -111,13 +113,14 @@ Include the details a later `/to-prd` pass needs:
 Before closing or writing the final summary, scan the drafted artifact for these fields:
 
 - `/to-prd` consulted for house style only, or skipped with reason.
-- Source artifact posture and temporary-path handling.
+- Source artifact posture and temporary-path handling, including tracked, clean, and publication-ref-visible proof for durable local source citations or pending/summarized wording when proof is missing.
 - Authored artifact posture: new/untracked, dirty, tracked-clean, or publication-ref-visible as applicable.
 - Tracker freshness and relevant open/closed issue IDs.
 - Selected first PRD or verdict.
 - Follow-on candidates and coverage-only work.
 - Recommended testing seam and seam checkpoint still owed.
 - Likely publication label and what would downgrade it.
+- Issue-tracker and triage-label docs consulted when label or browser-visible checklist fields are present.
 - Canonical gates and focused gates.
 - Source and authored-artifact durability warnings.
 

@@ -56,6 +56,8 @@ Before staging or committing, make this implementation commit gate visible in th
 
 Once implementation is ready, invoke the repo `code-review` skill before pushing or closing issues. The review must be anchored to a fixed point.
 
+Hard stop before fallback: read and apply the repo `code-review` skill before deciding that review fallback is required. Do not infer fallback from generic subagent/tool policy alone when `code-review` itself authorizes review agents or defines the applicable policy check.
+
 Use one of these routes:
 
 - Commit the completed implementation locally, then run `code-review` against `HEAD~1` or another fixed point.
