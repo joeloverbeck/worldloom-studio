@@ -79,6 +79,8 @@ describe("setup/open-world browser shell", () => {
     expect(resetBoundary).toContain("setKernelSectionDrafts({})");
     expect(resetBoundary).toContain("setSeedBody(\"\")");
     expect(resetBoundary).toContain("setDecompositionError(null)");
+    expect(resetBoundary).toContain("setCoverageBootstrapRows([emptyCreationCoverageBootstrapRow()])");
+    expect(resetBoundary).toContain("setCoverageBootstrapError(null)");
     expect(resetBoundary).toContain("setStage12Run(null)");
     expect(resetBoundary).toContain("setConstraintRun(null)");
     expect(resetBoundary).toContain("setTemporalRun(null)");

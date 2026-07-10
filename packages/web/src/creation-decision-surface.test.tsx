@@ -746,6 +746,58 @@ describe("Creation decision-point web surface", () => {
     expect(source).toContain("coverageInventory");
   });
 
+  it("renders actionable Creation coverage bootstrap controls when the inventory is empty", () => {
+    const emptyCoverageDecision = {
+      ...kernelCompleteNoSeedDecision,
+      currentStep: "decomposition:coverage",
+      localDecision: "Account for kernel seed families before Admission handoff.",
+      blockers: [
+        { key: "coverage_inventory", label: "Coverage inventory", message: "Create or confirm rows before Admission handoff.", requires: "steward-confirmed seed-family coverage inventory" }
+      ],
+      coverageInventory: {
+        kernel: { id: 1, shortId: "KER-1", title: "World kernel", recordTypeKey: "world_kernel", body: "Jon Urena kernel.", truthLayer: "Objective canon", canonStatus: "proposed" },
+        state: {
+          status: "missing_inventory",
+          completionBlocked: true,
+          summary: "Creation seed-family coverage inventory has not been created or confirmed.",
+          blockers: [{ key: "coverage_inventory", label: "Coverage inventory", message: "Create or confirm rows before Admission handoff.", requires: "steward-confirmed seed-family coverage inventory" }]
+        },
+        createOrConfirmPath: { method: "POST", href: "/api/flows/creation/coverage", body: { kernelRecordId: 1, seedDecompositionReportId: 3 } },
+        rows: []
+      },
+      handoff: {
+        ...kernelCompleteNoSeedDecision.handoff,
+        seedDecompositionReport: { id: 3, shortId: "SDR-1", title: "Seed decomposition report", recordTypeKey: "seed_decomposition", body: "Parked broad seeds.", truthLayer: null, canonStatus: null },
+        parkedSeeds: [
+          { id: 4, shortId: "FAC-1", title: "Temporal access tool", recordTypeKey: "canon_fact", body: "One proposed temporal access seed.", truthLayer: "Objective canon", canonStatus: "proposed", sourceLinks: [] }
+        ]
+      }
+    };
+    const html = renderToString(<App
+      initialOpenWorld="/tmp/creation.sqlite"
+      initialWorkflowMap={workflowMap as any}
+      initialDestination="creation"
+      initialCreationDecision={emptyCoverageDecision as any}
+    />);
+    const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
+
+    expect(html).toContain("No seed-family coverage rows have been confirmed yet.");
+    expect(html).toContain("Create initial coverage rows");
+    expect(html).toContain("Coverage row label");
+    expect(html).toContain("Source kernel context");
+    expect(html).toContain("Required coverage row");
+    expect(html).toContain("Add another coverage row");
+    expect(html).toContain("Confirm coverage rows");
+    expect(html).toContain("Seed decomposition report: SDR-1 Seed decomposition report");
+    expect(html).toContain("Parked proposed seeds remain proposed until Admission.");
+    expect(html).toContain("Admission queue remains visible but secondary");
+    expect(source).toContain("submitCoverageBootstrap");
+    expect(source).toContain("setCoverageBootstrapError");
+    expect(source).toContain("seedDecompositionReportId");
+    expect(source).toContain("payload.validationErrors");
+    expect(source).toContain("setCoverageBootstrapRows");
+  });
+
   it("renders routed Creation controls for selected-section guidance, readiness, and inline recovery", () => {
     const workflowMap = {
       readOnly: true,

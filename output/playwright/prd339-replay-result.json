@@ -1,0 +1,102 @@
+{
+  "worldPath": "/tmp/worldloom-prd339-1783649506513.sqlite",
+  "seeded": {
+    "flowId": 1,
+    "kernelId": 1,
+    "reportId": 2,
+    "reportShortId": "SEE-1",
+    "seedId": 3,
+    "seedShortId": "FAC-1",
+    "emptyCoverageStatus": "missing_inventory",
+    "emptyCoverageRows": 0,
+    "createOrConfirmBody": {
+      "kernelRecordId": 1,
+      "seedDecompositionReportId": 2
+    }
+  },
+  "beforePrompt": {
+    "records": 3,
+    "links": 2,
+    "rows": 0
+  },
+  "afterPrompt": {
+    "records": 3,
+    "links": 2,
+    "rows": 0
+  },
+  "promptArtifacts": {
+    "proposalPath": "output/playwright/prd339-proposal-packet.md",
+    "pressurePath": "output/playwright/prd339-pressure-packet.md"
+  },
+  "screenshots": {
+    "empty": "output/playwright/prd339-coverage-empty-bootstrap.png",
+    "validation": "output/playwright/prd339-coverage-validation.png",
+    "rows": "output/playwright/prd339-coverage-rows-created.png",
+    "resolved": "output/playwright/prd339-coverage-resolved-map.png"
+  },
+  "finalCoverage": {
+    "status": "resolved",
+    "rows": [
+      {
+        "label": "Temporal access",
+        "disposition": "covered",
+        "linkedSeedStatuses": ["proposed"],
+        "hasDebt": false,
+        "outOfScopeRationale": null
+      },
+      {
+        "label": "Anti-aging chemistry",
+        "disposition": "deferred",
+        "linkedSeedStatuses": [],
+        "hasDebt": true,
+        "outOfScopeRationale": null
+      },
+      {
+        "label": "Spinal implant boundaries",
+        "disposition": "out_of_scope",
+        "linkedSeedStatuses": [],
+        "hasDebt": false,
+        "outOfScopeRationale": "Implant boundaries are out of scope for this Creation pass."
+      },
+      {
+        "label": "Ordinary-life consequences",
+        "disposition": "deferred",
+        "linkedSeedStatuses": [],
+        "hasDebt": true,
+        "outOfScopeRationale": null
+      }
+    ]
+  },
+  "workflowAfterResolution": {
+    "nextDecision": {
+      "destinationKey": "admission",
+      "label": "Work Admission queue",
+      "reason": "Proposed facts are waiting for governance.",
+      "href": "/api/admission/queue"
+    },
+    "admissionStage": {
+      "key": "admission",
+      "label": "Admission",
+      "state": "active",
+      "summary": "Admission is the only path from proposed fact to canon standing.",
+      "destinationKey": "admission"
+    },
+    "creationStage": {
+      "key": "creation",
+      "label": "Creation",
+      "state": "done",
+      "summary": "World kernel and seed decomposition start the journey.",
+      "destinationKey": "creation"
+    }
+  },
+  "console": {
+    "total": 4,
+    "errorsOrWarnings": [
+      {
+        "type": "error",
+        "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+        "expected": "Intentional empty-label validation submit"
+      }
+    ]
+  }
+}

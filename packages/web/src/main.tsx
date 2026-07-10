@@ -1004,7 +1004,7 @@ interface CreationCoverageInventory {
   createOrConfirmPath: {
     method: "POST";
     href: "/api/flows/creation/coverage";
-    body: { kernelRecordId: number };
+    body: { kernelRecordId: number; seedDecompositionReportId?: number | null };
   } | null;
   rows: Array<{
     id: number;
@@ -1102,6 +1102,18 @@ const emptyCreationCoverageDraft: CreationCoverageDraft = {
   rationale: "",
   error: null
 };
+
+interface CreationCoverageBootstrapRowDraft {
+  label: string;
+  sourceKernelContext: string;
+  required: boolean;
+}
+
+const emptyCreationCoverageBootstrapRow = (): CreationCoverageBootstrapRowDraft => ({
+  label: "",
+  sourceKernelContext: "",
+  required: true
+});
 
 interface CreationCorrectionResponse {
   correction: unknown;
@@ -1258,6 +1270,21 @@ class ApiError extends Error {
     this.payload = payload;
   }
 }
+
+interface ApiValidationPayload {
+  error?: string;
+  validationErrors?: Array<{ key: string; message: string }>;
+}
+
+const apiErrorMessage = (error: unknown): string => {
+  if (error instanceof ApiError) {
+    const payload = error.payload as ApiValidationPayload;
+    return payload.validationErrors?.map((entry) => `${entry.key}: ${entry.message}`).join("; ")
+      || payload.error
+      || error.message;
+  }
+  return error instanceof Error ? error.message : String(error);
+};
 
 const api = async <T,>(path: string, init?: RequestInit): Promise<T> => {
   const response = await fetch(path, {
@@ -2097,6 +2124,10 @@ function App({
   const [decompositionError, setDecompositionError] = useState<string | null>(null);
   const [correctionDrafts, setCorrectionDrafts] = useState<Record<number, CreationCorrectionDraft>>({});
   const [correctionError, setCorrectionError] = useState<Record<number, string[]>>({});
+  const [coverageBootstrapRows, setCoverageBootstrapRows] = useState<CreationCoverageBootstrapRowDraft[]>([
+    emptyCreationCoverageBootstrapRow()
+  ]);
+  const [coverageBootstrapError, setCoverageBootstrapError] = useState<string | null>(null);
   const [coverageDrafts, setCoverageDrafts] = useState<Record<number, CreationCoverageDraft>>({});
   const [minimalViableWorld, setMinimalViableWorld] = useState<MinimalViableWorldState | null>(initialMinimalViableWorld);
   const [canonDebt, setCanonDebt] = useState<RecordRow[]>([]);
@@ -3198,6 +3229,11 @@ function App({
     seedTruthLayer,
     granularityRationale,
     admissionIntent,
+    coverageBootstrapRows
+      .filter((row) => row.label.trim() || row.sourceKernelContext.trim() || !row.required)
+      .map((row) => `${row.label}\n${row.sourceKernelContext}\n${row.required ? "required" : "optional"}`)
+      .join("\n"),
+    coverageBootstrapError ?? "",
     Object.values(coverageDrafts).map((draft) => `${draft.seedRecordIds}\n${draft.rationale}\n${draft.error ?? ""}`).join("\n"),
     minimalDispositionSubstance,
     minimalEvidenceRecordIds,
@@ -3279,6 +3315,8 @@ function App({
     setAdmissionDecision(null);
     setCreationDecision(null);
     setDecompositionError(null);
+    setCoverageBootstrapRows([emptyCreationCoverageBootstrapRow()]);
+    setCoverageBootstrapError(null);
     setCoverageDrafts({});
     setMinimalViableWorld(null);
     setCanonDebt([]);
@@ -4077,6 +4115,50 @@ function App({
     }
   };
 
+  const updateCoverageBootstrapRow = (index: number, patch: Partial<CreationCoverageBootstrapRowDraft>) => {
+    setCoverageBootstrapRows((current) => current.map((row, rowIndex) =>
+      rowIndex === index ? { ...row, ...patch } : row
+    ));
+    setCoverageBootstrapError(null);
+  };
+
+  const addCoverageBootstrapRow = () => {
+    setCoverageBootstrapRows((current) => [...current, emptyCreationCoverageBootstrapRow()]);
+    setCoverageBootstrapError(null);
+  };
+
+  const setCoverageBootstrapSubmitError = (error: unknown) => {
+    const message = apiErrorMessage(error);
+    setCoverageBootstrapError(message);
+    setMessage(message);
+  };
+
+  const submitCoverageBootstrap = async () => {
+    const action = displayedCreationCoverage.createOrConfirmPath;
+    if (!action) return;
+    try {
+      const payload = await api<{ coverage: CreationCoverageInventory }>(action.href, {
+        method: action.method,
+        body: JSON.stringify({
+          kernelRecordId: action.body.kernelRecordId,
+          seedDecompositionReportId: action.body.seedDecompositionReportId ?? creationDecisionHandoff.seedDecompositionReport?.id ?? undefined,
+          rows: coverageBootstrapRows.map((row) => ({
+            label: row.label,
+            sourceKernelContext: row.sourceKernelContext,
+            required: row.required
+          }))
+        })
+      });
+      setCreationDecision((current) => current ? { ...current, coverageInventory: payload.coverage } : current);
+      setCoverageBootstrapRows([emptyCreationCoverageBootstrapRow()]);
+      setCoverageBootstrapError(null);
+      await startFlow();
+      await loadWorldData();
+    } catch (error) {
+      setCoverageBootstrapSubmitError(error);
+    }
+  };
+
   const coverageDraftFor = (rowId: number): CreationCoverageDraft =>
     coverageDrafts[rowId] ?? emptyCreationCoverageDraft;
 
@@ -4092,11 +4174,7 @@ function App({
   };
 
   const setCoverageDraftError = (rowId: number, error: unknown) => {
-    const message = error instanceof ApiError
-      ? ((error.payload as { validationErrors?: Array<{ key: string; message: string }>; error?: string }).validationErrors ?? [])
-        .map((entry) => `${entry.key}: ${entry.message}`)
-        .join("; ") || (error.payload as { error?: string }).error || error.message
-      : error instanceof Error ? error.message : String(error);
+    const message = apiErrorMessage(error);
     updateCoverageDraft(rowId, { error: message });
     setMessage(message);
   };
@@ -6288,7 +6366,43 @@ function App({
           <p key={blocker.key} className="status error">{`${blocker.label}: ${blocker.message} · ${blocker.requires}`}</p>
         ))}
         {displayedCreationCoverage.rows.length === 0 ? (
-          <p className="status">No seed-family coverage rows have been confirmed yet.</p>
+          <section className="subpanel coverage-bootstrap">
+            <h4>Create initial coverage rows</h4>
+            <p className="status">No seed-family coverage rows have been confirmed yet.</p>
+            <p>Use this bootstrap only to confirm the initial coverage inventory; row dispositions still happen through the server-owned row-level surface after refresh.</p>
+            {creationDecisionHandoff.seedDecompositionReport && (
+              <p>{`Seed decomposition report: ${creationDecisionHandoff.seedDecompositionReport.shortId} ${creationDecisionHandoff.seedDecompositionReport.title}`}</p>
+            )}
+            {creationHandoffReady && <p>Parked proposed seeds remain proposed until Admission.</p>}
+            <div className="grid compact-grid">
+              {coverageBootstrapRows.map((row, index) => (
+                <article key={index} className="subpanel">
+                  <h5>{`Coverage row ${index + 1}`}</h5>
+                  <label>Coverage row label<input
+                    value={row.label}
+                    onChange={(event) => updateCoverageBootstrapRow(index, { label: event.target.value })}
+                    placeholder="Anti-aging chemistry"
+                  /></label>
+                  <label>Source kernel context<textarea
+                    rows={2}
+                    value={row.sourceKernelContext}
+                    onChange={(event) => updateCoverageBootstrapRow(index, { sourceKernelContext: event.target.value })}
+                    placeholder="Kernel language that makes this seed family owed"
+                  /></label>
+                  <label className="inline-check"><input
+                    type="checkbox"
+                    checked={row.required}
+                    onChange={(event) => updateCoverageBootstrapRow(index, { required: event.target.checked })}
+                  />Required coverage row</label>
+                </article>
+              ))}
+            </div>
+            {coverageBootstrapError && <p className="status error">{coverageBootstrapError}</p>}
+            <div className="row">
+              <button onClick={addCoverageBootstrapRow} disabled={!openWorld}>Add another coverage row</button>
+              <button onClick={() => void submitCoverageBootstrap()} disabled={!openWorld || !displayedCreationCoverage.createOrConfirmPath}>Confirm coverage rows</button>
+            </div>
+          </section>
         ) : (
           <div className="grid compact-grid">
             {displayedCreationCoverage.rows.map((row) => {

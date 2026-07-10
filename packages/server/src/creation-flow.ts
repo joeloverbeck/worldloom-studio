@@ -534,7 +534,7 @@ export const creationDecisionPoint = (
         kernelRecordId: kernel.id,
         seedDecompositionReportId: handoff.seedDecompositionReport?.id ?? null
       })
-    : { lines: [] as string[], sourceManifest: [] as string[], omissions: [] as string[] };
+    : { status: "missing_kernel" as const, lines: [] as string[], sourceDocuments: [], sourceManifest: [] as string[], omissions: [] as string[] };
   const decompositionPromptReady = Boolean(handoff.seedDecompositionReport && handoff.parkedSeeds.length);
   const localDecision = currentStep === "decomposition:coverage"
     ? "Account for kernel seed families before Admission handoff."

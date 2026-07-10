@@ -882,7 +882,8 @@ describe("Creation decision-point HTTP surface", () => {
     expect(generated.prompt).toContain("Operative rule: Decompose until each seed can be rejected without destroying its siblings, then park it as proposed for Admission.");
     expect(generated.prompt).toContain("Why the method asks: Creation finds workable pressure seeds; Admission owns first canon standing.");
     expect(generated.prompt).toContain("Frontloaded seed audit results omitted: Admission owns that instrument and no result exists yet.");
-    expect(generated.prompt).toContain("Provide pressure, risks, alternatives, and questions");
+    expect(generated.prompt).toContain("Creation seed-family coverage inventory: missing");
+    expect(generated.prompt).toContain("Do not evaluate Admission readiness while the coverage inventory is missing");
     expect(generated.prompt).not.toContain("Record context:\nKER-");
 
     const resumedComplete = await json<{
@@ -953,7 +954,7 @@ describe("Creation decision-point HTTP surface", () => {
       createOrConfirmPath: {
         method: "POST",
         href: "/api/flows/creation/coverage",
-        body: { kernelRecordId: saved.kernel.id }
+        body: { kernelRecordId: saved.kernel.id, seedDecompositionReportId: decomposed.report.id }
       },
       rows: []
     });

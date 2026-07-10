@@ -89,7 +89,7 @@ export interface CreationCoverageInventory {
   createOrConfirmPath: {
     method: "POST";
     href: "/api/flows/creation/coverage";
-    body: { kernelRecordId: number };
+    body: { kernelRecordId: number; seedDecompositionReportId?: number | null };
   } | null;
   rows: CreationCoverageRow[];
 }
@@ -310,13 +310,14 @@ export const creationCoverageInventory = (
     };
   }
   const rows = coverageRows(world, kernel.id).map((row) => toCoverageRow(world, row));
+  const latestReport = latestReportForKernel(world, kernel.id);
   return {
     kernel: summary(kernel),
     state: stateForRows(rows),
     createOrConfirmPath: {
       method: "POST",
       href: "/api/flows/creation/coverage",
-      body: { kernelRecordId: kernel.id }
+      body: { kernelRecordId: kernel.id, seedDecompositionReportId: latestReport?.id ?? null }
     },
     rows
   };
@@ -534,6 +535,7 @@ export const coverageContextForPrompt = (
   world: WorldFile,
   input: { kernelRecordId?: number | null; seedDecompositionReportId?: number | null } = {}
 ): {
+  status: "missing_kernel" | "missing_inventory" | "available";
   lines: string[];
   sourceDocuments: Array<{ source: string; content: string }>;
   sourceManifest: string[];
@@ -542,18 +544,34 @@ export const coverageContextForPrompt = (
   const kernel = input.kernelRecordId == null ? latestKernelRecord(world) : safeRecord(world, input.kernelRecordId);
   if (!kernel) {
     const omission = "Creation seed-family coverage inventory omitted: no linked world kernel was found.";
-    return { lines: [omission], sourceDocuments: [], sourceManifest: [`Omission: ${omission}`], omissions: [omission] };
+    return { status: "missing_kernel", lines: [omission], sourceDocuments: [], sourceManifest: [`Omission: ${omission}`], omissions: [omission] };
   }
   const inventory = creationCoverageInventory(world, { kernelRecordId: kernel.id });
   if (inventory.rows.length === 0) {
-    const omission = "Creation seed-family coverage inventory omitted: inventory has not been created or confirmed yet.";
+    const omission = "Creation seed-family coverage row context omitted: inventory has not been created or confirmed yet.";
+    const missingInventoryLines = [
+      "Creation seed-family coverage inventory: missing",
+      "Coverage inventory missing: no Creation seed-family coverage rows have been confirmed yet.",
+      "Coverage inventory task: create or confirm seed-family coverage rows before Admission handoff.",
+      "Coverage bootstrap prompts: candidate coverage row labels, source kernel context, required or optional judgment prompts, and possible disposition rationale questions.",
+      "Forbidden move: do not treat parked proposed seeds as Admission-ready while coverage inventory is missing.",
+      "Advisory material cannot create coverage rows, links, debt, canon standing, or Admission queue changes."
+    ];
     return {
-      lines: [
-        "Creation seed-family coverage inventory: missing",
-        omission
+      status: "missing_inventory",
+      lines: missingInventoryLines,
+      sourceDocuments: [{
+        source: "creation_seed_family_coverage_inventory:missing",
+        content: [
+          `Source record: Creation coverage inventory missing for ${kernel.shortId} ${kernel.title}`,
+          ...missingInventoryLines
+        ].join("\n")
+      }],
+      sourceManifest: [
+        `Source record: Creation coverage inventory missing for ${kernel.shortId} ${kernel.title}`,
+        "Coverage inventory source manifest: missing inventory is explicit",
+        `Omission: ${omission}`
       ],
-      sourceDocuments: [],
-      sourceManifest: [`Omission: ${omission}`],
       omissions: [omission]
     };
   }
@@ -573,6 +591,7 @@ export const coverageContextForPrompt = (
     ])
   ].filter(Boolean));
   return {
+    status: "available",
     lines: [
       "Creation seed-family coverage inventory",
       `Coverage state: ${inventory.state.status}`,

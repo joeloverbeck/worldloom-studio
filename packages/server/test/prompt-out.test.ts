@@ -343,6 +343,67 @@ describe("Prompt-out module", () => {
     store.close();
   });
 
+  it("frames Creation decomposition Prompt-out around missing coverage inventory before Admission readiness", () => {
+    const store = WorldFile.create(tempPath("creation-missing-coverage-prompt.sqlite"));
+    const flow = CreationFlow.startCreationFlow(store) as { id: number };
+    const saved = CreationFlow.saveKernelStep(store, {
+      flowId: flow.id,
+      heading: "Foundational facts",
+      body: "Temporal access, anti-aging chemistry, spinal implant boundaries, intervention accountability pressure, and ordinary-life consequences.",
+      consequenceMode: "hard speculative"
+    }) as { kernel: { id: number } };
+    const decomposed = CreationFlow.decomposeSeeds(store, {
+      flowId: flow.id,
+      kernelRecordId: saved.kernel.id,
+      granularityRationale: "Temporal access is independently rejectable, but other kernel families remain unresolved.",
+      seeds: [{ title: "Temporal access tool", body: "A device opens one-way temporal access windows.", truthLayer: "Objective canon", granularityConfirmed: true }]
+    }) as { report: { id: number }; records: Array<{ id: number }> };
+    const recordsBeforePrompt = store.listRecords();
+    const linksBeforePrompt = store.listLinks();
+    const coverageRowsBeforePrompt = store.db.prepare("SELECT * FROM creation_seed_family_coverage ORDER BY id").all();
+
+    const proposal = PromptOut.generatePrompt(store, {
+      flowKey: "creation",
+      templateKey: "decomposition_pressure",
+      recordId: decomposed.report.id,
+      stepKey: "creation:decomposition_prompt",
+      mode: "proposal"
+    }).prompt;
+    const pressure = PromptOut.generatePrompt(store, {
+      flowKey: "creation",
+      templateKey: "decomposition_pressure",
+      recordId: decomposed.report.id,
+      stepKey: "creation:decomposition_prompt",
+      mode: "pressure"
+    }).prompt;
+
+    expect(proposal).toContain("create or confirm seed-family coverage rows before Admission handoff");
+    expect(proposal).toContain("candidate coverage row labels");
+    expect(proposal).toContain("source kernel context");
+    expect(proposal).toContain("required or optional");
+    expect(proposal).toContain("possible disposition rationale questions");
+    expect(pressure).toContain("Do not evaluate Admission readiness while the coverage inventory is missing");
+    expect(pressure).toContain("challenge missing seed families");
+    expect(pressure).toContain("false equivalences");
+    expect(pressure).toContain("unjustified deferrals");
+    expect(pressure).toContain("unsupported out-of-scope claims");
+    for (const prompt of [proposal, pressure]) {
+      expect(prompt).toContain("Creation seed-family coverage inventory: missing");
+      expect(prompt).toContain("Coverage inventory missing: no Creation seed-family coverage rows have been confirmed yet.");
+      expect(prompt).toContain("Source record: Creation coverage inventory missing");
+      expect(prompt).toContain("Coverage inventory source manifest: missing inventory is explicit");
+      expect(prompt).toContain("Forbidden move: do not treat parked proposed seeds as Admission-ready while coverage inventory is missing.");
+      expect(prompt).toContain("Advisory material cannot create coverage rows, links, debt, canon standing, or Admission queue changes.");
+      expect(prompt).toContain("Temporal access tool");
+      expect(prompt).toContain("anti-aging chemistry");
+    }
+    expect(store.listRecords()).toEqual(recordsBeforePrompt);
+    expect(store.listLinks()).toEqual(linksBeforePrompt);
+    expect(store.db.prepare("SELECT * FROM creation_seed_family_coverage ORDER BY id").all()).toEqual(coverageRowsBeforePrompt);
+
+    store.close();
+  });
+
   it("returns a refreshed Creation Prompt-out preview after split correction", () => {
     const store = WorldFile.create(tempPath("creation-correction-prompt.sqlite"));
     const flow = CreationFlow.startCreationFlow(store) as { id: number };
@@ -489,10 +550,11 @@ describe("Prompt-out module", () => {
       packetHash: expect.stringMatching(/^[a-f0-9]{64}$/),
       bodyHash: expect.stringMatching(/^[a-f0-9]{64}$/)
     });
-    expect(proposal.prompt).toContain("Flow creation, step creation:decomposition_prompt: decide whether the seed decomposition is ready to hand to Admission.");
+    expect(proposal.prompt).toContain("Flow creation, step creation:decomposition_prompt: create or confirm seed-family coverage rows before Admission handoff.");
     expect(proposal.prompt).toContain("Seed decomposition report");
     expect(proposal.prompt).toContain("Parked seeds:");
-    expect(proposal.prompt).toContain("Draft labeled candidate split material");
+    expect(proposal.prompt).toContain("candidate coverage row labels");
+    expect(proposal.prompt).toContain("Source record: Creation coverage inventory missing");
     expect(proposal.prompt).toContain("Method card: creation.seed-decomposition");
     expect(proposal.prompt).not.toContain("Flow creation, step creation:decomposition_prompt; selected record");
 
@@ -562,6 +624,8 @@ describe("Prompt-out module", () => {
       "Courts, mortuary advocates, and poor households feel pressure first.",
       "Frontloaded seed audit results omitted: Admission owns that instrument and no result exists yet.",
       "Admission gate results omitted: Admission has not selected severity or run a gate yet.",
+      "Creation seed-family coverage inventory: missing",
+      "Coverage inventory source manifest: missing inventory is explicit",
       "Source record: parked seed",
       "Source record: supporting kernel",
       "Pasted responses stay advisory artifacts"
@@ -582,9 +646,10 @@ describe("Prompt-out module", () => {
       recordTypeKey: "seed_decomposition",
       decisionLabel: "Echo seed split"
     });
-    expect(proposal.prompt).toContain("Draft labeled candidate split material");
+    expect(proposal.prompt).toContain("Ask for candidate coverage row labels");
     expect(proposal.prompt).toContain("Structural skeleton example (proposal mode)");
-    expect(pressure.prompt).toContain("Provide pressure, risks, alternatives, and questions");
+    expect(pressure.prompt).toContain("Do not evaluate Admission readiness while the coverage inventory is missing");
+    expect(pressure.prompt).toContain("unsupported out-of-scope claims");
     expect(pressure.prompt).toContain("Structural skeleton example (pressure mode)");
     expect(proposal.prompt).not.toContain("Flow creation, step creation:decomposition_prompt; selected record");
     expect(pressure.prompt).not.toContain("Flow creation, step creation:decomposition_prompt; selected record");

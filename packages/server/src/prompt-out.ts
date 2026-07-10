@@ -790,6 +790,7 @@ const creationDecompositionPrompt = (
     kernelRecordId: handoff.supportingKernel?.id ?? null,
     seedDecompositionReportId: report.id
   });
+  const coverageInventoryMissing = coverageContext.status === "missing_inventory";
   const omissions = [
     "Frontloaded seed audit results omitted: Admission owns that instrument and no result exists yet.",
     "Admission gate results omitted: Admission has not selected severity or run a gate yet.",
@@ -811,10 +812,16 @@ const creationDecompositionPrompt = (
       mode,
       roleName: mode === "proposal" ? "Decision proposal" : template.role_name,
       templateText: template.current_text,
-      currentDecision: `Flow ${input.flowKey ?? "creation"}, step ${stepKey}: decide whether the seed decomposition is ready to hand to Admission.`,
+      currentDecision: coverageInventoryMissing
+        ? `Flow ${input.flowKey ?? "creation"}, step ${stepKey}: create or confirm seed-family coverage rows before Admission handoff.`
+        : `Flow ${input.flowKey ?? "creation"}, step ${stepKey}: decide whether the seed decomposition is ready to hand to Admission.`,
       modeRequest: mode === "proposal"
-        ? "Draft labeled candidate split material, alternatives, assumptions, risks, and questions that help the steward repair the parked seed before Admission. Do not assign truth layer, canon standing, or final wording."
-        : "Provide pressure, risks, alternatives, and questions that help the steward decide whether the decomposition is ready for Admission.",
+        ? coverageInventoryMissing
+          ? "Ask for candidate coverage row labels, source kernel context, required or optional judgment prompts, and possible disposition rationale questions over unresolved kernel seed families. Do not create rows, infer dispositions, or treat parked seeds as Admission-ready."
+          : "Draft labeled candidate split material, alternatives, assumptions, risks, and questions that help the steward repair the parked seed before Admission. Do not assign truth layer, canon standing, or final wording."
+        : coverageInventoryMissing
+          ? "Do not evaluate Admission readiness while the coverage inventory is missing; challenge missing seed families, false equivalences, unjustified deferrals, unsupported out-of-scope claims, and premature handoff language."
+          : "Provide pressure, risks, alternatives, and questions that help the steward decide whether the decomposition is ready for Admission.",
       bearingContext: [
         ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey }),
         `Granularity rationale: ${handoff.granularityRationale ?? "Each parked seed is independently rejectable without destroying its siblings."}`,
