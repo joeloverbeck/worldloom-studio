@@ -3,6 +3,7 @@ import * as CreationCoverage from "./creation-coverage.js";
 import { resolveCreationDecompositionHandoff } from "./creation-handoff.js";
 import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest, maybeMethodCard } from "./method-cards.js";
 import { PROMPT_TEMPLATE_SEEDS } from "./prompt-out-defaults.js";
+import * as PropagationStore from "./propagation-store.js";
 import type { PromptMode } from "./decision-point-contract.js";
 import type { MethodCard } from "@worldloom/shared";
 import type { RecordInput, RecordRow, WorldFile } from "./world-file.js";
@@ -42,6 +43,7 @@ export interface PromptOutStepContext {
   flowId?: number;
   stepKey: string;
   mode?: PromptMode;
+  activeSetRevision?: number | null;
   selectedSectionHeading?: string | null;
   admissionLevel?: string | null;
   workScale?: string | null;
@@ -55,6 +57,7 @@ export interface PromptGenerationInput {
   recordId?: number;
   stepKey?: string;
   mode?: PromptMode;
+  activeSetRevision?: number | null;
   selectedSectionHeading?: string | null;
   admissionLevel?: string | null;
   workScale?: string | null;
@@ -97,6 +100,7 @@ export interface PromptPacketIdentity {
   selectedSectionHeading: string | null;
   admissionLevel: string | null;
   workScale: string | null;
+  activeSetRevision: number | null;
   admissionDraftState: AdmissionDraftState;
   admissionDraftHash: string | null;
   admissionSectionKeys: string[];
@@ -127,13 +131,15 @@ export interface AdvisoryResponseInput {
   flowId?: number;
   stepKey: string;
   mode?: PromptMode;
+  activeSetRevision?: number | null;
   promptText: string;
   responseText: string;
 }
 
-const contextLines = (input: { flowKey?: PromptOutFlowKey; flowId?: number; stepKey: string; selectedSectionHeading?: string | null }): string[] => [
+const contextLines = (input: { flowKey?: PromptOutFlowKey; flowId?: number; stepKey: string; selectedSectionHeading?: string | null; activeSetRevision?: number | null }): string[] => [
   ...(input.flowKey ? [`Flow: ${input.flowKey}`] : []),
   ...(input.flowId == null ? [] : [`Flow id: ${input.flowId}`]),
+  ...(input.activeSetRevision == null ? [] : [`Active set revision: ${input.activeSetRevision}`]),
   ...(input.selectedSectionHeading ? [`Selected section heading: ${input.selectedSectionHeading}`] : []),
   `Step: ${input.stepKey}`
 ];
@@ -479,6 +485,7 @@ export const promptPacketIdentity = (
     selectedSectionHeading: selectedSectionHeading ?? null,
     admissionLevel: input.admissionLevel ?? null,
     workScale: input.workScale ?? null,
+    activeSetRevision: input.activeSetRevision ?? null,
     admissionDraftState: admissionDraftState(input, mode),
     admissionDraftHash: admissionDraftHash(input.admissionFullGateDraft),
     admissionSectionKeys: admissionDraftSectionKeys(input.admissionFullGateDraft),
@@ -588,13 +595,13 @@ const propagationCoverage = (severity: DeclaredSeverity): string => {
 
 const propagationPromptBlockers = (
   severity: DeclaredSeverity,
-  consequences: Array<Record<string, unknown>>,
-  domains: Array<Record<string, unknown>>
+  consequences: PropagationStore.PropagationConsequenceStoreRow[],
+  domains: PropagationStore.PropagationDomainSweepStoreRow[]
 ): string[] => {
   const blockers: string[] = [];
-  const orderKeys = new Set(consequences.map((row) => String(row.order_key)));
-  const triageStates = new Set(domains.map((row) => String(row.triage)));
-  const domainNames = new Set(domains.map((row) => String(row.domain_name)));
+  const orderKeys = new Set(consequences.map((row) => row.order_key));
+  const triageStates = new Set(domains.map((row) => row.triage));
+  const domainNames = new Set(domains.map((row) => row.domain_name));
   if (isFoundationalSeverity(severity)) {
     const allDomains = [
       "Physics, metaphysics, and cosmology",
@@ -618,7 +625,7 @@ const propagationPromptBlockers = (
   }
   if (isMajorOrHigher(severity)) {
     if (orderKeys.size < 2) blockers.push("missing-shock-cone-orders");
-    for (const triage of ["direct", "dependency", "reaction"]) {
+    for (const triage of ["direct", "dependency", "reaction"] as const) {
       if (!triageStates.has(triage)) blockers.push(`missing-domain-${triage}`);
     }
     return blockers;
@@ -636,22 +643,27 @@ const propagationPromptContext = (world: WorldFile, input: PromptGenerationInput
   const debtId = flow.propagation_debt_record_id == null ? null : Number(flow.propagation_debt_record_id);
   const debt = debtId == null ? null : world.getRecord(debtId);
   const reportId = flow.propagation_report_record_id == null ? null : Number(flow.propagation_report_record_id);
-  const consequences = world.propagationConsequences(input.flowId) as Array<Record<string, unknown>>;
-  const domains = world.propagationDomainSweeps(input.flowId) as Array<Record<string, unknown>>;
-  const dispositions = world.propagationDispositions(input.flowId) as Array<Record<string, unknown>>;
+  const allConsequences = PropagationStore.listConsequences(world, input.flowId);
+  const allDomains = PropagationStore.listDomainSweeps(world, input.flowId);
+  const consequences = allConsequences.filter((row) => row.lifecycle_state === "active");
+  const domains = allDomains.filter((row) => row.lifecycle_state === "active");
+  const dispositions = PropagationStore.listDispositions(world, input.flowId);
+  const activeConsequenceIds = new Set(consequences.map((row) => row.id));
+  const activeDispositions = dispositions.filter((row) => activeConsequenceIds.has(row.consequence_id));
+  const activeSet = PropagationStore.activeSetState(world, input.flowId);
   const proposals = world.propagationSurfacedProposals(input.flowId) as Array<Record<string, unknown>>;
   const severity = propagationSeverity(world, factId);
   const requiredCoverage = propagationCoverage(severity);
   const blockers = propagationPromptBlockers(severity, consequences, domains);
-  const consequenceDispositionIds = new Set(dispositions.map((row) => Number(row.consequence_id)));
-  for (const consequence of consequences.filter((row) => String(row.pressure) === "high" && !consequenceDispositionIds.has(Number(row.id)))) {
-    blockers.push(`undispositioned-high-pressure #${Number(consequence.id)}`);
+  const consequenceDispositionIds = new Set(activeDispositions.map((row) => row.consequence_id));
+  for (const consequence of consequences.filter((row) => row.pressure === "high" && !consequenceDispositionIds.has(row.id))) {
+    blockers.push(`undispositioned-high-pressure #${consequence.id}`);
   }
   const omissions = [
     ...(debt ? [] : ["Owed propagation debt omitted: run was not started from a debt item."]),
     ...(consequences.length ? [] : ["Recorded consequences omitted: none have been written yet."]),
     ...(domains.length ? [] : ["Domain-atlas coverage omitted: no domains have been recorded yet."]),
-    ...(dispositions.length ? [] : ["Dispositions omitted: no consequences have reached a stopping state yet."]),
+    ...(activeDispositions.length ? [] : ["Active dispositions omitted: no active consequences have reached a stopping state yet."]),
     ...(proposals.length ? [] : ["Surfaced proposals omitted: none have been routed to Admission yet."]),
     ...(blockers.length ? blockers.map((blocker) => `Close blocker: ${blocker}`) : [])
   ];
@@ -660,19 +672,26 @@ const propagationPromptContext = (world: WorldFile, input: PromptGenerationInput
       `Propagation source fact: ${fact.shortId} ${fact.title}`,
       `Owed debt: ${debt ? `${debt.shortId} ${debt.title}` : "none"}`,
       `Flow id: ${input.flowId}`,
+      `Active set revision: ${activeSet.revision}`,
+      `Last active-set change: ${activeSet.changedKind ?? "initial active set"}${activeSet.changedRowId == null ? "" : ` row ${activeSet.changedRowId}`}${activeSet.changedReason ? ` - ${activeSet.changedReason}` : ""}`,
       `Current step: ${String(flow.current_step)}`,
       `Severity path: admission_level ${severity.admissionLevel ?? "unset"}, work_scale ${severity.workScale ?? "unset"}`,
       `Required coverage: ${requiredCoverage}`,
       `Recorded consequences: ${consequences.length}`,
       ...consequences.map((row) =>
-        `Consequence #${Number(row.id)}: order ${String(row.order_key)}, domain ${String(row.domain_name ?? "none")}, pressure ${String(row.pressure)}, prose ${String(row.body)}`
+        `Active consequence lineage ${row.lineage_id} v${row.version} #${row.id}: order ${row.order_key}, domain ${row.domain_name ?? "none"}, pressure ${row.pressure}, prose ${row.body}`
+      ),
+      `Retired consequence versions: ${allConsequences.length - consequences.length}`,
+      ...allConsequences.filter((row) => row.lifecycle_state !== "active").map((row) =>
+        `Historical consequence lineage ${row.lineage_id} v${row.version} #${row.id} ${row.lifecycle_state}: ${row.body}; reason ${row.revision_reason ?? "none"}`
       ),
       `Domain coverage: ${domains.length}`,
       ...domains.map((row) =>
-        `Domain ${String(row.domain_name)}: ${String(row.triage)}${String(row.declaration ?? "").trim() ? ` - ${String(row.declaration)}` : ""}`
+        `Active domain lineage ${row.lineage_id} v${row.version} #${row.id} ${row.domain_name}: ${row.triage}${row.declaration.trim() ? ` - ${row.declaration}` : ""}`
       ),
-      `Dispositions: ${dispositions.length}`,
-      ...dispositions.map((row) => `Disposition for consequence #${Number(row.consequence_id)}: ${String(row.disposition)} ${String(row.note ?? "")}`.trim()),
+      `Retired domain versions: ${allDomains.length - domains.length}`,
+      `Active dispositions: ${activeDispositions.length}`,
+      ...activeDispositions.map((row) => `Active disposition for consequence #${row.consequence_id}: ${row.disposition} ${row.note}`.trim()),
       `Surfaced proposals: ${proposals.length}`,
       `Blockers: ${blockers.join(", ") || "none"}`
     ],
@@ -680,6 +699,7 @@ const propagationPromptContext = (world: WorldFile, input: PromptGenerationInput
       `Propagation source fact: ${fact.shortId} ${fact.title}`,
       ...(debt ? [`Propagation owed debt: ${debt.shortId} ${debt.title}`] : []),
       `Propagation flow id: ${input.flowId}`,
+      `Propagation active set revision: ${activeSet.revision}`,
       `Propagation step: ${String(flow.current_step)}`,
       `Propagation required coverage: ${requiredCoverage}`,
       `Propagation blockers: ${blockers.join(", ") || "none"}`,
@@ -823,7 +843,7 @@ const creationDecompositionPrompt = (
           ? "Do not evaluate Admission readiness while the coverage inventory is missing; challenge missing seed families, false equivalences, unjustified deferrals, unsupported out-of-scope claims, and premature handoff language."
           : "Provide pressure, risks, alternatives, and questions that help the steward decide whether the decomposition is ready for Admission.",
       bearingContext: [
-        ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey }),
+        ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey, activeSetRevision: input.activeSetRevision }),
         `Granularity rationale: ${handoff.granularityRationale ?? "Each parked seed is independently rejectable without destroying its siblings."}`,
         ...(handoff.admissionIntent ? [`Admission intent: ${handoff.admissionIntent}`] : []),
         kernelContext,
@@ -947,7 +967,7 @@ const creationKernelPrompt = (
         : `Provide pressure, risks, alternatives, and questions on the selected ${section.heading} section's steward-authored material.`,
       bearingContext: [
         ...modeLine(mode),
-        ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey, selectedSectionHeading: section.heading }),
+        ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey, selectedSectionHeading: section.heading, activeSetRevision: input.activeSetRevision }),
         "Kernel authoring is a composite decision point; the active local unit is the selected section."
       ],
       packageDoctrine: [
@@ -1076,7 +1096,7 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
       : "Provide pressure, risks, alternatives, and questions on steward-authored material. Do not author final canon.",
     bearingContext: [
       ...modeLine(mode),
-      ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey }),
+      ...contextLines({ flowKey: input.flowKey, flowId: input.flowId, stepKey, activeSetRevision: input.activeSetRevision }),
       ...(flowContext.lines.length ? flowContext.lines : [])
     ],
     packageDoctrine: [
@@ -1130,6 +1150,25 @@ export const storeAdvisoryResponse = (world: WorldFile, input: AdvisoryResponseI
     canonStatus: "proposed"
   });
 
+const advisoryContextValue = (body: string, label: string): string | null => {
+  const prefix = `${label}: `;
+  return body.split("\n").find((line) => line.startsWith(prefix))?.slice(prefix.length).trim() ?? null;
+};
+
+const assertAdvisoryPacketCurrent = (world: WorldFile, advisory: RecordRow): void => {
+  if (advisoryContextValue(advisory.body, "Flow") !== "propagation") return;
+  const activeSetRevisionValue = advisoryContextValue(advisory.body, "Active set revision");
+  if (activeSetRevisionValue == null) return;
+  const flowIdValue = advisoryContextValue(advisory.body, "Flow id");
+  const flowId = Number(flowIdValue);
+  const activeSetRevision = Number(activeSetRevisionValue);
+  if (flowIdValue == null || !Number.isFinite(flowId)) throw new Error("stale Propagation active set: advisory artifact has no run identity; load the current packet before continuing");
+  const current = PropagationStore.activeSetState(world, flowId);
+  if (!Number.isFinite(activeSetRevision) || activeSetRevision !== current.revision) {
+    throw new Error(`stale Propagation active set (artifact revision ${Number.isFinite(activeSetRevision) ? activeSetRevision : "missing"}; current revision ${current.revision}); load the current packet before continuing`);
+  }
+};
+
 export const disposeAdvisoryArtifact = (
   world: WorldFile,
   advisoryRecordId: number,
@@ -1139,6 +1178,7 @@ export const disposeAdvisoryArtifact = (
   if (advisory.recordTypeKey !== "advisory_artifact") {
     throw new Error("advisory disposition target must be an advisory artifact");
   }
+  assertAdvisoryPacketCurrent(world, advisory);
   return insertAdvisoryDisposition(world, advisoryRecordId, input);
 };
 
@@ -1153,6 +1193,7 @@ export const linkExplicitAdvisoryUse = (
   if (advisory.recordTypeKey !== "advisory_artifact") {
     throw new Error(`Consulted advisory target must be an advisory artifact: ${advisoryRecordId}`);
   }
+  assertAdvisoryPacketCurrent(world, advisory);
   world.createLinkIfMissing(stewardAuthoredRecordId, advisoryRecordId, "derived_from", notes.derivedFromNote);
   world.createLinkIfMissing(stewardAuthoredRecordId, advisoryRecordId, "cites_advisory_artifact", notes.citationNote);
 };

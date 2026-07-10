@@ -79,12 +79,16 @@ export const registerPromptOutRoutes = (app: RouteApp, dependencies: RouteDepend
   )));
 
   app.post("/api/prompt-out/steps/actions/disposition", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () =>
-    c.json(runPromptOutDispositionAction(world, await readJson<{
-      advisoryRecordId: number;
-      disposition: string;
-      note?: string;
-      standingRuling?: boolean;
-    }>(c)), 201)
+    c.json(runPromptOutDispositionAction(
+      world,
+      promptOutActionContextFromQuery((key) => c.req.query(key)),
+      await readJson<{
+        advisoryRecordId: number;
+        disposition: string;
+        note?: string;
+        standingRuling?: boolean;
+      }>(c)
+    ), 201)
   )));
 
   app.post("/api/prompt-out/steps/actions/skip", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () =>

@@ -12,7 +12,10 @@ import {
   migration004,
   migration005,
   migration006,
-  migration007
+  migration007,
+  migration008,
+  migration009,
+  migration010
 } from "../src/schema.js";
 import { WorldFile } from "../src/world-file.js";
 import * as AdmissionFlow from "../src/admission-flow.js";
@@ -494,6 +497,163 @@ describe("WorldFile", () => {
     expect(readdirSync(join(path, "..")).some((name) => name.includes(`pre-migration-v7-to-v${CURRENT_SCHEMA_VERSION}`))).toBe(true);
     expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'advisory_disposition' AND term = 'adopted with steward revision'").get()).toMatchObject({ count: 1 });
     migrated.close();
+  });
+
+  it("migrates legacy Propagation staging as active lineages without fabricating history or changing world state", () => {
+    const path = tempPath("v10-propagation.sqlite");
+    const db = new Database(path);
+    db.exec("BEGIN");
+    db.exec(migration001);
+    db.exec(migration002);
+    db.exec(migration003);
+    db.exec(migration004);
+    db.exec(migration005);
+    db.exec(migration006);
+    db.exec(migration007);
+    db.exec(migration008);
+    db.exec(migration009);
+    db.exec(migration010);
+    db.prepare(`
+      INSERT INTO records (id, short_id, record_type_key, title, body, truth_layer, canon_status)
+      VALUES (101, 'FAC-101', 'canon_fact', 'Legacy bell law', 'Noon bells govern testimony.', 'Objective canon', 'accepted')
+    `).run();
+    db.prepare(`
+      INSERT INTO flow_instances (id, flow_key, state, current_step, propagation_fact_record_id)
+      VALUES (201, 'propagation', 'in_progress', 'propagation:disposition', 101)
+    `).run();
+    db.prepare(`
+      INSERT INTO propagation_consequences (
+        id, flow_id, fact_record_id, order_key, order_label, domain_name, body, pressure, flow_step
+      )
+      VALUES (301, 201, 101, 'first', 'First-order: direct effects', 'Economy, trade, and scarcity', 'Markets pause at noon.', 'high', 'propagation:first')
+    `).run();
+    db.prepare(`
+      INSERT INTO propagation_domain_sweeps (id, flow_id, domain_name, triage, declaration, flow_step)
+      VALUES (401, 201, 'Economy, trade, and scarcity', 'direct', 'Market hours change.', 'propagation:domain-atlas')
+    `).run();
+    db.prepare(`
+      INSERT INTO propagation_consequence_dispositions (id, consequence_id, disposition, note, flow_step)
+      VALUES (501, 301, 'answered', 'The calendar absorbs it.', 'propagation:disposition')
+    `).run();
+    db.exec("COMMIT");
+    expect(db.pragma("user_version", { simple: true })).toBe(10);
+    db.close();
+
+    const migrated = WorldFile.open(path);
+
+    expect(migrated.schemaVersion()).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.getRecord(101)).toMatchObject({
+      title: "Legacy bell law",
+      body: "Noon bells govern testimony.",
+      canonStatus: "accepted"
+    });
+    expect(migrated.getFlowInstance(201, "propagation")).toMatchObject({
+      state: "in_progress",
+      current_step: "propagation:disposition",
+      propagation_report_record_id: null,
+      propagation_active_set_revision: 0,
+      propagation_pressure_used_revision: null,
+      propagation_pressure_owed_revision: null
+    });
+    expect(migrated.db.prepare("SELECT * FROM propagation_consequences WHERE id = 301").get()).toMatchObject({
+      lineage_id: "propagation-consequence:301",
+      version: 1,
+      lifecycle_state: "active",
+      prior_version_id: null,
+      revision_reason: null,
+      body: "Markets pause at noon."
+    });
+    expect(migrated.db.prepare("SELECT * FROM propagation_domain_sweeps WHERE id = 401").get()).toMatchObject({
+      lineage_id: "propagation-domain:401",
+      version: 1,
+      lifecycle_state: "active",
+      prior_version_id: null,
+      revision_reason: null,
+      declaration: "Market hours change."
+    });
+    expect(migrated.db.prepare("SELECT * FROM propagation_consequence_dispositions WHERE id = 501").get()).toMatchObject({
+      consequence_id: 301,
+      disposition: "answered",
+      note: "The calendar absorbs it."
+    });
+    expect(migrated.db.prepare("SELECT COUNT(*) AS count FROM records WHERE record_type_key = 'propagation_report'").get()).toMatchObject({ count: 0 });
+    migrated.close();
+  });
+
+  it("keeps retired Propagation staging and historical dispositions immutable at the SQL seam", () => {
+    const store = WorldFile.create(tempPath("propagation-revision-invariants.sqlite"));
+    const fact = store.createRecord({
+      recordTypeKey: "canon_fact",
+      title: "Noon bell testimony",
+      body: "Ghost testimony is limited to the noon bell.",
+      truthLayer: "Objective canon",
+      canonStatus: "accepted"
+    });
+    const flow = PropagationFlow.startPropagationRun(store, { factRecordId: fact.id }) as { id: number };
+    const consequence = PropagationFlow.addPropagationConsequence(store, {
+      flowId: flow.id,
+      orderKey: "first",
+      body: "Every market pauses at noon.",
+      pressure: "high"
+    });
+    const disposition = PropagationFlow.dispositionPropagationConsequence(store, {
+      consequenceId: consequence.id,
+      disposition: "answered",
+      note: "Market calendars absorb the pause."
+    });
+    PropagationFlow.retractPropagationConsequence(store, {
+      flowId: flow.id,
+      consequenceId: consequence.id,
+      reason: "Pressure showed that only courthouse markets pause."
+    });
+
+    expect(store.db.prepare("SELECT * FROM propagation_consequences WHERE id = ?").get(consequence.id)).toMatchObject({
+      lifecycle_state: "retracted",
+      revision_reason: "Pressure showed that only courthouse markets pause."
+    });
+    expect(store.db.prepare("SELECT * FROM propagation_consequence_dispositions WHERE id = ?").get(disposition.id)).toMatchObject({
+      consequence_id: consequence.id,
+      disposition: "answered"
+    });
+    expect(() => PropagationFlow.retractPropagationConsequence(store, {
+      flowId: flow.id,
+      consequenceId: consequence.id,
+      reason: "A retired target cannot be retracted twice."
+    })).toThrow(/already retracted/i);
+    expect(() => store.db.prepare("DELETE FROM propagation_consequences WHERE id = ?").run(consequence.id)).toThrow(/retired.*immutable|revision audit/i);
+    expect(() => store.db.prepare("UPDATE propagation_consequences SET body = 'Overwritten' WHERE id = ?").run(consequence.id)).toThrow(/retired.*immutable|preserve retired content/i);
+
+    const revisable = PropagationFlow.addPropagationConsequence(store, {
+      flowId: flow.id,
+      orderKey: "second",
+      body: "Court clerks adapt their testimony ledgers.",
+      pressure: "normal"
+    });
+    const revised = PropagationFlow.revisePropagationConsequence(store, {
+      flowId: flow.id,
+      consequenceId: revisable.id,
+      reason: "The ledger adaptation needs a bounded replacement.",
+      orderKey: "second",
+      body: "Only courthouse clerks adapt their testimony ledgers.",
+      pressure: "normal"
+    }) as any;
+    expect(store.db.prepare("SELECT lifecycle_state, revision_reason, retired_actor_id, retired_flow_step FROM propagation_consequences WHERE id = ?").get(revisable.id)).toMatchObject({
+      lifecycle_state: "superseded",
+      revision_reason: "The ledger adaptation needs a bounded replacement.",
+      retired_actor_id: 1,
+      retired_flow_step: "propagation:consequence-revision"
+    });
+    expect(store.db.prepare("SELECT COUNT(*) AS count FROM propagation_consequences WHERE flow_id = ? AND lineage_id = ? AND lifecycle_state = 'active'").get(flow.id, revised.revision.lineageId)).toMatchObject({ count: 1 });
+    expect(() => store.db.prepare(`
+      INSERT INTO propagation_consequences (
+        flow_id, fact_record_id, order_key, order_label, domain_name, body, pressure, actor_id, flow_step,
+        lineage_id, version, lifecycle_state, prior_version_id, revision_reason
+      )
+      SELECT flow_id, fact_record_id, order_key, order_label, domain_name, 'Duplicate active version', pressure, 1,
+        'propagation:invalid-duplicate', lineage_id, version + 1, 'active', id, 'Invalid duplicate active version'
+      FROM propagation_consequences WHERE id = ?
+    `).run(revised.revision.active.id)).toThrow(/UNIQUE constraint failed/);
+    store.close();
   });
 
   it("stores sectioned prose with card history, report immutability, and FTS coverage", () => {

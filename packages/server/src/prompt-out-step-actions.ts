@@ -18,6 +18,7 @@ export interface PromptOutStepActionContext {
   recordId?: number;
   stepKey: string;
   mode?: PromptMode;
+  activeSetRevision?: number;
   selectedSectionHeading?: string | null;
   admissionLevel?: string;
   workScale?: string;
@@ -110,6 +111,7 @@ const actionHref = (action: "generate" | "store-advisory" | "disposition" | "ski
     recordId: input.recordId,
     stepKey: input.stepKey,
     mode: input.mode,
+    activeSetRevision: input.activeSetRevision,
     selectedSectionHeading: input.selectedSectionHeading ?? undefined,
     admissionLevel: input.admissionLevel,
     workScale: input.workScale
@@ -144,6 +146,7 @@ export const promptOutActionContextFromQuery = (query: (key: string) => string |
   recordId: optionalNumber(query("recordId")),
   stepKey: query("stepKey") ?? "",
   mode: query("mode") === "proposal" ? "proposal" : "pressure",
+  activeSetRevision: optionalNumber(query("activeSetRevision")),
   selectedSectionHeading: query("selectedSectionHeading"),
   admissionLevel: query("admissionLevel"),
   workScale: query("workScale")
@@ -153,8 +156,11 @@ export const buildPromptOutStep = (world: WorldFile, input: PromptOutStepOfferIn
   const template = PromptOut.listPromptTemplates(world).find((row) => row.key === input.templateKey);
   if (!template) throw new Error(`Prompt template not found: ${input.templateKey}`);
   const mode = input.mode ?? "pressure";
+  const actionInput = input.flowKey === "propagation" && input.flowId != null
+    ? { ...input, activeSetRevision: PropagationFlow.propagationActiveSet(world, input.flowId).revision }
+    : input;
   return {
-    id: stepId(input),
+    id: stepId(actionInput),
     label: input.label?.trim() || template.role_name || input.stepKey,
     templateKey: input.templateKey,
     mode,
@@ -175,26 +181,27 @@ export const buildPromptOutStep = (world: WorldFile, input: PromptOutStepOfferIn
       }
     ],
     context: {
-      flowKey: input.flowKey ?? null,
-      flowId: input.flowId ?? null,
-      stepKey: input.stepKey
+      flowKey: actionInput.flowKey ?? null,
+      flowId: actionInput.flowId ?? null,
+      stepKey: actionInput.stepKey
     },
     selectedRecord: selectedRecord(world, input.recordId),
     severity: {
-      admissionLevel: input.admissionLevel ?? null,
-      workScale: input.workScale ?? null
+      admissionLevel: actionInput.admissionLevel ?? null,
+      workScale: actionInput.workScale ?? null
     },
     packetIdentity: PromptOut.promptPacketIdentity(world, {
-      flowKey: input.flowKey,
-      flowId: input.flowId,
-      templateKey: input.templateKey,
-      recordId: input.recordId,
-      stepKey: input.stepKey,
+      flowKey: actionInput.flowKey,
+      flowId: actionInput.flowId,
+      templateKey: actionInput.templateKey,
+      recordId: actionInput.recordId,
+      stepKey: actionInput.stepKey,
       mode,
-      selectedSectionHeading: input.selectedSectionHeading,
-      admissionLevel: input.admissionLevel,
-      workScale: input.workScale,
-      admissionFullGateDraft: input.admissionFullGateDraft
+      activeSetRevision: actionInput.activeSetRevision,
+      selectedSectionHeading: actionInput.selectedSectionHeading,
+      admissionLevel: actionInput.admissionLevel,
+      workScale: actionInput.workScale,
+      admissionFullGateDraft: actionInput.admissionFullGateDraft
     }),
     currentState: {
       promptText: null,
@@ -202,33 +209,54 @@ export const buildPromptOutStep = (world: WorldFile, input: PromptOutStepOfferIn
       disposition: null
     },
     actions: {
-      generate: { method: "POST", href: actionHref("generate", input) },
-      storeAdvisory: { method: "POST", href: actionHref("store-advisory", input) },
-      disposition: { method: "POST", href: actionHref("disposition", input) },
-      skip: { method: "POST", href: actionHref("skip", input) }
+      generate: { method: "POST", href: actionHref("generate", actionInput) },
+      storeAdvisory: { method: "POST", href: actionHref("store-advisory", actionInput) },
+      disposition: { method: "POST", href: actionHref("disposition", actionInput) },
+      skip: { method: "POST", href: actionHref("skip", actionInput) }
     }
   };
 };
 
-export const runPromptOutGenerateAction = (world: WorldFile, input: PromptOutStepActionContext): PromptOut.PromptGenerationResult =>
-  PromptOut.generatePrompt(world, {
+export const runPromptOutGenerateAction = (world: WorldFile, input: PromptOutStepActionContext): PromptOut.PromptGenerationResult => {
+  if (input.flowKey === "propagation" && input.flowId != null) {
+    PropagationFlow.assertPropagationPacketCurrent(world, input.flowId, input.activeSetRevision);
+  }
+  return PromptOut.generatePrompt(world, {
     flowKey: input.flowKey,
     flowId: input.flowId,
     templateKey: input.templateKey ?? "",
     recordId: input.recordId,
     stepKey: input.stepKey,
     mode: input.mode,
+    activeSetRevision: input.activeSetRevision,
     selectedSectionHeading: input.selectedSectionHeading,
     admissionLevel: input.admissionLevel,
     workScale: input.workScale,
     admissionFullGateDraft: input.admissionFullGateDraft
   });
+};
 
 export const runPromptOutStoreAdvisoryAction = (
   world: WorldFile,
   input: PromptOutStepActionContext,
   payload: PromptOutStoreAdvisoryBody
 ): { record: RecordRow } | ReturnType<typeof InstitutionalFlow.storeStage12Advisory> | ReturnType<typeof ConstraintFlow.storeConstraintAdvisory> | ReturnType<typeof TemporalFlow.storeTemporalAdvisory> => {
+  if (input.flowKey === "propagation" && input.flowId != null) {
+    PropagationFlow.assertPropagationPacketCurrent(world, input.flowId, input.activeSetRevision);
+    return world.atomicWrite(() => {
+      const record = PromptOut.storeAdvisoryResponse(world, {
+        flowKey: input.flowKey,
+        flowId: input.flowId,
+        stepKey: input.stepKey,
+        mode: input.mode,
+        activeSetRevision: input.activeSetRevision,
+        promptText: payload.promptText,
+        responseText: payload.responseText
+      });
+      if (input.mode === "pressure") PropagationFlow.markPropagationPressureUsed(world, input.flowId!, input.activeSetRevision);
+      return { record };
+    });
+  }
   if (input.flowKey === InstitutionalFlow.FLOW_KEY) {
     if (input.flowId == null) throw new Error("Stage-12 Prompt-out actions require a flow id");
     return InstitutionalFlow.storeStage12Advisory(world, {
@@ -263,6 +291,7 @@ export const runPromptOutStoreAdvisoryAction = (
       flowId: input.flowId,
       stepKey: input.stepKey,
       mode: input.mode,
+      activeSetRevision: input.activeSetRevision,
       promptText: payload.promptText,
       responseText: payload.responseText
     })
@@ -271,10 +300,14 @@ export const runPromptOutStoreAdvisoryAction = (
 
 export const runPromptOutDispositionAction = (
   world: WorldFile,
+  input: PromptOutStepActionContext,
   payload: PromptOutDispositionBody
-): { disposition: PromptOut.AdvisoryDispositionRow } => ({
-  disposition: PromptOut.disposeAdvisoryArtifact(world, payload.advisoryRecordId, payload)
-});
+): { disposition: PromptOut.AdvisoryDispositionRow } => {
+  if (input.flowKey === "propagation" && input.flowId != null) {
+    PropagationFlow.assertPropagationPacketCurrent(world, input.flowId, input.activeSetRevision);
+  }
+  return { disposition: PromptOut.disposeAdvisoryArtifact(world, payload.advisoryRecordId, payload) };
+};
 
 type SkipHandler = (world: WorldFile, input: PromptOutStepActionContext, payload: PromptOutSkipBody) => unknown;
 

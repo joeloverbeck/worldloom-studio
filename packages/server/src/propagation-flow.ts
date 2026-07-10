@@ -3,6 +3,7 @@ import { intakeProposedFact } from "./admission-flow.js";
 import { ADVISORY_OUTPUT_LABELS, promptMode, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
 import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest, methodCardsForFlow } from "./method-cards.js";
 import * as PromptOut from "./prompt-out.js";
+import * as PropagationStore from "./propagation-store.js";
 import type { AdmissionQueueRow, FacetRow, RecordRow, WorldFile } from "./world-file.js";
 
 interface RecordRef {
@@ -29,7 +30,29 @@ export interface PropagationQueueRow extends RecordRow {
   route: PropagationActionRoute | null;
 }
 
-export interface PropagationConsequenceRow {
+export interface PropagationLifecycleProvenance {
+  created: {
+    actor: { id: number; name: string };
+    timestamp: string;
+    flowStep: string;
+  };
+  retired: {
+    actor: { id: number; name: string };
+    timestamp: string;
+    flowStep: string;
+  } | null;
+}
+
+interface PropagationLifecycleRow {
+  lineageId: string;
+  version: number;
+  lifecycleState: PropagationStore.PropagationLifecycleState;
+  priorVersionId: number | null;
+  revisionReason: string | null;
+  provenance: PropagationLifecycleProvenance;
+}
+
+export interface PropagationConsequenceRow extends PropagationLifecycleRow {
   id: number;
   flowId: number;
   factRecordId: number;
@@ -38,27 +61,25 @@ export interface PropagationConsequenceRow {
   domainName: string | null;
   body: string;
   pressure: "normal" | "high";
-  flowStep: string;
-  createdAt: string;
 }
 
-export interface PropagationDomainSweepRow {
+export interface PropagationDomainSweepRow extends PropagationLifecycleRow {
   id: number;
   flowId: number;
   domainName: string;
   triage: "direct" | "dependency" | "reaction" | "negative";
   declaration: string;
-  flowStep: string;
-  createdAt: string;
 }
 
 export interface PropagationDispositionRow {
   id: number;
+  flowId: number;
   consequenceId: number;
   disposition: string;
   note: string;
   preservationBoundary: string | null;
   debtRecordId: number | null;
+  active: boolean;
   flowStep: string;
   createdAt: string;
 }
@@ -70,6 +91,7 @@ export interface PropagationFlowRow {
   propagation_fact_record_id: number;
   propagation_debt_record_id: number | null;
   propagation_report_record_id: number | null;
+  propagation_active_set_revision: number;
 }
 
 type PropagationRequiredDomainCount = number | "all";
@@ -116,38 +138,63 @@ const DOMAIN_ATLAS = [
   "Aesthetics, tone, and narrative use"
 ] as const;
 
-const rowToPropagationConsequence = (row: Record<string, unknown>): PropagationConsequenceRow => ({
-  id: Number(row.id),
-  flowId: Number(row.flow_id),
-  factRecordId: Number(row.fact_record_id),
-  orderKey: String(row.order_key),
-  orderLabel: String(row.order_label),
-  domainName: row.domain_name == null ? null : String(row.domain_name),
-  body: String(row.body),
-  pressure: String(row.pressure) === "high" ? "high" : "normal",
-  flowStep: String(row.flow_step),
-  createdAt: String(row.created_at)
+const lifecycleProvenance = (row: PropagationStore.PropagationLifecycleStoreRow): PropagationLifecycleProvenance => ({
+  created: {
+    actor: { id: row.actor_id, name: row.actor_name },
+    timestamp: row.created_at,
+    flowStep: row.flow_step
+  },
+  retired: row.retired_actor_id == null || row.retired_actor_name == null || row.retired_at == null || row.retired_flow_step == null
+    ? null
+    : {
+        actor: { id: row.retired_actor_id, name: row.retired_actor_name },
+        timestamp: row.retired_at,
+        flowStep: row.retired_flow_step
+      }
 });
 
-const rowToPropagationDomainSweep = (row: Record<string, unknown>): PropagationDomainSweepRow => ({
-  id: Number(row.id),
-  flowId: Number(row.flow_id),
-  domainName: String(row.domain_name),
-  triage: String(row.triage) as PropagationDomainSweepRow["triage"],
-  declaration: String(row.declaration ?? ""),
-  flowStep: String(row.flow_step),
-  createdAt: String(row.created_at)
+const rowToPropagationConsequence = (row: PropagationStore.PropagationConsequenceStoreRow): PropagationConsequenceRow => ({
+  id: row.id,
+  flowId: row.flow_id,
+  factRecordId: row.fact_record_id,
+  orderKey: row.order_key,
+  orderLabel: row.order_label,
+  domainName: row.domain_name,
+  body: row.body,
+  pressure: row.pressure,
+  lineageId: row.lineage_id,
+  version: row.version,
+  lifecycleState: row.lifecycle_state,
+  priorVersionId: row.prior_version_id,
+  revisionReason: row.revision_reason,
+  provenance: lifecycleProvenance(row)
 });
 
-const rowToPropagationDisposition = (row: Record<string, unknown>): PropagationDispositionRow => ({
-  id: Number(row.id),
-  consequenceId: Number(row.consequence_id),
-  disposition: String(row.disposition),
-  note: String(row.note ?? ""),
-  preservationBoundary: row.preservation_boundary == null ? null : String(row.preservation_boundary),
-  debtRecordId: row.debt_record_id == null ? null : Number(row.debt_record_id),
-  flowStep: String(row.flow_step),
-  createdAt: String(row.created_at)
+const rowToPropagationDomainSweep = (row: PropagationStore.PropagationDomainSweepStoreRow): PropagationDomainSweepRow => ({
+  id: row.id,
+  flowId: row.flow_id,
+  domainName: row.domain_name,
+  triage: row.triage,
+  declaration: row.declaration,
+  lineageId: row.lineage_id,
+  version: row.version,
+  lifecycleState: row.lifecycle_state,
+  priorVersionId: row.prior_version_id,
+  revisionReason: row.revision_reason,
+  provenance: lifecycleProvenance(row)
+});
+
+const rowToPropagationDisposition = (row: PropagationStore.PropagationDispositionStoreRow, activeConsequenceIds: Set<number>): PropagationDispositionRow => ({
+  id: row.id,
+  flowId: row.flow_id,
+  consequenceId: row.consequence_id,
+  disposition: row.disposition,
+  note: row.note,
+  preservationBoundary: row.preservation_boundary,
+  debtRecordId: row.debt_record_id,
+  active: activeConsequenceIds.has(row.consequence_id),
+  flowStep: row.flow_step,
+  createdAt: row.created_at
 });
 
 const declaredSeverityFromFacets = (facets: FacetRow[]): DeclaredSeverity => ({
@@ -296,27 +343,36 @@ const readPropagationFlow = (store: WorldFile, flowId: number): PropagationFlowR
     current_step: String(flow.current_step),
     propagation_fact_record_id: Number(flow.propagation_fact_record_id),
     propagation_debt_record_id: flow.propagation_debt_record_id == null ? null : Number(flow.propagation_debt_record_id),
-    propagation_report_record_id: flow.propagation_report_record_id == null ? null : Number(flow.propagation_report_record_id)
+    propagation_report_record_id: flow.propagation_report_record_id == null ? null : Number(flow.propagation_report_record_id),
+    propagation_active_set_revision: Number(flow.propagation_active_set_revision ?? 0)
   };
 };
 
 const propagationConsequences = (store: WorldFile, flowId: number): PropagationConsequenceRow[] =>
-  store.propagationConsequences(flowId).map((row) => rowToPropagationConsequence(row));
+  PropagationStore.listConsequences(store, flowId).map((row) => rowToPropagationConsequence(row));
+
+const activePropagationConsequences = (store: WorldFile, flowId: number): PropagationConsequenceRow[] =>
+  PropagationStore.listActiveConsequences(store, flowId).map((row) => rowToPropagationConsequence(row));
 
 const propagationDomainSweeps = (store: WorldFile, flowId: number): PropagationDomainSweepRow[] =>
-  store.propagationDomainSweeps(flowId).map((row) => rowToPropagationDomainSweep(row));
+  PropagationStore.listDomainSweeps(store, flowId).map((row) => rowToPropagationDomainSweep(row));
 
-const propagationDispositions = (store: WorldFile, flowId: number): PropagationDispositionRow[] =>
-  store.propagationDispositions(flowId).map((row) => rowToPropagationDisposition(row));
+const activePropagationDomainSweeps = (store: WorldFile, flowId: number): PropagationDomainSweepRow[] =>
+  PropagationStore.listActiveDomainSweeps(store, flowId).map((row) => rowToPropagationDomainSweep(row));
+
+const propagationDispositions = (store: WorldFile, flowId: number): PropagationDispositionRow[] => {
+  const activeIds = new Set(activePropagationConsequences(store, flowId).map((row) => row.id));
+  return PropagationStore.listDispositions(store, flowId).map((row) => rowToPropagationDisposition(row, activeIds));
+};
 
 const undispositionedHighPressureConsequences = (store: WorldFile, flowId: number): PropagationConsequenceRow[] =>
-  store.undispositionedHighPressurePropagationConsequences(flowId).map((row) => rowToPropagationConsequence(row));
+  PropagationStore.listUndispositionedHighPressure(store, flowId).map((row) => rowToPropagationConsequence(row));
 
 const coverageBlockers = (store: WorldFile, flow: PropagationFlowRow): DecisionPointSharedContract["blockers"] => {
   const severity = severityForRecord(store, flow.propagation_fact_record_id);
   const obligations = propagationCoverageObligations(severity);
-  const consequences = propagationConsequences(store, flow.id);
-  const sweeps = propagationDomainSweeps(store, flow.id);
+  const consequences = activePropagationConsequences(store, flow.id);
+  const sweeps = activePropagationDomainSweeps(store, flow.id);
   const blockers: DecisionPointSharedContract["blockers"] = [];
   const orderKeys = new Set(consequences.map((row) => row.orderKey));
   const sweptDomains = new Set(sweeps.map((row) => row.domainName));
@@ -399,8 +455,18 @@ const propagationCloseBlockers = (store: WorldFile, flowId: number): DecisionPoi
       label: "Undispositioned high-pressure consequence",
       message: `High-pressure consequence #${row.id} must be answered, scoped out, assigned as canon debt, or protected as a mystery boundary before close.`,
       requires: "consequence disposition",
-      classification: "stopping-rule"
-    }))
+      classification: "stopping-rule",
+      consequenceId: row.id
+    })),
+    ...(PropagationStore.activeSetState(store, flowId).pressureOwedRevision == null
+      ? []
+      : [{
+          key: "fresh-pressure-or-skip-owed",
+          label: "Fresh Pressure or governed skip owed",
+          message: "Substantive revision followed used Pressure; load current Pressure or record the governed skip before close.",
+          requires: "fresh Pressure packet or Prompt-out skip",
+          classification: "prompt-currentness"
+        }])
   ];
 };
 
@@ -409,6 +475,98 @@ const propagationCloseReadiness = (store: WorldFile, flowId: number) => {
   return {
     status: blockers.length ? "blocked" : "ready",
     blockers
+  };
+};
+
+const propagationPacketCurrentness = (store: WorldFile, flowId: number) => {
+  const flow = readPropagationFlow(store, flowId);
+  const state = PropagationStore.activeSetState(store, flowId);
+  const severity = severityForRecord(store, flow.propagation_fact_record_id);
+  const stale = state.pressureUsedRevision != null && state.pressureUsedRevision !== state.revision;
+  const reason = stale
+    ? `${state.changedKind ?? "Propagation active-set change"}${state.changedRowId == null ? "" : ` for row ${state.changedRowId}`} made the prior packet stale${state.changedReason ? `: ${state.changedReason}` : "."}`
+    : "The active-set identity matches the current Propagation run.";
+  const commonQuery = new URLSearchParams({
+    flowKey: "propagation",
+    flowId: String(flowId),
+    templateKey: PROMPT_TEMPLATE_KEY,
+    recordId: String(flow.propagation_fact_record_id),
+    stepKey: "propagation:pre-close-revision",
+    mode: "pressure",
+    activeSetRevision: String(state.revision),
+    ...(severity.admissionLevel == null ? {} : { admissionLevel: severity.admissionLevel }),
+    ...(severity.workScale == null ? {} : { workScale: severity.workScale })
+  });
+  return {
+    status: stale ? "stale" : "current",
+    activeSetRevision: state.revision,
+    priorPressureRevision: state.pressureUsedRevision,
+    reason,
+    recovery: {
+      action: "load-current-packet",
+      changedKind: state.changedKind,
+      changedRowId: state.changedRowId,
+      href: "/api/prompt-out/steps",
+      body: {
+        flowKey: "propagation",
+        flowId,
+        templateKey: PROMPT_TEMPLATE_KEY,
+        recordId: flow.propagation_fact_record_id,
+        stepKey: "propagation:pre-close-revision",
+        mode: "pressure",
+        label: "Current Propagation Pressure"
+      }
+    },
+    pressure: {
+      status: state.pressureOwedRevision == null ? "current-or-unused" : "owed",
+      reasonRequired: isMajorOrHigher(severity),
+      externalLlmRequired: false,
+      freshPacket: {
+        method: "POST",
+        href: "/api/prompt-out/steps",
+        body: {
+          flowKey: "propagation",
+          flowId,
+          templateKey: PROMPT_TEMPLATE_KEY,
+          recordId: flow.propagation_fact_record_id,
+          stepKey: "propagation:pre-close-revision",
+          mode: "pressure",
+          label: "Fresh Pressure over current active set",
+          admissionLevel: severity.admissionLevel,
+          workScale: severity.workScale
+        }
+      },
+      skip: {
+        method: "POST",
+        href: `/api/prompt-out/steps/actions/skip?${commonQuery.toString()}`
+      }
+    }
+  };
+};
+
+const propagationRevisionDecision = (store: WorldFile, flowId: number) => {
+  const flow = readPropagationFlow(store, flowId);
+  return {
+    name: "Pre-close Propagation revision and finalization",
+    packageSources: [PROPAGATION_PROTOCOL, AI_WORKFLOW_PROTOCOL],
+    doctrine: {
+      staging: "Consequences and domain declarations remain editable staging while this run is open; revision preserves retired content and lineage.",
+      reportBoundary: "Close freezes the active set into one append-only propagation report; later correction creates a new report."
+    },
+    writeIntent: {
+      willWrite: ["an active replacement or retraction audit with steward reason and provenance", "the final active shock cone and relevant revision audit on close"],
+      willLink: ["the final report digest and existing governed debt/proposal links"],
+      willQueue: ["only canon debt explicitly chosen by the steward"],
+      willLeaveUntouched: ["source canon standing", "Admission work", "sibling proposals", "unrelated debt", "advisory artifacts", "closed reports"]
+    },
+    actions: flow.state === "in_progress"
+      ? {
+          reviseConsequence: "/api/propagation/consequences/:id/revisions",
+          retractConsequence: "/api/propagation/consequences/:id/retract",
+          reviseDomain: "/api/propagation/domains/:id/revisions",
+          retractDomain: "/api/propagation/domains/:id/retract"
+        }
+      : null
   };
 };
 
@@ -594,6 +752,10 @@ const propagationClosePreview = (store: WorldFile, flowId: number) => {
   const fact = store.getRecord(flow.propagation_fact_record_id);
   const report = flow.propagation_report_record_id == null ? null : store.getRecord(flow.propagation_report_record_id);
   const dispositions = propagationDispositions(store, flowId);
+  const activeConsequences = activePropagationConsequences(store, flowId);
+  const activeDomains = activePropagationDomainSweeps(store, flowId);
+  const retiredConsequences = propagationConsequences(store, flowId).filter((row) => row.lifecycleState !== "active");
+  const retiredDomains = propagationDomainSweeps(store, flowId).filter((row) => row.lifecycleState !== "active");
   const proposalRows = store.propagationSurfacedProposals(flowId) as Array<{ proposal_record_id: number; report_record_id: number | null }>;
   const skipRecords = skipRecordsForFlow(store, flowId);
   return {
@@ -603,6 +765,8 @@ const propagationClosePreview = (store: WorldFile, flowId: number) => {
       report
         ? `read existing append-only propagation report ${report.shortId}`
         : `append-only propagation report for ${fact.shortId}`,
+      `${activeConsequences.length} final active consequence version(s) and ${activeDomains.length} final active domain version(s)`,
+      `${retiredConsequences.length + retiredDomains.length} retired revision audit row(s) with lineage and steward reason`,
       "source fact digest link",
       "report provenance links for surfaced proposals",
       ...(flow.propagation_debt_record_id == null ? [] : ["close the owed propagation debt that started this run"]),
@@ -610,6 +774,10 @@ const propagationClosePreview = (store: WorldFile, flowId: number) => {
     ],
     existingRecords: [
       ...(report ? [{ kind: "propagation report", recordId: report.id, title: report.title }] : []),
+      ...activeConsequences.map((row) => ({ kind: "active consequence", recordId: row.id, title: row.body })),
+      ...activeDomains.map((row) => ({ kind: "active domain", recordId: row.id, title: `${row.domainName}: ${row.triage}` })),
+      ...retiredConsequences.map((row) => ({ kind: `${row.lifecycleState} consequence`, recordId: row.id, title: row.revisionReason ?? row.body })),
+      ...retiredDomains.map((row) => ({ kind: `${row.lifecycleState} domain`, recordId: row.id, title: row.revisionReason ?? row.domainName })),
       ...proposalRows.map((row) => {
         const proposal = store.getRecord(row.proposal_record_id);
         return { kind: "surfaced proposal", recordId: proposal.id, title: proposal.title, canonStatus: proposal.canonStatus };
@@ -630,7 +798,10 @@ const propagationClosePreview = (store: WorldFile, flowId: number) => {
     willLeaveUntouched: [
       "source canon standing remains unchanged",
       "proposed facts remain proposed until Admission works them",
-      "advisory artifacts remain advisory unless explicitly linked by steward use"
+      "Admission work and sibling proposals remain unchanged",
+      "unrelated canon debt and records remain unchanged",
+      "advisory artifacts remain advisory unless explicitly linked by steward use",
+      "prior propagation reports remain append-only"
     ],
     readSideTrail: propagationReadSideTrail(store, flowId)
   };
@@ -662,8 +833,8 @@ export const propagationPlan = (store: WorldFile, recordId: number, options: { f
   const severity = declaredSeverityFromFacets(facets);
   const coverage = propagationCoveragePolicy(severity);
   const obligations = propagationCoverageObligations(severity);
-  const consequences = options.flowId == null ? [] : propagationConsequences(store, options.flowId);
-  const domainSweeps = options.flowId == null ? [] : propagationDomainSweeps(store, options.flowId);
+  const consequences = options.flowId == null ? [] : activePropagationConsequences(store, options.flowId);
+  const domainSweeps = options.flowId == null ? [] : activePropagationDomainSweeps(store, options.flowId);
   return {
     record,
     sourceFact: recordRef(record),
@@ -721,6 +892,10 @@ export const getPropagationRun = (store: WorldFile, flowId: number): unknown => 
   const sourceFact = store.getRecord(flow.propagation_fact_record_id);
   const owedDebt = owedDebtForFlow(store, flow);
   const severity = severityForRecord(store, flow.propagation_fact_record_id);
+  const consequences = propagationConsequences(store, flowId);
+  const domainSweeps = propagationDomainSweeps(store, flowId);
+  const activeConsequences = consequences.filter((row) => row.lifecycleState === "active");
+  const activeDomainSweeps = domainSweeps.filter((row) => row.lifecycleState === "active");
   return {
     flow,
     sourceFact: recordRef(sourceFact),
@@ -730,6 +905,9 @@ export const getPropagationRun = (store: WorldFile, flowId: number): unknown => 
     closeReadiness: propagationCloseReadiness(store, flowId),
     closePreview: propagationClosePreview(store, flowId),
     readSideTrail: propagationReadSideTrail(store, flowId),
+    revisionDecision: propagationRevisionDecision(store, flowId),
+    activeSet: PropagationStore.activeSetState(store, flowId),
+    packetCurrentness: propagationPacketCurrentness(store, flowId),
     plan: propagationPlan(store, flow.propagation_fact_record_id, { flowId, currentStep: stepKey }),
     methodCard: propagationMethodCardForStep(stepKey),
     methodCards: methodCardsForFlow("propagation"),
@@ -740,11 +918,22 @@ export const getPropagationRun = (store: WorldFile, flowId: number): unknown => 
       currentStep: stepKey,
       blockers
     }),
-    consequences: propagationConsequences(store, flowId),
-    domainSweeps: propagationDomainSweeps(store, flowId),
+    consequences,
+    activeConsequences,
+    domainSweeps,
+    activeDomainSweeps,
     dispositions: propagationDispositions(store, flowId),
+    revisionAudit: [
+      ...consequences.filter((row) => row.lifecycleState !== "active"),
+      ...domainSweeps.filter((row) => row.lifecycleState !== "active")
+    ],
     proposals: store.propagationSurfacedProposals(flowId)
   };
+};
+
+export const getActivePropagationRun = (store: WorldFile): unknown | null => {
+  const flow = store.findLatestInProgressFlow("propagation");
+  return flow == null ? null : getPropagationRun(store, Number(flow.id));
 };
 
 export const addPropagationConsequence = (
@@ -752,22 +941,31 @@ export const addPropagationConsequence = (
   input: { flowId: number; orderKey: string; domainName?: string; body: string; pressure?: "normal" | "high" }
 ): PropagationConsequenceRow => {
   const flow = readPropagationFlow(store, input.flowId);
+  PropagationStore.assertOpenPropagationRun(store, input.flowId);
   const order = PROPAGATION_ORDERS.find(([key]) => key === input.orderKey);
   if (!order) throw new Error(`Unknown propagation order: ${input.orderKey}`);
   if (input.domainName && !DOMAIN_ATLAS.includes(input.domainName as (typeof DOMAIN_ATLAS)[number])) throw new Error(`Unknown domain: ${input.domainName}`);
   if (!input.body.trim()) throw new Error("propagation consequence requires steward-written prose");
-  const row = store.insertPropagationConsequence({
-    flowId: input.flowId,
-    factRecordId: flow.propagation_fact_record_id,
-    orderKey: order[0],
-    orderLabel: order[1],
-    domainName: input.domainName,
-    body: input.body,
-    pressure: input.pressure ?? "normal",
-    flowStep: `propagation:${order[0]}`
+  return store.atomicWrite(() => {
+    const row = PropagationStore.insertConsequence(store, {
+      flowId: input.flowId,
+      factRecordId: flow.propagation_fact_record_id,
+      orderKey: order[0],
+      orderLabel: order[1],
+      domainName: input.domainName,
+      body: input.body,
+      pressure: input.pressure ?? "normal",
+      flowStep: `propagation:${order[0]}`
+    });
+    PropagationStore.advanceActiveSet(store, input.flowId, {
+      kind: "consequence-added",
+      rowId: Number(row.id),
+      reason: `Added ${order[1]} consequence`,
+      substantive: true
+    });
+    store.updateFlowInstance(input.flowId, { currentStep: `propagation:${order[0]}` });
+    return rowToPropagationConsequence(row);
   });
-  store.updateFlowInstance(input.flowId, { currentStep: `propagation:${order[0]}` });
-  return rowToPropagationConsequence(row);
 };
 
 export const recordPropagationDomain = (
@@ -775,32 +973,205 @@ export const recordPropagationDomain = (
   input: { flowId: number; domainName: string; triage: "direct" | "dependency" | "reaction" | "negative"; declaration?: string }
 ): PropagationDomainSweepRow => {
   readPropagationFlow(store, input.flowId);
+  PropagationStore.assertOpenPropagationRun(store, input.flowId);
   if (!DOMAIN_ATLAS.includes(input.domainName as (typeof DOMAIN_ATLAS)[number])) throw new Error(`Unknown domain: ${input.domainName}`);
   if (input.triage === "negative" && !input.declaration?.trim()) throw new Error("negative domains require an explicit declaration");
-  const row = store.upsertPropagationDomainSweep(input);
-  store.updateFlowInstance(input.flowId, { currentStep: "propagation:domain-atlas" });
-  return rowToPropagationDomainSweep(row);
+  return store.atomicWrite(() => {
+    const row = PropagationStore.insertDomainSweep(store, input);
+    PropagationStore.advanceActiveSet(store, input.flowId, {
+      kind: "domain-added",
+      rowId: Number(row.id),
+      reason: `Recorded ${input.domainName} as ${input.triage}`,
+      substantive: true
+    });
+    store.updateFlowInstance(input.flowId, { currentStep: "propagation:domain-atlas" });
+    return rowToPropagationDomainSweep(row);
+  });
+};
+
+const requiredRevisionReason = (reason: string): string => {
+  const value = reason.trim();
+  if (!value) throw new Error("Propagation revision and retraction require a steward-authored reason");
+  return value;
+};
+
+const validatedOrder = (orderKey: string) => {
+  const order = PROPAGATION_ORDERS.find(([key]) => key === orderKey);
+  if (!order) throw new Error(`Unknown propagation order: ${orderKey}`);
+  return order;
+};
+
+const revisionResponse = (store: WorldFile, flowId: number, revision: unknown): unknown => ({
+  ...(getPropagationRun(store, flowId) as Record<string, unknown>),
+  revision
+});
+
+export const revisePropagationConsequence = (
+  store: WorldFile,
+  input: { flowId: number; consequenceId: number; reason: string; orderKey: string; domainName?: string; body: string; pressure?: "normal" | "high" }
+): unknown => {
+  PropagationStore.assertOpenPropagationRun(store, input.flowId);
+  const reason = requiredRevisionReason(input.reason);
+  const order = validatedOrder(input.orderKey);
+  if (input.domainName && !DOMAIN_ATLAS.includes(input.domainName as (typeof DOMAIN_ATLAS)[number])) throw new Error(`Unknown domain: ${input.domainName}`);
+  if (!input.body.trim()) throw new Error("propagation consequence revision requires steward-written prose");
+  return store.atomicWrite(() => {
+    const result = PropagationStore.reviseConsequence(store, {
+      ...input,
+      reason,
+      orderKey: order[0],
+      orderLabel: order[1],
+      pressure: input.pressure ?? "normal"
+    });
+    const activeSet = PropagationStore.advanceActiveSet(store, input.flowId, {
+      kind: "consequence-revision",
+      rowId: Number(result.active.id),
+      reason,
+      substantive: true
+    });
+    store.updateFlowInstance(input.flowId, { currentStep: "propagation:pre-close-revision" });
+    const retired = rowToPropagationConsequence(result.retired);
+    const active = rowToPropagationConsequence(result.active);
+    return revisionResponse(store, input.flowId, {
+      kind: "consequence-revision",
+      reason,
+      lineageId: active.lineageId,
+      retired,
+      active,
+      invalidatedDisposition: result.invalidatedDisposition == null
+        ? null
+        : { ...rowToPropagationDisposition(result.invalidatedDisposition, new Set()), active: false },
+      activeSetRevision: activeSet.revision
+    });
+  });
+};
+
+export const retractPropagationConsequence = (
+  store: WorldFile,
+  input: { flowId: number; consequenceId: number; reason: string }
+): unknown => {
+  PropagationStore.assertOpenPropagationRun(store, input.flowId);
+  const reason = requiredRevisionReason(input.reason);
+  return store.atomicWrite(() => {
+    const result = PropagationStore.retractConsequence(store, { ...input, reason });
+    const activeSet = PropagationStore.advanceActiveSet(store, input.flowId, {
+      kind: "consequence-retraction",
+      rowId: input.consequenceId,
+      reason,
+      substantive: true
+    });
+    store.updateFlowInstance(input.flowId, { currentStep: "propagation:pre-close-revision" });
+    const retired = rowToPropagationConsequence(result.retired);
+    return revisionResponse(store, input.flowId, {
+      kind: "consequence-retraction",
+      reason,
+      lineageId: retired.lineageId,
+      retired,
+      active: null,
+      invalidatedDisposition: result.invalidatedDisposition == null
+        ? null
+        : { ...rowToPropagationDisposition(result.invalidatedDisposition, new Set()), active: false },
+      activeSetRevision: activeSet.revision
+    });
+  });
+};
+
+const validateDomainRevision = (input: { domainName: string; triage: PropagationDomainSweepRow["triage"]; declaration?: string }): void => {
+  if (!DOMAIN_ATLAS.includes(input.domainName as (typeof DOMAIN_ATLAS)[number])) throw new Error(`Unknown domain: ${input.domainName}`);
+  if (input.triage === "negative" && !input.declaration?.trim()) throw new Error("negative domains require an explicit declaration");
+};
+
+export const revisePropagationDomain = (
+  store: WorldFile,
+  input: { flowId: number; domainId: number; reason: string; triage: PropagationDomainSweepRow["triage"]; declaration?: string }
+): unknown => {
+  PropagationStore.assertOpenPropagationRun(store, input.flowId);
+  const reason = requiredRevisionReason(input.reason);
+  const target = PropagationStore.getDomainSweep(store, input.domainId);
+  if (!target) throw new Error(`Propagation domain not found: ${input.domainId}`);
+  validateDomainRevision({ domainName: target.domain_name, triage: input.triage, declaration: input.declaration });
+  return store.atomicWrite(() => {
+    const result = PropagationStore.reviseDomainSweep(store, { ...input, reason });
+    const activeSet = PropagationStore.advanceActiveSet(store, input.flowId, {
+      kind: "domain-revision",
+      rowId: result.active.id,
+      reason,
+      substantive: true
+    });
+    store.updateFlowInstance(input.flowId, { currentStep: "propagation:pre-close-revision" });
+    const retired = rowToPropagationDomainSweep(result.retired);
+    const active = rowToPropagationDomainSweep(result.active);
+    return revisionResponse(store, input.flowId, {
+      kind: "domain-revision",
+      reason,
+      lineageId: active.lineageId,
+      retired,
+      active,
+      activeSetRevision: activeSet.revision
+    });
+  });
+};
+
+export const retractPropagationDomain = (
+  store: WorldFile,
+  input: { flowId: number; domainId: number; reason: string }
+): unknown => {
+  PropagationStore.assertOpenPropagationRun(store, input.flowId);
+  const reason = requiredRevisionReason(input.reason);
+  return store.atomicWrite(() => {
+    const result = PropagationStore.retractDomainSweep(store, { ...input, reason });
+    const activeSet = PropagationStore.advanceActiveSet(store, input.flowId, {
+      kind: "domain-retraction",
+      rowId: input.domainId,
+      reason,
+      substantive: true
+    });
+    store.updateFlowInstance(input.flowId, { currentStep: "propagation:pre-close-revision" });
+    const retired = rowToPropagationDomainSweep(result.retired);
+    return revisionResponse(store, input.flowId, {
+      kind: "domain-retraction",
+      reason,
+      lineageId: retired.lineageId,
+      retired,
+      active: null,
+      activeSetRevision: activeSet.revision
+    });
+  });
 };
 
 export const dispositionPropagationConsequence = (
   store: WorldFile,
   input: { consequenceId: number; disposition: string; note?: string; debtName?: string; preservationBoundary?: string }
 ): PropagationDispositionRow => {
-  const consequence = store.getPropagationConsequence(input.consequenceId);
+  const consequence = PropagationStore.getConsequence(store, input.consequenceId);
   if (!consequence) throw new Error(`Propagation consequence not found: ${input.consequenceId}`);
-  store.assertVocabularyTerm("consequence_disposition", input.disposition);
-  let debtRecordId: number | null = null;
-  if (input.disposition === "assigned as canon debt") {
-    if (!input.debtName?.trim()) throw new Error("assigned-as-debt consequences require a named debt");
-    debtRecordId = store.createCanonDebt({ name: input.debtName, scope: "propagation", assignee: "steward", body: input.note ?? String(consequence.body) }).id;
-    store.createLinkIfMissing(debtRecordId, Number(consequence.fact_record_id), "derived_from", "Propagation follow-up debt preserves source fact");
+  const flowId = consequence.flow_id;
+  PropagationStore.assertOpenPropagationRun(store, flowId);
+  if (consequence.lifecycle_state !== "active") throw new Error(`Propagation consequence ${input.consequenceId} is ${consequence.lifecycle_state}; only active versions can be dispositioned`);
+  if (PropagationStore.dispositionForConsequence(store, input.consequenceId)) {
+    throw new Error(`Propagation consequence #${input.consequenceId} is already dispositioned; revise the consequence to create a new active version before dispositioning again`);
   }
+  store.assertVocabularyTerm("consequence_disposition", input.disposition);
+  if (input.disposition === "assigned as canon debt" && !input.debtName?.trim()) throw new Error("assigned-as-debt consequences require a named debt");
   if (input.disposition === "protected as a mystery boundary" && !input.preservationBoundary?.trim()) {
     throw new Error("protected consequences require an explicit preservation boundary");
   }
-  const row = store.insertPropagationDisposition({ consequenceId: input.consequenceId, disposition: input.disposition, note: input.note, preservationBoundary: input.preservationBoundary, debtRecordId });
-  store.updateFlowInstance(Number(consequence.flow_id), { currentStep: "propagation:disposition" });
-  return rowToPropagationDisposition(row);
+  return store.atomicWrite(() => {
+    let debtRecordId: number | null = null;
+    if (input.disposition === "assigned as canon debt") {
+      debtRecordId = store.createCanonDebt({ name: input.debtName!, scope: "propagation", assignee: "steward", body: input.note ?? consequence.body }).id;
+      store.createLinkIfMissing(debtRecordId, consequence.fact_record_id, "derived_from", "Propagation follow-up debt preserves source fact");
+    }
+    const row = PropagationStore.insertDisposition(store, { consequenceId: input.consequenceId, disposition: input.disposition, note: input.note, preservationBoundary: input.preservationBoundary, debtRecordId });
+    PropagationStore.advanceActiveSet(store, flowId, {
+      kind: "consequence-disposition",
+      rowId: input.consequenceId,
+      reason: `Recorded ${input.disposition}`,
+      substantive: false
+    });
+    store.updateFlowInstance(flowId, { currentStep: "propagation:disposition" });
+    return rowToPropagationDisposition(row, new Set([input.consequenceId]));
+  });
 };
 
 export const proposeFactFromPropagation = (
@@ -831,15 +1202,35 @@ export const proposeFactFromPropagation = (
 
 export const skipPropagationStep = (
   store: WorldFile,
-  input: { flowId?: number; stepKey: string; admissionLevel?: string; workScale?: string; reason?: string }
+  input: { flowId?: number; stepKey: string; mode?: "proposal" | "pressure"; activeSetRevision?: number; admissionLevel?: string; workScale?: string; reason?: string }
 ): RecordRow => {
-  const record = PromptOut.recordPromptOutSkip(store, { flowKey: "propagation", ...input });
-  if (input.flowId != null) {
-    const flow = readPropagationFlow(store, input.flowId);
-    store.createLink(record.id, flow.propagation_fact_record_id, "derived_from", "Propagation step declined");
-    store.updateFlowInstance(input.flowId, { currentStep: `propagation:skip:${input.stepKey}` });
-  }
-  return record;
+  if (input.flowId != null) PropagationStore.assertOpenPropagationRun(store, input.flowId);
+  return store.atomicWrite(() => {
+    if (input.flowId != null && input.activeSetRevision != null) {
+      PropagationStore.assertCurrentActiveSet(store, input.flowId, input.activeSetRevision);
+    }
+    const record = PromptOut.recordPromptOutSkip(store, { flowKey: "propagation", ...input });
+    if (input.flowId != null) {
+      const flow = readPropagationFlow(store, input.flowId);
+      store.createLink(record.id, flow.propagation_fact_record_id, "derived_from", "Propagation step declined");
+      if (input.mode === "pressure") PropagationStore.markPressureSkipped(store, input.flowId, input.activeSetRevision ?? PropagationStore.activeSetState(store, input.flowId).revision);
+      store.updateFlowInstance(input.flowId, { currentStep: `propagation:skip:${input.stepKey}` });
+    }
+    return record;
+  });
+};
+
+export const propagationActiveSet = (store: WorldFile, flowId: number): PropagationStore.PropagationActiveSetState =>
+  PropagationStore.activeSetState(store, flowId);
+
+export const assertPropagationPacketCurrent = (store: WorldFile, flowId: number, activeSetRevision?: number): void => {
+  PropagationStore.assertOpenPropagationRun(store, flowId);
+  PropagationStore.assertCurrentActiveSet(store, flowId, activeSetRevision);
+};
+
+export const markPropagationPressureUsed = (store: WorldFile, flowId: number, activeSetRevision?: number): void => {
+  PropagationStore.assertOpenPropagationRun(store, flowId);
+  PropagationStore.markPressureUsed(store, flowId, activeSetRevision);
 };
 
 export const closePropagationRun = (store: WorldFile, flowId: number): { flow: unknown; report: RecordRow; debt: RecordRow | null; missing: PropagationConsequenceRow[]; closePreview: unknown; readSideTrail: unknown[] } => {
@@ -895,10 +1286,32 @@ export const correctPropagationReport = (
 const writePropagationReport = (store: WorldFile, flowId: number): RecordRow => {
   const flow = readPropagationFlow(store, flowId);
   const fact = store.getRecord(flow.propagation_fact_record_id);
-  const consequences = propagationConsequences(store, flowId);
-  const domainSweeps = propagationDomainSweeps(store, flowId);
+  const allConsequences = propagationConsequences(store, flowId);
+  const allDomainSweeps = propagationDomainSweeps(store, flowId);
+  const consequences = allConsequences.filter((row) => row.lifecycleState === "active");
+  const domainSweeps = allDomainSweeps.filter((row) => row.lifecycleState === "active");
   const dispositions = propagationDispositions(store, flowId);
-  const dispositionByConsequence = new Map(dispositions.map((disposition) => [disposition.consequenceId, disposition]));
+  const activeConsequenceIds = new Set(consequences.map((row) => row.id));
+  const activeDispositions = dispositions.filter((row) => activeConsequenceIds.has(row.consequenceId));
+  const revisionProvenance = (row: PropagationLifecycleRow): string => {
+    const created = row.provenance.created;
+    const retired = row.provenance.retired;
+    return [
+      `Created by ${created.actor.name} (#${created.actor.id}) at ${created.timestamp} during ${created.flowStep}`,
+      retired == null
+        ? "Not retired"
+        : `Retired by ${retired.actor.name} (#${retired.actor.id}) at ${retired.timestamp} during ${retired.flowStep}`
+    ].join("; ");
+  };
+  const revisionAudit = [
+    ...allConsequences.filter((row) => row.lifecycleState !== "active").map((row) =>
+      `- Consequence lineage ${row.lineageId} v${row.version} #${row.id} ${row.lifecycleState}: ${row.body}\n  Reason: ${row.revisionReason ?? "none recorded"}; ${revisionProvenance(row)}`
+    ),
+    ...allDomainSweeps.filter((row) => row.lifecycleState !== "active").map((row) =>
+      `- Domain lineage ${row.lineageId} v${row.version} #${row.id} ${row.lifecycleState}: ${row.domainName} (${row.triage}) ${row.declaration}\n  Reason: ${row.revisionReason ?? "none recorded"}; ${revisionProvenance(row)}`
+    )
+  ];
+  const dispositionByConsequence = new Map(activeDispositions.map((disposition) => [disposition.consequenceId, disposition]));
   const proposalRows = store.propagationSurfacedProposals(flowId) as Array<{ proposal_record_id: number }>;
   const proposals = proposalRows.map((row) => store.getRecord(row.proposal_record_id));
   const body = [
@@ -907,7 +1320,9 @@ const writePropagationReport = (store: WorldFile, flowId: number): RecordRow => 
     `Orders worked: ${[...new Set(consequences.map((row) => row.orderLabel))].join(", ") || "none"}`,
     `Domains swept: ${domainSweeps.filter((row) => row.triage !== "negative").map((row) => row.domainName).join("; ") || "none"}`,
     `Negative domains: ${domainSweeps.filter((row) => row.triage === "negative").map((row) => `${row.domainName}: ${row.declaration}`).join("; ") || "none"}`,
-    `Consequences: ${consequences.length}`,
+    `Final active consequences: ${consequences.length}`,
+    `Final active domains: ${domainSweeps.length}`,
+    `Retired revision audit rows: ${revisionAudit.length}`,
     `Surface proposals: ${proposals.map((proposal) => proposal.shortId).join(", ") || "none"}`
   ].join("\n");
   const report = store.createRecord({
@@ -925,13 +1340,13 @@ const writePropagationReport = (store: WorldFile, flowId: number): RecordRow => 
     }).join("\n\n"), position: 2 },
     { heading: "Domain-atlas sweep", body: domainSweeps.filter((row) => row.triage !== "negative").map((row) => `- ${row.domainName} (${row.triage}): ${row.declaration || "swept"}`).join("\n") || "No swept domains recorded.", position: 3 },
     { heading: "Negative domains", body: domainSweeps.filter((row) => row.triage === "negative").map((row) => `- ${row.domainName}: ${row.declaration}`).join("\n") || "No negative domains declared.", position: 4 },
-    { heading: "Consequences and dispositions", body: consequences.map((row) => {
+    { heading: "Consequences and dispositions", body: [consequences.map((row) => {
       const disposition = dispositionByConsequence.get(row.id);
-      return `- #${row.id} ${row.orderLabel}${row.domainName ? ` / ${row.domainName}` : ""}: ${row.body}\n  Disposition: ${disposition ? `${disposition.disposition}${disposition.note ? ` - ${disposition.note}` : ""}` : "undispositioned"}`;
-    }).join("\n") || "No consequences recorded.", position: 5 },
+      return `- Active lineage ${row.lineageId} v${row.version} #${row.id} ${row.orderLabel}${row.domainName ? ` / ${row.domainName}` : ""}: ${row.body}\n  Disposition: ${disposition ? `${disposition.disposition}${disposition.note ? ` - ${disposition.note}` : ""}` : "undispositioned"}`;
+    }).join("\n") || "No active consequences recorded.", `\nRevision audit:\n${revisionAudit.join("\n") || "No staged revisions."}`].join("\n"), position: 5 },
     { heading: "Surfaced proposals", body: proposals.map((proposal) => `- ${proposal.shortId} ${proposal.title} (${proposal.canonStatus})`).join("\n") || "No surfaced proposals.", position: 6 },
     { heading: "Debt and preservation boundaries", body: dispositions.filter((row) => row.debtRecordId != null || row.preservationBoundary).map((row) => `- Consequence #${row.consequenceId}: ${row.debtRecordId ? `debt record ${row.debtRecordId}` : `boundary ${row.preservationBoundary}`}`).join("\n") || "None.", position: 7 },
-    { heading: "Stopping-rule audit", body: `High-pressure consequences: ${consequences.filter((row) => row.pressure === "high").length}\nUndispositioned high-pressure consequences: ${undispositionedHighPressureConsequences(store, flowId).length}\nStates: answered; intentionally scoped out; assigned as canon debt; protected as a mystery boundary.`, position: 8 }
+    { heading: "Stopping-rule audit", body: `Final active high-pressure consequences: ${consequences.filter((row) => row.pressure === "high").length}\nUndispositioned final active high-pressure consequences: ${undispositionedHighPressureConsequences(store, flowId).length}\nStates: answered; intentionally scoped out; assigned as canon debt; protected as a mystery boundary.`, position: 8 }
   ]);
   store.createLink(report.id, fact.id, "derived_from", "Propagation report works this fact's shock cone");
   for (const disposition of dispositions) {

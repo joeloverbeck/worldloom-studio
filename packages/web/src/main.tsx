@@ -62,6 +62,7 @@ interface DecisionPointPromptMode {
   availability: string;
   blocker: string | null;
   framing: string;
+  outputLabels?: string[];
   stepRequest: { method: string; href: string; body: Record<string, unknown> } | null;
 }
 
@@ -124,7 +125,27 @@ interface PropagationQueueRow extends RecordRow {
   route?: { method: "POST"; href: string; body: { factRecordId: number; debtRecordId?: number } } | null;
 }
 
-interface PropagationConsequence {
+interface PropagationLifecycleView {
+  lineageId: string;
+  version: number;
+  lifecycleState: "active" | "superseded" | "retracted";
+  priorVersionId: number | null;
+  revisionReason: string | null;
+  provenance: {
+    created: {
+      actor: { id: number; name: string };
+      timestamp: string;
+      flowStep: string;
+    };
+    retired: {
+      actor: { id: number; name: string };
+      timestamp: string;
+      flowStep: string;
+    } | null;
+  };
+}
+
+interface PropagationConsequence extends PropagationLifecycleView {
   id: number;
   orderKey: string;
   orderLabel: string;
@@ -133,7 +154,7 @@ interface PropagationConsequence {
   pressure: "normal" | "high";
 }
 
-interface PropagationDomain {
+interface PropagationDomain extends PropagationLifecycleView {
   id: number;
   domainName: string;
   triage: "direct" | "dependency" | "reaction" | "negative";
@@ -142,8 +163,11 @@ interface PropagationDomain {
 
 interface PropagationDisposition {
   id: number;
+  flowId: number;
   consequenceId: number;
   disposition: string;
+  note?: string;
+  active: boolean;
   debtRecordId?: number | null;
   preservationBoundary?: string | null;
 }
@@ -164,11 +188,37 @@ interface PropagationPlan {
 }
 
 interface PropagationRunPayload {
-  flow: { id: number; state: string; current_step: string; propagation_fact_record_id: number; propagation_debt_record_id: number | null; propagation_report_record_id?: number | null };
+  flow: { id: number; state: string; current_step: string; propagation_fact_record_id: number; propagation_debt_record_id: number | null; propagation_report_record_id?: number | null; propagation_active_set_revision: number };
   sourceFact: RecordRow;
   owedDebt: RecordRow | null;
   severityPath: { admissionLevel: string | null; workScale: string | null };
-  closeReadiness: { status: string; blockers: Array<{ key: string; label?: string; message: string; requires?: string }> };
+  revisionDecision: {
+    name: string;
+    packageSources: string[];
+    doctrine: { staging: string; reportBoundary: string };
+    writeIntent: { willWrite: string[]; willLink: string[]; willQueue: string[]; willLeaveUntouched: string[] };
+  };
+  activeSet: {
+    revision: number;
+    changedKind: string | null;
+    changedRowId: number | null;
+    changedReason: string | null;
+  };
+  packetCurrentness: {
+    status: "current" | "stale";
+    activeSetRevision: number;
+    priorPressureRevision: number | null;
+    reason: string;
+    recovery: { action: string; changedKind: string | null; changedRowId: number | null; href: string; body: Record<string, unknown> };
+    pressure: {
+      status: "current-or-unused" | "owed";
+      reasonRequired: boolean;
+      externalLlmRequired: boolean;
+      freshPacket: { method: "POST"; href: string; body: Record<string, unknown> };
+      skip: { method: "POST"; href: string };
+    };
+  };
+  closeReadiness: { status: string; blockers: Array<{ key: string; label?: string; message: string; requires?: string; consequenceId?: number }> };
   closePreview: {
     willWrite: string[];
     existingRecords: Array<{ kind: string; recordId: number; title?: string; canonStatus?: string | null }>;
@@ -182,6 +232,20 @@ interface PropagationRunPayload {
   domainSweeps: PropagationDomain[];
   dispositions: PropagationDisposition[];
   proposals?: unknown[];
+}
+
+interface PropagationConsequenceRevisionDraft {
+  reason: string;
+  orderKey: string;
+  domainName: string;
+  body: string;
+  pressure: "normal" | "high";
+}
+
+interface PropagationDomainRevisionDraft {
+  reason: string;
+  triage: "direct" | "dependency" | "reaction" | "negative";
+  declaration: string;
 }
 
 interface QaTest {
@@ -1219,6 +1283,7 @@ interface LoadedPromptOrigin {
   createdAt: string;
   admissionLevel: string | null;
   workScale: string | null;
+  activeSetRevision?: number | null;
   admissionDraftState: string;
   admissionDraftHash: string | null;
   admissionSectionKeys: string[];
@@ -1240,6 +1305,7 @@ interface PromptPacketIdentity {
   selectedSectionHeading: string | null;
   admissionLevel: string | null;
   workScale: string | null;
+  activeSetRevision?: number | null;
   admissionDraftState: string;
   admissionDraftHash: string | null;
   admissionSectionKeys: string[];
@@ -1562,6 +1628,7 @@ const promptOriginsMatch = (left: LoadedPromptOrigin, right: LoadedPromptOrigin)
   && left.templateKey === right.templateKey
   && left.admissionLevel === right.admissionLevel
   && left.workScale === right.workScale
+  && (left.activeSetRevision ?? null) === (right.activeSetRevision ?? null)
   && (left.admissionDraftState ?? "not_applicable") === (right.admissionDraftState ?? "not_applicable")
   && (left.admissionDraftHash ?? null) === (right.admissionDraftHash ?? null)
   && sameStringList(left.admissionSectionKeys ?? [], right.admissionSectionKeys ?? [])
@@ -1583,6 +1650,7 @@ const describePromptOrigin = (origin: LoadedPromptOrigin): string => [
   `section ${origin.selectedSectionHeading ?? "none"}`,
   `step ${origin.stepKey}`,
   `mode ${origin.mode ?? "none"}`,
+  `active set revision ${origin.activeSetRevision ?? "none"}`,
   `template ${origin.templateKey}`,
   `decision ${origin.decisionLabel}`,
   `created ${origin.createdAt}`,
@@ -2156,6 +2224,9 @@ function App({
   const [propagationConsequences, setPropagationConsequences] = useState<PropagationConsequence[]>(initialPropagationRun?.consequences ?? []);
   const [propagationDomains, setPropagationDomains] = useState<PropagationDomain[]>(initialPropagationRun?.domainSweeps ?? []);
   const [propagationDispositions, setPropagationDispositions] = useState<PropagationDisposition[]>(initialPropagationRun?.dispositions ?? []);
+  const [propagationConsequenceRevisionDrafts, setPropagationConsequenceRevisionDrafts] = useState<Record<number, PropagationConsequenceRevisionDraft>>({});
+  const [propagationDomainRevisionDrafts, setPropagationDomainRevisionDrafts] = useState<Record<number, PropagationDomainRevisionDraft>>({});
+  const [propagationRevisionErrors, setPropagationRevisionErrors] = useState<Record<string, string>>({});
   const [stage12Run, setStage12Run] = useState<Stage12Run | null>(null);
   const [stage12FlowId, setStage12FlowId] = useState<number | null>(null);
   const [stage12SourceType, setStage12SourceType] = useState<"fact" | "under_review_fact" | "canon_debt" | "material" | "record_section" | "pass_report">("fact");
@@ -2356,6 +2427,7 @@ function App({
   const [propagationConsequenceId, setPropagationConsequenceId] = useState("");
   const [propagationBoundary, setPropagationBoundary] = useState("");
   const [propagationPromptMode, setPropagationPromptMode] = useState<"proposal" | "pressure">("proposal");
+  const [propagationPressureSkipReason, setPropagationPressureSkipReason] = useState("");
   const [canonCurrentRows, setCanonCurrentRows] = useState<CanonWorkbenchCurrentRow[]>(initialCanonCurrent);
   const [canonAuditTrail, setCanonAuditTrail] = useState<CanonWorkbenchAuditItem[]>(initialCanonAudit);
   const [canonDetail, setCanonDetail] = useState<CanonWorkbenchDetail | null>(initialCanonDetail);
@@ -2758,6 +2830,7 @@ function App({
         createdAt: loadedPromptStatus?.origin.createdAt ?? "",
         admissionLevel: propagationRun?.severityPath.admissionLevel ?? null,
         workScale: propagationRun?.severityPath.workScale ?? null,
+        activeSetRevision: propagationRun?.activeSet?.revision ?? null,
         admissionDraftState: "not_applicable",
         admissionDraftHash: null,
         admissionSectionKeys: [],
@@ -2783,6 +2856,7 @@ function App({
         createdAt: loadedPromptStatus?.origin.createdAt ?? "",
         admissionLevel: promptStep.severity.admissionLevel,
         workScale: promptStep.severity.workScale,
+        activeSetRevision: promptStep.packetIdentity.activeSetRevision ?? null,
         admissionDraftState: promptStep.packetIdentity.admissionDraftState ?? "not_applicable",
         admissionDraftHash: promptStep.packetIdentity.admissionDraftHash,
         admissionSectionKeys: promptStep.packetIdentity.admissionSectionKeys,
@@ -3136,6 +3210,14 @@ function App({
   const navigateWorkflow = async (destinationKey: string) => {
     if (destinationKey !== "map") {
       setActiveDestination(destinationKey);
+      if (destinationKey === "propagation") {
+        try {
+          const payload = await api<{ run: PropagationRunPayload | null }>("/api/propagation/runs/active");
+          if (payload.run != null) applyPropagationRun(payload.run);
+        } catch (error) {
+          setMessage(error instanceof Error ? error.message : String(error));
+        }
+      }
       return;
     }
     try {
@@ -3775,6 +3857,7 @@ function App({
     createdAt: new Date().toISOString(),
     admissionLevel: step.severity.admissionLevel ?? fallback.admissionLevel ?? null,
     workScale: step.severity.workScale ?? fallback.workScale ?? null,
+    activeSetRevision: step.packetIdentity.activeSetRevision ?? fallback.activeSetRevision ?? null,
     admissionDraftState: step.packetIdentity.admissionDraftState ?? fallback.admissionDraftState ?? "not_applicable",
     admissionDraftHash: step.packetIdentity.admissionDraftHash ?? fallback.admissionDraftHash ?? null,
     admissionSectionKeys: step.packetIdentity.admissionSectionKeys ?? fallback.admissionSectionKeys ?? [],
@@ -3801,6 +3884,7 @@ function App({
     createdAt: identity.generatedAt ?? fallback.createdAt ?? new Date().toISOString(),
     admissionLevel: identity.admissionLevel ?? fallback.admissionLevel ?? null,
     workScale: identity.workScale ?? fallback.workScale ?? null,
+    activeSetRevision: identity.activeSetRevision ?? fallback.activeSetRevision ?? null,
     admissionDraftState: identity.admissionDraftState ?? fallback.admissionDraftState ?? "not_applicable",
     admissionDraftHash: identity.admissionDraftHash ?? fallback.admissionDraftHash ?? null,
     admissionSectionKeys: identity.admissionSectionKeys ?? fallback.admissionSectionKeys ?? [],
@@ -3958,6 +4042,63 @@ function App({
     );
     setMessage(`Loaded Propagation Prompt-out step ${payload.step.label} (${payload.step.mode === "proposal" ? "Proposal mode" : "Pressure mode"})`);
     return payload.step;
+  };
+
+  const loadCurrentPropagationPacket = async () => {
+    const request = propagationRun?.packetCurrentness.pressure.freshPacket;
+    if (!request) return null;
+    try {
+      setPropagationPromptMode("pressure");
+      setPromptFlowKey("propagation");
+      setPromptTemplateKey(String(request.body.templateKey ?? "propagation_consequence_scout"));
+      setPromptRecordId(String(request.body.recordId ?? propagationRun.sourceFact.id));
+      const payload = await api<{ step: PromptOutStep }>(request.href, {
+        method: request.method,
+        body: JSON.stringify(request.body)
+      });
+      setPromptStep(payload.step);
+      const generated = await api<{ prompt: string; promptOut: { packetIdentity: PromptPacketIdentity } }>(payload.step.actions.generate.href, {
+        method: payload.step.actions.generate.method
+      });
+      setLoadedPromptAndPacket(promptOriginFromPacketIdentity(generated.promptOut.packetIdentity, {
+        flowKey: "propagation",
+        flowId: propagationRun.flow.id,
+        recordId: propagationRun.sourceFact.id,
+        recordShortId: propagationRun.sourceFact.shortId,
+        recordTypeKey: propagationRun.sourceFact.recordTypeKey,
+        mode: "pressure",
+        admissionLevel: propagationRun.severityPath.admissionLevel,
+        workScale: propagationRun.severityPath.workScale,
+        activeSetRevision: propagationRun.activeSet.revision,
+        decisionLabel: displayedPropagationContract?.step.localDecision ?? payload.step.label
+      }), generated.prompt);
+      setPropagationRevisionErrors((current) => ({ ...current, pressure: "" }));
+      setMessage(`Loaded current Propagation Pressure packet at active-set revision ${propagationRun.activeSet.revision}`);
+      return payload.step;
+    } catch (error) {
+      const message = apiErrorMessage(error);
+      setPropagationRevisionErrors((current) => ({ ...current, pressure: message }));
+      setMessage(message);
+      return null;
+    }
+  };
+
+  const skipCurrentPropagationPressure = async () => {
+    if (!propagationRun) return;
+    try {
+      const payload = await api<{ record: RecordRow }>(propagationRun.packetCurrentness.pressure.skip.href, {
+        method: propagationRun.packetCurrentness.pressure.skip.method,
+        body: JSON.stringify({ reason: propagationPressureSkipReason || undefined })
+      });
+      setPropagationPressureSkipReason("");
+      setPropagationRevisionErrors((current) => ({ ...current, pressure: "", close: "" }));
+      await loadPropagationRun(propagationRun.flow.id);
+      setMessage(`Recorded governed Pressure skip ${payload.record.shortId}`);
+    } catch (error) {
+      const message = apiErrorMessage(error);
+      setPropagationRevisionErrors((current) => ({ ...current, pressure: message }));
+      setMessage(message);
+    }
   };
 
   const ensurePromptStep = async () => promptStep ?? loadPromptStep();
@@ -4541,8 +4682,7 @@ function App({
     await loadWorldData();
   };
 
-  const loadPropagationRun = async (flowId: number) => {
-    const payload = await api<PropagationRunPayload>(`/api/propagation/runs/${flowId}`);
+  const applyPropagationRun = (payload: PropagationRunPayload) => {
     setPropagationRun(payload);
     setPropagationPlan(payload.plan);
     setPropagationDecisionPoint(payload.decisionPoint ?? payload.plan.decisionPoint ?? null);
@@ -4554,6 +4694,10 @@ function App({
     setPropagationDebtId(payload.flow.propagation_debt_record_id == null ? "" : String(payload.flow.propagation_debt_record_id));
     setPropagationDomainName(payload.plan.domainAtlas?.[0]?.name ?? payload.plan.domains[0] ?? "");
     setPropagationOrderKey(payload.plan.orderControls?.[1]?.key ?? payload.plan.orders[1]?.key ?? payload.plan.orders[0]?.key ?? "first");
+  };
+
+  const loadPropagationRun = async (flowId: number) => {
+    applyPropagationRun(await api<PropagationRunPayload>(`/api/propagation/runs/${flowId}`));
   };
 
   const startPropagation = async () => {
@@ -4611,22 +4755,165 @@ function App({
     await loadPropagationRun(propagationFlowId);
   };
 
+  const consequenceRevisionDraft = (consequence: PropagationConsequence): PropagationConsequenceRevisionDraft =>
+    propagationConsequenceRevisionDrafts[consequence.id] ?? {
+      reason: "",
+      orderKey: consequence.orderKey,
+      domainName: consequence.domainName ?? "",
+      body: consequence.body,
+      pressure: consequence.pressure
+    };
+
+  const updateConsequenceRevisionDraft = (consequence: PropagationConsequence, patch: Partial<PropagationConsequenceRevisionDraft>) => {
+    setPropagationConsequenceRevisionDrafts((current) => ({
+      ...current,
+      [consequence.id]: { ...consequenceRevisionDraft(consequence), ...patch }
+    }));
+  };
+
+  const domainRevisionDraft = (domainRow: PropagationDomain): PropagationDomainRevisionDraft =>
+    propagationDomainRevisionDrafts[domainRow.id] ?? {
+      reason: "",
+      triage: domainRow.triage,
+      declaration: domainRow.declaration
+    };
+
+  const updateDomainRevisionDraft = (domainRow: PropagationDomain, patch: Partial<PropagationDomainRevisionDraft>) => {
+    setPropagationDomainRevisionDrafts((current) => ({
+      ...current,
+      [domainRow.id]: { ...domainRevisionDraft(domainRow), ...patch }
+    }));
+  };
+
+  const clearPropagationRevisionState = (kind: "consequence" | "domain", rowId: number) => {
+    const key = `${kind}:${rowId}`;
+    setPropagationRevisionErrors((current) => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+    if (kind === "consequence") {
+      setPropagationConsequenceRevisionDrafts((current) => {
+        const next = { ...current };
+        delete next[rowId];
+        return next;
+      });
+    } else {
+      setPropagationDomainRevisionDrafts((current) => {
+        const next = { ...current };
+        delete next[rowId];
+        return next;
+      });
+    }
+  };
+
+  const revisePropagationConsequence = async (consequence: PropagationConsequence) => {
+    if (propagationFlowId == null) return;
+    const key = `consequence:${consequence.id}`;
+    const draft = consequenceRevisionDraft(consequence);
+    try {
+      const payload = await api<PropagationRunPayload>(`/api/propagation/consequences/${consequence.id}/revisions`, {
+        method: "POST",
+        body: JSON.stringify({
+          flowId: propagationFlowId,
+          reason: draft.reason,
+          orderKey: draft.orderKey,
+          domainName: draft.domainName || undefined,
+          body: draft.body,
+          pressure: draft.pressure
+        })
+      });
+      clearPropagationRevisionState("consequence", consequence.id);
+      await loadPropagationRun(payload.flow.id);
+    } catch (error) {
+      const message = apiErrorMessage(error);
+      setPropagationRevisionErrors((current) => ({ ...current, [key]: message }));
+      setMessage(message);
+    }
+  };
+
+  const retractPropagationConsequence = async (consequence: PropagationConsequence) => {
+    if (propagationFlowId == null) return;
+    const key = `consequence:${consequence.id}`;
+    const draft = consequenceRevisionDraft(consequence);
+    try {
+      const payload = await api<PropagationRunPayload>(`/api/propagation/consequences/${consequence.id}/retract`, {
+        method: "POST",
+        body: JSON.stringify({ flowId: propagationFlowId, reason: draft.reason })
+      });
+      clearPropagationRevisionState("consequence", consequence.id);
+      await loadPropagationRun(payload.flow.id);
+    } catch (error) {
+      const message = apiErrorMessage(error);
+      setPropagationRevisionErrors((current) => ({ ...current, [key]: message }));
+      setMessage(message);
+    }
+  };
+
+  const revisePropagationDomain = async (domainRow: PropagationDomain) => {
+    if (propagationFlowId == null) return;
+    const key = `domain:${domainRow.id}`;
+    const draft = domainRevisionDraft(domainRow);
+    try {
+      const payload = await api<PropagationRunPayload>(`/api/propagation/domains/${domainRow.id}/revisions`, {
+        method: "POST",
+        body: JSON.stringify({
+          flowId: propagationFlowId,
+          reason: draft.reason,
+          triage: draft.triage,
+          declaration: draft.declaration
+        })
+      });
+      clearPropagationRevisionState("domain", domainRow.id);
+      await loadPropagationRun(payload.flow.id);
+    } catch (error) {
+      const message = apiErrorMessage(error);
+      setPropagationRevisionErrors((current) => ({ ...current, [key]: message }));
+      setMessage(message);
+    }
+  };
+
+  const retractPropagationDomain = async (domainRow: PropagationDomain) => {
+    if (propagationFlowId == null) return;
+    const key = `domain:${domainRow.id}`;
+    const draft = domainRevisionDraft(domainRow);
+    try {
+      const payload = await api<PropagationRunPayload>(`/api/propagation/domains/${domainRow.id}/retract`, {
+        method: "POST",
+        body: JSON.stringify({ flowId: propagationFlowId, reason: draft.reason })
+      });
+      clearPropagationRevisionState("domain", domainRow.id);
+      await loadPropagationRun(payload.flow.id);
+    } catch (error) {
+      const message = apiErrorMessage(error);
+      setPropagationRevisionErrors((current) => ({ ...current, [key]: message }));
+      setMessage(message);
+    }
+  };
+
   const savePropagationDisposition = async () => {
     if (!propagationConsequenceId) return;
-    await api("/api/propagation/dispositions", {
-      method: "POST",
-      body: JSON.stringify({
-        consequenceId: Number(propagationConsequenceId),
-        disposition: propagationDispositionTerm,
-        note: propagationText,
-        debtName: propagationDispositionTerm === "assigned as canon debt" ? propagationBoundary || "Propagation follow-up debt" : undefined,
-        preservationBoundary: propagationDispositionTerm === "protected as a mystery boundary" ? propagationBoundary : undefined
-      })
-    });
-    setPropagationText("");
-    setPropagationBoundary("");
-    if (propagationFlowId != null) await loadPropagationRun(propagationFlowId);
-    await loadWorldData();
+    try {
+      const payload = await api<PropagationRunPayload>("/api/propagation/dispositions", {
+        method: "POST",
+        body: JSON.stringify({
+          consequenceId: Number(propagationConsequenceId),
+          disposition: propagationDispositionTerm,
+          note: propagationText,
+          debtName: propagationDispositionTerm === "assigned as canon debt" ? propagationBoundary || "Propagation follow-up debt" : undefined,
+          preservationBoundary: propagationDispositionTerm === "protected as a mystery boundary" ? propagationBoundary : undefined
+        })
+      });
+      setPropagationRevisionErrors((current) => ({ ...current, disposition: "", close: "" }));
+      setPropagationText("");
+      setPropagationBoundary("");
+      await loadPropagationRun(payload.flow.id);
+      await loadWorldData();
+    } catch (error) {
+      const message = apiErrorMessage(error);
+      setPropagationRevisionErrors((current) => ({ ...current, disposition: message }));
+      setMessage(message);
+    }
   };
 
   const proposePropagationFact = async () => {
@@ -4648,10 +4935,19 @@ function App({
 
   const closePropagation = async () => {
     if (propagationFlowId == null) return;
-    const payload = await api<{ report: RecordRow }>(`/api/propagation/runs/${propagationFlowId}/close`, { method: "POST" });
-    setMessage(`Closed propagation run with ${payload.report.shortId}`);
-    await loadPropagationRun(propagationFlowId);
-    await loadWorldData();
+    try {
+      const payload = await api<{ report: RecordRow }>(`/api/propagation/runs/${propagationFlowId}/close`, { method: "POST" });
+      setPropagationRevisionErrors((current) => ({ ...current, close: "" }));
+      setMessage(`Closed propagation run with ${payload.report.shortId}`);
+      await loadPropagationRun(propagationFlowId);
+      await loadWorldData();
+    } catch (error) {
+      setPropagationRevisionErrors((current) => ({
+        ...current,
+        close: error instanceof Error ? error.message : "Propagation close was refused."
+      }));
+      await loadPropagationRun(propagationFlowId);
+    }
   };
 
   const applyStage12Run = (payload: Stage12Run) => {
@@ -5813,6 +6109,31 @@ function App({
       <MethodCardPanel card={propagationPlan?.methodCard ?? displayedPropagationContract?.methodCard} />
       <DecisionContractPanel title="Propagation decision contract" contract={displayedPropagationContract} />
 
+      {propagationRun?.revisionDecision && (
+        <section className="subpanel propagation-revision-contract">
+          <h3>{propagationRun.revisionDecision.name}</h3>
+          <div className="grid compact-grid">
+            <section>
+              <h4>Editable staging</h4>
+              <p>{propagationRun.revisionDecision.doctrine.staging}</p>
+            </section>
+            <section>
+              <h4>Append-only report boundary</h4>
+              <p>{propagationRun.revisionDecision.doctrine.reportBoundary}</p>
+            </section>
+            <section>
+              <h4>Governing package sources</h4>
+              {propagationRun.revisionDecision.packageSources.map((source) => <p className="meta" key={source}>{source}</p>)}
+            </section>
+            <section>
+              <h4>Revision and close write intent</h4>
+              {[...propagationRun.revisionDecision.writeIntent.willWrite, ...propagationRun.revisionDecision.writeIntent.willLink, ...propagationRun.revisionDecision.writeIntent.willQueue].map((item) => <p key={item}>{item}</p>)}
+              <p className="meta">Left untouched: {propagationRun.revisionDecision.writeIntent.willLeaveUntouched.join(" · ")}</p>
+            </section>
+          </div>
+        </section>
+      )}
+
       <section className="subpanel owed-propagation">
         <h3>Owed propagation</h3>
         {propagationQueue.length ? propagationQueue.map((debt) => (
@@ -5844,7 +6165,7 @@ function App({
         <div className="row">
           <button onClick={() => void navigateWorkflow("map")}>Safe Return to Workflow Map</button>
           <button onClick={() => propagationFlowId != null && loadPropagationRun(propagationFlowId)} disabled={!openWorld || propagationFlowId == null}>Refresh Run</button>
-          <button onClick={closePropagation} disabled={!openWorld || propagationFlowId == null}>Close Run</button>
+          <button onClick={closePropagation} disabled={!openWorld || propagationFlowId == null || propagationRun?.flow.state !== "in_progress"}>Close Run</button>
         </div>
       </section>
 
@@ -5885,6 +6206,37 @@ function App({
             </article>
           ))}
         </div>
+        <section className="revision-lineage-list">
+          <h4>Staged domain lineage</h4>
+          {propagationDomains.length ? propagationDomains.map((domainRow) => {
+            const draft = domainRevisionDraft(domainRow);
+            const stateLabel = domainRow.lifecycleState === "active" ? "Active" : domainRow.lifecycleState === "superseded" ? "Superseded" : "Retracted";
+            const error = propagationRevisionErrors[`domain:${domainRow.id}`];
+            return (
+              <article key={domainRow.id} className={`subpanel lifecycle-${domainRow.lifecycleState}`}>
+                <h5>{`${stateLabel} · lineage ${domainRow.lineageId} · version ${domainRow.version}`}</h5>
+                <p><strong>{domainRow.domainName}</strong> · {domainRow.triage}</p>
+                <p>{domainRow.declaration || "No declaration."}</p>
+                {domainRow.revisionReason && <p>Revision reason: {domainRow.revisionReason}</p>}
+                <p className="meta">{`Created by ${domainRow.provenance.created.actor.name} (#${domainRow.provenance.created.actor.id}) · ${domainRow.provenance.created.flowStep} · ${domainRow.provenance.created.timestamp}`}</p>
+                {domainRow.provenance.retired && <p className="meta">{`Retired by ${domainRow.provenance.retired.actor.name} (#${domainRow.provenance.retired.actor.id}) · ${domainRow.provenance.retired.flowStep} · ${domainRow.provenance.retired.timestamp}`}</p>}
+                {domainRow.lifecycleState === "active" && propagationRun?.flow.state === "in_progress" && (
+                  <section className="row-local-revision-controls">
+                    <h5>Revise domain #{domainRow.id}</h5>
+                    <label>Steward revision reason<input value={draft.reason} onChange={(event) => updateDomainRevisionDraft(domainRow, { reason: event.target.value })} /></label>
+                    <label>Replacement triage<select value={draft.triage} onChange={(event) => updateDomainRevisionDraft(domainRow, { triage: event.target.value as PropagationDomainRevisionDraft["triage"] })}><option>direct</option><option>dependency</option><option>reaction</option><option>negative</option></select></label>
+                    <label>Replacement declaration<textarea rows={2} value={draft.declaration} onChange={(event) => updateDomainRevisionDraft(domainRow, { declaration: event.target.value })} /></label>
+                    <div className="row">
+                      <button onClick={() => revisePropagationDomain(domainRow)}>{`Revise domain #${domainRow.id}`}</button>
+                      <button onClick={() => retractPropagationDomain(domainRow)}>{`Retract domain #${domainRow.id}`}</button>
+                    </div>
+                    {error && <p className="status error">{error} Entered reason, triage, and declaration were preserved; correct the named row and retry.</p>}
+                  </section>
+                )}
+              </article>
+            );
+          }) : <p>No staged domain versions recorded.</p>}
+        </section>
         <div className="grid">
           <label>Triage<select value={propagationTriage} onChange={(event) => setPropagationTriage(event.target.value as "direct" | "dependency" | "reaction" | "negative")}><option>direct</option><option>dependency</option><option>reaction</option><option>negative</option></select></label>
           <label>Declaration<textarea rows={2} value={propagationText} onChange={(event) => setPropagationText(event.target.value)} /></label>
@@ -5903,10 +6255,42 @@ function App({
             <p>protected as a mystery boundary: preserves the boundary for downstream work.</p>
           </section>
           <section>
-            <h4>Recorded consequences</h4>
-            {propagationConsequences.length ? propagationConsequences.map((consequence) => (
-              <p key={consequence.id}>#{consequence.id} {consequence.orderLabel} · {consequence.pressure} · {consequence.domainName ?? "no domain"}</p>
-            )) : <p>No consequences recorded.</p>}
+            <h4>Staged consequence lineage</h4>
+            {propagationConsequences.length ? propagationConsequences.map((consequence) => {
+              const draft = consequenceRevisionDraft(consequence);
+              const stateLabel = consequence.lifecycleState === "active" ? "Active" : consequence.lifecycleState === "superseded" ? "Superseded" : "Retracted";
+              const disposition = propagationDispositions.find((row) => row.consequenceId === consequence.id);
+              const rowBlockers = propagationRun?.closeReadiness.blockers.filter((blocker) => blocker.consequenceId === consequence.id) ?? [];
+              const error = propagationRevisionErrors[`consequence:${consequence.id}`];
+              return (
+                <article key={consequence.id} className={`subpanel lifecycle-${consequence.lifecycleState}`}>
+                  <h5>{`${stateLabel} · lineage ${consequence.lineageId} · version ${consequence.version}`}</h5>
+                  <p>#{consequence.id} {consequence.orderLabel} · {consequence.pressure} · {consequence.domainName ?? "no domain"}</p>
+                  <p>{consequence.body}</p>
+                  {consequence.revisionReason && <p>Revision reason: {consequence.revisionReason}</p>}
+                  <p className="meta">{`Created by ${consequence.provenance.created.actor.name} (#${consequence.provenance.created.actor.id}) · ${consequence.provenance.created.flowStep} · ${consequence.provenance.created.timestamp}`}</p>
+                  {consequence.provenance.retired && <p className="meta">{`Retired by ${consequence.provenance.retired.actor.name} (#${consequence.provenance.retired.actor.id}) · ${consequence.provenance.retired.flowStep} · ${consequence.provenance.retired.timestamp}`}</p>}
+                  {disposition && <p>{`${disposition.active ? "Active disposition" : "Historical disposition"}: ${disposition.disposition}${disposition.note ? ` · ${disposition.note}` : ""}`}</p>}
+                  {consequence.lifecycleState === "active" && !disposition && <p className="status error">Active replacement is undispositioned; choose a stopping-state disposition for consequence #{consequence.id}.</p>}
+                  {rowBlockers.map((blocker) => <p className="status error" key={`${consequence.id}:${blocker.key}`}>{blocker.label ?? blocker.key}: {blocker.message}</p>)}
+                  {consequence.lifecycleState === "active" && propagationRun?.flow.state === "in_progress" && (
+                    <section className="row-local-revision-controls">
+                      <h5>{`Revise consequence #${consequence.id}`}</h5>
+                      <label>Steward revision reason<input value={draft.reason} onChange={(event) => updateConsequenceRevisionDraft(consequence, { reason: event.target.value })} /></label>
+                      <label>Replacement order<select value={draft.orderKey} onChange={(event) => updateConsequenceRevisionDraft(consequence, { orderKey: event.target.value })}>{(propagationPlan?.orders ?? []).map((order) => <option key={order.key} value={order.key}>{order.label}</option>)}</select></label>
+                      <label>Replacement domain<select value={draft.domainName} onChange={(event) => updateConsequenceRevisionDraft(consequence, { domainName: event.target.value })}><option value="">No domain</option>{(propagationPlan?.domains ?? []).map((domainName) => <option key={domainName}>{domainName}</option>)}</select></label>
+                      <label>Replacement pressure<select value={draft.pressure} onChange={(event) => updateConsequenceRevisionDraft(consequence, { pressure: event.target.value as PropagationConsequenceRevisionDraft["pressure"] })}><option>normal</option><option>high</option></select></label>
+                      <label>Replacement consequence<textarea rows={3} value={draft.body} onChange={(event) => updateConsequenceRevisionDraft(consequence, { body: event.target.value })} /></label>
+                      <div className="row">
+                        <button onClick={() => revisePropagationConsequence(consequence)}>{`Revise consequence #${consequence.id}`}</button>
+                        <button onClick={() => retractPropagationConsequence(consequence)}>{`Retract consequence #${consequence.id}`}</button>
+                      </div>
+                      {error && <p className="status error">{error} Entered reason, replacement text, order, domain, and pressure were preserved; correct the named row and retry.</p>}
+                    </section>
+                  )}
+                </article>
+              );
+            }) : <p>No consequences recorded.</p>}
           </section>
         </div>
         <div className="grid">
@@ -5919,6 +6303,30 @@ function App({
           <button onClick={proposePropagationFact} disabled={propagationFlowId == null || !recordForm.title || !recordForm.truthLayer}>Propose Surfaced Fact</button>
           <button onClick={skipPropagation} disabled={!openWorld}>Record Skip</button>
         </div>
+        {propagationRevisionErrors.disposition && (
+          <p className="status error">
+            {propagationRevisionErrors.disposition} Entered consequence id, disposition, debt or boundary, and note were preserved; correct the named row and retry.
+          </p>
+        )}
+      </section>
+
+      <section className="subpanel">
+        <h3>{propagationRun?.packetCurrentness?.status === "stale" ? "Stale Propagation packet" : "Propagation packet currentness"}</h3>
+        {propagationRun?.packetCurrentness ? (
+          <>
+            <p>{propagationRun.packetCurrentness.reason}</p>
+            <p className="meta">Active-set revision {propagationRun.activeSet.revision} · last change {propagationRun.activeSet.changedKind ?? "initial set"}{propagationRun.activeSet.changedRowId == null ? "" : ` · row ${propagationRun.activeSet.changedRowId}`}</p>
+            <button onClick={loadCurrentPropagationPacket}>Load current Pressure packet</button>
+            <section className="subpanel">
+              <h4>Fresh Pressure or governed skip</h4>
+              <p>{propagationRun.packetCurrentness.pressure.status === "owed" ? "Fresh Pressure support or a governed skip is owed before close." : "No fresh-Pressure obligation is currently owed."}</p>
+              <p>External LLM use remains optional; the governed skip is always the non-LLM path.</p>
+              <label>Pressure skip reason {propagationRun.packetCurrentness.pressure.reasonRequired ? "(required for this severity)" : "(optional)"}<textarea rows={2} value={propagationPressureSkipReason} onChange={(event) => setPropagationPressureSkipReason(event.target.value)} /></label>
+              <button onClick={skipCurrentPropagationPressure} disabled={propagationRun.packetCurrentness.pressure.status !== "owed"}>Record governed Pressure skip</button>
+              {propagationRevisionErrors.pressure && <p className="status error">{propagationRevisionErrors.pressure} Entered skip reason was preserved; follow the server remediation and retry.</p>}
+            </section>
+          </>
+        ) : <p>Start or refresh the run to load server-owned packet currentness.</p>}
       </section>
 
       <section className="subpanel">
@@ -5931,11 +6339,27 @@ function App({
           <button onClick={loadPropagationPromptStep} disabled={!canLoadPropagationPromptStep}>Load Propagation Prompt-out Step</button>
         </div>
         <p>{displayedPropagationContract?.bearingContext.sourceManifest.join(" · ") ?? "Source manifest loads from the active run."}</p>
-        {promptStep?.context.flowKey === "propagation" && <p>Loaded Prompt-out step: {promptStep.label} · {promptStep.context.stepKey}</p>}
+        {displayedPropagationContract?.bearingContext.omissions.map((omission) => <p className="meta" key={omission}>Omission: {omission}</p>)}
+        <p>Advisory/canon warning: copied or pasted model output remains advisory; the steward authors and governs every surviving word.</p>
+        {selectedPropagationPromptMode?.outputLabels?.length ? <p>Output labels: {selectedPropagationPromptMode.outputLabels.join(" · ")}</p> : null}
+        {promptStep?.context.flowKey === "propagation" && (
+          <section className="subpanel">
+            <h4>Current packet preview</h4>
+            <p>Loaded Prompt-out step: {promptStep.label} · {promptStep.context.stepKey}</p>
+            <pre className="prompt-preview">{promptText || "Generate the current packet to preview its exact body."}</pre>
+            {promptPacketStatusPanel}
+            {promptPacketExportControls}
+          </section>
+        )}
       </section>
 
       <section className="subpanel">
         <h3>Close blockers</h3>
+        {propagationRevisionErrors.close && (
+          <p className="status error">
+            {propagationRevisionErrors.close} Resolve the server-returned blockers below, then retry Close Run.
+          </p>
+        )}
         {propagationRun?.closeReadiness.blockers.length ? (
           <ul>{propagationRun.closeReadiness.blockers.map((blocker) => <li key={blocker.key}>{blocker.label ? `${blocker.label}: ` : ""}{blocker.key} · {blocker.message}</li>)}</ul>
         ) : propagationRun ? (
@@ -5968,6 +6392,18 @@ function App({
         <div className="chips">
           {(propagationRun?.readSideTrail ?? displayedPropagationContract?.readSideTrail ?? []).map((item) => <span key={`${item.label}:${item.href}`}>{item.label} · {item.href}</span>)}
         </div>
+      </section>
+
+      <section className="subpanel">
+        <h3>Naive steward walkthrough</h3>
+        <ol>
+          <li>Identify the exact active consequence or domain version that would enter close; superseded and retracted rows are audit history.</li>
+          <li>Revise or retract beside that row with a steward-authored reason and replacement fields required by its severity.</li>
+          <li>Use the returned row blocker to restore active-only coverage or disposition without retyping after a failed action.</li>
+          <li>When the prior packet is stale, load current Pressure or take the governed skip; external LLM use remains optional and advisory.</li>
+          <li>Review what close writes, links, queues, and leaves untouched, then confirm the append-only report boundary.</li>
+          <li>Return safely to the workflow map and resume the server-owned current, next, and lineage state later.</li>
+        </ol>
       </section>
 
       <details className="subpanel">

@@ -92,6 +92,24 @@ Report-regime record types:
 
 One record can govern multiple facts, and one fact can be covered or bundled by a higher-order record. The normal schema shape is 1:N, not 1:1. `record_links` carries `covers` and `bundles` relationships for those cases instead of duplicating prose.
 
+## Propagation Open-Run Staging Lifecycle
+
+Propagation consequences and domain declarations are flow-owned staging data, not living canon records and not report-regime records. While a run is open, their persistence exposes the minimum revision contract required by `docs/specs/propagation-flow.md`:
+
+- a stable row id plus a stable lineage id;
+- a monotonically ordered version within that lineage and an optional prior-version link;
+- lifecycle state `active`, `superseded`, or `retracted`, with at most one active version per flow/lineage;
+- preserved consequence prose or domain declaration/triage on every retired version;
+- a required steward reason for revision or retraction, with actor, timestamp, and flow-step provenance;
+- dispositions foreign-keyed to the exact consequence version they governed rather than to a mutable content key;
+- a server-owned active-set revision/identity on the Propagation run that advances after consequence, domain, or disposition mutation and can participate in Prompt-out packet identity.
+
+A consequence replacement creates a new active version and retires the prior version as superseded. Retraction retires the target without an active replacement. Domain versions follow the same rule while preserving the retired declaration and triage. Database constraints and flow-owned transactional writes enforce one active version per lineage and prevent cross-run lineage links; browser code does not select the active version.
+
+Migration treats every consequence and domain row from an older open run as the active first version of a lineage rooted at that row. Existing dispositions remain attached to their existing consequence versions. Migration creates no revision reason or retired version, does not advance or close a run, does not create a report, and does not change source standing, record content, links, debt, proposals, advisory artifacts, or unrelated flow state. Closed legacy runs and their append-only reports remain closed and unchanged.
+
+Closing a Propagation run does not mutate staged history into canon. It writes one append-only `propagation_report` containing only the final active shock cone and domain set plus the relevant lineage/reason audit. Post-close corrections create a new report under the report regime; they never reopen staged rows or update/delete the closed report.
+
 ## Controlled Vocabulary Seeds
 
 Vocabulary rows store:
@@ -220,4 +238,4 @@ The first implementation slice must provide:
 
 ## Principles
 
-Touches `charter.md` (P-3, P-4, T-8), `canon-sovereignty.md` (P-2, T-5), `domain-fidelity.md` (P-1, T-2), `workflow-principles.md` (P-5, W-2, W-3, W-4, W-7), `guided-workflow-usability.md` (W-8, by boundary), `data-principles.md` (P-6, W-5, W-6, T-1, T-3, T-4, T-6), ADRs 0001-0004 and 0009, and PRD #158. This spec affirms non-contradiction with all of them.
+Touches `charter.md` (P-3, P-4, T-8), `canon-sovereignty.md` (P-2, W-1, T-5), `domain-fidelity.md` (P-1, T-2), `workflow-principles.md` (P-5, W-2, W-3, W-4, W-7), `guided-workflow-usability.md` (W-8/W-9, by boundary), `data-principles.md` (P-6, W-5, W-6, T-1, T-3, T-4, T-5, T-6), ADRs 0001-0004 and 0007-0009, PRD #158, and PRD #353. This spec affirms non-contradiction: Propagation revision persistence remains flow-owned over the shared world-file substrate, packet lifecycle remains shared Prompt-out policy, stable identities and provenance preserve audit history, and report-regime records remain append-only.

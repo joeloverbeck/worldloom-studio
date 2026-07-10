@@ -12,7 +12,7 @@ import {
 import { QA_RED_TEAM_PROMPT_TEXT, QA_TEST_CATALOG } from "./qa-catalog.js";
 
 export const APPLICATION_ID = 0x574c4f4d;
-export const CURRENT_SCHEMA_VERSION = 10;
+export const CURRENT_SCHEMA_VERSION = 11;
 
 const sqlString = (value: string): string => `'${value.replaceAll("'", "''")}'`;
 
@@ -1498,4 +1498,166 @@ CREATE TABLE IF NOT EXISTS creation_narrowing_note_corrections (
 ) STRICT;
 
 PRAGMA user_version = 10;
+`;
+
+export const migration011 = `
+ALTER TABLE flow_instances ADD COLUMN propagation_active_set_revision INTEGER NOT NULL DEFAULT 0 CHECK (propagation_active_set_revision >= 0);
+ALTER TABLE flow_instances ADD COLUMN propagation_active_set_changed_kind TEXT;
+ALTER TABLE flow_instances ADD COLUMN propagation_active_set_changed_row_id INTEGER;
+ALTER TABLE flow_instances ADD COLUMN propagation_active_set_changed_reason TEXT;
+ALTER TABLE flow_instances ADD COLUMN propagation_pressure_used_revision INTEGER;
+ALTER TABLE flow_instances ADD COLUMN propagation_pressure_owed_revision INTEGER;
+ALTER TABLE flow_instances ADD COLUMN propagation_pressure_skip_revision INTEGER;
+
+ALTER TABLE propagation_consequences ADD COLUMN lineage_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE propagation_consequences ADD COLUMN version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0);
+ALTER TABLE propagation_consequences ADD COLUMN lifecycle_state TEXT NOT NULL DEFAULT 'active' CHECK (lifecycle_state IN ('active', 'superseded', 'retracted'));
+ALTER TABLE propagation_consequences ADD COLUMN prior_version_id INTEGER REFERENCES propagation_consequences(id);
+ALTER TABLE propagation_consequences ADD COLUMN revision_reason TEXT;
+ALTER TABLE propagation_consequences ADD COLUMN retired_at TEXT;
+ALTER TABLE propagation_consequences ADD COLUMN retired_actor_id INTEGER REFERENCES actors(id);
+ALTER TABLE propagation_consequences ADD COLUMN retired_flow_step TEXT;
+
+UPDATE propagation_consequences
+SET lineage_id = printf('propagation-consequence:%d', id)
+WHERE lineage_id = '';
+
+CREATE UNIQUE INDEX propagation_consequences_lineage_version
+ON propagation_consequences (flow_id, lineage_id, version);
+
+CREATE UNIQUE INDEX propagation_consequences_one_active_version
+ON propagation_consequences (flow_id, lineage_id)
+WHERE lifecycle_state = 'active';
+
+CREATE TRIGGER propagation_consequence_lineage_required
+BEFORE INSERT ON propagation_consequences
+WHEN length(trim(new.lineage_id)) = 0
+BEGIN
+  SELECT RAISE(ABORT, 'propagation consequence lineage is required');
+END;
+
+CREATE TRIGGER propagation_consequence_prior_version_valid
+BEFORE INSERT ON propagation_consequences
+WHEN new.prior_version_id IS NOT NULL AND NOT EXISTS (
+  SELECT 1
+  FROM propagation_consequences prior
+  WHERE prior.id = new.prior_version_id
+    AND prior.flow_id = new.flow_id
+    AND prior.lineage_id = new.lineage_id
+    AND prior.version + 1 = new.version
+)
+BEGIN
+  SELECT RAISE(ABORT, 'propagation consequence prior version must share run and lineage');
+END;
+
+CREATE TRIGGER propagation_consequence_retired_immutable
+BEFORE UPDATE ON propagation_consequences
+WHEN old.lifecycle_state != 'active'
+BEGIN
+  SELECT RAISE(ABORT, 'retired propagation consequence versions are immutable');
+END;
+
+CREATE TRIGGER propagation_consequence_versions_no_delete
+BEFORE DELETE ON propagation_consequences
+BEGIN
+  SELECT RAISE(ABORT, 'retired propagation consequence versions are immutable revision audit; retract instead of deleting');
+END;
+
+CREATE TRIGGER propagation_consequence_revision_preserves_content
+BEFORE UPDATE ON propagation_consequences
+WHEN old.body != new.body
+  OR old.order_key != new.order_key
+  OR old.order_label != new.order_label
+  OR COALESCE(old.domain_name, '') != COALESCE(new.domain_name, '')
+  OR old.pressure != new.pressure
+  OR old.lineage_id != new.lineage_id
+  OR old.version != new.version
+  OR COALESCE(old.prior_version_id, 0) != COALESCE(new.prior_version_id, 0)
+BEGIN
+  SELECT RAISE(ABORT, 'propagation consequence revision must preserve retired content');
+END;
+
+ALTER TABLE propagation_domain_sweeps RENAME TO propagation_domain_sweeps_v10;
+
+CREATE TABLE propagation_domain_sweeps (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES flow_instances(id) ON DELETE CASCADE,
+  domain_name TEXT NOT NULL,
+  triage TEXT NOT NULL CHECK (triage IN ('direct', 'dependency', 'reaction', 'negative')),
+  declaration TEXT NOT NULL DEFAULT '',
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  lineage_id TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0),
+  lifecycle_state TEXT NOT NULL DEFAULT 'active' CHECK (lifecycle_state IN ('active', 'superseded', 'retracted')),
+  prior_version_id INTEGER REFERENCES propagation_domain_sweeps(id),
+  revision_reason TEXT,
+  retired_at TEXT,
+  retired_actor_id INTEGER REFERENCES actors(id),
+  retired_flow_step TEXT
+) STRICT;
+
+INSERT INTO propagation_domain_sweeps (
+  id, flow_id, domain_name, triage, declaration, actor_id, flow_step, created_at,
+  lineage_id, version, lifecycle_state
+)
+SELECT
+  id, flow_id, domain_name, triage, declaration, actor_id, flow_step, created_at,
+  printf('propagation-domain:%d', id), 1, 'active'
+FROM propagation_domain_sweeps_v10;
+
+DROP TABLE propagation_domain_sweeps_v10;
+
+CREATE UNIQUE INDEX propagation_domain_sweeps_lineage_version
+ON propagation_domain_sweeps (flow_id, lineage_id, version);
+
+CREATE UNIQUE INDEX propagation_domain_sweeps_one_active_version
+ON propagation_domain_sweeps (flow_id, lineage_id)
+WHERE lifecycle_state = 'active';
+
+CREATE UNIQUE INDEX propagation_domain_sweeps_one_active_domain
+ON propagation_domain_sweeps (flow_id, domain_name)
+WHERE lifecycle_state = 'active';
+
+CREATE TRIGGER propagation_domain_prior_version_valid
+BEFORE INSERT ON propagation_domain_sweeps
+WHEN new.prior_version_id IS NOT NULL AND NOT EXISTS (
+  SELECT 1
+  FROM propagation_domain_sweeps prior
+  WHERE prior.id = new.prior_version_id
+    AND prior.flow_id = new.flow_id
+    AND prior.lineage_id = new.lineage_id
+    AND prior.version + 1 = new.version
+)
+BEGIN
+  SELECT RAISE(ABORT, 'propagation domain prior version must share run and lineage');
+END;
+
+CREATE TRIGGER propagation_domain_retired_immutable
+BEFORE UPDATE ON propagation_domain_sweeps
+WHEN old.lifecycle_state != 'active'
+BEGIN
+  SELECT RAISE(ABORT, 'retired propagation domain versions are immutable');
+END;
+
+CREATE TRIGGER propagation_domain_versions_no_delete
+BEFORE DELETE ON propagation_domain_sweeps
+BEGIN
+  SELECT RAISE(ABORT, 'retired propagation domain versions are immutable revision audit; retract instead of deleting');
+END;
+
+CREATE TRIGGER propagation_domain_revision_preserves_content
+BEFORE UPDATE ON propagation_domain_sweeps
+WHEN old.domain_name != new.domain_name
+  OR old.triage != new.triage
+  OR old.declaration != new.declaration
+  OR old.lineage_id != new.lineage_id
+  OR old.version != new.version
+  OR COALESCE(old.prior_version_id, 0) != COALESCE(new.prior_version_id, 0)
+BEGIN
+  SELECT RAISE(ABORT, 'propagation domain revision must preserve retired content');
+END;
+
+PRAGMA user_version = 11;
 `;

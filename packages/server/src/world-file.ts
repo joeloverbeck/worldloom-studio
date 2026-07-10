@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { basename, dirname, join, resolve } from "node:path";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { APPLICATION_ID, CURRENT_SCHEMA_VERSION, migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010 } from "./schema.js";
+import { APPLICATION_ID, CURRENT_SCHEMA_VERSION, migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010, migration011 } from "./schema.js";
 import { PROMPT_TEMPLATE_SEEDS } from "./prompt-out-defaults.js";
 import { LINK_TYPES, RECORD_TYPES, RECORD_TYPE_BY_KEY } from "@worldloom/shared";
 
@@ -701,77 +701,6 @@ export class WorldFile {
     `).all() as Array<{ id: number }>).map((row) => row.id);
   }
 
-  propagationConsequences(flowId: number): FlowInstanceRow[] {
-    return this.db.prepare("SELECT * FROM propagation_consequences WHERE flow_id = ? ORDER BY id").all(flowId) as FlowInstanceRow[];
-  }
-
-  propagationDomainSweeps(flowId: number): FlowInstanceRow[] {
-    return this.db.prepare("SELECT * FROM propagation_domain_sweeps WHERE flow_id = ? ORDER BY id").all(flowId) as FlowInstanceRow[];
-  }
-
-  propagationDispositions(flowId: number): FlowInstanceRow[] {
-    return this.db.prepare(`
-      SELECT d.*
-      FROM propagation_consequence_dispositions d
-      JOIN propagation_consequences c ON c.id = d.consequence_id
-      WHERE c.flow_id = ?
-      ORDER BY d.id
-    `).all(flowId) as FlowInstanceRow[];
-  }
-
-  undispositionedHighPressurePropagationConsequences(flowId: number): FlowInstanceRow[] {
-    return this.db.prepare(`
-      SELECT c.*
-      FROM propagation_consequences c
-      LEFT JOIN propagation_consequence_dispositions d ON d.consequence_id = c.id
-      WHERE c.flow_id = ?
-        AND c.pressure = 'high'
-        AND d.id IS NULL
-      ORDER BY c.id
-    `).all(flowId) as FlowInstanceRow[];
-  }
-
-  insertPropagationConsequence(input: {
-    flowId: number;
-    factRecordId: number;
-    orderKey: string;
-    orderLabel: string;
-    domainName?: string;
-    body: string;
-    pressure: "normal" | "high";
-    flowStep: string;
-  }): FlowInstanceRow {
-    const result = this.db.prepare(`
-      INSERT INTO propagation_consequences (flow_id, fact_record_id, order_key, order_label, domain_name, body, pressure, flow_step)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(input.flowId, input.factRecordId, input.orderKey, input.orderLabel, input.domainName ?? null, input.body, input.pressure, input.flowStep);
-    return this.db.prepare("SELECT * FROM propagation_consequences WHERE id = ?").get(result.lastInsertRowid) as FlowInstanceRow;
-  }
-
-  upsertPropagationDomainSweep(input: { flowId: number; domainName: string; triage: string; declaration?: string }): FlowInstanceRow {
-    this.db.prepare(`
-      INSERT INTO propagation_domain_sweeps (flow_id, domain_name, triage, declaration, flow_step)
-      VALUES (?, ?, ?, ?, 'propagation:domain-atlas')
-      ON CONFLICT(flow_id, domain_name) DO UPDATE SET
-        triage = excluded.triage,
-        declaration = excluded.declaration,
-        flow_step = excluded.flow_step
-    `).run(input.flowId, input.domainName, input.triage, input.declaration ?? "");
-    return this.db.prepare("SELECT * FROM propagation_domain_sweeps WHERE flow_id = ? AND domain_name = ?").get(input.flowId, input.domainName) as FlowInstanceRow;
-  }
-
-  getPropagationConsequence(consequenceId: number): FlowInstanceRow | null {
-    return (this.db.prepare("SELECT * FROM propagation_consequences WHERE id = ?").get(consequenceId) as FlowInstanceRow | undefined) ?? null;
-  }
-
-  insertPropagationDisposition(input: { consequenceId: number; disposition: string; note?: string; preservationBoundary?: string; debtRecordId?: number | null }): FlowInstanceRow {
-    const result = this.db.prepare(`
-      INSERT INTO propagation_consequence_dispositions (consequence_id, disposition, note, preservation_boundary, debt_record_id, flow_step)
-      VALUES (?, ?, ?, ?, ?, 'propagation:disposition')
-    `).run(input.consequenceId, input.disposition, input.note ?? "", input.preservationBoundary ?? null, input.debtRecordId ?? null);
-    return this.db.prepare("SELECT * FROM propagation_consequence_dispositions WHERE id = ?").get(result.lastInsertRowid) as FlowInstanceRow;
-  }
-
   propagationSurfacedProposals(flowId: number): FlowInstanceRow[] {
     return this.db.prepare("SELECT * FROM propagation_surfaced_proposals WHERE flow_id = ? ORDER BY id").all(flowId) as FlowInstanceRow[];
   }
@@ -1157,6 +1086,16 @@ export class WorldFile {
       this.db.exec("BEGIN");
       try {
         this.db.exec(migration010);
+        this.db.exec("COMMIT");
+      } catch (error) {
+        this.db.exec("ROLLBACK");
+        throw error;
+      }
+    }
+    if (version < 11) {
+      this.db.exec("BEGIN");
+      try {
+        this.db.exec(migration011);
         this.db.exec("COMMIT");
       } catch (error) {
         this.db.exec("ROLLBACK");

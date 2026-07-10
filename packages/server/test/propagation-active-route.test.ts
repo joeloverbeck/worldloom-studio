@@ -93,6 +93,115 @@ afterEach(() => {
 });
 
 describe("Propagation active owed route server contract", () => {
+  it("returns the latest open Propagation run for mutation-free browser resume", async () => {
+    const app = await createWorld();
+
+    const empty = await app.request("/api/propagation/runs/active");
+    expect(empty.status).toBe(200);
+    expect(await json<any>(empty)).toEqual({ run: null });
+
+    const fact = await acceptedFact(app, {
+      title: "Resume the courthouse shock cone",
+      admissionLevel: "3",
+      workScale: "major"
+    });
+    const started = await json<any>(await postJson(app, "/api/propagation/runs/start", { factRecordId: fact.id }));
+
+    const firstRead = await json<any>(await app.request("/api/propagation/runs/active"));
+    const secondRead = await json<any>(await app.request("/api/propagation/runs/active"));
+
+    expect(firstRead.run).toMatchObject({
+      flow: { id: started.flow.id, state: "in_progress" },
+      activeSet: { revision: 0 },
+      closeReadiness: { status: "blocked" }
+    });
+    expect(secondRead).toEqual(firstRead);
+  });
+
+  it("returns the pre-close revision contract and current server state from start and mutation actions", async () => {
+    const app = await createWorld();
+    const fact = await acceptedFact(app, {
+      title: "Court-bell staging contract",
+      body: "Court bells delimit when dead witnesses may speak.",
+      admissionLevel: "3",
+      workScale: "major"
+    });
+    const started = await json<any>(await postJson(app, "/api/propagation/runs/start", { factRecordId: fact.id }));
+    expect(started).toMatchObject({
+      flow: { id: expect.any(Number), state: "in_progress", propagation_active_set_revision: 0 },
+      sourceFact: { id: fact.id },
+      severityPath: { admissionLevel: "3", workScale: "major" },
+      revisionDecision: {
+        name: "Pre-close Propagation revision and finalization",
+        packageSources: [
+          "docs/worldbuilding-system/07_propagation_engine.md",
+          "docs/worldbuilding-system/20_ai_assisted_workflow.md"
+        ],
+        doctrine: {
+          staging: expect.stringMatching(/editable staging/i),
+          reportBoundary: expect.stringMatching(/append-only/i)
+        },
+        writeIntent: {
+          willWrite: expect.any(Array),
+          willLeaveUntouched: expect.arrayContaining(["source canon standing", "Admission work", "closed reports"])
+        }
+      },
+      activeSet: { revision: 0 },
+      packetCurrentness: {
+        status: "current",
+        recovery: expect.objectContaining({ action: "load-current-packet" })
+      },
+      closeReadiness: { status: "blocked", blockers: expect.any(Array) },
+      decisionPoint: {
+        sharedContract: {
+          nextOrResumeState: expect.objectContaining({ currentStep: "propagation:entry", safeExit: expect.any(String) })
+        }
+      }
+    });
+
+    const added = await json<any>(await postJson(app, "/api/propagation/consequences", {
+      flowId: started.flow.id,
+      orderKey: "first",
+      domainName: domain.direct,
+      body: "Court markets pause during testimony.",
+      pressure: "high"
+    }));
+    expect(added).toMatchObject({
+      consequence: {
+        lifecycleState: "active",
+        version: 1,
+        lineageId: expect.any(String)
+      },
+      activeSet: { revision: 1, changedKind: "consequence-added" },
+      revisionDecision: { name: "Pre-close Propagation revision and finalization" },
+      closeReadiness: {
+        blockers: expect.arrayContaining([expect.objectContaining({ key: "undispositioned-high-pressure" })])
+      }
+    });
+
+    const swept = await json<any>(await postJson(app, "/api/propagation/domains", {
+      flowId: started.flow.id,
+      domainName: domain.direct,
+      triage: "direct",
+      declaration: "Court-market schedules change directly."
+    }));
+    expect(swept).toMatchObject({
+      domain: { lifecycleState: "active", version: 1, lineageId: expect.any(String) },
+      activeSet: { revision: 2, changedKind: "domain-added" }
+    });
+
+    const dispositioned = await json<any>(await postJson(app, "/api/propagation/dispositions", {
+      consequenceId: added.consequence.id,
+      disposition: "answered",
+      note: "The court calendar absorbs the pause."
+    }));
+    expect(dispositioned).toMatchObject({
+      disposition: { consequenceId: added.consequence.id, active: true },
+      activeSet: { revision: 3, changedKind: "consequence-disposition" },
+      revisionDecision: { name: "Pre-close Propagation revision and finalization" }
+    });
+  });
+
   it("does not recover owed source facts by parsing debt prose", async () => {
     const app = await createWorld();
     const fact = await acceptedFact(app, {
@@ -491,5 +600,399 @@ describe("Propagation active owed route server contract", () => {
     }));
     expect(skipped.record).toMatchObject({ recordTypeKey: "skip_record" });
     expect(skipped.record.body).toContain("External pressure would duplicate");
+  });
+
+  it("revises a dispositioned consequence, invalidates active readiness, and refuses the stale Pressure packet", async () => {
+    const app = await createWorld();
+    const fact = await acceptedFact(app, {
+      title: "Bell-toll testimony",
+      body: "Dead witnesses may testify only while the noon bell rings.",
+      admissionLevel: "3",
+      workScale: "major"
+    });
+    const started = await json<{ flow: { id: number } }>(await postJson(app, "/api/propagation/runs/start", {
+      factRecordId: fact.id
+    }));
+    const consequence = await json<{ consequence: { id: number } }>(await postJson(app, "/api/propagation/consequences", {
+      flowId: started.flow.id,
+      orderKey: "first",
+      domainName: domain.direct,
+      body: "Every noon market must halt for ghost testimony.",
+      pressure: "high"
+    }));
+    const disposition = await json<{ disposition: { id: number } }>(await postJson(app, "/api/propagation/dispositions", {
+      consequenceId: consequence.consequence.id,
+      disposition: "answered",
+      note: "The market calendar absorbs the pause."
+    }));
+
+    const promptStep = await json<{ step: { actions: { generate: { href: string }; storeAdvisory: { href: string }; disposition: { href: string } } } }>(
+      await postJson(app, "/api/prompt-out/steps", {
+        flowKey: "propagation",
+        flowId: started.flow.id,
+        templateKey: "propagation_consequence_scout",
+        recordId: fact.id,
+        stepKey: "propagation:pre-close-revision",
+        mode: "pressure",
+        label: "Pressure revised active set",
+        admissionLevel: "3",
+        workScale: "major"
+      })
+    );
+    const generated = await json<{ prompt: string; promptOut: { packetIdentity: { activeSetRevision: number } } }>(
+      await postJson(app, promptStep.step.actions.generate.href)
+    );
+    expect(generated.promptOut.packetIdentity.activeSetRevision).toEqual(expect.any(Number));
+    const advisory = await json<{ record: { id: number } }>(await postJson(app, promptStep.step.actions.storeAdvisory.href, {
+      promptText: generated.prompt,
+      responseText: "The bell schedule contradicts the source fact's limited testimony window."
+    }));
+    expect(advisory.record.id).toEqual(expect.any(Number));
+
+    const revisedResponse = await postJson(app, `/api/propagation/consequences/${consequence.consequence.id}/revisions`, {
+      flowId: started.flow.id,
+      reason: "Pressure exposed that markets need not stop outside the courthouse.",
+      orderKey: "first",
+      domainName: domain.direct,
+      body: "Only the courthouse market pauses during noon ghost testimony.",
+      pressure: "high"
+    });
+    expect(revisedResponse.status).toBe(201);
+    const revised = await json<any>(revisedResponse);
+    expect(revised).toMatchObject({
+      revision: {
+        kind: "consequence-revision",
+        reason: "Pressure exposed that markets need not stop outside the courthouse.",
+        lineageId: expect.any(String),
+        retired: {
+          id: consequence.consequence.id,
+          lifecycleState: "superseded",
+          provenance: {
+            created: {
+              actor: { id: 1, name: "steward" },
+              timestamp: expect.any(String),
+              flowStep: "propagation:first"
+            },
+            retired: {
+              actor: { id: 1, name: "steward" },
+              timestamp: expect.any(String),
+              flowStep: "propagation:consequence-revision"
+            }
+          }
+        },
+        active: {
+          id: expect.any(Number),
+          version: 2,
+          lifecycleState: "active",
+          body: "Only the courthouse market pauses during noon ghost testimony.",
+          provenance: {
+            created: {
+              actor: { id: 1, name: "steward" },
+              timestamp: expect.any(String),
+              flowStep: "propagation:consequence-revision"
+            },
+            retired: null
+          }
+        },
+        invalidatedDisposition: {
+          id: disposition.disposition.id,
+          active: false
+        }
+      },
+      activeSet: {
+        revision: expect.any(Number),
+        changedKind: "consequence-revision",
+        changedRowId: expect.any(Number)
+      },
+      packetCurrentness: {
+        status: "stale",
+        reason: expect.stringMatching(/consequence.*revis/i),
+        pressure: {
+          status: "owed",
+          freshPacket: expect.objectContaining({ href: "/api/prompt-out/steps" }),
+          skip: expect.objectContaining({ href: expect.stringContaining("/api/prompt-out/steps/actions/skip") })
+        }
+      },
+      closeReadiness: {
+        status: "blocked",
+        blockers: expect.arrayContaining([
+          expect.objectContaining({ key: "undispositioned-high-pressure", consequenceId: expect.any(Number) })
+        ])
+      }
+    });
+    expect(revised.activeSet.revision).toBeGreaterThan(generated.promptOut.packetIdentity.activeSetRevision);
+
+    const staleStore = await postJson(app, promptStep.step.actions.storeAdvisory.href, {
+      promptText: generated.prompt,
+      responseText: "This response belongs to the retired active set."
+    });
+    expect(staleStore.status).toBe(400);
+    expect(await json<{ error: string }>(staleStore)).toMatchObject({
+      error: expect.stringMatching(/stale.*active set.*load.*current/i)
+    });
+
+    const staleDisposition = await postJson(app, promptStep.step.actions.disposition.href, {
+      advisoryRecordId: advisory.record.id,
+      disposition: "challenged",
+      note: "This disposition belongs to a retired active set."
+    });
+    expect(staleDisposition.status).toBe(400);
+
+    const staleUse = await postJson(app, "/api/records", {
+      recordTypeKey: "canon_fact",
+      title: "Stale advisory use must roll back",
+      body: "This record must not survive the refused stale advisory-use action.",
+      truthLayer: "Objective canon",
+      canonStatus: "proposed",
+      advisoryRecordId: advisory.record.id
+    });
+    expect(staleUse.status).toBe(400);
+    expect(await json<{ error: string }>(staleUse)).toMatchObject({
+      error: expect.stringMatching(/stale.*active set.*load.*current/i)
+    });
+    expect(await json<{ records: Array<{ title: string }> }>(await app.request("/api/records"))).toMatchObject({
+      records: expect.not.arrayContaining([expect.objectContaining({ title: "Stale advisory use must roll back" })])
+    });
+  });
+
+  it("finalizes only the active foundational set with revision audit and refuses every post-close staging action", async () => {
+    const app = await createWorld();
+    const fact = await acceptedFact(app, {
+      title: "Foundational bell testimony",
+      body: "The dead may testify during one courthouse bell each day.",
+      admissionLevel: "5",
+      workScale: "catastrophic"
+    });
+    const untouched = await json<{ record: { id: number; title: string; body: string; canonStatus: string } }>(await postJson(app, "/api/records", {
+      recordTypeKey: "canon_fact",
+      title: "Unrelated orchard custom",
+      body: "Orchards close on the first frost.",
+      truthLayer: "Objective canon",
+      canonStatus: "accepted"
+    }));
+    const started = await json<any>(await postJson(app, "/api/propagation/runs/start", { factRecordId: fact.id }));
+
+    const orders = ["zeroth", "first", "second", "third", "fourth", "fifth"] as const;
+    let highConsequence: { id: number } | null = null;
+    for (const orderKey of orders) {
+      const result = await json<any>(await postJson(app, "/api/propagation/consequences", {
+        flowId: started.flow.id,
+        orderKey,
+        body: orderKey === "first"
+          ? "Every market in the city closes during the courthouse bell."
+          : `${orderKey} order bell-testimony consequence remains steward-authored.`,
+        pressure: orderKey === "first" ? "high" : "normal"
+      }));
+      if (orderKey === "first") highConsequence = result.consequence;
+    }
+    expect(highConsequence).not.toBeNull();
+
+    const domainRows: Array<{ id: number; domainName: string; triage: string }> = [];
+    const triages = ["direct", "dependency", "reaction", "negative"] as const;
+    for (const [index, domainName] of (started.plan.domains as string[]).entries()) {
+      const triage = triages[index % triages.length]!;
+      const result = await json<any>(await postJson(app, "/api/propagation/domains", {
+        flowId: started.flow.id,
+        domainName,
+        triage,
+        declaration: `${domainName} has an explicit ${triage} bell-testimony declaration.`
+      }));
+      domainRows.push(result.domain);
+    }
+    await postJson(app, "/api/propagation/dispositions", {
+      consequenceId: highConsequence!.id,
+      disposition: "answered",
+      note: "The city calendar absorbs the market pause."
+    });
+
+    const pressureStep = await json<any>(await postJson(app, "/api/prompt-out/steps", {
+      flowKey: "propagation",
+      flowId: started.flow.id,
+      templateKey: "propagation_consequence_scout",
+      recordId: fact.id,
+      stepKey: "propagation:pre-close-revision",
+      mode: "pressure",
+      label: "Pressure foundational active set",
+      admissionLevel: "5",
+      workScale: "catastrophic"
+    }));
+    const pressure = await json<any>(await postJson(app, pressureStep.step.actions.generate.href));
+    const advisory = await json<any>(await postJson(app, pressureStep.step.actions.storeAdvisory.href, {
+      promptText: pressure.prompt,
+      responseText: "Only courthouse markets need pause; citywide closure overstates the consequence."
+    }));
+    expect(advisory.record.body).toContain("Active set revision:");
+
+    const revised = await json<any>(await postJson(app, `/api/propagation/consequences/${highConsequence!.id}/revisions`, {
+      flowId: started.flow.id,
+      reason: "Cold Pressure exposed an over-broad market consequence.",
+      orderKey: "first",
+      body: "Only the courthouse market closes during the testimony bell.",
+      pressure: "high"
+    }));
+    expect(revised.closeReadiness).toMatchObject({
+      status: "blocked",
+      blockers: expect.arrayContaining([
+        expect.objectContaining({ key: "undispositioned-high-pressure", consequenceId: revised.revision.active.id }),
+        expect.objectContaining({ key: "fresh-pressure-or-skip-owed" })
+      ])
+    });
+    await postJson(app, "/api/propagation/dispositions", {
+      consequenceId: revised.revision.active.id,
+      disposition: "answered",
+      note: "The courthouse calendar absorbs the narrower pause."
+    });
+
+    const revisedDomain = await json<any>(await postJson(app, `/api/propagation/domains/${domainRows[0]!.id}/revisions`, {
+      flowId: started.flow.id,
+      reason: "The active declaration needs a narrower direct-pressure explanation.",
+      triage: "direct",
+      declaration: "Bell testimony changes metaphysical access only inside the courthouse."
+    }));
+    expect(revisedDomain.revision).toMatchObject({
+      kind: "domain-revision",
+      retired: { id: domainRows[0]!.id, lifecycleState: "superseded", triage: domainRows[0]!.triage },
+      active: { lifecycleState: "active", version: 2 }
+    });
+
+    const retractedDomain = await json<any>(await postJson(app, `/api/propagation/domains/${domainRows[1]!.id}/retract`, {
+      flowId: started.flow.id,
+      reason: "The geographic claim was unsupported and must leave the active atlas."
+    }));
+    expect(retractedDomain.revision).toMatchObject({
+      kind: "domain-retraction",
+      retired: { id: domainRows[1]!.id, lifecycleState: "retracted" },
+      active: null
+    });
+    expect(retractedDomain.closeReadiness.blockers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "missing-full-domain-atlas" })
+    ]));
+    const replacementDomain = await json<any>(await postJson(app, "/api/propagation/domains", {
+      flowId: started.flow.id,
+      domainName: domainRows[1]!.domainName,
+      triage: "dependency",
+      declaration: "Courthouse placement creates a bounded geographic dependency."
+    }));
+    expect(replacementDomain.domain).toMatchObject({ lifecycleState: "active", version: 1 });
+
+    const beforeSkip = await json<any>(await app.request(`/api/propagation/runs/${started.flow.id}`));
+    expect(beforeSkip.packetCurrentness.pressure.status).toBe("owed");
+    const skipped = await json<any>(await postJson(app, beforeSkip.packetCurrentness.pressure.skip.href, {
+      reason: "The exact revised packet is archived for the separate cold replay evidence."
+    }));
+    expect(skipped.record.body).toContain("The exact revised packet is archived");
+    const ready = await json<any>(await app.request(`/api/propagation/runs/${started.flow.id}`));
+    expect(ready.closeReadiness).toMatchObject({ status: "ready", blockers: [] });
+
+    const closed = await json<any>(await postJson(app, `/api/propagation/runs/${started.flow.id}/close`));
+    expect(closed.report).toMatchObject({ recordTypeKey: "propagation_report", canonStatus: "accepted" });
+    const reportSections = await json<{ sections: Array<{ heading: string; body: string }> }>(
+      await app.request(`/api/records/${closed.report.id}/sections`)
+    );
+    const shockCone = reportSections.sections.find((section) => section.heading === "Shock-cone orders")!.body;
+    const consequenceAudit = reportSections.sections.find((section) => section.heading === "Consequences and dispositions")!.body;
+    expect(shockCone).toContain("Only the courthouse market closes during the testimony bell.");
+    expect(shockCone).not.toContain("Every market in the city closes");
+    expect(consequenceAudit).toContain("Cold Pressure exposed an over-broad market consequence.");
+    expect(consequenceAudit).toContain("Every market in the city closes");
+    expect(consequenceAudit).toContain("superseded");
+    expect(consequenceAudit).toContain("Created by steward (#1)");
+    expect(consequenceAudit).toContain("Retired by steward (#1)");
+
+    const postCloseRevision = await postJson(app, `/api/propagation/consequences/${revised.revision.active.id}/revisions`, {
+      flowId: started.flow.id,
+      reason: "This must be refused after close.",
+      orderKey: "first",
+      body: "Forbidden post-close replacement.",
+      pressure: "high"
+    });
+    expect(postCloseRevision.status).toBe(400);
+    expect(await json<{ error: string }>(postCloseRevision)).toMatchObject({ error: expect.stringMatching(/closed.*refused/i) });
+
+    const originalBeforeCorrection = { id: closed.report.id, body: closed.report.body };
+    const correction = await json<{ report: { id: number } }>(await postJson(app, `/api/propagation/reports/${closed.report.id}/corrections`, {
+      body: "A later correction remains a new append-only report."
+    }));
+    expect(correction.report.id).not.toBe(closed.report.id);
+    const records = await json<{ records: Array<{ id: number; title: string; body: string; canonStatus: string }> }>(await app.request("/api/records"));
+    expect(records.records.find((record) => record.id === closed.report.id)).toMatchObject(originalBeforeCorrection);
+    expect(records.records.find((record) => record.id === untouched.record.id)).toMatchObject(untouched.record);
+    expect(records.records.find((record) => record.id === fact.id)).toMatchObject({
+      id: fact.id,
+      canonStatus: "accepted",
+      body: "The dead may testify during one courthouse bell each day."
+    });
+  });
+
+  it("keeps invalid revision and re-disposition actions atomic with row-specific recovery errors", async () => {
+    const app = await createWorld();
+    const fact = await acceptedFact(app, {
+      title: "Atomic bell revision",
+      admissionLevel: "3",
+      workScale: "major"
+    });
+    const started = await json<any>(await postJson(app, "/api/propagation/runs/start", { factRecordId: fact.id }));
+    const added = await json<any>(await postJson(app, "/api/propagation/consequences", {
+      flowId: started.flow.id,
+      orderKey: "first",
+      body: "Markets pause during bell testimony.",
+      pressure: "high"
+    }));
+    await postJson(app, "/api/propagation/dispositions", {
+      consequenceId: added.consequence.id,
+      disposition: "answered",
+      note: "The calendar absorbs the pause."
+    });
+    const before = await json<any>(await app.request(`/api/propagation/runs/${started.flow.id}`));
+    const beforeRecords = await json<{ records: Array<{ recordTypeKey: string }> }>(await app.request("/api/records"));
+
+    const missingReason = await postJson(app, `/api/propagation/consequences/${added.consequence.id}/revisions`, {
+      flowId: started.flow.id,
+      reason: "   ",
+      orderKey: "first",
+      body: "This invalid replacement must not be stored.",
+      pressure: "high"
+    });
+    expect(missingReason.status).toBe(400);
+    expect(await json<{ error: string }>(missingReason)).toMatchObject({
+      error: expect.stringMatching(/steward-authored reason/i)
+    });
+
+    const otherFact = await acceptedFact(app, { title: "Other atomic run", admissionLevel: "1", workScale: "minor" });
+    const otherRun = await json<any>(await postJson(app, "/api/propagation/runs/start", { factRecordId: otherFact.id }));
+    const crossRun = await postJson(app, `/api/propagation/consequences/${added.consequence.id}/revisions`, {
+      flowId: otherRun.flow.id,
+      reason: "A different run must not revise this row.",
+      orderKey: "first",
+      body: "Cross-run replacement must not be stored.",
+      pressure: "high"
+    });
+    expect(crossRun.status).toBe(400);
+    expect(await json<{ error: string }>(crossRun)).toMatchObject({
+      error: expect.stringMatching(new RegExp(`consequence ${added.consequence.id}.*does not belong.*${otherRun.flow.id}`, "i"))
+    });
+
+    const redisposition = await postJson(app, "/api/propagation/dispositions", {
+      consequenceId: added.consequence.id,
+      disposition: "assigned as canon debt",
+      note: "This debt must roll back with the refused re-disposition.",
+      debtName: "Rolled-back duplicate disposition debt"
+    });
+    expect(redisposition.status).toBe(400);
+    expect(await json<{ error: string }>(redisposition)).toMatchObject({
+      error: expect.stringMatching(new RegExp(`consequence #?${added.consequence.id}.*already dispositioned.*revise`, "i"))
+    });
+
+    const after = await json<any>(await app.request(`/api/propagation/runs/${started.flow.id}`));
+    expect(after.activeSet).toEqual(before.activeSet);
+    expect(after.consequences).toEqual(before.consequences);
+    expect(after.dispositions).toEqual(before.dispositions);
+    const afterRecords = await json<{ records: Array<{ recordTypeKey: string; title: string }> }>(await app.request("/api/records"));
+    expect(afterRecords.records.filter((record) => record.recordTypeKey === "canon_debt")).toHaveLength(
+      beforeRecords.records.filter((record) => record.recordTypeKey === "canon_debt").length
+    );
+    expect(afterRecords.records).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ title: "Rolled-back duplicate disposition debt" })
+    ]));
   });
 });
