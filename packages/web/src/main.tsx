@@ -1320,6 +1320,44 @@ interface LoadedPromptStatusState {
   origin: LoadedPromptOrigin;
 }
 
+export interface PropagationPacketContextPreview {
+  serverOwned: true;
+  mode: "proposal" | "pressure";
+  decisionPoint: string;
+  packageSources: string[];
+  atlas: {
+    required: boolean;
+    domains: Array<{ name: string; decisionPrompt: string }>;
+    triage: string;
+    severityReason: string;
+  };
+  relatedWorld: {
+    aggregateBudget: number;
+    perRecordCap: number;
+    usedCharacters: number;
+    completeness: {
+      status: "complete" | "incomplete";
+      failures: string[];
+    };
+    selectedRecords: Array<{
+      sourceDocumentId: string;
+      stableIdentity: string;
+      title: string;
+      recordType: string;
+      canonStatus: string;
+      truthLayer: string | null;
+      relationship: string;
+      inclusionReason: string;
+      role: string;
+      nonCanon: boolean;
+    }>;
+  };
+  sourceManifest: string[];
+  omissions: string[];
+  advisoryCanonWarning: string;
+  readOnlyGuarantee: string;
+}
+
 interface LoadedPromptStatusView {
   origin: LoadedPromptOrigin;
   state: "current" | "stale";
@@ -1519,6 +1557,54 @@ function CreationCorrectionPanel({
       </div>
       <p>{correction.nextOrResumeState.nextStep}</p>
       <p className="meta">{correction.nextOrResumeState.safeExit}</p>
+    </section>
+  );
+}
+
+export function PropagationPacketContextPanel({ context }: { context: PropagationPacketContextPreview }) {
+  return (
+    <section className="subpanel propagation-packet-context" data-server-owned-propagation-packet-context="true">
+      <h4>Server-owned Propagation packet context</h4>
+      <p>{context.mode === "proposal" ? "Foundational Proposal supports candidate domain pressure." : "Related-world Pressure challenges steward-authored material."}</p>
+      <p className="meta">Decision point: {context.decisionPoint}</p>
+      <strong>Governing package sources</strong>
+      {context.packageSources.map((source) => <p key={source}>{source}</p>)}
+      <section className="doctrine">
+        <strong>{context.atlas.required ? "Foundational atlas doctrine" : "Severity-proportionate atlas doctrine"}</strong>
+        <span>{context.atlas.severityReason}</span>
+        <span>{context.atlas.triage}</span>
+      </section>
+      {context.atlas.domains.map((domain, index) => (
+        <article className="packet-domain-context" key={domain.name}>
+          <strong>{index + 1}. {domain.name}</strong>
+          <p>{domain.decisionPrompt}</p>
+        </article>
+      ))}
+      <section className="doctrine">
+        <strong>Related-world bounds</strong>
+        <span>{`${context.relatedWorld.aggregateBudget.toLocaleString("en-US")} Unicode characters aggregate · ${context.relatedWorld.perRecordCap.toLocaleString("en-US")} per record`}</span>
+        <span>{`${context.relatedWorld.usedCharacters.toLocaleString("en-US")} related-world excerpt characters selected by the server`}</span>
+      </section>
+      {context.relatedWorld.completeness.status === "incomplete" ? (
+        <section className="warning" data-propagation-context-completeness="incomplete">
+          <strong>Incomplete related-world context</strong>
+          {context.relatedWorld.completeness.failures.map((failure) => <p key={failure}>{failure}</p>)}
+        </section>
+      ) : null}
+      {context.relatedWorld.selectedRecords.map((record) => (
+        <article className="packet-related-record" key={record.sourceDocumentId}>
+          <strong>{record.stableIdentity} · {record.title}</strong>
+          <p>{`${record.recordType} · ${record.canonStatus}${record.nonCanon ? " · non-canon context" : ""} · ${record.truthLayer ?? "truth layer not present"}`}</p>
+          <p>{`${record.relationship} · ${record.inclusionReason} · ${record.role}`}</p>
+          <p className="meta">Source document: {record.sourceDocumentId}</p>
+        </article>
+      ))}
+      <strong>Server source manifest</strong>
+      {context.sourceManifest.map((item) => <p key={item}>{item}</p>)}
+      <strong>Record-specific omissions</strong>
+      {context.omissions.map((item) => <p key={item}>{item}</p>)}
+      <p>{context.advisoryCanonWarning}</p>
+      <p>{context.readOnlyGuarantee}</p>
     </section>
   );
 }
@@ -2362,6 +2448,7 @@ function App({
   const [admissionPromptMode, setAdmissionPromptMode] = useState<"proposal" | "pressure">("proposal");
   const [promptStep, setPromptStep] = useState<PromptOutStep | null>(null);
   const [promptText, setPromptText] = useState(initialPromptText);
+  const [propagationPacketContext, setPropagationPacketContext] = useState<PropagationPacketContextPreview | null>(null);
   const [promptPacketOrigin, setPromptPacketOrigin] = useState<LoadedPromptOrigin | null>(initialPromptPacketOrigin);
   const [loadedPromptStatus, setLoadedPromptStatus] = useState<LoadedPromptStatusState | null>(initialLoadedPromptStatus);
   const [templateEdit, setTemplateEdit] = useState("");
@@ -3904,6 +3991,7 @@ function App({
   const clearPromptPacketBody = () => {
     setPromptText("");
     setPromptPacketOrigin(null);
+    setPropagationPacketContext(null);
   };
 
   const loadPromptStep = async () => {
@@ -3946,7 +4034,7 @@ function App({
       body: JSON.stringify(requestBody)
     });
     setPromptStep(payload.step);
-    const generated = await api<{ prompt: string; promptOut: { packetIdentity: PromptPacketIdentity } }>(payload.step.actions.generate.href, {
+    const generated = await api<{ prompt: string; promptOut: { packetIdentity: PromptPacketIdentity; propagationContext?: PropagationPacketContextPreview | null } }>(payload.step.actions.generate.href, {
       method: payload.step.actions.generate.method,
       body: admissionFullGateDraft ? JSON.stringify({ admissionFullGateDraft }) : undefined
     });
@@ -3961,6 +4049,7 @@ function App({
       }),
       generated.prompt
     );
+    setPropagationPacketContext(generated.promptOut.propagationContext ?? null);
     setMessage(`Loaded Admission Prompt-out step ${payload.step.label}`);
     return payload.step;
   };
@@ -4023,7 +4112,7 @@ function App({
       body: JSON.stringify(request.body)
     });
     setPromptStep(payload.step);
-    const generated = await api<{ prompt: string; promptOut: { packetIdentity: PromptPacketIdentity } }>(payload.step.actions.generate.href, {
+    const generated = await api<{ prompt: string; promptOut: { packetIdentity: PromptPacketIdentity; propagationContext?: PropagationPacketContextPreview | null } }>(payload.step.actions.generate.href, {
       method: payload.step.actions.generate.method
     });
     setLoadedPromptAndPacket(
@@ -4040,6 +4129,7 @@ function App({
       }),
       generated.prompt
     );
+    setPropagationPacketContext(generated.promptOut.propagationContext ?? null);
     setMessage(`Loaded Propagation Prompt-out step ${payload.step.label} (${payload.step.mode === "proposal" ? "Proposal mode" : "Pressure mode"})`);
     return payload.step;
   };
@@ -4057,7 +4147,7 @@ function App({
         body: JSON.stringify(request.body)
       });
       setPromptStep(payload.step);
-      const generated = await api<{ prompt: string; promptOut: { packetIdentity: PromptPacketIdentity } }>(payload.step.actions.generate.href, {
+      const generated = await api<{ prompt: string; promptOut: { packetIdentity: PromptPacketIdentity; propagationContext?: PropagationPacketContextPreview | null } }>(payload.step.actions.generate.href, {
         method: payload.step.actions.generate.method
       });
       setLoadedPromptAndPacket(promptOriginFromPacketIdentity(generated.promptOut.packetIdentity, {
@@ -4072,6 +4162,7 @@ function App({
         activeSetRevision: propagationRun.activeSet.revision,
         decisionLabel: displayedPropagationContract?.step.localDecision ?? payload.step.label
       }), generated.prompt);
+      setPropagationPacketContext(generated.promptOut.propagationContext ?? null);
       setPropagationRevisionErrors((current) => ({ ...current, pressure: "" }));
       setMessage(`Loaded current Propagation Pressure packet at active-set revision ${propagationRun.activeSet.revision}`);
       return payload.step;
@@ -4105,10 +4196,11 @@ function App({
 
   const generatePrompt = async () => {
     const promptStep = await ensurePromptStep();
-    const payload = await api<{ prompt: string; promptOut: { packetIdentity: PromptPacketIdentity } }>(promptStep.actions.generate.href, { method: promptStep.actions.generate.method });
+    const payload = await api<{ prompt: string; promptOut: { packetIdentity: PromptPacketIdentity; propagationContext?: PropagationPacketContextPreview | null } }>(promptStep.actions.generate.href, { method: promptStep.actions.generate.method });
     setLoadedPromptAndPacket(promptOriginFromPacketIdentity(payload.promptOut.packetIdentity, {
       decisionLabel: promptStep.label
     }), payload.prompt);
+    setPropagationPacketContext(payload.promptOut.propagationContext ?? null);
   };
 
   const savePromptTemplate = async () => {
@@ -6346,6 +6438,7 @@ function App({
           <section className="subpanel">
             <h4>Current packet preview</h4>
             <p>Loaded Prompt-out step: {promptStep.label} · {promptStep.context.stepKey}</p>
+            {propagationPacketContext && <PropagationPacketContextPanel context={propagationPacketContext} />}
             <pre className="prompt-preview">{promptText || "Generate the current packet to preview its exact body."}</pre>
             {promptPacketStatusPanel}
             {promptPacketExportControls}

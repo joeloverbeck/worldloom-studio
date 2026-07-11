@@ -68,6 +68,25 @@ When a slice claims the Pre-close Propagation revision and finalization contract
 
 Source-policy checks may support this evidence by proving that the browser consumes returned lifecycle, severity, blocker, currentness, and route shapes, but source checks cannot substitute for the rendered active route. Likewise, server/store tests support invariants but cannot substitute for failure recovery, cognitive walkthrough, console state, or cold-packet relevance.
 
+## Foundational Propagation Packet-Context Evidence Pattern
+
+When a slice claims the PRD #358 packet-context contract, active-route evidence must show:
+
+- the `04`, `07`, and `20` package sources and the distinct foundational Proposal, related-world Pressure, packet-review, and steward-authorship decisions;
+- all fourteen domains in canonical order with compact decision prompts, direct/dependency/reaction/negative triage, the foundational full-atlas rationale, and proportionate lower-severity behavior;
+- Pressure's retained source fact, debt when present, severity, active consequence/domain/disposition set, blockers, close preview, active-set identity, and relevant retired audit context;
+- selected kernel, direct-link, and shared-origin records with stable identity, title, record type, canon status, truth layer when present, structural relationship, inclusion reason, and active-versus-historical role, including visibly non-canon proposed or contested material;
+- record-specific omissions for unavailable content, inactive or superseded support, role irrelevance, bounded second-hop exclusion, and budget trimming, plus visible 12,000-character aggregate and 2,000-character per-record bounds;
+- exact parity among the visible context, source documents, source manifest, omission list, output labels, advisory warning, copied packet, and server packet identity;
+- incomplete-context or substance failures rendered with concrete remediation while preserving selected flow and mode, rather than a falsely complete packet or console-only failure;
+- current/stale refusal and server-provided recovery after an active-set change, plus current/next/resume state and safe exit/return;
+- before/after API and world-file fingerprints proving preview and copy do not create or change records, links, standing, debt, skips, advisory artifacts, dispositions, flow state, or unrelated world data;
+- source-policy proof that the browser consumes server-returned atlas, selection, standing, relationships, budgets, omissions, currentness, and recovery without local traversal, classification, hashing, or omission synthesis;
+- one cold Proposal result that uses all fourteen domains without requesting hidden doctrine and one cold Pressure result that distinguishes governed support, visibly non-canon context, excluded or superseded material, and genuinely absent assumptions; and
+- a docs-naive walkthrough covering decision identification, required/optional/skippable and severity-dependent context, doctrine, provenance and omissions, advisory separation, predicted non-mutation, stale recovery, safe resume, route/action outcome, screenshot or equivalent artifact, and final console error/warning classification.
+
+If either cold session or the production route is unavailable, the corresponding evidence row remains blocked. Component tests, server tests, and static source-policy guards support but never replace this pattern.
+
 ## Cognitive Walkthrough Checklist
 
 For learnability-sensitive changes, run a lightweight naive-steward walkthrough:

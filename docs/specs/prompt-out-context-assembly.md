@@ -62,6 +62,43 @@ Current in-scope Prompt-out surfaces are Creation kernel, Creation seed decompos
 - For Temporal/Timeline Prompt-out, the packet includes the current Temporal decision, source record or selected material, pass report, steward-authored coverage, date facets, first-true and first-known timing, latency, residue, sequence-integrity and retrospective-insertion answers, temporal mystery boundaries, existing timeline cards, routed proposals, canon debt, skips, advisory dispositions, `09` doctrine, source manifest, explicit omissions, and advisory/canon warning.
 - For Propagation Prompt-out, the packet includes the source fact and owed debt when present, declared severity, active consequences and domain declarations, their stable lineage/version identities, current active dispositions, active-only blockers and close preview, relevant retired-version audit context, and the server-owned active-set identity. Superseded or retracted material is labeled as history and never presented as active decision material.
 
+### Foundational Propagation packet context
+
+PRD #358 deepens the existing Propagation packet at three decision points: foundational Proposal at run entry and the domain-atlas sweep, related-world Pressure before close, and the packet review that precedes copy-out. The governing package sources are `docs/worldbuilding-system/04_domain_atlas.md`, `docs/worldbuilding-system/07_propagation_engine.md`, and `docs/worldbuilding-system/20_ai_assisted_workflow.md`.
+
+A foundational Proposal packet carries the complete atlas in this canonical order, with the compact app-owned decision prompt shown after each name:
+
+1. **Physics, metaphysics, and cosmology** — what is possible or impossible, who knows the rules, how rules vary, and what practices or exploits follow?
+2. **Geography, climate, and infrastructure** — where can people live or move, which routes and places matter, and what hazards or barriers shape infrastructure?
+3. **Ecology, food, disease, and nonhuman life** — what sustains settlement, what eats or sickens whom, and how the fact changes species, defenses, and ecological cycles?
+4. **Population, demography, and household life** — who lives with and depends on whom, and how the fact changes care, reproduction, aging, death, inheritance, or migration?
+5. **Production, labor, and technology/magic** — what can be made, by whom, with which scarce skills, tools, maintenance, licensing, or failure modes?
+6. **Economy, trade, and scarcity** — what becomes scarce, abundant, cheap, costly, profitable, taxable, insurable, rationed, smuggled, or hoarded?
+7. **Governance, law, and bureaucracy** — what needs jurisdiction, records, rights, evidence, regulation, public provision, punishment, or bureaucratic legibility?
+8. **War, coercion, and security** — how do attack, defense, force, espionage, detention, doctrine, deterrence, and routine countermeasures change?
+9. **Religion, ritual, myth, and meaning** — how is the fact interpreted, ritualized, sanctified, condemned, doubted, or made part of daily spiritual practice?
+10. **Culture, custom, language, and identity** — what speech, signs, customs, education, class markers, art, humor, honor, or shame make the fact socially lived?
+11. **Knowledge, education, science, and records** — who knows, teaches, certifies, records, proves, censors, inherits, classifies, or sells knowledge of the fact?
+12. **History, memory, and path dependence** — what past events, residues, institutions, compromises, traumas, ruins, or revisions should exist if the fact is old?
+13. **Daily life and material residue** — what does an ordinary person, child, worker, house, market, routine, object, or small luxury reveal before explanation?
+14. **Aesthetics, tone, and narrative use** — how does the fact affect genre, mood, symbolic language, wonder, horror, beauty, scale, focus, and the world's emotional promise?
+
+The packet explains the four-way atlas triage: **direct** domains are where the fact acts first; **dependency** domains contain what must already exist; **reaction** domains show adaptation by people, institutions, ecologies, markets, or symbols; **negative** domains look unaffected but would be contradictory or suspiciously quiet without an explanation. Foundational severity owes the full atlas because `07` requires the full domain, temporal, spatial, agent, institution/economy, mystery, branch, aesthetic, and QA passes at foundational pressure. Minor and ordinary major packets retain their proportionate severity-derived coverage and do not inherit a mandatory atlas dump.
+
+Pressure starts with the PRD #353 active packet context: source fact; owed debt when present; declared severity; active consequences, domains, dispositions, and blockers; close preview; active-set identity; and relevant retired-version audit context. It then selects related-world context through bounded structural relationships only:
+
+- targeted active world-kernel commitments bearing on premise, tone, consequence mode, constraints, or protected effects;
+- records directly linked to the source fact or active Propagation material through existing typed links; and
+- records sharing the source fact's immediate kernel, seed-family, decomposition-report, or other direct derivation origin.
+
+Selection does not traverse outward from a selected sibling, infer semantic relevance, rank with a model, synthesize a relationship, or add link vocabulary. Dependency-bearing proposed, under-review, contested, localized, branch, and other non-current-canon records may be included only with their standing visibly intact; inclusion never promotes or admits them. Superseded or inactive records are excluded from current support unless explicitly labeled as history.
+
+Every included related record carries stable identity, title, record type, canon status, truth layer when present, the structural relationship that made it eligible, a role-specific inclusion reason, and whether it is active support or historical context. Its targeted excerpt is at most 2,000 Unicode characters. Related-world excerpts share a 12,000-Unicode-character aggregate budget; the source fact, active run material, and compact atlas doctrine are outside that budget. Deterministic priority is kernel, direct current canon, shared-origin current canon, then visibly proposed or contested siblings after mandatory source/run context.
+
+Every identifiable considered candidate appears exactly once as an included record or a record-specific omission. Omission reasons distinguish unavailable content, inactive or superseded current-support status, Pressure-role irrelevance, exclusion by the bounded relationship shapes (including second-hop records), and packet-budget trimming. Kernel sections outside premise, tone, consequence mode, constraints, or protected effects receive specific omission reasons rather than being silently dropped or dumped wholesale.
+
+The server returns the atlas doctrine, selected records, standing labels, relationships, inclusion reasons, omissions, blockers, packet identity, current/next/resume state, and governed recovery. The browser renders that authoritative assembly without reselecting, reclassifying, budgeting, hashing, or inventing omissions. Generation, preview, and copy are read-only: they create or change no record, link, status, debt, skip, advisory artifact, disposition, flow state, or world-file content. The shared sandwich renderer, source documents and manifest, output labels, advisory warning, optional/skippable lifecycle, packet hashes, and PRD #353 stale/current behavior remain unchanged.
+
 ## Assistance Modes
 
 Proposal mode and pressure mode follow `docs/worldbuilding-system/20_ai_assisted_workflow.md` version 1.1.

@@ -2,7 +2,7 @@ import React from "react";
 import { renderToString } from "react-dom/server";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { App } from "./main";
+import { App, PropagationPacketContextPanel } from "./main";
 
 describe("Propagation web surface", () => {
   it("keeps revision, coverage, packet, and close policy on the server-owned contract", () => {
@@ -25,6 +25,11 @@ describe("Propagation web surface", () => {
     expect(source).not.toContain("const propagationCloseReadiness");
     expect(source).not.toContain("const activePropagationConsequences");
     expect(source).not.toContain("requiredDomainStates");
+    const loadPropagationPrompt = source.slice(
+      source.indexOf("const loadPropagationPromptStep = async () =>"),
+      source.indexOf("const loadCurrentPropagationPacket = async () =>")
+    );
+    expect(loadPropagationPrompt).toContain("setPropagationPacketContext(generated.promptOut.propagationContext ?? null)");
   });
 
   it("renders Propagation as a shared decision-point surface", () => {
@@ -38,6 +43,97 @@ describe("Propagation web surface", () => {
     expect(html).toContain("Next/resume");
     expect(html).toContain("Close blockers");
     expect(html).toContain("Prompt preview with source manifest");
+  });
+
+  it("renders the server-owned foundational Proposal and related-world Pressure packet context without browser policy", () => {
+    const context = {
+      serverOwned: true,
+      mode: "pressure",
+      decisionPoint: "propagation:pre-close-revision",
+      packageSources: [
+        "docs/worldbuilding-system/04_domain_atlas.md",
+        "docs/worldbuilding-system/07_propagation_engine.md",
+        "docs/worldbuilding-system/20_ai_assisted_workflow.md"
+      ],
+      atlas: {
+        required: true,
+        domains: [
+          { name: "Physics, metaphysics, and cosmology", decisionPrompt: "What is possible or impossible?" },
+          { name: "Aesthetics, tone, and narrative use", decisionPrompt: "What emotional promise must survive?" }
+        ],
+        triage: "Direct, dependency, reaction, and negative domains remain distinct.",
+        severityReason: "Foundational severity owes the complete fourteen-domain atlas; lower severity remains proportionate."
+      },
+      relatedWorld: {
+        aggregateBudget: 12000,
+        perRecordCap: 2000,
+        usedCharacters: 3140,
+        completeness: {
+          status: "incomplete",
+          failures: ["FAC-12 Unreadable quay archive: restore readable record content before treating Pressure as complete"]
+        },
+        selectedRecords: [
+          {
+            sourceDocumentId: "related_world:KER-1",
+            stableIdentity: "KER-1",
+            title: "Oath-eating moon kernel",
+            recordType: "world_kernel",
+            canonStatus: "accepted",
+            truthLayer: "Objective canon",
+            relationship: "active world kernel",
+            inclusionReason: "kernel support for premise and protected effects",
+            role: "active context",
+            nonCanon: false
+          },
+          {
+            sourceDocumentId: "related_world:FAC-9",
+            stableIdentity: "FAC-9",
+            title: "Oath hospice",
+            recordType: "canon_fact",
+            canonStatus: "proposed",
+            truthLayer: "disputed claim",
+            relationship: "shared origin KER-1",
+            inclusionReason: "dependency-bearing shared origin",
+            role: "active context",
+            nonCanon: true
+          }
+        ]
+      },
+      sourceManifest: ["related_world:KER-1", "related_world:FAC-9"],
+      omissions: ["FAC-10 Retired rule: inactive or superseded current-support status", "FAC-11 Roof guild: outside the bounded relationship shapes (second hop)"],
+      advisoryCanonWarning: "This packet is optional advisory support; inclusion does not change canon standing.",
+      readOnlyGuarantee: "Preview and copy create no record, link, status, debt, skip, advisory artifact, disposition, or flow-state mutation."
+    } as const;
+
+    const html = renderToString(<PropagationPacketContextPanel context={context as any} />);
+    expect(html).toContain("Server-owned Propagation packet context");
+    expect(html).toContain("docs/worldbuilding-system/04_domain_atlas.md");
+    expect(html).toContain("Physics, metaphysics, and cosmology");
+    expect(html).toContain("What emotional promise must survive?");
+    expect(html).toContain("12,000 Unicode characters aggregate");
+    expect(html).toContain("2,000 per record");
+    expect(html).toContain("Incomplete related-world context");
+    expect(html).toContain("FAC-12 Unreadable quay archive");
+    expect(html).toContain("KER-1");
+    expect(html).toContain("world_kernel");
+    expect(html).toContain("active world kernel");
+    expect(html).toContain("FAC-9");
+    expect(html).toContain("proposed · non-canon context");
+    expect(html).toContain("disputed claim");
+    expect(html).toContain("inactive or superseded current-support status");
+    expect(html).toContain("outside the bounded relationship shapes (second hop)");
+    expect(html).toContain("Preview and copy create no record");
+    expect(html).toContain("optional advisory support");
+
+    const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
+    const panelSource = source.slice(
+      source.indexOf("export function PropagationPacketContextPanel"),
+      source.indexOf("interface PromptPreviewCurrentness")
+    );
+    expect(panelSource).not.toContain("listLinks");
+    expect(panelSource).not.toContain(".sort(");
+    expect(panelSource).not.toContain("canonStatus ===");
+    expect(panelSource).not.toContain("aggregateBudget =");
   });
 
   it("renders the active owed-debt route without normal-path manual identifiers", () => {

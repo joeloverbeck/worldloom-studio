@@ -4,6 +4,7 @@ import { resolveCreationDecompositionHandoff } from "./creation-handoff.js";
 import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest, maybeMethodCard } from "./method-cards.js";
 import { PROMPT_TEMPLATE_SEEDS } from "./prompt-out-defaults.js";
 import * as PropagationStore from "./propagation-store.js";
+import { foundationalProposalDoctrine, foundationalProposalManifest, foundationalProposalOmissions, propagationRelatedWorldContext, PROPAGATION_ATLAS_DOMAINS, PROPAGATION_RELATED_WORLD_BUDGET, type PropagationRelatedWorldContext, type PropagationRelatedWorldRecord } from "./propagation-prompt-context.js";
 import type { PromptMode } from "./decision-point-contract.js";
 import type { MethodCard } from "@worldloom/shared";
 import type { RecordInput, RecordRow, WorldFile } from "./world-file.js";
@@ -123,7 +124,32 @@ export interface PromptGenerationResult {
     templateKey: string;
     recordId: number | null;
     packetIdentity: PromptPacketIdentity;
+    propagationContext?: PropagationPacketContextPreview | null;
   };
+}
+
+export interface PropagationPacketContextPreview {
+  serverOwned: true;
+  mode: PromptMode;
+  decisionPoint: string;
+  packageSources: string[];
+  atlas: {
+    required: boolean;
+    domains: Array<{ name: string; decisionPrompt: string }>;
+    triage: string;
+    severityReason: string;
+  };
+  relatedWorld: {
+    aggregateBudget: number;
+    perRecordCap: number;
+    usedCharacters: number;
+    completeness: PropagationRelatedWorldContext["completeness"];
+    selectedRecords: PropagationRelatedWorldRecord[];
+  };
+  sourceManifest: string[];
+  omissions: string[];
+  advisoryCanonWarning: string;
+  readOnlyGuarantee: string;
 }
 
 export interface AdvisoryResponseInput {
@@ -603,24 +629,8 @@ const propagationPromptBlockers = (
   const triageStates = new Set(domains.map((row) => row.triage));
   const domainNames = new Set(domains.map((row) => row.domain_name));
   if (isFoundationalSeverity(severity)) {
-    const allDomains = [
-      "Physics, metaphysics, and cosmology",
-      "Geography, climate, and infrastructure",
-      "Ecology, food, disease, and nonhuman life",
-      "Population, demography, and household life",
-      "Production, labor, and technology/magic",
-      "Economy, trade, and scarcity",
-      "Governance, law, and bureaucracy",
-      "War, coercion, and security",
-      "Religion, ritual, myth, and meaning",
-      "Culture, custom, language, and identity",
-      "Knowledge, education, science, and records",
-      "History, memory, and path dependence",
-      "Daily life and material residue",
-      "Aesthetics, tone, and narrative use"
-    ];
     if (orderKeys.size < 6) blockers.push("missing-foundational-orders");
-    if (allDomains.some((domainName) => !domainNames.has(domainName))) blockers.push("missing-full-domain-atlas");
+    if (PROPAGATION_ATLAS_DOMAINS.some((domain) => !domainNames.has(domain.name))) blockers.push("missing-full-domain-atlas");
     return blockers;
   }
   if (isMajorOrHigher(severity)) {
@@ -635,8 +645,26 @@ const propagationPromptBlockers = (
   return blockers;
 };
 
-const propagationPromptContext = (world: WorldFile, input: PromptGenerationInput): { lines: string[]; sourceManifest: string[]; omissions: string[] } => {
-  if (input.flowKey !== "propagation" || input.flowId == null) return { lines: [], sourceManifest: [], omissions: [] };
+const propagationPromptContext = (world: WorldFile, input: PromptGenerationInput): { lines: string[]; doctrineLines: string[]; sourceDocuments: PromptDocument[]; sourceManifest: string[]; omissions: string[]; severity: DeclaredSeverity | null; mode: PromptMode; relatedWorld: PropagationRelatedWorldContext } => {
+  const mode = input.mode ?? "pressure";
+  if (input.flowKey !== "propagation" || input.flowId == null) return {
+    lines: [],
+    doctrineLines: [],
+    sourceDocuments: [],
+    sourceManifest: [],
+    omissions: [],
+    severity: null,
+    mode,
+    relatedWorld: {
+      lines: [],
+      sourceDocuments: [],
+      selectedRecords: [],
+      usedCharacters: 0,
+      completeness: { status: "complete", failures: [] },
+      sourceManifest: [],
+      omissions: []
+    }
+  };
   const flow = world.getFlowInstance(input.flowId, "propagation");
   const factId = Number(flow.propagation_fact_record_id);
   const fact = world.getRecord(factId);
@@ -654,6 +682,7 @@ const propagationPromptContext = (world: WorldFile, input: PromptGenerationInput
   const proposals = world.propagationSurfacedProposals(input.flowId) as Array<Record<string, unknown>>;
   const severity = propagationSeverity(world, factId);
   const requiredCoverage = propagationCoverage(severity);
+  const relatedWorld = propagationRelatedWorldContext(world, factId, mode);
   const blockers = propagationPromptBlockers(severity, consequences, domains);
   const consequenceDispositionIds = new Set(activeDispositions.map((row) => row.consequence_id));
   for (const consequence of consequences.filter((row) => row.pressure === "high" && !consequenceDispositionIds.has(row.id))) {
@@ -665,7 +694,9 @@ const propagationPromptContext = (world: WorldFile, input: PromptGenerationInput
     ...(domains.length ? [] : ["Domain-atlas coverage omitted: no domains have been recorded yet."]),
     ...(activeDispositions.length ? [] : ["Active dispositions omitted: no active consequences have reached a stopping state yet."]),
     ...(proposals.length ? [] : ["Surfaced proposals omitted: none have been routed to Admission yet."]),
-    ...(blockers.length ? blockers.map((blocker) => `Close blocker: ${blocker}`) : [])
+    ...(blockers.length ? blockers.map((blocker) => `Close blocker: ${blocker}`) : []),
+    ...relatedWorld.omissions,
+    ...foundationalProposalOmissions(severity, mode)
   ];
   return {
     lines: [
@@ -693,8 +724,15 @@ const propagationPromptContext = (world: WorldFile, input: PromptGenerationInput
       `Active dispositions: ${activeDispositions.length}`,
       ...activeDispositions.map((row) => `Active disposition for consequence #${row.consequence_id}: ${row.disposition} ${row.note}`.trim()),
       `Surfaced proposals: ${proposals.length}`,
-      `Blockers: ${blockers.join(", ") || "none"}`
+      `Blockers: ${blockers.join(", ") || "none"}`,
+      `Close preview: ${consequences.length} active consequence version(s), ${domains.length} active domain version(s), ${allConsequences.length - consequences.length + allDomains.length - domains.length} retired audit row(s); report ${reportId ?? "not assigned"}; blockers ${blockers.join(", ") || "none"}`,
+      ...relatedWorld.lines
     ],
+    doctrineLines: foundationalProposalDoctrine(severity, mode),
+    sourceDocuments: relatedWorld.sourceDocuments,
+    severity,
+    mode,
+    relatedWorld,
     sourceManifest: [
       `Propagation source fact: ${fact.shortId} ${fact.title}`,
       ...(debt ? [`Propagation owed debt: ${debt.shortId} ${debt.title}`] : []),
@@ -703,6 +741,8 @@ const propagationPromptContext = (world: WorldFile, input: PromptGenerationInput
       `Propagation step: ${String(flow.current_step)}`,
       `Propagation required coverage: ${requiredCoverage}`,
       `Propagation blockers: ${blockers.join(", ") || "none"}`,
+      ...relatedWorld.sourceManifest,
+      ...foundationalProposalManifest(severity, mode),
       ...(reportId == null ? [] : [`Propagation report: ${reportId}`])
     ],
     omissions
@@ -1064,6 +1104,8 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
   const propagationContext = propagationPromptContext(world, input);
   const flowContext = {
     lines: [...temporalContext.lines, ...propagationContext.lines],
+    doctrineLines: propagationContext.doctrineLines,
+    sourceDocuments: propagationContext.sourceDocuments,
     sourceManifest: [...temporalContext.sourceManifest, ...propagationContext.sourceManifest],
     omissions: [...propagationContext.omissions]
   };
@@ -1101,6 +1143,7 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
     ],
     packageDoctrine: [
       ...doctrineLines,
+      ...flowContext.doctrineLines,
       "Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories.",
       "Label assumptions instruction: separate direct consequences from speculative assumptions and mark unadmitted assumptions plainly."
     ],
@@ -1112,6 +1155,7 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
       ...(flowContext.lines.length
         ? [{ source: `flow_context:${input.flowKey ?? "unspecified"}:${stepKey}`, content: flowContext.lines.join("\n\n") }]
         : []),
+      ...flowContext.sourceDocuments,
       ...admissionDraftContext.sourceDocuments
     ],
     standingRulings: rulings.map((row) => `${row.disposition}: ${row.note}`),
@@ -1136,7 +1180,40 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
         selectedSectionHeading: null,
         decisionLabel: selectedRecord?.title ?? stepKey,
         sourceManifestHash: manifestHash(sourceManifest)
-      })
+      }),
+      propagationContext: input.flowKey === "propagation" && propagationContext.severity
+        ? {
+            serverOwned: true,
+            mode,
+            decisionPoint: stepKey,
+            packageSources: [
+              "docs/worldbuilding-system/04_domain_atlas.md",
+              "docs/worldbuilding-system/07_propagation_engine.md",
+              "docs/worldbuilding-system/20_ai_assisted_workflow.md"
+            ],
+            atlas: {
+              required: mode === "proposal" && isFoundationalSeverity(propagationContext.severity),
+              domains: mode === "proposal" && isFoundationalSeverity(propagationContext.severity)
+                ? PROPAGATION_ATLAS_DOMAINS.map((domain) => ({ ...domain }))
+                : [],
+              triage: "Direct domains are where the fact acts first; dependency domains contain what must already exist; reaction domains show adaptation; negative domains require an explanation when suspiciously quiet.",
+              severityReason: isFoundationalSeverity(propagationContext.severity)
+                ? "Foundational severity owes the complete fourteen-domain atlas; lower-severity packets remain proportionate."
+                : "This lower-severity packet remains proportionate and does not inherit the foundational full-atlas dump."
+            },
+            relatedWorld: {
+              aggregateBudget: PROPAGATION_RELATED_WORLD_BUDGET.aggregate,
+              perRecordCap: PROPAGATION_RELATED_WORLD_BUDGET.perRecord,
+              usedCharacters: propagationContext.relatedWorld.usedCharacters,
+              completeness: propagationContext.relatedWorld.completeness,
+              selectedRecords: propagationContext.relatedWorld.selectedRecords
+            },
+            sourceManifest,
+            omissions,
+            advisoryCanonWarning: advisoryWarning,
+            readOnlyGuarantee: "Preview and copy create no record, link, status, debt, skip, advisory artifact, disposition, flow-state, or world-file mutation."
+          }
+        : null
     }
   };
 };

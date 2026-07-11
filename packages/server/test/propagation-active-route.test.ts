@@ -69,6 +69,25 @@ const propagationDebtFor = async (app: ReturnType<typeof createApp>, factId: num
   return debt.debt;
 };
 
+const createRecord = async (
+  app: ReturnType<typeof createApp>,
+  input: { recordTypeKey?: string; title: string; body?: string; truthLayer?: string; canonStatus?: string }
+) => (await json<{ record: { id: number; shortId: string; title: string } }>(await postJson(app, "/api/records", {
+  recordTypeKey: input.recordTypeKey ?? "canon_fact",
+  title: input.title,
+  body: input.body ?? `${input.title} body.`,
+  truthLayer: input.truthLayer ?? "Objective canon",
+  canonStatus: input.canonStatus ?? "accepted"
+}))).record;
+
+const linkRecords = async (
+  app: ReturnType<typeof createApp>,
+  fromRecordId: number,
+  toRecordId: number,
+  linkTypeKey: string,
+  note: string
+) => expect((await postJson(app, "/api/links", { fromRecordId, toRecordId, linkTypeKey, note })).status).toBe(201);
+
 const fullGateSections = async (app: ReturnType<typeof createApp>, recordId: number, context: string) => {
   const payload = await json<{
     decisionPoint: { fullGateContract: { sections: Array<{ key: string; label: string; quietDomain: boolean }> } };
@@ -86,6 +105,23 @@ const domain = {
   reaction: "Daily life and material residue",
   negative: "Aesthetics, tone, and narrative use"
 };
+
+const canonicalDomainNames = [
+  "Physics, metaphysics, and cosmology",
+  "Geography, climate, and infrastructure",
+  "Ecology, food, disease, and nonhuman life",
+  "Population, demography, and household life",
+  "Production, labor, and technology/magic",
+  "Economy, trade, and scarcity",
+  "Governance, law, and bureaucracy",
+  "War, coercion, and security",
+  "Religion, ritual, myth, and meaning",
+  "Culture, custom, language, and identity",
+  "Knowledge, education, science, and records",
+  "History, memory, and path dependence",
+  "Daily life and material residue",
+  "Aesthetics, tone, and narrative use"
+];
 
 afterEach(() => {
   for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
@@ -600,6 +636,222 @@ describe("Propagation active owed route server contract", () => {
     }));
     expect(skipped.record).toMatchObject({ recordTypeKey: "skip_record" });
     expect(skipped.record.body).toContain("External pressure would duplicate");
+  });
+
+  it("generates an atlas-complete foundational Proposal while lower-severity packets stay proportionate", async () => {
+    const app = await createWorld();
+    const foundationalFact = await acceptedFact(app, {
+      title: "The moon consumes one oath each month",
+      body: "At the first moonrise of each month, one sworn oath loses its binding force.",
+      admissionLevel: "4",
+      workScale: "major"
+    });
+    const foundationalRun = await json<{ flow: { id: number } }>(await postJson(app, "/api/propagation/runs/start", {
+      factRecordId: foundationalFact.id
+    }));
+    const foundationalStep = await json<{ step: { actions: { generate: { href: string } } } }>(await postJson(app, "/api/prompt-out/steps", {
+      flowKey: "propagation",
+      flowId: foundationalRun.flow.id,
+      templateKey: "propagation_consequence_scout",
+      recordId: foundationalFact.id,
+      stepKey: "propagation:domain-atlas",
+      mode: "proposal",
+      label: "Foundational atlas Proposal"
+    }));
+    const foundational = await json<{ prompt: string; promptOut: { packetIdentity: { packetHash: string; sourceManifestHash: string }; propagationContext: any } }>(
+      await postJson(app, foundationalStep.step.actions.generate.href)
+    );
+
+    let previousIndex = -1;
+    for (const domainName of canonicalDomainNames) {
+      expect(foundational.prompt.match(new RegExp(domainName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"))).toHaveLength(1);
+      const index = foundational.prompt.indexOf(domainName);
+      expect(index).toBeGreaterThan(previousIndex);
+      previousIndex = index;
+    }
+    expect(foundational.prompt).toContain("what is possible or impossible, who knows the rules");
+    expect(foundational.prompt).toContain("what does an ordinary person, child, worker, house, market, routine, object, or small luxury reveal");
+    expect(foundational.prompt).toContain("Direct domains are where the fact acts first");
+    expect(foundational.prompt).toContain("Dependency domains contain what must already exist");
+    expect(foundational.prompt).toContain("Reaction domains show adaptation");
+    expect(foundational.prompt).toContain("Negative domains look unaffected but would be contradictory or suspiciously quiet");
+    expect(foundational.prompt).toContain("Foundational severity owes the full fourteen-domain atlas");
+    expect(foundational.prompt).toContain("docs/worldbuilding-system/04_domain_atlas.md");
+    expect(foundational.prompt).toContain("docs/worldbuilding-system/07_propagation_engine.md");
+    expect(foundational.prompt).toContain("docs/worldbuilding-system/20_ai_assisted_workflow.md");
+    expect(foundational.promptOut.packetIdentity).toMatchObject({
+      packetHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      sourceManifestHash: expect.stringMatching(/^[a-f0-9]{64}$/)
+    });
+    expect(foundational.promptOut.propagationContext).toMatchObject({
+      serverOwned: true,
+      mode: "proposal",
+      decisionPoint: "propagation:domain-atlas",
+      atlas: {
+        required: true,
+        domains: canonicalDomainNames.map((name) => expect.objectContaining({ name })),
+        triage: expect.stringMatching(/direct.*dependency.*reaction.*negative/i),
+        severityReason: expect.stringMatching(/foundational.*fourteen-domain.*lower-severity.*proportionate/i)
+      },
+      relatedWorld: { aggregateBudget: 12000, perRecordCap: 2000, selectedRecords: [] },
+      sourceManifest: expect.arrayContaining([expect.stringContaining("04_domain_atlas.md")]),
+      readOnlyGuarantee: expect.stringMatching(/create no record, link, status, debt, skip, advisory artifact, disposition, flow-state, or world-file mutation/i)
+    });
+
+    const minorFact = await acceptedFact(app, {
+      title: "A single quay bell changes pitch",
+      admissionLevel: "1",
+      workScale: "minor"
+    });
+    const minorRun = await json<{ flow: { id: number } }>(await postJson(app, "/api/propagation/runs/start", {
+      factRecordId: minorFact.id
+    }));
+    const minorStep = await json<{ step: { actions: { generate: { href: string } } } }>(await postJson(app, "/api/prompt-out/steps", {
+      flowKey: "propagation",
+      flowId: minorRun.flow.id,
+      templateKey: "propagation_consequence_scout",
+      recordId: minorFact.id,
+      stepKey: "propagation:run-entry",
+      mode: "proposal",
+      label: "Minor Proposal"
+    }));
+    const minor = await json<{ prompt: string }>(await postJson(app, minorStep.step.actions.generate.href));
+    expect(minor.prompt).toContain("Required coverage: immediate effects and one ordinary-life residue when relevant");
+    expect(minor.prompt).not.toContain("Foundational severity owes the full fourteen-domain atlas");
+    expect(minor.prompt).not.toContain(canonicalDomainNames[0]);
+  });
+
+  it("generates bounded related-world Pressure with standing, provenance, deterministic omissions, and zero read mutation", async () => {
+    const app = await createWorld();
+    const kernel = await createRecord(app, {
+      recordTypeKey: "world_kernel",
+      title: "Oath-eating moon kernel",
+      body: "Premise: one moon eats an oath each month. Tone: sacred melancholy. Consequence mode: mythic recurrence. Constraint: only sworn oaths bind. Protected effect: why the moon hungers remains unknown."
+    });
+    const fact = await acceptedFact(app, {
+      title: "The moon consumes one oath each month",
+      body: "At first moonrise, one sworn oath loses its binding force.",
+      admissionLevel: "4",
+      workScale: "major"
+    });
+    await linkRecords(app, fact.id, kernel.id, "derived_from", "Source fact derives from the active world kernel");
+
+    const direct = await createRecord(app, { title: "Moon-priest witness registry", body: "Accepted registries identify which sworn oaths were exposed to first moonrise." });
+    await linkRecords(app, fact.id, direct.id, "depends_on", "Pressure-relevant direct dependency");
+    const sharedAccepted = await createRecord(app, { title: "Silver calendar", body: "Accepted calendars mark each oath-eating moonrise." });
+    await linkRecords(app, sharedAccepted.id, kernel.id, "derived_from", "Shared kernel origin");
+    const sharedProposed = await createRecord(app, { title: "Oath hospice", body: "A proposed hospice helps households prepare for a binding oath to fail.", canonStatus: "proposed" });
+    await linkRecords(app, sharedProposed.id, kernel.id, "derived_from", "Dependency-bearing shared kernel origin");
+    const sharedContested = await createRecord(app, { title: "Moonless district", body: "Residents contest whether roofed districts avoid the moon's effect.", truthLayer: "disputed claim", canonStatus: "contested" });
+    await linkRecords(app, sharedContested.id, kernel.id, "derived_from", "Contested shared kernel origin");
+    const superseded = await createRecord(app, { title: "Retired triple-oath rule", body: "Old wording claimed that three oaths failed each month.", canonStatus: "superseded" });
+    await linkRecords(app, superseded.id, kernel.id, "derived_from", "Inactive shared kernel origin");
+    const missing = await createRecord(app, { title: "Unreadable quay archive", body: "" });
+    await linkRecords(app, fact.id, missing.id, "soft_depends_on", "Direct candidate whose content is unavailable");
+    const secondHop = await createRecord(app, { title: "Second-hop roof guild", body: "This guild is linked only through the direct registry." });
+    await linkRecords(app, direct.id, secondHop.id, "depends_on", "Outside the one-hop boundary");
+    const irrelevant = await createRecord(app, { recordTypeKey: "advisory_artifact", title: "Unrelated prior advisory", body: "A prior external response that is not governed support.", truthLayer: "disputed claim", canonStatus: "proposed" });
+    await linkRecords(app, fact.id, irrelevant.id, "cites_advisory_artifact", "Artifact existence is not evidence of advisory use");
+
+    const overflowRecords = [];
+    for (let index = 1; index <= 7; index += 1) {
+      const record = await createRecord(app, {
+        title: `Accepted overflow sibling ${index}`,
+        body: `Overflow sibling ${index} context. ${String(index).repeat(2_200)}`
+      });
+      await linkRecords(app, record.id, kernel.id, "derived_from", "Shared kernel origin used to exercise deterministic budget trimming");
+      overflowRecords.push(record);
+    }
+
+    const started = await json<{ flow: { id: number } }>(await postJson(app, "/api/propagation/runs/start", { factRecordId: fact.id }));
+    await postJson(app, "/api/propagation/consequences", {
+      flowId: started.flow.id,
+      orderKey: "first",
+      domainName: domain.direct,
+      body: "Households renegotiate marriage vows before the first moonrise.",
+      pressure: "normal"
+    });
+
+    const before = {
+      records: await json(await app.request("/api/records")),
+      links: await json(await app.request("/api/links")),
+      run: await json(await app.request(`/api/propagation/runs/${started.flow.id}`))
+    };
+    const step = await json<{ step: { actions: { generate: { href: string } } } }>(await postJson(app, "/api/prompt-out/steps", {
+      flowKey: "propagation",
+      flowId: started.flow.id,
+      templateKey: "propagation_consequence_scout",
+      recordId: fact.id,
+      stepKey: "propagation:pre-close-revision",
+      mode: "pressure",
+      label: "Related-world Pressure"
+    }));
+    const generated = await json<{ prompt: string; promptOut: { packetIdentity: { packetHash: string; sourceManifestHash: string; activeSetRevision: number }; propagationContext: any } }>(
+      await postJson(app, step.step.actions.generate.href)
+    );
+
+    expect(generated.prompt).toContain(`Stable identity: ${kernel.shortId}`);
+    expect(generated.prompt).toContain("Relationship: active world kernel");
+    expect(generated.prompt).toContain("Inclusion reason: kernel support for premise, tone, consequence mode, constraints, and protected effects");
+    expect(generated.prompt).toContain(`Stable identity: ${direct.shortId}`);
+    expect(generated.prompt).toContain("Relationship: direct depends_on");
+    expect(generated.prompt).toContain(`Stable identity: ${sharedAccepted.shortId}`);
+    expect(generated.prompt).toContain("Relationship: shared origin");
+    expect(generated.prompt).toContain(`Stable identity: ${sharedProposed.shortId}`);
+    expect(generated.prompt).toContain("Canon status: proposed (non-canon context)");
+    expect(generated.prompt).toContain(`Stable identity: ${sharedContested.shortId}`);
+    expect(generated.prompt).toContain("Truth layer: disputed claim");
+    expect(generated.prompt).toContain("Active versus historical role: active context");
+    expect(generated.prompt).toContain(`${superseded.shortId} ${superseded.title}: inactive or superseded current-support status`);
+    expect(generated.prompt).toContain(`${missing.shortId} ${missing.title}: unavailable content`);
+    expect(generated.prompt).toContain(`${secondHop.shortId} ${secondHop.title}: outside the bounded relationship shapes (second hop)`);
+    expect(generated.prompt).toContain(`${irrelevant.shortId} ${irrelevant.title}: irrelevant to the active Pressure role`);
+    expect(generated.prompt).toContain("trimmed by the 12,000-character related-world budget");
+    expect(generated.prompt).toContain("Related-world budget: 12000 Unicode characters aggregate; 2000 per record");
+    expect(generated.prompt).toContain("Close preview: 1 active consequence version(s), 0 active domain version(s)");
+    expect(generated.prompt).toContain("Source document identifier:");
+    expect(generated.prompt).toContain("Related-world selection is structural, deterministic, non-recursive, and read-only");
+    expect(generated.promptOut.packetIdentity).toMatchObject({
+      packetHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      sourceManifestHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      activeSetRevision: expect.any(Number)
+    });
+    expect(generated.promptOut.propagationContext).toMatchObject({
+      serverOwned: true,
+      mode: "pressure",
+      relatedWorld: {
+        aggregateBudget: 12000,
+        perRecordCap: 2000,
+        usedCharacters: expect.any(Number),
+        completeness: {
+          status: "incomplete",
+          failures: expect.arrayContaining([expect.stringContaining(missing.shortId)])
+        },
+        selectedRecords: expect.arrayContaining([
+          expect.objectContaining({ stableIdentity: kernel.shortId, relationship: "active world kernel", nonCanon: false }),
+          expect.objectContaining({ stableIdentity: direct.shortId, relationship: "direct depends_on", nonCanon: false }),
+          expect.objectContaining({ stableIdentity: sharedProposed.shortId, canonStatus: "proposed", nonCanon: true })
+        ])
+      },
+      omissions: expect.arrayContaining([
+        expect.stringContaining(superseded.shortId),
+        expect.stringContaining(missing.shortId),
+        expect.stringContaining(secondHop.shortId),
+        expect.stringContaining(irrelevant.shortId),
+        expect.stringContaining("trimmed by the 12,000-character related-world budget")
+      ]),
+      advisoryCanonWarning: expect.stringMatching(/optional advisory support/i),
+      readOnlyGuarantee: expect.stringMatching(/create no record, link, status, debt, skip, advisory artifact, disposition, flow-state, or world-file mutation/i)
+    });
+    expect(overflowRecords.some((record) => generated.prompt.includes(`Stable identity: ${record.shortId}`))).toBe(true);
+    expect(overflowRecords.some((record) => generated.prompt.includes(`${record.shortId} ${record.title}: trimmed by`))).toBe(true);
+
+    const after = {
+      records: await json(await app.request("/api/records")),
+      links: await json(await app.request("/api/links")),
+      run: await json(await app.request(`/api/propagation/runs/${started.flow.id}`))
+    };
+    expect(after).toEqual(before);
   });
 
   it("revises a dispositioned consequence, invalidates active readiness, and refuses the stale Pressure packet", async () => {
