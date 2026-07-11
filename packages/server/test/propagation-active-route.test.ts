@@ -1021,6 +1021,129 @@ describe("Propagation active owed route server contract", () => {
     });
   });
 
+  it("keeps disposition-frontier Pressure on the active decision identity through close and post-close refusal", async () => {
+    const app = await createWorld();
+    const fact = await acceptedFact(app, {
+      title: "Courthouse bell testimony frontier",
+      body: "Dead witnesses may testify only while the courthouse bell rings.",
+      admissionLevel: "1",
+      workScale: "minor"
+    });
+    const started = await json<any>(await postJson(app, "/api/propagation/runs/start", {
+      factRecordId: fact.id
+    }));
+    const consequence = await json<any>(await postJson(app, "/api/propagation/consequences", {
+      flowId: started.flow.id,
+      orderKey: "first",
+      domainName: domain.direct,
+      body: "The courthouse market pauses for testimony.",
+      pressure: "high"
+    }));
+    await postJson(app, "/api/propagation/domains", {
+      flowId: started.flow.id,
+      domainName: domain.direct,
+      triage: "direct",
+      declaration: "Only the courthouse market changes its noon schedule."
+    });
+    await postJson(app, "/api/propagation/dispositions", {
+      consequenceId: consequence.consequence.id,
+      disposition: "answered",
+      note: "The court calendar governs the first version."
+    });
+
+    const firstFrontier = await json<any>(await app.request(`/api/propagation/runs/${started.flow.id}`));
+    const firstPressureStep = await json<any>(await postJson(app, "/api/prompt-out/steps", {
+      flowKey: "propagation",
+      flowId: started.flow.id,
+      templateKey: "propagation_consequence_scout",
+      recordId: fact.id,
+      stepKey: firstFrontier.flow.current_step,
+      mode: "pressure",
+      label: "Pressure the first disposition frontier",
+      admissionLevel: "1",
+      workScale: "minor"
+    }));
+    const firstPressure = await json<any>(await postJson(app, firstPressureStep.step.actions.generate.href));
+    await postJson(app, firstPressureStep.step.actions.storeAdvisory.href, {
+      promptText: firstPressure.prompt,
+      responseText: "The market pause should be limited to testimony hearings."
+    });
+
+    const revised = await json<any>(await postJson(app, `/api/propagation/consequences/${consequence.consequence.id}/revisions`, {
+      flowId: started.flow.id,
+      reason: "Pressure narrowed the market pause to active hearings.",
+      orderKey: "first",
+      domainName: domain.direct,
+      body: "The courthouse market pauses only during active testimony hearings.",
+      pressure: "high"
+    }));
+    expect(revised).toMatchObject({
+      packetCurrentness: {
+        status: "stale",
+        recovery: {
+          action: "load-current-packet",
+          body: { stepKey: "propagation:pre-close-revision" }
+        }
+      },
+      closeReadiness: {
+        status: "blocked",
+        blockers: expect.arrayContaining([
+          expect.objectContaining({ key: "undispositioned-high-pressure", consequenceId: revised.revision.active.id }),
+          expect.objectContaining({ key: "fresh-pressure-or-skip-owed" })
+        ])
+      }
+    });
+    await postJson(app, "/api/propagation/dispositions", {
+      consequenceId: revised.revision.active.id,
+      disposition: "answered",
+      note: "The hearing calendar governs the replacement."
+    });
+
+    const dispositionFrontier = await json<any>(await app.request(`/api/propagation/runs/${started.flow.id}`));
+    expect(dispositionFrontier.flow.current_step).toBe("propagation:disposition");
+    expect(dispositionFrontier.decisionPoint.sharedContract.step.key).toBe(dispositionFrontier.flow.current_step);
+    expect(dispositionFrontier.packetCurrentness.recovery.body.stepKey).toBe(dispositionFrontier.flow.current_step);
+    expect(dispositionFrontier.packetCurrentness.pressure.freshPacket.body.stepKey).toBe(dispositionFrontier.flow.current_step);
+
+    const currentStep = await json<any>(await postJson(
+      app,
+      dispositionFrontier.packetCurrentness.pressure.freshPacket.href,
+      dispositionFrontier.packetCurrentness.pressure.freshPacket.body
+    ));
+    const currentPressure = await json<any>(await postJson(app, currentStep.step.actions.generate.href));
+    expect(currentPressure.promptOut.packetIdentity).toMatchObject({
+      flowKey: "propagation",
+      flowId: started.flow.id,
+      stepKey: dispositionFrontier.flow.current_step,
+      activeSetRevision: dispositionFrontier.activeSet.revision
+    });
+    expect((await json<any>(await app.request(`/api/propagation/runs/${started.flow.id}`))).closeReadiness.blockers)
+      .toEqual(expect.arrayContaining([expect.objectContaining({ key: "fresh-pressure-or-skip-owed" })]));
+
+    await postJson(app, currentStep.step.actions.storeAdvisory.href, {
+      promptText: currentPressure.prompt,
+      responseText: "The narrowed hearing schedule is internally consistent."
+    });
+    const ready = await json<any>(await app.request(`/api/propagation/runs/${started.flow.id}`));
+    expect(ready.packetCurrentness).toMatchObject({
+      status: "current",
+      activeSetRevision: dispositionFrontier.activeSet.revision,
+      pressure: { status: "current-or-unused" }
+    });
+    expect(ready.closeReadiness).toEqual({ status: "ready", blockers: [] });
+
+    const closed = await postJson(app, `/api/propagation/runs/${started.flow.id}/close`);
+    expect(closed.status).toBe(201);
+    const refusedRetraction = await postJson(app, `/api/propagation/consequences/${revised.revision.active.id}/retract`, {
+      flowId: started.flow.id,
+      reason: "This must be refused after close."
+    });
+    expect(refusedRetraction.status).toBe(400);
+    expect(await json<{ error: string }>(refusedRetraction)).toMatchObject({
+      error: expect.stringMatching(/closed.*refused/i)
+    });
+  });
+
   it("finalizes only the active foundational set with revision audit and refuses every post-close staging action", async () => {
     const app = await createWorld();
     const fact = await acceptedFact(app, {

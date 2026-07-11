@@ -67,7 +67,7 @@ export interface DecisionPointSharedContract {
     serverOwned: true;
     modes: DecisionPointPromptMode[];
   };
-  blockers: Array<{ key: string; label?: string; message: string; requires?: string; classification?: string }>;
+  blockers: Array<{ key: string; label?: string; message: string; requires?: string; classification?: string; consequenceId?: number }>;
   substanceValidations: string[];
   writeIntent: {
     willWrite: string[];

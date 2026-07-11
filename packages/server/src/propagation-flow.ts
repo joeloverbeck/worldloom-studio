@@ -480,6 +480,7 @@ const propagationCloseReadiness = (store: WorldFile, flowId: number) => {
 
 const propagationPacketCurrentness = (store: WorldFile, flowId: number) => {
   const flow = readPropagationFlow(store, flowId);
+  const stepKey = flow.current_step;
   const state = PropagationStore.activeSetState(store, flowId);
   const severity = severityForRecord(store, flow.propagation_fact_record_id);
   const stale = state.pressureUsedRevision != null && state.pressureUsedRevision !== state.revision;
@@ -491,7 +492,7 @@ const propagationPacketCurrentness = (store: WorldFile, flowId: number) => {
     flowId: String(flowId),
     templateKey: PROMPT_TEMPLATE_KEY,
     recordId: String(flow.propagation_fact_record_id),
-    stepKey: "propagation:pre-close-revision",
+    stepKey,
     mode: "pressure",
     activeSetRevision: String(state.revision),
     ...(severity.admissionLevel == null ? {} : { admissionLevel: severity.admissionLevel }),
@@ -512,7 +513,7 @@ const propagationPacketCurrentness = (store: WorldFile, flowId: number) => {
         flowId,
         templateKey: PROMPT_TEMPLATE_KEY,
         recordId: flow.propagation_fact_record_id,
-        stepKey: "propagation:pre-close-revision",
+        stepKey,
         mode: "pressure",
         label: "Current Propagation Pressure"
       }
@@ -529,7 +530,7 @@ const propagationPacketCurrentness = (store: WorldFile, flowId: number) => {
           flowId,
           templateKey: PROMPT_TEMPLATE_KEY,
           recordId: flow.propagation_fact_record_id,
-          stepKey: "propagation:pre-close-revision",
+          stepKey,
           mode: "pressure",
           label: "Fresh Pressure over current active set",
           admissionLevel: severity.admissionLevel,

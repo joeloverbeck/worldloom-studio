@@ -25,6 +25,40 @@ describe("Propagation web surface", () => {
     expect(source).not.toContain("const propagationCloseReadiness");
     expect(source).not.toContain("const activePropagationConsequences");
     expect(source).not.toContain("requiredDomainStates");
+    const topLevelCloseBlockers = source.slice(
+      source.indexOf("<h3>Close blockers</h3>"),
+      source.indexOf("<h3>Close/result preview</h3>")
+    );
+    expect(topLevelCloseBlockers).toContain('key={`${blocker.consequenceId ?? "run"}:${blocker.key}`}');
+    expect(topLevelCloseBlockers).not.toContain("<li key={blocker.key}");
+    const decisionContractPanel = source.slice(
+      source.indexOf("function DecisionContractPanel"),
+      source.indexOf("const defaultCreationSection")
+    );
+    expect(decisionContractPanel).toContain('key={`${blocker.consequenceId ?? "run"}:${blocker.key}`}');
+    expect(decisionContractPanel).not.toContain("<li key={blocker.key}");
+    const saveDisposition = source.slice(
+      source.indexOf("const savePropagationDisposition = async () =>"),
+      source.indexOf("const proposePropagationFact = async () =>")
+    );
+    expect(saveDisposition).toContain("note: propagationDispositionNote");
+    expect(saveDisposition).toContain('debtName: propagationDispositionTerm === "assigned as canon debt" ? propagationDebtName : undefined');
+    expect(saveDisposition).toContain('preservationBoundary: propagationDispositionTerm === "protected as a mystery boundary" ? propagationPreservationBoundary : undefined');
+    expect(saveDisposition).not.toContain("propagationText");
+    expect(saveDisposition).not.toContain("Propagation follow-up debt");
+    const dispositionForm = source.slice(
+      source.indexOf("<h3>Consequences and dispositions</h3>"),
+      source.indexOf("<h3>{propagationRun?.packetCurrentness")
+    );
+    expect(dispositionForm).toContain("Disposition rationale");
+    expect(dispositionForm).toContain("value={propagationDispositionNote}");
+    expect(dispositionForm).toContain('propagationDispositionTerm === "assigned as canon debt"');
+    expect(dispositionForm).toContain("Debt name (required)");
+    expect(dispositionForm).toContain('propagationDispositionTerm === "protected as a mystery boundary"');
+    expect(dispositionForm).toContain("Preservation boundary (required)");
+    expect(dispositionForm).not.toContain("Debt or boundary<input");
+    expect(source).toContain("Consequence prose<textarea rows={3} value={propagationText}");
+    expect(source).toContain("Declaration<textarea rows={2} value={propagationText}");
     const loadPropagationPrompt = source.slice(
       source.indexOf("const loadPropagationPromptStep = async () =>"),
       source.indexOf("const loadCurrentPropagationPacket = async () =>")
@@ -312,7 +346,7 @@ describe("Propagation web surface", () => {
     const contract = {
       flow: { key: "propagation", runState: "in_progress" },
       step: {
-        key: "propagation:pre-close-revision",
+        key: "propagation:disposition",
         localDecision: "Revise the staged shock cone before finalization.",
         packageSource: "docs/worldbuilding-system/07_propagation_engine.md",
         why: "Pressure-earned corrections must enter the active set before close."
@@ -336,20 +370,22 @@ describe("Propagation web surface", () => {
           stepRequest: {
             method: "POST",
             href: "/api/prompt-out/steps",
-            body: { flowKey: "propagation", flowId: 41, recordId: 31, templateKey: "propagation_consequence_scout", stepKey: "propagation:pre-close-revision", mode: "pressure" }
+            body: { flowKey: "propagation", flowId: 41, recordId: 31, templateKey: "propagation_consequence_scout", stepKey: "propagation:disposition", mode: "pressure" }
           }
         }]
       },
       blockers: [
         { key: "undispositioned-high-pressure", label: "Replacement needs disposition", message: "Active consequence #52 is undispositioned.", requires: "consequence disposition", consequenceId: 52 },
+        { key: "undispositioned-high-pressure", label: "Replacement needs disposition", message: "Active consequence #53 is undispositioned.", requires: "consequence disposition", consequenceId: 53 },
+        { key: "undispositioned-high-pressure", label: "Replacement needs disposition", message: "Active consequence #54 is undispositioned.", requires: "consequence disposition", consequenceId: 54 },
         { key: "fresh-pressure-or-skip-owed", label: "Fresh Pressure or skip owed", message: "Load current Pressure or record the governed skip.", requires: "current support" }
       ],
       writeIntent: { willWrite: ["final active shock cone", "revision audit"], willLink: ["report digest"], willQueue: [], willRouteOnward: [], willLeaveUntouched: ["source canon standing", "Admission work", "closed reports"] },
-      nextOrResumeState: { currentStep: "propagation:pre-close-revision", nextStep: "Disposition active replacement", safeExit: "Return to the workflow map and resume this exact revision frontier." },
+      nextOrResumeState: { currentStep: "propagation:disposition", nextStep: "Disposition active replacement", safeExit: "Return to the workflow map and resume this exact revision frontier." },
       readSideTrail: [{ label: "Audit Trail", href: "/api/canon-workbench/audit" }]
     };
     const run = {
-      flow: { id: 41, state: "in_progress", current_step: "propagation:pre-close-revision", propagation_fact_record_id: 31, propagation_debt_record_id: null, propagation_active_set_revision: 8 },
+      flow: { id: 41, state: "in_progress", current_step: "propagation:disposition", propagation_fact_record_id: 31, propagation_debt_record_id: null, propagation_active_set_revision: 8 },
       sourceFact,
       owedDebt: null,
       severityPath: { admissionLevel: "3", workScale: "major" },
@@ -373,12 +409,12 @@ describe("Propagation web surface", () => {
         activeSetRevision: 8,
         priorPressureRevision: 7,
         reason: "Consequence revision for row 52 made the prior packet stale.",
-        recovery: { action: "load-current-packet", changedKind: "consequence-revision", changedRowId: 52, href: "/api/prompt-out/steps", body: { flowKey: "propagation", flowId: 41, mode: "pressure" } },
+        recovery: { action: "load-current-packet", changedKind: "consequence-revision", changedRowId: 52, href: "/api/prompt-out/steps", body: { flowKey: "propagation", flowId: 41, stepKey: "propagation:disposition", mode: "pressure" } },
         pressure: {
           status: "owed",
           reasonRequired: true,
           externalLlmRequired: false,
-          freshPacket: { method: "POST", href: "/api/prompt-out/steps", body: { flowKey: "propagation", flowId: 41, mode: "pressure" } },
+          freshPacket: { method: "POST", href: "/api/prompt-out/steps", body: { flowKey: "propagation", flowId: 41, stepKey: "propagation:disposition", mode: "pressure" } },
           skip: { method: "POST", href: "/api/prompt-out/steps/actions/skip?flowKey=propagation&flowId=41&activeSetRevision=8" }
         }
       },
@@ -411,7 +447,30 @@ describe("Propagation web surface", () => {
       readSideTrail: contract.readSideTrail
     };
 
-    const html = renderToString(
+    const currentOrigin = {
+      worldPath: "/tmp/propagation-revision.sqlite",
+      flowKey: "propagation",
+      flowId: 41,
+      recordId: 31,
+      recordShortId: "FAC-31",
+      recordTypeKey: "canon_fact",
+      selectedSectionHeading: null,
+      stepKey: "propagation:disposition",
+      mode: "pressure",
+      templateKey: "propagation_consequence_scout",
+      decisionLabel: "Revise the staged shock cone before finalization.",
+      createdAt: "2026-07-10T00:03:00.000Z",
+      admissionLevel: "3",
+      workScale: "major",
+      activeSetRevision: 8,
+      admissionDraftState: "not_applicable",
+      admissionDraftHash: null,
+      admissionSectionKeys: [],
+      packetHash: "current-propagation-packet",
+      bodyHash: "current-propagation-body",
+      sourceManifestHash: "current-propagation-manifest"
+    };
+    const view = (
       <App
         initialOpenWorld="/tmp/propagation-revision.sqlite"
         initialWorkflowMap={{
@@ -425,8 +484,13 @@ describe("Propagation web surface", () => {
         } as any}
         initialDestination="propagation"
         initialPropagationRun={run as any}
+        initialLoadedPromptStatus={{ origin: currentOrigin as any }}
+        initialPromptText="CURRENT DISPOSITION-FRONTIER PRESSURE PACKET"
+        initialPromptPacketOrigin={currentOrigin as any}
       />
     );
+    const html = renderToString(view);
+    const controlledRerender = renderToString(view);
 
     expect(html).toContain("Pre-close Propagation revision and finalization");
     expect(html).toContain("Editable staging");
@@ -437,12 +501,26 @@ describe("Propagation web surface", () => {
     expect(html).toContain("Created by steward (#1) · propagation:first · 2026-07-10T00:00:00.000Z");
     expect(html).toContain("Retired by steward (#1) · propagation:consequence-revision · 2026-07-10T00:00:30.000Z");
     expect(html).toContain("Historical disposition: answered");
+    expect(html).toContain("Historical answer");
+    expect(html).toContain("Disposition rationale");
+    expect(html).not.toContain("Debt name (required)");
+    expect(html).not.toContain("Preservation boundary (required)");
     expect(html).toContain("Active replacement is undispositioned");
+    expect(html).toContain("Active consequence #52 is undispositioned.");
+    expect(html).toContain("Active consequence #53 is undispositioned.");
+    expect(html).toContain("Active consequence #54 is undispositioned.");
+    expect(controlledRerender).toBe(html);
     expect(html).toContain("Revise consequence #52");
     expect(html).toContain("Retract consequence #52");
     expect(html).toContain("Retracted · lineage domain-bell · version 1");
     expect(html).toContain("Stale Propagation packet");
     expect(html).toContain("Consequence revision for row 52 made the prior packet stale.");
+    expect(html).toContain("Current prompt packet body");
+    expect(html).toContain("CURRENT DISPOSITION-FRONTIER PRESSURE PACKET");
+    expect(html).toContain("data-current-prompt-packet=\"true\"");
+    expect(html).toContain("Copy Current Packet");
+    expect(html).toContain("Download Current Packet");
+    expect(html).not.toContain("Stale prompt packet body");
     expect(html).toContain("Load current Pressure packet");
     expect(html).toContain("Fresh Pressure or governed skip");
     expect(html).toContain("External LLM use remains optional");

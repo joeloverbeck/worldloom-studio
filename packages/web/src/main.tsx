@@ -73,7 +73,7 @@ interface DecisionPointSharedContract {
   obligations: { required: string[]; optional: string[]; skippable: string[]; severityDependent: string[] };
   bearingContext: { displayed: string[]; sourceManifest: string[]; omissions: string[] };
   promptOut: { serverOwned: boolean; modes: DecisionPointPromptMode[] };
-  blockers: Array<{ key: string; label?: string; message: string; requires?: string }>;
+  blockers: Array<{ key: string; label?: string; message: string; requires?: string; consequenceId?: number }>;
   writeIntent: {
     willWrite: string[];
     willLink: string[];
@@ -1904,7 +1904,7 @@ function DecisionContractPanel({ title, contract }: { title: string; contract?: 
           {contract && contract.blockers.length === 0 ? (
             <p>No server-returned blockers.</p>
           ) : (
-            <ul>{(contract?.blockers ?? [{ key: "not-loaded", message: "Start or refresh this flow to load exact server blockers." }]).map((blocker) => <li key={blocker.key}>{blocker.label ? `${blocker.label}: ` : ""}{blocker.message}</li>)}</ul>
+            <ul>{(contract?.blockers ?? [{ key: "not-loaded", message: "Start or refresh this flow to load exact server blockers." }]).map((blocker) => <li key={`${blocker.consequenceId ?? "run"}:${blocker.key}`}>{blocker.label ? `${blocker.label}: ` : ""}{blocker.message}</li>)}</ul>
           )}
         </section>
         <section>
@@ -2516,7 +2516,9 @@ function App({
   const [propagationPressure, setPropagationPressure] = useState<"normal" | "high">("normal");
   const [propagationDispositionTerm, setPropagationDispositionTerm] = useState("answered");
   const [propagationConsequenceId, setPropagationConsequenceId] = useState("");
-  const [propagationBoundary, setPropagationBoundary] = useState("");
+  const [propagationDispositionNote, setPropagationDispositionNote] = useState("");
+  const [propagationDebtName, setPropagationDebtName] = useState("");
+  const [propagationPreservationBoundary, setPropagationPreservationBoundary] = useState("");
   const [propagationPromptMode, setPropagationPromptMode] = useState<"proposal" | "pressure">("proposal");
   const [propagationPressureSkipReason, setPropagationPressureSkipReason] = useState("");
   const [canonCurrentRows, setCanonCurrentRows] = useState<CanonWorkbenchCurrentRow[]>(initialCanonCurrent);
@@ -3462,7 +3464,9 @@ function App({
     canonDebtName,
     seedAuditFindings,
     propagationText,
-    propagationBoundary,
+    propagationDispositionNote,
+    propagationDebtName,
+    propagationPreservationBoundary,
     stage12MaterialTitle,
     stage12MaterialBody,
     stage12CoverageBody,
@@ -3694,7 +3698,9 @@ function App({
     setPropagationDomainName("");
     setPropagationText("");
     setPropagationConsequenceId("");
-    setPropagationBoundary("");
+    setPropagationDispositionNote("");
+    setPropagationDebtName("");
+    setPropagationPreservationBoundary("");
     setCanonCurrentRows([]);
     setCanonAuditTrail([]);
     setCanonDetail(null);
@@ -4995,14 +5001,15 @@ function App({
         body: JSON.stringify({
           consequenceId: Number(propagationConsequenceId),
           disposition: propagationDispositionTerm,
-          note: propagationText,
-          debtName: propagationDispositionTerm === "assigned as canon debt" ? propagationBoundary || "Propagation follow-up debt" : undefined,
-          preservationBoundary: propagationDispositionTerm === "protected as a mystery boundary" ? propagationBoundary : undefined
+          note: propagationDispositionNote,
+          debtName: propagationDispositionTerm === "assigned as canon debt" ? propagationDebtName : undefined,
+          preservationBoundary: propagationDispositionTerm === "protected as a mystery boundary" ? propagationPreservationBoundary : undefined
         })
       });
       setPropagationRevisionErrors((current) => ({ ...current, disposition: "", close: "" }));
-      setPropagationText("");
-      setPropagationBoundary("");
+      setPropagationDispositionNote("");
+      setPropagationDebtName("");
+      setPropagationPreservationBoundary("");
       await loadPropagationRun(payload.flow.id);
       await loadWorldData();
     } catch (error) {
@@ -6392,7 +6399,13 @@ function App({
         <div className="grid">
           <label>Consequence id<input value={propagationConsequenceId} onChange={(event) => setPropagationConsequenceId(event.target.value)} /></label>
           <label>Disposition<select value={propagationDispositionTerm} onChange={(event) => setPropagationDispositionTerm(event.target.value)}>{consequenceDispositions.length ? consequenceDispositions.map((term) => <option key={term.term}>{term.term}</option>) : ["answered", "intentionally scoped out", "assigned as canon debt", "protected as a mystery boundary"].map((term) => <option key={term}>{term}</option>)}</select></label>
-          <label>Debt or boundary<input value={propagationBoundary} onChange={(event) => setPropagationBoundary(event.target.value)} /></label>
+          <label>Disposition rationale<textarea rows={2} value={propagationDispositionNote} onChange={(event) => setPropagationDispositionNote(event.target.value)} /></label>
+          {propagationDispositionTerm === "assigned as canon debt" && (
+            <label>Debt name (required)<input value={propagationDebtName} onChange={(event) => setPropagationDebtName(event.target.value)} /></label>
+          )}
+          {propagationDispositionTerm === "protected as a mystery boundary" && (
+            <label>Preservation boundary (required)<textarea rows={2} value={propagationPreservationBoundary} onChange={(event) => setPropagationPreservationBoundary(event.target.value)} /></label>
+          )}
         </div>
         <div className="row">
           <button onClick={savePropagationDisposition} disabled={!propagationConsequenceId || !propagationDispositionTerm}>Save Disposition</button>
@@ -6458,7 +6471,7 @@ function App({
           </p>
         )}
         {propagationRun?.closeReadiness.blockers.length ? (
-          <ul>{propagationRun.closeReadiness.blockers.map((blocker) => <li key={blocker.key}>{blocker.label ? `${blocker.label}: ` : ""}{blocker.key} · {blocker.message}</li>)}</ul>
+          <ul>{propagationRun.closeReadiness.blockers.map((blocker) => <li key={`${blocker.consequenceId ?? "run"}:${blocker.key}`}>{blocker.label ? `${blocker.label}: ` : ""}{blocker.key} · {blocker.message}</li>)}</ul>
         ) : propagationRun ? (
           <p>No server-returned blockers.</p>
         ) : (
