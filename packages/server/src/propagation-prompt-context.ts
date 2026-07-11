@@ -85,6 +85,18 @@ export interface PropagationRelatedWorldRecord {
   nonCanon: boolean;
 }
 
+export interface PropagationPacketCompleteness {
+  status: "complete" | "incomplete";
+  failures: string[];
+}
+
+export interface PropagationPacketCompletenessInput {
+  mode: PromptMode;
+  foundational: boolean;
+  atlas: readonly PropagationAtlasDomain[];
+  relatedWorld: PropagationRelatedWorldContext;
+}
+
 export const PROPAGATION_RELATED_WORLD_BUDGET = {
   aggregate: RELATED_WORLD_AGGREGATE_BUDGET,
   perRecord: RELATED_WORLD_RECORD_CAP
@@ -94,7 +106,7 @@ interface RelatedCandidate {
   record: RecordRow;
   relationship: string;
   inclusionReason: string;
-  relationshipRank: number;
+  relationshipClass: "kernel" | "direct" | "shared-origin";
 }
 
 const unicodeLength = (value: string): number => [...value].length;
@@ -117,12 +129,12 @@ const candidate = (
   record: RecordRow,
   relationship: string,
   inclusionReason: string,
-  relationshipRank: number
+  relationshipClass: RelatedCandidate["relationshipClass"]
 ): RelatedCandidate => ({
   record,
   relationship,
   inclusionReason,
-  relationshipRank
+  relationshipClass
 });
 
 const omission = (record: RecordRow, reason: string): string =>
@@ -131,7 +143,8 @@ const omission = (record: RecordRow, reason: string): string =>
 export const propagationRelatedWorldContext = (
   world: WorldFile,
   sourceFactId: number,
-  mode: PromptMode
+  mode: PromptMode,
+  activeMaterialRecordIds: readonly number[] = []
 ): PropagationRelatedWorldContext => {
   if (mode !== "pressure") return {
     lines: [],
@@ -159,19 +172,26 @@ export const propagationRelatedWorldContext = (
       kernel,
       "active world kernel",
       "kernel support for premise, tone, consequence mode, constraints, and protected effects",
-      0
+      "kernel"
     ));
   }
 
-  for (const link of sourceLinks) {
-    const related = recordsById.get(otherRecordId(link, sourceFactId));
-    if (!related || related.id === sourceFactId || related.recordTypeKey === "world_kernel") continue;
-    candidates.set(related.id, candidate(
-      related,
-      `direct ${link.linkTypeKey}`,
-      `existing typed ${link.linkTypeKey} relationship to source fact ${sourceFact.shortId}`,
-      1
-    ));
+  const activeMaterialRecords = activeMaterialRecordIds
+    .map((recordId) => recordsById.get(recordId))
+    .filter((record): record is RecordRow => record != null);
+  for (const anchor of [sourceFact, ...activeMaterialRecords]) {
+    for (const link of world.listLinks(anchor.id)) {
+      const related = recordsById.get(otherRecordId(link, anchor.id));
+      if (!related || related.id === sourceFactId || activeMaterialRecordIds.includes(related.id) || related.recordTypeKey === "world_kernel") continue;
+      candidates.set(related.id, candidate(
+        related,
+        `direct ${link.linkTypeKey}`,
+        anchor.id === sourceFactId
+          ? `existing typed ${link.linkTypeKey} relationship to source fact ${sourceFact.shortId}`
+          : `existing typed ${link.linkTypeKey} relationship to active Propagation material ${anchor.shortId}`,
+        "direct"
+      ));
+    }
   }
 
   for (const origin of origins.values()) {
@@ -182,21 +202,21 @@ export const propagationRelatedWorldContext = (
         sibling,
         `shared origin ${origin.shortId}`,
         `shares immediate derivation origin ${origin.shortId} with source fact ${sourceFact.shortId}`,
-        2
+        "shared-origin"
       ));
     }
   }
 
   const omissions: string[] = [];
   const completenessFailures: string[] = [];
-  if (![...candidates.values()].some((value) => value.relationshipRank === 0)) {
+  if (![...candidates.values()].some((value) => value.relationshipClass === "kernel")) {
     const failure = "World kernel (not found): unavailable content; create or open the active world kernel before treating Pressure as context-complete.";
     omissions.push(failure);
     completenessFailures.push(failure);
   }
   const candidateText = new Map<number, string>();
   for (const value of candidates.values()) {
-    if (value.relationshipRank !== 0) {
+    if (value.relationshipClass !== "kernel") {
       candidateText.set(value.record.id, recordText(world, value.record));
       continue;
     }
@@ -228,16 +248,16 @@ export const propagationRelatedWorldContext = (
     return true;
   }).sort((left, right) => {
     const priority = (value: RelatedCandidate): number => {
-      if (value.relationshipRank === 0) return 0;
-      if (CURRENT_CANON_STATUSES.has(value.record.canonStatus ?? "")) return value.relationshipRank;
+      if (value.relationshipClass === "kernel") return 0;
+      if (CURRENT_CANON_STATUSES.has(value.record.canonStatus ?? "")) return value.relationshipClass === "direct" ? 1 : 2;
       return 3;
     };
     return priority(left) - priority(right)
-      || left.relationshipRank - right.relationshipRank
+      || left.relationshipClass.localeCompare(right.relationshipClass)
       || left.record.id - right.record.id
   });
 
-  const structurallyEligibleIds = new Set([sourceFactId, ...origins.keys(), ...candidates.keys()]);
+  const structurallyEligibleIds = new Set([sourceFactId, ...activeMaterialRecordIds, ...origins.keys(), ...candidates.keys()]);
   const secondHopIds = new Set<number>();
   for (const value of candidates.values()) {
     for (const link of world.listLinks(value.record.id)) {
@@ -313,4 +333,30 @@ export const propagationRelatedWorldContext = (
     sourceManifest,
     omissions: uniqueOmissions
   };
+};
+
+export const propagationPacketCompleteness = (input: PropagationPacketCompletenessInput): PropagationPacketCompleteness => {
+  const failures = [...input.relatedWorld.completeness.failures];
+  if (input.mode === "proposal" && input.foundational) {
+    const atlasMatches = input.atlas.length === PROPAGATION_ATLAS_DOMAINS.length
+      && input.atlas.every((domain, index) => domain.name === PROPAGATION_ATLAS_DOMAINS[index]?.name && domain.decisionPrompt.trim());
+    if (!atlasMatches) {
+      failures.push("Foundational atlas doctrine is missing, incomplete, out of order, or lacks a compact decision prompt; restore the canonical fourteen-domain server doctrine before treating Proposal as complete.");
+    }
+  }
+  if (input.mode === "pressure") {
+    for (const record of input.relatedWorld.selectedRecords) {
+      if (!record.sourceDocumentId.trim() || !record.stableIdentity.trim() || !record.title.trim() || !record.recordType.trim()
+        || !record.canonStatus.trim() || !record.relationship.trim() || !record.inclusionReason.trim() || record.role !== "active context") {
+        failures.push(`${record.stableIdentity || "Unidentified related record"}: malformed standing or provenance; restore identity, type, standing, relationship, inclusion reason, and role before treating Pressure as complete.`);
+      }
+    }
+    for (const omissionReason of input.relatedWorld.omissions) {
+      if (!/^(?:[A-Z]+-\d+\b|World kernel \(not found\):)/.test(omissionReason)) {
+        failures.push(`Related-world omission lacks stable identity: ${omissionReason}; identify the candidate and its exclusion reason before treating Pressure as complete.`);
+      }
+    }
+  }
+  const uniqueFailures = [...new Set(failures)];
+  return { status: uniqueFailures.length ? "incomplete" : "complete", failures: uniqueFailures };
 };

@@ -64,14 +64,15 @@ describe("Propagation web surface", () => {
         triage: "Direct, dependency, reaction, and negative domains remain distinct.",
         severityReason: "Foundational severity owes the complete fourteen-domain atlas; lower severity remains proportionate."
       },
+      completeness: {
+        status: "incomplete",
+        failures: ["FAC-12 Broken standing: restore server-owned standing and provenance before treating this packet as complete"]
+      },
       relatedWorld: {
         aggregateBudget: 12000,
         perRecordCap: 2000,
         usedCharacters: 3140,
-        completeness: {
-          status: "incomplete",
-          failures: ["FAC-12 Unreadable quay archive: restore readable record content before treating Pressure as complete"]
-        },
+        completeness: { status: "complete", failures: [] },
         selectedRecords: [
           {
             sourceDocumentId: "related_world:KER-1",
@@ -113,7 +114,7 @@ describe("Propagation web surface", () => {
     expect(html).toContain("12,000 Unicode characters aggregate");
     expect(html).toContain("2,000 per record");
     expect(html).toContain("Incomplete related-world context");
-    expect(html).toContain("FAC-12 Unreadable quay archive");
+    expect(html).toContain("FAC-12 Broken standing");
     expect(html).toContain("KER-1");
     expect(html).toContain("world_kernel");
     expect(html).toContain("active world kernel");

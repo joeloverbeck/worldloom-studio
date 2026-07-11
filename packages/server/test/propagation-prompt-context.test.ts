@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { propagationRelatedWorldContext } from "../src/propagation-prompt-context.js";
+import { propagationPacketCompleteness, propagationRelatedWorldContext } from "../src/propagation-prompt-context.js";
 import { WorldFile } from "../src/world-file.js";
 
 let tempDirs: string[] = [];
@@ -83,5 +83,52 @@ describe("Propagation related-world prompt context", () => {
       directProposed.shortId
     ]);
     world.close();
+  });
+
+  it("classifies missing atlas doctrine, malformed provenance, and unidentified omissions as incomplete", () => {
+    const baseRelatedWorld = {
+      lines: [],
+      sourceDocuments: [],
+      selectedRecords: [],
+      usedCharacters: 0,
+      completeness: { status: "complete" as const, failures: [] },
+      sourceManifest: [],
+      omissions: []
+    };
+
+    expect(propagationPacketCompleteness({
+      mode: "proposal",
+      foundational: true,
+      atlas: [],
+      relatedWorld: baseRelatedWorld
+    })).toMatchObject({ status: "incomplete", failures: expect.arrayContaining([expect.stringMatching(/atlas doctrine/i)]) });
+
+    expect(propagationPacketCompleteness({
+      mode: "pressure",
+      foundational: true,
+      atlas: [],
+      relatedWorld: {
+        ...baseRelatedWorld,
+        selectedRecords: [{
+          sourceDocumentId: "related_world:FAC-9",
+          stableIdentity: "FAC-9",
+          title: "Broken context",
+          recordType: "canon_fact",
+          canonStatus: "",
+          truthLayer: null,
+          relationship: "",
+          inclusionReason: "",
+          role: "active context" as const,
+          nonCanon: false
+        }]
+      }
+    })).toMatchObject({ status: "incomplete", failures: expect.arrayContaining([expect.stringMatching(/FAC-9.*standing.*provenance/i)]) });
+
+    expect(propagationPacketCompleteness({
+      mode: "pressure",
+      foundational: true,
+      atlas: [],
+      relatedWorld: { ...baseRelatedWorld, omissions: ["trimmed by budget"] }
+    })).toMatchObject({ status: "incomplete", failures: expect.arrayContaining([expect.stringMatching(/omission.*stable identity/i)]) });
   });
 });

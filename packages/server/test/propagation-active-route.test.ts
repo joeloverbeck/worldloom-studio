@@ -771,6 +771,17 @@ describe("Propagation active owed route server contract", () => {
       body: "Households renegotiate marriage vows before the first moonrise.",
       pressure: "normal"
     });
+    const activeMaterial = await json<{ record: { id: number; shortId: string } }>(await postJson(app, "/api/propagation/propose-fact", {
+      flowId: started.flow.id,
+      title: "Oath review circles emerge",
+      body: "Households propose local circles to review vulnerable vows.",
+      truthLayer: "Objective canon"
+    }));
+    const activeMaterialNeighbor = await createRecord(app, {
+      title: "Court registry fee schedule",
+      body: "Accepted fee schedules constrain how the proposed oath-review circles can access registries."
+    });
+    await linkRecords(app, activeMaterial.record.id, activeMaterialNeighbor.id, "depends_on", "Existing typed link from active Propagation material");
 
     const before = {
       records: await json(await app.request("/api/records")),
@@ -795,6 +806,8 @@ describe("Propagation active owed route server contract", () => {
     expect(generated.prompt).toContain("Inclusion reason: kernel support for premise, tone, consequence mode, constraints, and protected effects");
     expect(generated.prompt).toContain(`Stable identity: ${direct.shortId}`);
     expect(generated.prompt).toContain("Relationship: direct depends_on");
+    expect(generated.prompt).toContain(`Stable identity: ${activeMaterialNeighbor.shortId}`);
+    expect(generated.prompt).toContain(`relationship to active Propagation material ${activeMaterial.record.shortId}`);
     expect(generated.prompt).toContain(`Stable identity: ${sharedAccepted.shortId}`);
     expect(generated.prompt).toContain("Relationship: shared origin");
     expect(generated.prompt).toContain(`Stable identity: ${sharedProposed.shortId}`);
@@ -830,6 +843,7 @@ describe("Propagation active owed route server contract", () => {
         selectedRecords: expect.arrayContaining([
           expect.objectContaining({ stableIdentity: kernel.shortId, relationship: "active world kernel", nonCanon: false }),
           expect.objectContaining({ stableIdentity: direct.shortId, relationship: "direct depends_on", nonCanon: false }),
+          expect.objectContaining({ stableIdentity: activeMaterialNeighbor.shortId, relationship: "direct depends_on", nonCanon: false }),
           expect.objectContaining({ stableIdentity: sharedProposed.shortId, canonStatus: "proposed", nonCanon: true })
         ])
       },

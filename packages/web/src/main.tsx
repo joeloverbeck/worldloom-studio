@@ -1331,6 +1331,10 @@ export interface PropagationPacketContextPreview {
     triage: string;
     severityReason: string;
   };
+  completeness: {
+    status: "complete" | "incomplete";
+    failures: string[];
+  };
   relatedWorld: {
     aggregateBudget: number;
     perRecordCap: number;
@@ -1585,10 +1589,10 @@ export function PropagationPacketContextPanel({ context }: { context: Propagatio
         <span>{`${context.relatedWorld.aggregateBudget.toLocaleString("en-US")} Unicode characters aggregate · ${context.relatedWorld.perRecordCap.toLocaleString("en-US")} per record`}</span>
         <span>{`${context.relatedWorld.usedCharacters.toLocaleString("en-US")} related-world excerpt characters selected by the server`}</span>
       </section>
-      {context.relatedWorld.completeness.status === "incomplete" ? (
+      {context.completeness.status === "incomplete" ? (
         <section className="warning" data-propagation-context-completeness="incomplete">
           <strong>Incomplete related-world context</strong>
-          {context.relatedWorld.completeness.failures.map((failure) => <p key={failure}>{failure}</p>)}
+          {context.completeness.failures.map((failure) => <p key={failure}>{failure}</p>)}
         </section>
       ) : null}
       {context.relatedWorld.selectedRecords.map((record) => (

@@ -4,7 +4,7 @@ import { resolveCreationDecompositionHandoff } from "./creation-handoff.js";
 import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest, maybeMethodCard } from "./method-cards.js";
 import { PROMPT_TEMPLATE_SEEDS } from "./prompt-out-defaults.js";
 import * as PropagationStore from "./propagation-store.js";
-import { foundationalProposalDoctrine, foundationalProposalManifest, foundationalProposalOmissions, propagationRelatedWorldContext, PROPAGATION_ATLAS_DOMAINS, PROPAGATION_RELATED_WORLD_BUDGET, type PropagationRelatedWorldContext, type PropagationRelatedWorldRecord } from "./propagation-prompt-context.js";
+import { foundationalProposalDoctrine, foundationalProposalManifest, foundationalProposalOmissions, propagationPacketCompleteness, propagationRelatedWorldContext, PROPAGATION_ATLAS_DOMAINS, PROPAGATION_RELATED_WORLD_BUDGET, type PropagationPacketCompleteness, type PropagationRelatedWorldContext, type PropagationRelatedWorldRecord } from "./propagation-prompt-context.js";
 import type { PromptMode } from "./decision-point-contract.js";
 import type { MethodCard } from "@worldloom/shared";
 import type { RecordInput, RecordRow, WorldFile } from "./world-file.js";
@@ -139,6 +139,7 @@ export interface PropagationPacketContextPreview {
     triage: string;
     severityReason: string;
   };
+  completeness: PropagationPacketCompleteness;
   relatedWorld: {
     aggregateBudget: number;
     perRecordCap: number;
@@ -679,10 +680,10 @@ const propagationPromptContext = (world: WorldFile, input: PromptGenerationInput
   const activeConsequenceIds = new Set(consequences.map((row) => row.id));
   const activeDispositions = dispositions.filter((row) => activeConsequenceIds.has(row.consequence_id));
   const activeSet = PropagationStore.activeSetState(world, input.flowId);
-  const proposals = world.propagationSurfacedProposals(input.flowId) as Array<Record<string, unknown>>;
+  const proposals = world.propagationSurfacedProposals(input.flowId) as Array<{ proposal_record_id: number }>;
   const severity = propagationSeverity(world, factId);
   const requiredCoverage = propagationCoverage(severity);
-  const relatedWorld = propagationRelatedWorldContext(world, factId, mode);
+  const relatedWorld = propagationRelatedWorldContext(world, factId, mode, proposals.map((row) => Number(row.proposal_record_id)));
   const blockers = propagationPromptBlockers(severity, consequences, domains);
   const consequenceDispositionIds = new Set(activeDispositions.map((row) => row.consequence_id));
   for (const consequence of consequences.filter((row) => row.pressure === "high" && !consequenceDispositionIds.has(row.id))) {
@@ -1127,6 +1128,16 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
     "Unavailable world context must be named before copy-out rather than silently omitted."
   ];
   const advisoryWarning = "This prompt is optional advisory support. Pasted responses stay advisory artifacts until the steward authors and admits canon through the governed flow.";
+  const foundationalPropagation = propagationContext.severity != null && isFoundationalSeverity(propagationContext.severity);
+  const atlasDomains = mode === "proposal" && foundationalPropagation
+    ? PROPAGATION_ATLAS_DOMAINS.map((domain) => ({ ...domain }))
+    : [];
+  const completeness = propagationPacketCompleteness({
+    mode,
+    foundational: foundationalPropagation,
+    atlas: atlasDomains,
+    relatedWorld: propagationContext.relatedWorld
+  });
 
   const prompt = renderPromptPacket({
     mode,
@@ -1193,14 +1204,13 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
             ],
             atlas: {
               required: mode === "proposal" && isFoundationalSeverity(propagationContext.severity),
-              domains: mode === "proposal" && isFoundationalSeverity(propagationContext.severity)
-                ? PROPAGATION_ATLAS_DOMAINS.map((domain) => ({ ...domain }))
-                : [],
+              domains: atlasDomains,
               triage: "Direct domains are where the fact acts first; dependency domains contain what must already exist; reaction domains show adaptation; negative domains require an explanation when suspiciously quiet.",
               severityReason: isFoundationalSeverity(propagationContext.severity)
                 ? "Foundational severity owes the complete fourteen-domain atlas; lower-severity packets remain proportionate."
                 : "This lower-severity packet remains proportionate and does not inherit the foundational full-atlas dump."
             },
+            completeness,
             relatedWorld: {
               aggregateBudget: PROPAGATION_RELATED_WORLD_BUDGET.aggregate,
               perRecordCap: PROPAGATION_RELATED_WORLD_BUDGET.perRecord,
