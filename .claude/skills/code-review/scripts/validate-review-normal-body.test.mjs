@@ -11,11 +11,13 @@ Findings: none.
 Findings: none.
 
 - **Review subagents**: Standards reviewer standards-1 completed; Spec reviewer spec-1 completed
+- **Review subagent cleanup**: Standards close operation unavailable after terminal completion; Spec close operation unavailable after terminal completion
 - **Axis summary**: Standards 0/none, Spec 0/none
 - **Residual findings**: none
 - **Parent PRD coverage**: parent PRD row present
 - **Browser/manual evidence freshness**: N/A because no browser/manual evidence was used
 - **Browser/manual console state**: N/A because no browser/manual evidence was used
+- **Backend process currentness**: N/A because no browser/manual evidence was used
 - **Review evidence line**: Review: code-review against abc1234; outcome no findings; verification rerun pnpm test.
 
 Review: code-review against abc1234; outcome no findings; verification rerun pnpm test.
@@ -36,11 +38,13 @@ Initial finding was fixed.
 - **Findings found**: two review findings
 - **Fixes made**: packages/web/src/main.tsx corrected and proof added
 - **Review subagents**: Standards initial reviewer standards-1 completed, final reviewer standards-2 completed; Spec initial reviewer spec-1 completed, final reviewer spec-2 completed
+- **Review subagent cleanup**: Standards close operation unavailable after terminal completion; Spec close operation unavailable after terminal completion
 - **TDD/review-fix evidence**: red-first skipped because Standards-only fix did not change behavior
 - **TDD closeout gate**: N/A because the tdd skill was not invoked
 - **Verification rerun**: pnpm test passed
 - **Browser/manual evidence freshness**: N/A because no browser/manual evidence was used
 - **Browser/manual console state**: N/A because no browser/manual evidence was used
+- **Backend process currentness**: N/A because no browser/manual evidence was used
 - **Commit handling**: amended commit abc1234
 - **Residual findings**: none
 - **Axis summary**: Standards 0/none, Spec 0/none
@@ -73,6 +77,20 @@ test("rejects non-terminal review subagent status", () => {
   assert.ok(errors.some((error) => error.includes("Spec reviewer")));
 });
 
+test("requires a terminal cleanup disposition for both review axes", () => {
+  const missing = validateReviewNormalBody(noFixBody.replace(/^- \*\*Review subagent cleanup.*\n/m, ""));
+  assert.ok(missing.some((error) => error.includes("Review subagent cleanup")));
+
+  const ambiguous = validateReviewNormalBody(
+    noFixBody.replace(
+      "Standards close operation unavailable after terminal completion; Spec close operation unavailable after terminal completion",
+      "Standards completed; Spec completed"
+    )
+  );
+  assert.ok(ambiguous.some((error) => error.includes("Standards reviewer cleanup disposition")));
+  assert.ok(ambiguous.some((error) => error.includes("Spec reviewer cleanup disposition")));
+});
+
 test("accepts complete immediate-fix evidence and rejects a missing final outcome", () => {
   assert.deepEqual(validateReviewNormalBody(immediateFixBody, { flags: ["--immediate-fix"] }), []);
   const errors = validateReviewNormalBody(
@@ -94,8 +112,21 @@ test("requires current freshness and console evidence when --browser is used", (
     .replace(
       "N/A because no browser/manual evidence was used",
       "0 errors and 0 warnings in the clean browser session",
+    )
+    .replace(
+      "N/A because no browser/manual evidence was used",
+      "server command pnpm dev; watch/reload mode watch; process or port ownership PID 123 on port 4173; restart/reload proof server restarted; expected API field probe returned created",
     );
   assert.deepEqual(validateReviewNormalBody(browserBody, { flags: ["--browser"] }), []);
+
+  const staleBackend = validateReviewNormalBody(
+    browserBody.replace(
+      "server command pnpm dev; watch/reload mode watch; process or port ownership PID 123 on port 4173; restart/reload proof server restarted; expected API field probe returned created",
+      "server reachable on port 4173"
+    ),
+    { flags: ["--browser"] }
+  );
+  assert.ok(staleBackend.some((error) => error.includes("Backend process currentness")));
 });
 
 test("requires a structured accepted residual with a revisit trigger", () => {
@@ -160,6 +191,47 @@ test("requires durability for a transient browser intended red", () => {
 test("delegates --tdd bodies to the TDD closeout validator", () => {
   const errors = validateReviewNormalBody(immediateFixBody, { flags: ["--immediate-fix", "--tdd"] });
   assert.ok(errors.some((error) => error.startsWith("TDD validator failed:")));
+});
+
+test("accepts a complete immediate-fix body with current nested TDD evidence", () => {
+  const body = `${immediateFixBody.replace(
+    "- **TDD closeout gate**: N/A because the tdd skill was not invoked",
+    "- **TDD closeout gate**: canonical TDD evidence below passed the nested validator"
+  )}
+TDD evidence
+
+| Issue | CONTEXT.md status | ADRs/principles/docs status | Seam | Red command/failure | Green command or evidence | Acceptance covered | Review fix / red-first skip reason |
+|---|---|---|---|---|---|---|---|
+| #355 | read | ADR 0008 read | typed public contract | red-first skipped because Standards-only/conformance-only fix did not change behavior | pnpm typecheck passed | AC1; atoms: atomic; proof surfaces: server type contract | review-fix evidence |
+
+Existing-test contract-change rows: none
+
+TDD review-fix addendum:
+- Finding: typed public contract ownership
+- Intended red command/failure: red-first skipped because Standards-only/conformance-only fix did not change behavior
+- Green command/evidence: pnpm typecheck passed
+- Updated TDD table row: #355 typed public contract
+- Regression durability: N/A because the intended red was not a transient browser/manual probe
+- Browser/manual freshness: N/A because no UI/routes/browser-consumed API/fixtures/action path changed
+- Backend process currentness: N/A because no browser/manual proof was used
+
+TDD closeout preflight:
+- Durable sink/body inspected: test fixture
+- Compact table/header: present after structural check
+- Rows accounted for: all in-scope issues and seams listed
+- Pre-red recovery status: N/A - pre-red preflight/table was visible before first red
+- CONTEXT.md status: present
+- ADRs/principles/docs status: present
+- Acceptance atom map: all rows list authoritative atoms and proof surfaces
+- Partial-red / red-first skip reasons: listed
+- Evidence-only rows freshness: none
+- Evidence-only backend process currentness: N/A because no browser/manual evidence-only rows
+- Existing-test contract-change rows: none
+
+TDD evidence gate passed: durable sink test fixture; compact table/header present after structural check; seams accounted for all listed; CONTEXT.md status present; ADRs/principles/docs status present; partial-red / red-first skip reasons listed; evidence-only rows none; existing-test contract-change rows none.
+`;
+
+  assert.deepEqual(validateReviewNormalBody(body, { flags: ["--immediate-fix", "--tdd"] }), []);
 });
 
 test("rejects fallback labeling in a normal body", () => {

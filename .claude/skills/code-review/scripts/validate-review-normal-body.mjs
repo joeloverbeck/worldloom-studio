@@ -104,6 +104,26 @@ const validateSubagentStatuses = (value, errors, options = {}) => {
   }
 };
 
+const validateSubagentCleanup = (value, errors) => {
+  if (unresolvedValue(value)) {
+    errors.push("Review subagent cleanup is empty or unresolved");
+    return;
+  }
+  if (/\b(?:still-running|still running|cleanup failed|failed cleanup)\b/i.test(value)) {
+    errors.push("Review subagent cleanup includes a failed or still-running disposition");
+  }
+
+  for (const [axis, otherAxis] of [["Standards", "Spec"], ["Spec", "Standards"]]) {
+    const start = value.search(new RegExp(`\\b${axis}\\b`, "i"));
+    const otherStart = start < 0 ? -1 : value.slice(start + axis.length).search(new RegExp(`\\b${otherAxis}\\b`, "i"));
+    const end = otherStart < 0 ? value.length : start + axis.length + otherStart;
+    const axisBlock = start < 0 ? "" : value.slice(start, end);
+    if (!/\b(?:closed|close operation unavailable after terminal completion|auto-disposed after terminal completion)\b/i.test(axisBlock)) {
+      errors.push(`Review subagent cleanup must name the ${axis} reviewer cleanup disposition`);
+    }
+  }
+};
+
 const validateFreshnessValue = (value) => {
   if (unresolvedValue(value)) return "is empty or unresolved";
   if (/^N\/A\b.+\bbecause\b.+\bno browser\/manual evidence was used\b/i.test(value)) return "";
@@ -130,6 +150,23 @@ const validateConsoleStateValue = (value) => {
   if (/\bclassified unrelated\b.+\b(?:evidence|because|source|reason)\b/i.test(value)) return "";
   if (/\b(?:blocked|unavailable)\b.+\b(?:because|reason|unable|cannot)\b/i.test(value)) return "";
   return "must state a clean console, classified unrelated output, a blocked reason, or N/A because no browser/manual evidence was used";
+};
+
+const validateBackendCurrentnessValue = (value) => {
+  if (unresolvedValue(value)) return "is empty or unresolved";
+  if (/^N\/A\b.+\bbecause\b.+\b(?:no browser\/manual evidence was used|browser proof has no backend\/API dependency)\b/i.test(value)) {
+    return "";
+  }
+  if (/\bblocked\b.+\b(?:because|reason|unable|cannot)\b/i.test(value)) return "";
+
+  const hasServerCommand = /\bserver command\b/i.test(value);
+  const hasWatchMode = /\bwatch(?:\/reload)? mode\b/i.test(value);
+  const hasOwnership = /\b(?:process(?: or port)?|port(?: or process)?) ownership\b/i.test(value);
+  const hasRestartOrReloadProof = /\b(?:restart|reload)(?:\/(?:restart|reload))? proof\b/i.test(value);
+  const hasExpectedApiProbe = /\bexpected API (?:field|behavior)(?: probe)?\b|\bAPI probe\b/i.test(value);
+  if (hasServerCommand && hasWatchMode && hasOwnership && hasRestartOrReloadProof && hasExpectedApiProbe) return "";
+
+  return "must state server command, watch/reload mode, process or port ownership, restart/reload proof, and expected API field/behavior probe, or a justified N/A/blocked reason";
 };
 
 const validateRegressionDurability = (body, errors) => {
@@ -170,6 +207,7 @@ export const validateReviewNormalBody = (body, options = {}) => {
 
   const immediateFix = flags.has("--immediate-fix") || fieldPattern("Findings found").test(body);
   validateSubagentStatuses(requireField("Review subagents"), errors, { requireFinal: immediateFix });
+  validateSubagentCleanup(requireField("Review subagent cleanup"), errors);
   const axisSummary = requireField("Axis summary");
   if (!/^Standards\s+.+?,\s*Spec\s+.+/i.test(axisSummary)) {
     errors.push("Axis summary must report Standards and Spec separately");
@@ -219,6 +257,15 @@ export const validateReviewNormalBody = (body, options = {}) => {
     if (flags.has("--browser") && (/^N\/A\b/i.test(freshnessValue) || /^N\/A\b/i.test(consoleValue))) {
       errors.push("--browser requires current browser/manual freshness and console evidence, not N/A");
     }
+  }
+
+  const backendCurrentnessValue = requireField("Backend process currentness");
+  const backendCurrentnessError = validateBackendCurrentnessValue(backendCurrentnessValue);
+  if (backendCurrentnessError) {
+    errors.push(`Backend process currentness ${backendCurrentnessError}`);
+  }
+  if (flags.has("--browser") && /^N\/A\b.+\bno browser\/manual evidence was used\b/i.test(backendCurrentnessValue)) {
+    errors.push("--browser requires backend currentness or N/A because the browser proof has no backend/API dependency");
   }
 
   validateRegressionDurability(body, errors);

@@ -103,8 +103,21 @@ const requireOneRow = (errors, rows, identity, predicate) => {
   if (count !== 1) errors.push(`${identity} must map to exactly one Evidence Checked row; found ${count}`);
 };
 
+const FINDING_HEADING_PATTERN = /^###\s+([PRFMQV]-\d+)(?:\s+\([^)\r\n]+\))?\s+-\s+(.+)$/i;
+const FINDING_LIKE_HEADING_PATTERN = /^###\s+[PRFMQV]-\d+\b/i;
+
 const findingIdentities = (source) =>
-  [...source.matchAll(/^###\s+([PRFMQV]-\d+)\s+-\s+(.+)$/gm)].map((match) => ({ id: match[1], title: match[2] }));
+  source
+    .split(/\r?\n/)
+    .flatMap((line) => {
+      const match = line.match(FINDING_HEADING_PATTERN);
+      return match ? [{ id: match[1].toUpperCase(), title: match[2] }] : [];
+    });
+
+const unparsedFindingHeadings = (source) =>
+  source
+    .split(/\r?\n/)
+    .filter((line) => FINDING_LIKE_HEADING_PATTERN.test(line) && !FINDING_HEADING_PATTERN.test(line));
 
 const appSeedIdentities = (source) => {
   const appSection = sectionBody(source, /^## For the app\b/i);
@@ -117,14 +130,16 @@ const appSeedIdentities = (source) => {
 
 const regressionIdentities = (source) => {
   const regressionSection = sectionBody(source, /^## Regression of prior findings\s*$/i);
-  const identities = new Set();
+  const identities = new Map();
   for (const line of regressionSection.split(/\r?\n/)) {
-    if (!line.trim().startsWith("|")) continue;
-    const firstCell = normalize(tableCells(line)[0] ?? "");
-    const match = firstCell.match(/\b(field build\s+\d+\s+[prfmqv]-\d+)\b/i);
-    if (match) identities.add(match[1]);
+    const trimmed = line.trim();
+    const candidate = trimmed.startsWith("|")
+      ? tableCells(line)[0] ?? ""
+      : trimmed.match(/^(?:[-*+]|\d+\.)\s+(.+)$/)?.[1] ?? "";
+    const match = candidate.match(/\b(field build\s+\d+\s+[prfmqv]-\d+)\b/i);
+    if (match) identities.set(normalize(match[1]), match[1]);
   }
-  return [...identities];
+  return [...identities.values()];
 };
 
 const lineHits = (body, pattern) =>
@@ -142,6 +157,9 @@ export const validatePrdPrep = ({ source, artifact }) => {
   }
   for (const field of REQUIRED_FIELDS) {
     if (!field.pattern.test(artifact)) errors.push(`missing required field: ${field.label}`);
+  }
+  for (const heading of unparsedFindingHeadings(source)) {
+    errors.push(`unparsed finding heading: ${heading}`);
   }
 
   const rows = evidenceRows(artifact, errors);

@@ -22,6 +22,22 @@ Characteristics:
 - Describes WHAT, not HOW
 - One behavior contract per test; multiple assertions are fine when they jointly prove that contract and each expected value comes from the spec or a worked example
 
+**Type-safe public-contract fixtures**: Objects passed across a public API, component prop, route, or serialized DTO boundary must be checked against that boundary's public type. Prefer an imported public type, a typed fixture builder, or `satisfies`; do not use `as any` to make an incomplete boundary fixture compile. If intentionally untyped external input is part of the behavior under test, validate it through the public runtime parser and assert the required contract shape before using it as downstream setup.
+
+```typescript
+import type { CheckoutResponse } from "@app/contracts";
+
+const response = {
+  status: "confirmed",
+  orderId: "order-42",
+  provenance: { actor: "alice", timestamp: "2026-07-11T09:00:00Z", flowStep: "checkout" }
+} satisfies CheckoutResponse;
+
+render(<OrderSummary initialResponse={response} />);
+```
+
+An unavoidable type escape hatch must be local, explain why the public type cannot be used, and pair the cast with an explicit assertion or parser result that proves the full boundary contract. A broad `as any` around the fixture or rendered prop is not contract evidence.
+
 **Static contract checks**: Use these only when the spec names a source-level contract, such as a required route string or a forbidden legacy import. Pair them with public-interface coverage when behavior is user-visible. Do not use source-file string checks merely to prove browser-visible UI text, controls, or flow behavior; use a public UI/rendered DOM test or evidence-only browser smoke unless the spec names the source contract.
 
 ```typescript

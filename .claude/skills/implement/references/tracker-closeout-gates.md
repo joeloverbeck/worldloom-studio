@@ -37,13 +37,13 @@ Closeout validator matrix:
 | Fixed-template child closeout before the parent rollup URL exists | `node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body"` | Add `--fixed-child-pending`; do not combine it with `--fixed-child`. |
 | Fixed-template child closeout after the parent rollup URL is known and the body contains the exact child inline close comment with the real URL | `node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body"` | Add `--fixed-child`; do not combine it with `--fixed-child-pending`. |
 | TDD evidence in a parent PRD rollup | `node .claude/skills/tdd/scripts/validate-tdd-closeout-body.mjs "$body"` | Add `--parent-rollup` so the compact parent-rollup TDD table is enforced. |
-| Local code-review fallback evidence | `node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs "$body"` | Add `--implement`; add `--child-family` for child-family/parent-rollup closeout; add `--immediate-fix` when review findings were fixed before closeout or the fallback gate says `immediate-fix block yes`; add `--tdd` when TDD evidence is present, or `--tdd-parent-rollup` when TDD evidence is in a parent-rollup compact table. |
+| Local code-review fallback evidence | `node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs "$body"` | Add `--implement`; add `--child-family` for child-family/parent-rollup closeout; add `--immediate-fix` when review findings were fixed before closeout or the fallback gate says `immediate-fix block yes`; add `--browser` when browser/manual evidence is present; add `--tdd` when TDD evidence is present, or `--tdd-parent-rollup` when TDD evidence is in a parent-rollup compact table. |
 
 Everything-active closeout recipe: for 4+ child issues using a parent PRD rollup, a local-only final SHA, invoked TDD, local code-review fallback, fixed-template child comments, and browser/manual proof, validate the inspected parent body before the first tracker mutation with:
 
 ```bash
 node .claude/skills/tdd/scripts/validate-tdd-closeout-body.mjs "$body" --parent-rollup
-node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs "$body" --implement --child-family --tdd-parent-rollup
+node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs "$body" --implement --child-family --browser --tdd-parent-rollup
 node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body" --closing --principles --local-only --fixed-child-pending --review-fallback
 ```
 
@@ -51,7 +51,7 @@ If review fallback findings were fixed before closeout, or the fallback gate say
 `immediate-fix block yes`, use this code-review validator command instead:
 
 ```bash
-node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs "$body" --implement --child-family --tdd-parent-rollup --immediate-fix
+node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs "$body" --implement --child-family --browser --tdd-parent-rollup --immediate-fix
 ```
 
 Drop only the flags whose conditions do not apply. After the parent rollup URL is known and the local body has been patched to contain the exact final child inline close comment with that real URL, rerun the implement validator with `--fixed-child` instead of `--fixed-child-pending` before relying on the patched body. Passing validators are aids, not substitutes for checking that every acceptance checkbox is named explicitly.
@@ -61,7 +61,7 @@ Drop only the flags whose conditions do not apply. After the parent rollup URL i
 - Exact pre-close audit exists in an allowed durable sink or inspected body, with columns `Acceptance criterion or conformance check` and `Status`.
 - Every acceptance checkbox or conformance check is named explicitly; no row hides multiple unnamed criteria.
 - Every row for the issue being closed uses the literal status `satisfied`; any `blocked` or `not done` row keeps that issue open.
-- Acceptance exactness challenge passed: compare each `satisfied` row against the original issue/PRD wording and ensure the evidence proves the exact required condition. Reject softened or substituted proof such as `equivalent`, `representative`, `nearby`, `legacy surface`, `API-only`, `same data`, or `same session class` unless the acceptance criterion itself permits that substitution. If exact evidence is missing, mark the row `blocked` or `not done` and keep the issue open.
+- Acceptance exactness challenge passed: compare each `satisfied` row against the original issue/PRD wording and ensure the evidence proves the exact required condition. Resolve composite terms through parent/child definitions, implementation decisions, glossaries, and named contracts; the audit must name every required atom and every promised proof surface rather than citing only the umbrella term. Reject softened or substituted proof such as `equivalent`, `representative`, `nearby`, `legacy surface`, `API-only`, `same data`, or `same session class` unless the acceptance criterion itself permits that substitution. If any atom or surface lacks exact evidence, mark the row `blocked` or `not done` and keep the issue open.
 - Placeholder sweep passed: the closeout body has no unresolved placeholder-like angle tokens such as `<context>`, `<sha>`, `<reason>`, `<issue>`, `<parent>`, `<child>`, or `<parent-rollup-url pending>` in evidence rows, URLs, final comments, or preflight fields. Use prose or a filled concrete value instead. URL autolinks and common Markdown/HTML tags are allowed only when intentional.
 - Final SHA is known and matches the tree that passed required verification.
 - Verification evidence is present.
@@ -71,6 +71,7 @@ Drop only the flags whose conditions do not apply. After the parent rollup URL i
 - Local-only commits use the full `Local-only SHA: <sha> is not remote-reachable because <reason>; local-only closeout is acceptable because <reason>.` sentence before tracker closeout.
 - Browser evidence is present, N/A with reason, or blocked with reason. `browser smoke N/A` is acceptable for docs/process-only work that only inventories or cites UI/browser behavior without changing browser-consumed surfaces, or when exact issue/PRD acceptance explicitly declares browser/manual proof N/A because the browser contract, routes, rendered behavior, validation response, fixtures, and action path are unchanged. Console state is recorded when browser evidence is present or explicitly N/A/blocked, and freshness has been checked against files touched after the smoke.
 - Browser/manual freshness is checked after the final commit and final verification edits, not just after the last behavior edit. If files changed after the last browser/manual proof, list each path or group, classify whether it affects UI/routes/browser-consumed API/fixtures/action path, and record rerun/not-affected/blocked in the closeout body.
+- When the final touched-file set includes server or browser-consumed API code, browser freshness also proves backend-process currentness: record the server command and watch/reload mode, restart or reload proof, and an expected API field/behavior probe before relying on UI evidence.
 - For an active browser/manual rerun on the final tree, use validator-safe wording from [closeout-templates.md](closeout-templates.md), such as `browser smoke rerun passed on final tree`, and name the route/action/API/fixture plus observed outcome.
 - For fixed-template child closeout, the exact inline child close comment has been inspected once before the first child close command, after the parent rollup URL is available when the comment cites a parent rollup.
 - For fixed-template child closeout after a parent rollup URL is captured, the conversation or durable audit sink contains this exact line before the first child close command: `Fixed child final inline close comment inspected: Completed by <sha>. Evidence: <parent rollup comment URL>`.

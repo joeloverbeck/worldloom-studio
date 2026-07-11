@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
-const CHECKLIST_ITEMS = [
+export const CHECKLIST_ITEMS = [
   "package source cited",
   "decision-point contract named",
   "required, optional, skippable, and severity-dependent fields visible where relevant",
@@ -35,6 +37,7 @@ Ledger options:
 Run-sheet options:
   --slice-body <slice>=<path>  Require all canonical checklist rows for an affected slice.
   --unaffected-slice <slice>   Require one checklist-N/A row for an unaffected slice.
+  --only-slice <slice>         Validate only this configured slice; repeat as needed.
 
 Shared options:
   --placeholder-re <pattern>   Placeholder regex; defaults to #SLICE|PLACEHOLDER.
@@ -75,6 +78,7 @@ function parseArgs(argv) {
     expectChecklistNa: false,
     expectNoBlocker: false,
     expectStories: false,
+    onlySlices: [],
     parent: null,
     placeholderRe: "#SLICE|PLACEHOLDER",
     sliceBodies: [],
@@ -86,7 +90,7 @@ function parseArgs(argv) {
     if (argument === "--expect-no-blocker") options.expectNoBlocker = true;
     else if (argument === "--expect-stories") options.expectStories = true;
     else if (argument === "--expect-checklist-na") options.expectChecklistNa = true;
-    else if (["--parent", "--blocker", "--child", "--expect-ac-count", "--placeholder-re", "--slice-body", "--unaffected-slice"].includes(argument)) {
+    else if (["--parent", "--blocker", "--child", "--expect-ac-count", "--placeholder-re", "--slice-body", "--unaffected-slice", "--only-slice"].includes(argument)) {
       const value = requireValue(args, index, argument);
       if (argument === "--parent") options.parent = value;
       else if (argument === "--blocker") options.blockers.push(value);
@@ -94,6 +98,7 @@ function parseArgs(argv) {
       else if (argument === "--placeholder-re") options.placeholderRe = value;
       else if (argument === "--slice-body") options.sliceBodies.push(parseSliceBody(value));
       else if (argument === "--unaffected-slice") options.unaffectedSlices.push(value);
+      else if (argument === "--only-slice") options.onlySlices.push(value);
       else {
         const count = Number(value);
         if (!Number.isInteger(count) || count < 1) failUsage("--expect-ac-count requires a positive integer.");
@@ -108,6 +113,9 @@ function parseArgs(argv) {
   }
   if (mode === "run-sheet" && options.sliceBodies.length === 0 && options.unaffectedSlices.length === 0) {
     failUsage("run-sheet mode requires --slice-body or --unaffected-slice.");
+  }
+  if (mode !== "run-sheet" && options.onlySlices.length > 0) {
+    failUsage("--only-slice is available only in run-sheet mode.");
   }
   return { inputFile, mode, options };
 }
@@ -161,7 +169,7 @@ function acceptanceCount(body) {
   return (body.match(/^- \[ \] /gm) ?? []).length;
 }
 
-function validateChild(body, options) {
+export function validateChild(body, options) {
   const blockedBy = sectionBody(body, "## Blocked by");
   const actualBlockers = unique(blockedBy.match(/#\d+/g) ?? []);
   const expectedBlockers = unique(options.blockers);
@@ -177,7 +185,7 @@ function validateChild(body, options) {
     hasStoryCoverage: !options.expectStories || body.includes("## User stories covered"),
     hasChecklistNa:
       !options.expectChecklistNa || /(?:Browser-visible guidance checklist mapped|checklist mapped): N\/A/i.test(body),
-    hasNoBlocker:
+    noBlockerExpectationPassed:
       !options.expectNoBlocker ||
       (body.includes("None - can start immediately") && actualBlockers.length === 0),
     hasExpectedBlockers:
@@ -188,7 +196,13 @@ function validateChild(body, options) {
       actualBlockers.every((reference) => expectedBlockers.includes(reference)),
     hasExpectedAcceptanceCount: options.expectAcCount == null || count === options.expectAcCount,
   };
-  return { acceptanceCount: count, actualBlockers, expectedBlockers, checks };
+  return {
+    acceptanceCount: count,
+    actualBlockers,
+    expectedBlockers,
+    expectations: { noBlocker: options.expectNoBlocker },
+    checks,
+  };
 }
 
 function validateLedger(body, options) {
@@ -223,7 +237,7 @@ function referencedAcceptanceOrdinals(coverage) {
   return ordinals;
 }
 
-function validateAffectedSlice(rows, slice, path) {
+function validateAffectedSlice(rows, slice, path, placeholderRe) {
   const body = readText(path);
   const count = acceptanceCount(body);
   const sliceRows = rows.filter((row) => row[0] === slice);
@@ -244,6 +258,7 @@ function validateAffectedSlice(rows, slice, path) {
   }
 
   const checks = {
+    ...commonBodyChecks(body, placeholderRe),
     hasAcceptanceItems: count > 0,
     hasExactRowCount: sliceRows.length === CHECKLIST_ITEMS.length,
     hasNoMissingItems: missingItems.length === 0,
@@ -276,37 +291,69 @@ function validateUnaffectedSlice(rows, slice) {
   return { checks, rows: sliceRows, slice };
 }
 
-function validateRunSheet(body, options) {
+export function validateRunSheet(body, options) {
   const rows = parseChecklistRows(body);
-  const affected = options.sliceBodies.map(({ slice, path }) => validateAffectedSlice(rows, slice, path));
-  const unaffected = options.unaffectedSlices.map((slice) => validateUnaffectedSlice(rows, slice));
-  const configuredSlices = new Set([
+  const onlySlices = new Set(options.onlySlices);
+  const selectedSliceBodies = options.onlySlices.length === 0
+    ? options.sliceBodies
+    : options.sliceBodies.filter(({ slice }) => onlySlices.has(slice));
+  const selectedUnaffectedSlices = options.onlySlices.length === 0
+    ? options.unaffectedSlices
+    : options.unaffectedSlices.filter((slice) => onlySlices.has(slice));
+  const configuredSliceNames = new Set([
     ...options.sliceBodies.map(({ slice }) => slice),
     ...options.unaffectedSlices,
   ]);
-  const unconfiguredSlices = unique(rows.map((row) => row[0]).filter((slice) => !configuredSlices.has(slice)));
+  const missingOnlySlices = unique(options.onlySlices.filter((slice) => !configuredSliceNames.has(slice)));
+  const selectedRows = options.onlySlices.length === 0
+    ? rows
+    : rows.filter((row) => onlySlices.has(row[0]));
+  const affected = selectedSliceBodies.map(({ slice, path }) =>
+    validateAffectedSlice(selectedRows, slice, path, options.placeholderRe));
+  const unaffected = selectedUnaffectedSlices.map((slice) => validateUnaffectedSlice(selectedRows, slice));
+  const configuredSlices = new Set([
+    ...selectedSliceBodies.map(({ slice }) => slice),
+    ...selectedUnaffectedSlices,
+  ]);
+  const unconfiguredSlices = unique(selectedRows.map((row) => row[0]).filter((slice) => !configuredSlices.has(slice)));
   const checks = {
     ...commonArtifactChecks(body, options.placeholderRe),
     hasRows: rows.length > 0,
+    hasSelectedRows: options.onlySlices.length === 0 || selectedRows.length > 0,
+    hasNoMissingOnlySlices: missingOnlySlices.length === 0,
     hasNoUnconfiguredSlices: unconfiguredSlices.length === 0,
     affectedSlicesPass: affected.every((report) => Object.values(report.checks).every(Boolean)),
     unaffectedSlicesPass: unaffected.every((report) => Object.values(report.checks).every(Boolean)),
   };
-  return { affected, checklistItems: CHECKLIST_ITEMS, checks, rowCount: rows.length, unaffected, unconfiguredSlices };
+  return {
+    affected,
+    checklistItems: CHECKLIST_ITEMS,
+    checks,
+    missingOnlySlices,
+    onlySlices: unique(options.onlySlices),
+    rowCount: rows.length,
+    selectedRowCount: selectedRows.length,
+    unaffected,
+    unconfiguredSlices,
+  };
 }
 
-const { inputFile, mode, options } = parseArgs(process.argv.slice(2));
-const body = readText(inputFile);
-const details =
-  mode === "child"
-    ? validateChild(body, options)
-    : mode === "ledger"
-      ? validateLedger(body, options)
-      : validateRunSheet(body, options);
-const failedChecks = Object.entries(details.checks)
-  .filter(([, passed]) => !passed)
-  .map(([name]) => name);
-const report = { mode, inputFile, ...details, failedChecks };
+const main = () => {
+  const { inputFile, mode, options } = parseArgs(process.argv.slice(2));
+  const body = readText(inputFile);
+  const details =
+    mode === "child"
+      ? validateChild(body, options)
+      : mode === "ledger"
+        ? validateLedger(body, options)
+        : validateRunSheet(body, options);
+  const failedChecks = Object.entries(details.checks)
+    .filter(([, passed]) => !passed)
+    .map(([name]) => name);
+  const report = { mode, inputFile, ...details, failedChecks };
 
-console.log(JSON.stringify(report, null, 2));
-if (failedChecks.length > 0) process.exit(1);
+  console.log(JSON.stringify(report, null, 2));
+  if (failedChecks.length > 0) process.exit(1);
+};
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) main();

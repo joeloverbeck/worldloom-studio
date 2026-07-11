@@ -19,7 +19,7 @@ Load the phase-specific reference before acting in that phase:
 
 ## 1. Resolve the Real Scope
 
-Before editing code, identify the authoritative work items and build a progress ledger. The ledger must cover issue number, title, dependencies/blockers, acceptance criteria, principles/ADR obligations or exceptions, planned evidence, test seams, and closeout state.
+Before editing code, identify the authoritative work items and build a progress ledger. The ledger must cover issue number, title, dependencies/blockers, acceptance criteria, principles/ADR obligations or exceptions, planned evidence, test seams, and closeout state. It must also record ownership/placement for any new helper, store/query function, persistence call, or cross-module entrypoint, and expand composite acceptance terms into their authoritative atoms and required proof surfaces.
 
 Hard stops:
 
@@ -32,7 +32,7 @@ Hard stops:
 
 Post the ledger to the conversation before the first edit and update it when dependencies, blockers, evidence, or closeout state changes materially. Use the compact table and related-tracker classification rules in [references/scope-ledger.md](references/scope-ledger.md).
 
-First-edit gate: do not edit until the visible ledger or progress note includes `Scope ledger posted: yes; no edits started; unrelated dirty files <listed/N/A>; in-scope issues <#...>; related tracker classification <done/N/A>.`
+First-edit gate: do not edit until the visible ledger or progress note includes `Scope ledger posted: yes; no edits started; unrelated dirty files <listed/N/A>; in-scope issues <#...>; related tracker classification <done/N/A>; ownership/placement decisions <listed/N/A>.`
 
 ## 2. Work Issue-by-Issue
 
@@ -43,14 +43,14 @@ Required implementation evidence:
 - Invoke the repo `tdd` skill where possible at pre-agreed seams, or derive the conservative proposed seam from acceptance criteria and existing architecture. For docs-only or no-runnable criteria, record that no runnable seam exists instead of inventing a test.
 - Carry TDD closeout evidence forward into the implementation ledger or final closeout audit. When `tdd` was invoked, the durable sink needs the full fielded `TDD evidence gate passed: durable sink ...` line.
 - For UI/browser-visible behavior, run a real browser smoke or record why it is blocked. The proof must exercise the production route and decision/action path the user reaches, and browser/manual evidence stays preliminary until freshness is checked against the final touched-file set.
-- On resume, compaction, or interruption before closeout, rerun `git status --short`, revalidate any active dev server/browser/session/proof artifact that the next step depends on, and restate the next exact issue/evidence action.
+- On resume, compaction, or interruption before closeout, rerun `git status --short`, revalidate any active dev server/browser/session/proof artifact that the next step depends on, prove that any server used for browser evidence loaded the current backend code, and restate the next exact issue/evidence action.
 - Run focused tests/typechecks regularly. Before closeout, read root verification guidance and run the canonical gates required for the work's blast radius.
 
-Before committing, draft the working pre-close audit row-by-row against each in-scope acceptance criterion and Principles/ADR check. Run the pre-review acceptance exactness challenge from [references/implementation-evidence.md](references/implementation-evidence.md) before treating any row as `satisfied`; planned, intended, nearby, or substituted behavior is not proof of the exact criterion. Do not enter review with unresolved `blocked` or `not done` rows unless the right outcome is to leave that issue open. Finalize or refresh the durable closeout audit after review fixes, final SHA, final verification, and browser/manual freshness are known. See [references/implementation-evidence.md](references/implementation-evidence.md) for the detailed test, browser, verification, and implementation commit gates.
+Before committing, draft the working pre-close audit row-by-row against each in-scope acceptance criterion and Principles/ADR check. Run the pre-review acceptance exactness challenge from [references/implementation-evidence.md](references/implementation-evidence.md) before treating any row as `satisfied`; planned, intended, nearby, or substituted behavior is not proof of the exact criterion. When a parent, child, decision, or glossary defines a composite term, prove every named atom on every required surface rather than citing the umbrella term. Do not enter review with unresolved `blocked` or `not done` rows unless the right outcome is to leave that issue open. Finalize or refresh the durable closeout audit after review fixes, final SHA, final verification, and browser/manual freshness are known. See [references/implementation-evidence.md](references/implementation-evidence.md) for the detailed test, browser, verification, and implementation commit gates.
 
 Before staging or committing, make this implementation commit gate visible in the conversation or ledger:
 
-`Implementation commit gate passed: working pre-close audit drafted <sink/reference>; blocked/not done rows <none/listed>; unrelated dirty files <listed/N/A>; staged files scoped <yes/no>.`
+`Implementation commit gate passed: working pre-close audit drafted <sink/reference>; blocked/not done rows <none/listed>; ownership/placement decisions <recorded/N/A>; unrelated dirty files <listed/N/A>; staged files scoped <yes/no>.`
 
 ## 3. Review Before Closeout
 
@@ -65,7 +65,7 @@ Use one of these routes:
 - If the `code-review` skill cannot run because required tooling is unavailable or policy-blocked, run the local two-axis fallback against the fixed point and carry the full fallback block into the durable closeout artifact.
 - If one review axis completes but another axis times out, fails, or becomes stale, preserve the completed axis evidence, run local fallback for the missing or stale axis, label the closeout evidence `Review fallback: partial-axis fallback`, and carry the full fallback block and validators from [references/review-evidence.md](references/review-evidence.md).
 
-Review evidence is a closeout hard stop. Before any close command, the conversation or durable audit must contain either `Review:` or `Review fallback:` evidence. After any review-fix commit or amend, refresh the final SHA, review frame, gates, browser/manual freshness, body files, fixed-child comments, local-only SHA wording, and validators as described in [references/review-evidence.md](references/review-evidence.md). Repeat that loop after each review-fix amend or follow-up commit until the final `HEAD` is covered by current review evidence with no unhandled Standards/Spec findings, or with explicitly recorded accepted residuals.
+Review evidence is a closeout hard stop. Before any close command, the conversation or durable audit must contain either `Review:` or `Review fallback:` evidence. After any review-fix commit or amend, refresh the final SHA, review frame, gates, browser/manual freshness, backend-process currentness for touched server/API paths, body files, fixed-child comments, local-only SHA wording, and validators as described in [references/review-evidence.md](references/review-evidence.md). Repeat that loop after each review-fix amend or follow-up commit until the final `HEAD` is covered by current review evidence with no unhandled Standards/Spec findings, or with explicitly recorded accepted residuals.
 
 Before tracker closeout, decide whether the verified tree is represented by an implementation-owned commit. If committing is inappropriate, forbidden, or blocked, record that decision explicitly and keep tracker closeout blocked unless the user and repo policy allow closing without a final SHA.
 

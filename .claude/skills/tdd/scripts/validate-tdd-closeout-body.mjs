@@ -32,14 +32,17 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     "Seam",
     "Red command/failure",
     "Green command or evidence",
-    "Acceptance covered"
+    "Acceptance covered",
+    "atoms:",
+    "proof surfaces:"
   ];
   const reviewFixEquivalentLabels = [
     "Finding:",
     "Intended red command/failure:",
     "Green command/evidence:",
     "Updated TDD table row:",
-    "Browser/manual freshness:"
+    "Browser/manual freshness:",
+    "Backend process currentness:"
   ];
   const requiredPreflightLabels = [
     "TDD closeout preflight:",
@@ -49,8 +52,10 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     "Pre-red recovery status:",
     "CONTEXT.md status:",
     "ADRs/principles/docs status:",
+    "Acceptance atom map:",
     "Partial-red / red-first skip reasons:",
     "Evidence-only rows freshness:",
+    "Evidence-only backend process currentness:",
     "Existing-test contract-change rows:"
   ];
 
@@ -198,6 +203,34 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     return "must state clean console, classified unrelated output, clean-session rerun, blocked/unavailable reason, N/A because, or none";
   };
 
+  const validateAcceptanceAtomMapValue = (value) => {
+    const normalized = value.replace(/\s+/g, " ").trim();
+    if (!normalized) return "is empty";
+    if (/^<.*>$/.test(normalized)) return "is unresolved placeholder";
+    if (/\bblocked\b.+\b(because|reason|unable|cannot)\b/i.test(normalized)) return "";
+    if (/\ball rows?\b.+\batoms?\b.+\bproof surfaces?\b/i.test(normalized)) return "";
+    if (/\ball criteria (?:are )?atomic\b.+\bproof surfaces?\b/i.test(normalized)) return "";
+    return "must state that all rows list authoritative atoms and proof surfaces, that all criteria are atomic with proof surfaces listed, or blocked because";
+  };
+
+  const validateBackendCurrentnessValue = (value) => {
+    const normalized = value.replace(/\s+/g, " ").trim();
+    if (!normalized) return "is empty";
+    if (/^<.*>$/.test(normalized)) return "is unresolved placeholder";
+    if (/^N\/A\b.+\bbecause\b.+\b(no browser\/manual|no backend\/API dependency)\b/i.test(normalized)) return "";
+    if (/^none\b.+\bno browser\/manual\b/i.test(normalized)) return "";
+    if (/\bblocked\b.+\b(because|reason|unable|cannot)\b/i.test(normalized)) return "";
+
+    const hasServerCommand = /\bserver command\b/i.test(normalized);
+    const hasWatchMode = /\bwatch(?:\/reload)? mode\b/i.test(normalized);
+    const hasOwnership = /\b(?:process(?: or port)?|port(?: or process)?) ownership\b/i.test(normalized);
+    const hasRestartOrReloadProof = /\b(?:restart|reload)(?:\/(?:restart|reload))? proof\b/i.test(normalized);
+    const hasExpectedApiProbe = /\bexpected API (?:field|behavior)(?: probe)?\b|\bAPI probe\b/i.test(normalized);
+    if (hasServerCommand && hasWatchMode && hasOwnership && hasRestartOrReloadProof && hasExpectedApiProbe) return "";
+
+    return "must state server command, watch/reload mode, process or port ownership, restart/reload proof, and expected API field/behavior probe, or a justified N/A/blocked reason";
+  };
+
   const validatePreRedRecoveryStatusValue = (value) => {
     const normalized = value.replace(/\s+/g, " ").trim();
     if (!normalized) return "is empty";
@@ -319,6 +352,12 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     errors.push(`Evidence-only rows freshness ${evidenceFreshnessError}`);
   }
 
+  const acceptanceAtomMapValue = extractFieldValue("Acceptance atom map");
+  const acceptanceAtomMapError = validateAcceptanceAtomMapValue(acceptanceAtomMapValue);
+  if (acceptanceAtomMapError) {
+    errors.push(`Acceptance atom map ${acceptanceAtomMapError}`);
+  }
+
   if (body.includes("Pre-red recovery status:")) {
     const preRedRecoveryStatusValue = extractFieldValue("Pre-red recovery status");
     const preRedRecoveryStatusError = validatePreRedRecoveryStatusValue(preRedRecoveryStatusValue);
@@ -406,15 +445,20 @@ export const validateTddCloseoutBody = (body, options = {}) => {
 
     const issueId = (cells[0]?.match(/^#\d+/) ?? [])[0];
     const acceptanceRefs = collectCriterionRefs(acceptanceCell);
+    if (!hasExactAcceptanceReference(acceptanceCell, acceptanceRefs)) {
+      errors.push(
+        `compact TDD row ${lineNumber} does not cite an exact AC/US, quoted criterion, or named checkbox in Acceptance covered`
+      );
+    }
+    if (!/\batoms?\s*:/i.test(acceptanceCell) || !/\bproof surfaces?\s*:/i.test(acceptanceCell)) {
+      errors.push(
+        `compact TDD row ${lineNumber} Acceptance covered must include atoms: and proof surfaces: for the exact criterion`
+      );
+    }
     const claimsCoverageOnlyExistingBehavior = /\bcoverage-only existing behavior\b/i.test(rowText);
     if (claimsCoverageOnlyExistingBehavior && !hasConcreteGreenEvidence(greenCell)) {
       errors.push(
         `compact TDD row ${lineNumber} claims coverage-only existing behavior without concrete Green command or evidence that names the proof surface and observed passing result`
-      );
-    }
-    if (claimsCoverageOnlyExistingBehavior && !hasExactAcceptanceReference(acceptanceCell, acceptanceRefs)) {
-      errors.push(
-        `compact TDD row ${lineNumber} claims coverage-only existing behavior without exact AC/US, quoted criterion, or checkbox references in Acceptance covered`
       );
     }
     const externalAuditRefs = externalProofAuditRefsByIssue.get(issueId) ?? new Set();
@@ -473,6 +517,20 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     }
   }
 
+  const backendCurrentnessValue = extractFieldValue("Evidence-only backend process currentness");
+  const backendCurrentnessClaimsNoBrowserRows =
+    /^none\b.+\bno browser\/manual\b/i.test(backendCurrentnessValue) ||
+    /^N\/A\b.+\bno browser\/manual evidence-only rows\b/i.test(backendCurrentnessValue);
+  if (browserManualEvidenceRows.length && backendCurrentnessClaimsNoBrowserRows) {
+    errors.push(
+      `browser/manual evidence-only row(s) ${browserManualEvidenceRows.join(", ")} cannot use Evidence-only backend process currentness ${backendCurrentnessValue}`
+    );
+  }
+  const backendCurrentnessError = validateBackendCurrentnessValue(backendCurrentnessValue);
+  if (backendCurrentnessError) {
+    errors.push(`Evidence-only backend process currentness ${backendCurrentnessError}`);
+  }
+
   const gateClaimsExistingTestsListed =
     /existing-test contract-change rows\s+(?!none\b)[^.;]+/i.test(gateLine);
   const gateClaimsExistingTestsNone =
@@ -505,7 +563,7 @@ export const validateTddCloseoutBody = (body, options = {}) => {
 
   if (hasReviewFixSignal && !hasReviewFixAddendum && !hasReviewFixEquivalent) {
     errors.push(
-      "review fix evidence must include TDD review-fix addendum or equivalent Finding/Intended red/Green/Updated row/Browser freshness fields"
+      "review fix evidence must include TDD review-fix addendum or equivalent Finding/Intended red/Green/Updated row/Browser freshness/Backend currentness fields"
     );
   }
 
@@ -514,6 +572,12 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     const browserFreshnessError = validateFreshnessValue(browserFreshnessValue);
     if (browserFreshnessError) {
       errors.push(`Browser/manual freshness ${browserFreshnessError}`);
+    }
+
+    const reviewBackendCurrentnessValue = extractFieldValue("Backend process currentness");
+    const reviewBackendCurrentnessError = validateBackendCurrentnessValue(reviewBackendCurrentnessValue);
+    if (reviewBackendCurrentnessError) {
+      errors.push(`Backend process currentness ${reviewBackendCurrentnessError}`);
     }
 
     const intendedRedValue = extractFieldValue("Intended red command/failure");

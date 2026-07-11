@@ -133,7 +133,7 @@ const checklistMissing = options.expectChecklist
       (item) =>
         !lines.some(
           (line) =>
-            line.includes(item) &&
+            line.toLowerCase().includes(item.toLowerCase()) &&
             (/N\/A - .+/.test(line) ||
               /(preamble|Problem Statement|Solution|User Stories|Implementation Decisions|Testing Decisions|Principles|Further Notes|covered|covers|home)/i.test(
                 line,

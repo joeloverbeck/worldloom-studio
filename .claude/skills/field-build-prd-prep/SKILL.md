@@ -92,7 +92,8 @@ Before final reporting:
 
 1. Run `node .claude/skills/field-build-prd-prep/scripts/validate-prd-prep.mjs <source-report> <prep-artifact>`. Fix structural errors and inspect every warning. The helper checks coverage and output shape only; it does not decide whether a finding's semantic classification or recommended scope is correct.
 2. Re-scan the prep artifact for accidental machine-local source leakage and stale publication phrasing. Inspect `/tmp`, `/home`, `should be checked`, `must be checked before publication`, `if the body passes`, and `TBD before publication` hits; keep only intentional durability warnings or open future decisions. The validator reports these hits, but this manual intent check remains required.
-3. Re-run `git status --short` and `git branch --show-current`.
-4. Verify the `.agents/skills/<skill-name>` mirror exists when the run edited this skill itself; otherwise normal PRD prep does not edit skill files.
+3. Record the validator summary and the completed manual-scan result in `Completion Self-Check` or `Freshness And Boundaries`. Use completed-state wording; do not leave a future-tense reminder to run either check.
+4. Re-run `git status --short` and `git branch --show-current`.
+5. Verify the `.agents/skills/<skill-name>` mirror exists when the run edited this skill itself; otherwise normal PRD prep does not edit skill files.
 
 Final reporting must state the source report, prep artifact path or recap-only result, selected first PRD, program, or no-new-PRD verdict, follow-ons, tracker freshness limitation if any, source/artifact durability posture, and files intentionally changed. Also state that no code, tracker, PRD publication, or `/to-prd` seam checkpoint happened unless the user explicitly requested and the run actually did it.

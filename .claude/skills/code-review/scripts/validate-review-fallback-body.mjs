@@ -8,7 +8,7 @@ const args = process.argv.slice(2);
 const file = args.find((arg) => !arg.startsWith("--"));
 const flags = new Set(args.filter((arg) => arg.startsWith("--")));
 
-const usage = `Usage: node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs <body.md> [--implement] [--child-family] [--immediate-fix] [--tdd] [--tdd-parent-rollup]`;
+const usage = `Usage: node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs <body.md> [--implement] [--child-family] [--immediate-fix] [--browser] [--tdd] [--tdd-parent-rollup]`;
 
 if (flags.has("--help")) {
   console.error(usage);
@@ -187,6 +187,25 @@ const validateConsoleStateValue = (value) => {
   return "must state clean console, classified unrelated output, clean-session rerun, blocked/unavailable reason, or N/A because no browser/manual evidence was used";
 };
 
+const validateBackendCurrentnessValue = (value) => {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) return "is empty";
+  if (/^<.*>$/.test(normalized)) return "is unresolved placeholder";
+  if (/^N\/A\b.+\bbecause\b.+\b(?:no browser\/manual evidence was used|browser proof has no backend\/API dependency)\b/i.test(normalized)) {
+    return "";
+  }
+  if (/\bblocked\b.+\b(?:because|reason|unable|cannot)\b/i.test(normalized)) return "";
+
+  const hasServerCommand = /\bserver command\b/i.test(normalized);
+  const hasWatchMode = /\bwatch(?:\/reload)? mode\b/i.test(normalized);
+  const hasOwnership = /\b(?:process(?: or port)?|port(?: or process)?) ownership\b/i.test(normalized);
+  const hasRestartOrReloadProof = /\b(?:restart|reload)(?:\/(?:restart|reload))? proof\b/i.test(normalized);
+  const hasExpectedApiProbe = /\bexpected API (?:field|behavior)(?: probe)?\b|\bAPI probe\b/i.test(normalized);
+  if (hasServerCommand && hasWatchMode && hasOwnership && hasRestartOrReloadProof && hasExpectedApiProbe) return "";
+
+  return "must state server command, watch/reload mode, process or port ownership, restart/reload proof, and expected API field/behavior probe, or a justified N/A/blocked reason";
+};
+
 const splitMarkdownTableRow = (row) => row.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
 
 const sourceEnumeratesAcceptanceItems = (source) =>
@@ -287,7 +306,43 @@ requireGateValue(
     ? "yes after structural check when TDD validation is requested"
     : "yes after structural check or N/A"
 );
-requireGateValue(gateFields, "verification/browser freshness", yesOrNA, "yes or N/A");
+requireGateValue(
+  gateFields,
+  "verification/browser freshness",
+  flags.has("--browser") ? yesOnly : yesOrNA,
+  flags.has("--browser") ? "yes when --browser is used" : "yes or N/A"
+);
+
+for (const token of ["Browser/manual evidence freshness", "Browser/manual console state", "Backend process currentness"]) {
+  requireText(token);
+}
+
+const freshnessValue = extractFieldValue("Browser/manual evidence freshness");
+const freshnessError = validateFreshnessValue(freshnessValue);
+if (freshnessError) {
+  errors.push(`Browser/manual evidence freshness ${freshnessError}`);
+}
+
+const consoleStateValue = extractFieldValue("Browser/manual console state");
+const consoleStateError = validateConsoleStateValue(consoleStateValue);
+if (consoleStateError) {
+  errors.push(`Browser/manual console state ${consoleStateError}`);
+}
+
+const backendCurrentnessValue = extractFieldValue("Backend process currentness");
+const backendCurrentnessError = validateBackendCurrentnessValue(backendCurrentnessValue);
+if (backendCurrentnessError) {
+  errors.push(`Backend process currentness ${backendCurrentnessError}`);
+}
+
+if (flags.has("--browser")) {
+  if (/^N\/A\b/i.test(freshnessValue) || /^N\/A\b/i.test(consoleStateValue)) {
+    errors.push("--browser requires current browser/manual freshness and console evidence, not N/A");
+  }
+  if (/^N\/A\b.+\bno browser\/manual evidence was used\b/i.test(backendCurrentnessValue)) {
+    errors.push("--browser requires backend currentness or N/A because the browser proof has no backend/API dependency");
+  }
+}
 
 if (shouldRequireImplementLine) {
   requireMatch(/^Review fallback:\s+\S.+$/m, "exact Review fallback closeout-ready line");
@@ -339,24 +394,10 @@ if (shouldRequireImmediateFix) {
     "TDD/review-fix evidence",
     "TDD closeout gate",
     "Verification rerun",
-    "Browser/manual evidence freshness",
-    "Browser/manual console state",
     "Commit handling",
     "Residual findings"
   ]) {
     requireText(token);
-  }
-
-  const freshnessValue = extractFieldValue("Browser/manual evidence freshness");
-  const freshnessError = validateFreshnessValue(freshnessValue);
-  if (freshnessError) {
-    errors.push(`Browser/manual evidence freshness ${freshnessError}`);
-  }
-
-  const consoleStateValue = extractFieldValue("Browser/manual console state");
-  const consoleStateError = validateConsoleStateValue(consoleStateValue);
-  if (consoleStateError) {
-    errors.push(`Browser/manual console state ${consoleStateError}`);
   }
 }
 

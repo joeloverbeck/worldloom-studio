@@ -4,7 +4,7 @@ Read this file in full during Step 3 of [`to-prd`](../SKILL.md) before validatin
 
 ## Staged-body validator
 
-For a staged body file, run the skill-local validator before `gh issue create`. Pass every cited durable local path with a repeated `--approved-source`; any extracted local or root authority path omitted from that allowlist fails validation. Pass every summarized, dirty, untracked, temp-only, or publication-ref-missing source with a repeated `--disallowed-source`. Add `--expect-checklist` whenever the browser-visible guidance checklist gate applies:
+For a staged body file, run the skill-local validator before `gh issue create`. Pass every cited durable local path with a repeated `--approved-source`; any extracted local or root authority path omitted from that allowlist fails validation. Pass every summarized, dirty, untracked, temp-only, publication-ref-missing, or publication-ref-content-different source with a repeated `--disallowed-source`. Add `--expect-checklist` whenever the browser-visible guidance checklist gate applies:
 
 ```sh
 BODY_FILE=path/to/prd-body.md
@@ -48,7 +48,7 @@ gh issue view <number> --json body --jq '.body' \
 
 Use the published validator output only when it matches the staged validator configuration and returns no failures. Rerun the [source-durability gate](source-durability.md#durability-gate) for every emitted `localSourcePaths` and `resolvedAdrPaths` entry; the helper does not replace Git durability proof.
 
-An unresolved or ambiguous ADR shorthand, unexpected local source, leaked disallowed source, dirty source, untracked source, or publication-ref-missing source is a verification failure. Repair the issue body or durability posture and rerun both the helper and the direct Git checks before final reporting.
+An unresolved or ambiguous ADR shorthand, unexpected local source, leaked disallowed source, dirty source, untracked source, publication-ref-missing source, or source whose consulted content differs from the publication ref is a verification failure. Repair the issue body or durability posture and rerun both the helper and the direct Git checks before final reporting.
 
 ## Interruption, recovery, and cleanup
 

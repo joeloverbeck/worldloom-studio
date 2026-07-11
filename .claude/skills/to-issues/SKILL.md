@@ -32,6 +32,8 @@ Use a compact unresolved-decision scan before classifying the source as AFK-read
 
 Also scan for decisions the source explicitly delegates to grooming, issue breakdown, or later implementer judgment — phrases such as "grooming decision", "leading candidate", "record shape", "TBD", or "open design question". Treat these as structural decisions owed by the breakdown unless the source or fresh comments already ratified them. Carry them into the Step 4 approval checkpoint; either ask the steward to ratify the decision as encoded in the slices, route the decision into a first spec/document blocker before code-bearing slices depend on it, or leave affected children `needs-triage`.
 
+Treat source assertions that an implementation mechanism already exists as testable premises, not implementation latitude. Extract material claims signaled by terms such as `existing`, `current`, `preserve`, `reuse`, or `unchanged`, then verify the named budget, policy, route, seam, or behavior against the live code and authoritative specs. Classify each claim as verified current, present-but-materially-different, or absent. Carry the latter two into the Step 4 checkpoint as structural decisions: propose the concrete interpretation for ratification, route it through a first spec/document blocker, or leave affected children `needs-triage`. Do not silently invent a missing mechanism or encode it as settled behavior.
+
 If the maintainer asks whether an existing issue or PRD should be split, treat that as an assessment request first. Fetch the source issue and comments, run the granularity check, and decide whether child issues would reduce implementation risk. If the right answer is **do not split** — because the work is already a single coherent document/process issue, narrow bug fix, or one complete vertical slice — report that rationale and stop before house-style lookup, quiz, or publication. Do not create a no-op child issue just to exercise this skill.
 
 ### 2. Explore the codebase (optional)
@@ -66,6 +68,8 @@ Before finalizing the breakdown, check whether the source plan cites local ADRs,
 
 Treat a source-plan note such as "temporary source summarized, not cited," "summarized rather than cited," "pending local repo publication," "pending authoring/publication," or equivalent wording as the same durability trigger even when the source omits an exact local path. If code-bearing slices depend on that summarized finding, create the document blocker first so the durable source or issue-linked summary exists before implementation depends on it. Before creating that blocker, verify the note's currency against the repo: such notes can go stale between the source's authoring and the breakdown. If the cited doctrine or artifact is now tracked and committed (for example, confirmed via git earlier in the session), record that verification in the Step 4 proposal and skip the blocker — a stale note does not owe a no-op issue.
 
+Durability requires content identity with the resolved publication ref, not merely a clean tracked path or a same-named file on that ref. For every exact cited path, run `git status --porcelain -- <path>`, `git ls-files --error-unmatch <path>`, `git ls-tree -r --name-only <publication-ref> -- <path>`, and `git diff --quiet <publication-ref> -- <path>` (or an equivalent blob-identity comparison), capturing the content comparison's exit status explicitly. A clean file from a local-only commit is pending publication when its content differs from the publication ref. Name the resolved ref and results in the Step 4 proposal. If a relied-on path is absent from that ref or its content differs, create the document blocker, move the necessary conclusion into a durable tracker note or sufficient parent summary, or stop before publishing dependent children.
+
 When the parent issue body itself contains the ratified conclusions from an otherwise untracked or temporary source at enough detail for child issues to cite the parent plus tracked docs, treat the parent as the durable issue-linked summary. In that case, do not create a separate "publish the temporary source" blocker just to duplicate the parent body; instead, surface the decision in the Step 4 approval checkpoint and include it in the optional parent ledger. Still create a document blocker when code-bearing slices depend on details absent from both the parent body and tracked repo docs, or when a downstream tracked spec/ledger must absorb the conclusion before implementation can safely proceed.
 
 Use this sufficiency test before skipping the blocker: every material child acceptance criterion must be traceable to the parent issue body, fresh parent comments, or tracked repo docs. If an implementation-critical detail exists only in untracked reports, local notes, chat, or temporary artifacts, create a document blocker or move the missing detail into a durable tracker note before publishing code-bearing children. Name the sufficiency decision in the Step 4 proposal and, when posted, the parent ledger.
@@ -78,7 +82,7 @@ The mirror hazard is durable doctrine the source plan *contradicts* rather than 
 
 When a slice's correctness hinges on a *derivation* a cited spec or ADR made — a choice it reached by analogy or judgment, not one the upstream authority dictates — confirm that derivation against the upstream named in the authority order before encoding it, and flag it to the steward as a judgment call. Affirming non-contradiction with the top of the authority order (the methodology package) is already owed, so a spec faithfully "respected" can still violate the higher authority if the spec itself drifted; if the derivation proves unsound, route the fix as a doctrine-correction (above) rather than propagating it into slices.
 
-Fetch one or two child issues of a prior breakdown from the tracker and match their house style — title pattern, body voice, section order, and acceptance-criteria conventions. Prefer a narrow lookup: query recent issue titles/numbers first, identify a prior PRD child set, then fetch one or two exact child issue bodies by default instead of pulling broad full-body lists. Usually stop at three exact child issue bodies; fetch one additional exact child body per materially distinct domain surface only when needed to cover both current house style and domain-specific precedent, and keep each read compact. The issue template below defines required sections, not a mandatory order; preserve fetched house-style section order unless repo docs explicitly require a different order.
+Fetch one or two child issues of a prior breakdown from the tracker and match their house style — title pattern, body voice, section order, and acceptance-criteria conventions. Prefer a narrow lookup: query recent issue titles/numbers first, identify a prior PRD child set, then fetch one or two exact child issue bodies by default instead of pulling broad full-body lists. Usually stop at three exact child issue bodies; fetch one additional exact child body per materially distinct domain surface only when needed to cover both current house style and domain-specific precedent, and keep each read compact. The approval-only publication protocol contains the required issue template; preserve fetched house-style section order unless repo docs explicitly require a different order.
 
 When the breakdown is likely to create multiple issues and Step 4 will offer a parent child-map ledger comment, also fetch or inspect one recent same-repo parent child-map comment before the approval checkpoint when available. Use it to learn the ledger heading/table style and whether the repo uses a stable disclaimer. If no parent-ledger precedent or disclaimer requirement is found, say that in the approval checkpoint rather than discovering it only during publication.
 
@@ -134,142 +138,20 @@ When the proposed breakdown is a single no-blocker issue, a compact approval que
 
 Iterate until the user approves the breakdown. If the environment provides a timed approval mechanism and the approval question times out with no response, weigh re-asking once before proceeding — especially right after a long context dump (the user may have been reading rather than away) or when publishing is consequential (creating several real issues at once). Only on a second timeout (the user is away) proceed with the proposed breakdown, state in the conversation that it was applied unapproved, and offer post-hoc adjustment (merge/split/re-wire, closing issues if needed) when the user returns. If no timed approval mechanism is available, ask a plain-text approval question and stop before publishing unless the user has explicitly pre-authorized publication; do not treat tool unavailability as a timeout.
 
-### 5. Publish the issues to the issue tracker
+### 5. Publish after approval
 
-For each approved slice, publish a new issue to the issue tracker. Use the issue body template below. Choose the triage label per slice before creation. Match the full label set of the fetched house-style child issues, including whether they carry a category label alongside the triage label; when house style omits a label that a sibling skill's hygiene rules expect (for example a category role), follow the house precedent and note the divergence in the final report so the maintainer can settle the doctrine once instead of every run re-deciding. A slice gets `ready-for-agent` only when it is fully specified for an AFK agent: its dependencies are explicit, no provisional/timed-out/unratified/open-to-veto decision remains, and any repo-specific implementability checklist passes. If any unresolved decision remains, or the slice cannot yet satisfy the repo's implementable-issue checklist, publish it with `needs-triage` instead and state in the final ledger why it is not AFK-ready.
+Do not stage issue bodies or mutate the tracker until Step 4 is approved or publication was explicitly pre-authorized.
 
-Before applying `ready-for-agent` or `ready-for-human` to any guided-flow, Prompt-out, Canon Workbench provenance, or browser workflow navigation issue, read the project's issue-tracker doc and apply its browser-visible guidance acceptance checklist. The child issue must include acceptance criteria for the applicable checklist items — package source, decision-point contract, required, optional, skippable, and severity-dependent fields, doctrine at point of use, prompt packet preview/source manifest/cold external LLM test when Prompt-out is in scope, advisory/canon separation when advisory material is in scope, skip path and reason storage, blockers/substance validation, current/next/resume state, read-side audit/provenance links for writes, and cognitive walkthrough when browser task grammar changes. If the checklist does not apply, note that during drafting; if it applies and is not satisfied, revise the issue before `ready-for-agent` publication or use `needs-triage`. Before applying `ready-for-agent`, self-check that each applicable checklist item above maps to at least one acceptance criterion in the slice; this is a manual check, since the compact verification query confirms section presence, not checklist-item coverage.
+After approval, read [`references/publication-protocol.md`](references/publication-protocol.md) completely before taking any publication action. That approval-only protocol is mandatory and contains the issue template, label and duplicate guards, final checklist run sheet, serial substitution and creation loop, status-preserving sweeps, validator commands, parent-ledger handling, live family verification, cleanup, and Final Response Blocker.
 
-Make that self-check visible before publication. For every affected `ready-for-agent` or `ready-for-human` issue, keep a mandatory local checklist run sheet before creation that marks each applicable checklist item as `covered by AC <n>` or `covered by "<short staged criterion excerpt>"`, or `N/A - <reason>`. Use a concrete table or equivalent row set shaped as `slice | checklist item | covered by final AC ordinal/excerpt | N/A reason`; do not rely on a single generic `Browser-visible guidance checklist mapped` acceptance criterion as the mapping. Do not publish the mapping as a required issue-body section unless house style already does; the point is to force a concrete coverage pass before the label is applied. In the final ledger or verification report, include `checklist mapped: yes` for each affected issue, or `checklist mapped: N/A - <reason>` for unaffected issues, so checklist coverage is not silently replaced by section/placeholder readback; that final `yes` is a summary of the concrete local mapping, not a substitute for it.
+Execution spine:
 
-Verify the chosen label exists before creating the first issue with that label (create it per the project's triage-label doc if absent; a verification earlier in the same session suffices). Prefer current same-repo issue metadata when it already shows the exact chosen label; record and reuse label proof already fetched during intake or house-style reads before calling `gh label list`. Use `gh label list` only when no current issue metadata has shown it or label creation may be needed. If label-listing is temporarily unavailable, exact label presence on an issue from the same repo is acceptable verification.
+1. Freeze the approved titles, dependencies, labels, ledger posture, and story/checklist mappings.
+2. Run exact-title duplicate guards, then stage bodies and the local checklist run sheet.
+3. Validate and sweep each body before its individual create call; substitute only real backward references.
+4. Publish in dependency order and verify each returned issue before continuing.
+5. Validate and post the approved parent ledger or apply its approved fallback.
+6. Run the live published-family verifier against the staged bodies and complete run sheet.
+7. Remove every temporary artifact, prove cleanup, inspect final worktree status, and report the verified family.
 
-Before staging or creating child issues, run an exact-title duplicate guard for every approved child title. Use tracker search only to collect candidates, then filter the returned JSON by exact `.title` equality:
-
-```sh
-TITLE='<child title>'
-gh issue list --state all --search "\"$TITLE\" in:title" --json number,title,state,url,labels --limit 10 \
-  | jq --arg title "$TITLE" '[.[] | select(.title == $title)]'
-```
-
-Zero exact matches permits creation. One exact match is existing work: stop and ask whether to reuse, link, or skip it unless the approval already explicitly allows duplicate issue creation. Multiple exact matches are ambiguous: stop and report them rather than choosing silently. Fuzzy or partial-title candidates are not duplicates. On resumed runs, use the same guard to avoid recreating children already published earlier in the run.
-
-Temporary issue-body files are acceptable as local transport for `gh issue create --body-file`; use the least-permission mechanism available to create and remove them. Prefer an outside-worktree path such as `/tmp/worldloom-issues-<parent-or-slug>-<slice>.md` when the active environment permits safe creation and cleanup. If shell writes or `rm` are constrained, or outside-worktree editing is awkward, use clearly temporary repo-local hidden files such as `reports/.tmp-<parent-or-slug>-issue-<n>.md`, create and delete them with the environment-approved edit mechanism, and verify cleanup with `test ! -e` plus the final `git status --short`. In Codex-style sessions, create and delete both outside-worktree (`/tmp/...`) and repo-local staged body/comment files with the environment-approved edit mechanism (`apply_patch` when available) rather than shell redirection, heredocs, or unapproved/destructive cleanup commands. The published issue body must not cite the staging path or any machine-local artifact. Before running the first `gh issue create`, sweep every staged body assembled from local notes or temp files for machine-local paths; when sweeping temp files, use a content-only check such as `rg --no-filename` so the temp file path itself is not reported as a false positive. For these negative `rg` sweeps, exit code `1` with no output is a clean no-hit result, exit code `0` means inspect the hits, and exit code greater than `1` is a command failure. Rerun the sweep after placeholder substitution or body edits. Treat leak and placeholder sweeps as hard serial gates: do not run `gh issue create` in the same parallel batch as those checks; create only after the relevant sweeps complete cleanly.
-
-Mandatory final checklist run sheet for affected ready-labelled issues:
-
-```markdown
-| Slice | Checklist item | Covered by final AC ordinal/excerpt | N/A reason |
-|---|---|---|---|
-| <slice title> | package source cited | AC <n> or "<short staged criterion excerpt>" | - |
-| <slice title> | decision-point contract named | AC <n> or "<short staged criterion excerpt>" | - |
-| <slice title> | required, optional, skippable, and severity-dependent fields visible where relevant | AC <n> or "<short staged criterion excerpt>" | N/A - <reason> |
-| <slice title> | doctrine at the actual decision point | AC <n> or "<short staged criterion excerpt>" | - |
-| <slice title> | prompt packet preview, source manifest, and cold external LLM test | AC <n> or "<short staged criterion excerpt>" | N/A - <reason when not in scope> |
-| <slice title> | advisory/canon separation visible | AC <n> or "<short staged criterion excerpt>" | N/A - <reason when not in scope> |
-| <slice title> | skip path and reason storage | AC <n> or "<short staged criterion excerpt>" | N/A - <reason when not in scope> |
-| <slice title> | blockers/substance validation | AC <n> or "<short staged criterion excerpt>" | - |
-| <slice title> | current, next, and resume state | AC <n> or "<short staged criterion excerpt>" | - |
-| <slice title> | read-side audit or provenance link | AC <n> or "<short staged criterion excerpt>" | N/A - <reason when no write/provenance surface exists> |
-| <slice title> | cognitive walkthrough scenario | AC <n> or "<short staged criterion excerpt>" | N/A - <reason when browser task grammar is unaffected> |
-```
-
-Repeat all eleven canonical rows for every affected slice. For an unaffected slice, use one row whose checklist item is `browser-visible guidance checklist` and whose reason is `N/A - <specific reason>`. Publishing with `ready-for-agent` or `ready-for-human` is blocked until every affected slice has exactly these eleven items with no missing, duplicate, or unexpected rows; every applicable item has a final AC ordinal or quoted excerpt; every AC ordinal exists in the staged body; and every inapplicable item has a specific `N/A - <reason>`. A generic body criterion such as `Browser-visible guidance checklist mapped` may summarize the result, but it never substitutes for this concrete row-by-row mapping.
-
-Publication safety gates before every `gh issue create`:
-
-1. Sweep the staged body for machine-local paths and run-specific placeholder tokens.
-2. For any `ready-for-agent` / `ready-for-human` issue subject to the browser-visible guidance checklist, rerun the final checklist mapping against the staged acceptance criteria and record each applicable item as `covered by AC <n>`, `covered by "<short staged criterion excerpt>"`, or `N/A - <reason>` in the mandatory local checklist run sheet. Treat a generic checklist-summary acceptance criterion as insufficient unless each applicable checklist item also maps to a specific staged criterion or explicit N/A reason.
-3. For any staged body that names a same-run child issue number, run a prose sanity pass against the approved dependency plan and the issue's current state. Check relationship and tense words such as `blocked by`, `depends on`, `sibling`, `consumes`, `closed`, `completed`, `implemented`, `open`, and `ready`; fix wording like "closed #<new child>" when the child was only just created or is a non-blocking sibling.
-4. Confirm the sweep returns zero actionable hits, any required final checklist mapping is clean, and any same-run reference wording matches the approved dependency plan. If the mapping or relationship wording does not cleanly land, revise the body or publish with a non-ready label before creating the issue.
-5. Only then create the issue.
-
-A skill-local validator makes the staged child, ledger, and checklist gates reproducible. It prints JSON and exits nonzero when a required check fails. In child mode, repeat `--blocker` for every expected backward reference, or use `--expect-no-blocker`; add `--expect-stories`, `--expect-checklist-na`, and `--expect-ac-count` when those contracts apply:
-
-```sh
-BODY_FILE=path/to/staged-body.md
-node .claude/skills/to-issues/scripts/validate-publication.mjs child "$BODY_FILE" \
-  --parent "PRD #<parent>" \
-  --blocker "#<blocker-1>" \
-  --blocker "#<blocker-2>" \
-  --expect-stories \
-  --expect-ac-count <count>
-```
-
-Validate a parent ledger with every expected child reference:
-
-```sh
-LEDGER_FILE=path/to/staged-ledger.md
-node .claude/skills/to-issues/scripts/validate-publication.mjs ledger "$LEDGER_FILE" \
-  --child "#<child-1>" \
-  --child "#<child-2>"
-```
-
-Validate the mandatory checklist run sheet against each affected staged body. The label before `=` must exactly match the run sheet's `Slice` cell. Use `--unaffected-slice "<slice title>"` instead for a slice whose single row records a specific checklist N/A reason:
-
-```sh
-RUN_SHEET=path/to/run-sheet.md
-node .claude/skills/to-issues/scripts/validate-publication.mjs run-sheet "$RUN_SHEET" \
-  --slice-body "<slice title>=path/to/staged-body.md"
-```
-
-The helper checks artifact shape, machine-local paths, patch markers, unresolved placeholders, exact blocker references, optional story/checklist/no-blocker requirements, exact checklist row coverage, and AC-reference bounds. It does not replace the gate-3 prose sanity pass for relationship and tense words, the separate tracker readbacks, or direct temporary-file cleanup proof.
-
-Do not batch the sweep/checklist mapping/same-run reference sanity checks and create commands in the same parallel tool call. When a substitution changes the body, rerun the gates before creating the next dependent issue.
-
-For multi-issue publications, an optional run sheet can keep the serial gates legible. When any child is subject to the browser-visible guidance checklist and will be published `ready-for-agent` or `ready-for-human`, the checklist portion of the run sheet is mandatory even if the rest remains optional. Keep it local-only and advisory; it is not a required output. Useful columns: `slice`, `body file`, `placeholder tokens`, `final checklist mapping`, `checklist item`, `covered by final AC ordinal/excerpt`, `N/A reason`, `same-run reference sanity`, `blocked by`, `created issue`, `sweep ok`, `verify ok`, and `substituted into`.
-
-Publish issues in dependency order (blockers first) so you can reference real issue identifiers in the "Blocked by" field. The paved path is placeholder substitution: write bodies with placeholder tokens for backward references, chain creation to stop on first failure, substitute each real returned number into dependent bodies before creating them, and verify the published references afterward. An equivalent serial path is to create a blocker issue first, then draft each dependent body only after the real blocker number exists; still run the same leak and placeholder sweeps before each create. After each substitution, sweep staged bodies for the exact placeholder tokens used in that run and run the same-run reference sanity pass for any newly inserted issue numbers; after publication, verify the published body has the expected real blocker and no leftover placeholder token. Batch publishing with predicted identifiers is a fallback, acceptable only when references point strictly backward, creation is chained to stop on first failure, and each returned number is verified against its prediction — correct via issue edits on any mismatch; otherwise create one at a time. Forward references — a handoff naming the later slice that closes it — are written by slice *title*, never identifier: titles are stable within the breakdown and need no post-publication edits; identifiers are reserved for backward references like "Blocked by".
-
-After publishing, verify every created issue with `gh issue view`: confirm title, body, triage label, state, parent reference, and blocker references. If verification finds a defect, fix it with the issue tracker edit command and re-verify the corrected issue before final reporting. Before final reporting, produce a compact ledger mapping each approved slice number/title to the created issue number and URL, and confirm the created count equals the approved count. The final ledger or summary should include, per created issue, the issue URL, label/state proof, parent and blocker check, placeholder/path sweep result, and `checklist mapped: yes` or `checklist mapped: N/A - <reason>`. Optionally post that ledger as a comment on the parent issue — starting with the tracker's AI disclaimer where the repo requires one — so the parent carries a consolidated child map; a comment does not violate the parent guardrail below. Use the repo's established disclaimer string verbatim even if its wording names a different activity (for example triage) — string stability beats wording accuracy; note the mismatch to the maintainer once if it hasn't been settled. If tracker docs are silent on disclaimer requirements, use the parent-ledger/comment precedent fetched before the approval checkpoint or state that no disclaimer requirement was found; do not invent a disclaimer. Include in the ledger comment a line or two for any quiz-ratified structural decisions — dependency shape, placement judgment calls, verified-stale durability notes — so the parent carries the rationale, not just the map. When the source had numbered or temporary user-story coverage and house style kept the mapping out of child bodies, include an optional compact story-coverage section or table in the parent ledger so the approved mapping remains durable. If the optional parent ledger comment was not posted, say so in the final report.
-
-Before posting any parent ledger/comment body assembled from local notes or temporary files, run the same publication safety gate used for issue bodies: sweep the staged comment body for machine-local paths and run-specific placeholder tokens, run the same-run reference sanity pass when it names child issue numbers from this publication, confirm zero actionable hits and clean relationship wording, and only then run `gh issue comment`. Parent ledgers may use `gh issue comment <parent> --body-file <file>` after that gate. Use a content-only sweep for temp files so the staging path itself is not reported as a false positive. If placeholder substitution changes the comment body, rerun the sweep and same-run reference sanity pass before posting.
-
-If the parent ledger is declined after ratifying structural, durability, coordination, dependency, or story-coverage decisions, use the fallback approved in Step 4 or the Step 4 partial-response default before publishing: either include a concise `## Breakdown decisions` note in the first relevant child issue body, or leave the rationale out of the tracker and state that choice in the final report. Do not silently drop a durability or coordination rationale that future implementers need to understand the dependency shape.
-
-Remove any temporary issue-body or ledger/comment body files you created with the same environment-approved edit/removal mechanism used to create them, run `git status --short`, and include only remaining pre-existing or intentional dirty files in the final report. For OS-temp body files outside the repository, verify cleanup with file checks such as `test ! -e <path>` or an equivalent existence check; do not path-scope `git status --short` to those temp files, because Git treats paths outside the repo as invalid. Run that final `git status --short` from the repository root (or with `git -C <repo-root>`): temp cleanup typically leaves the shell cwd outside the repo, where the bare command fails with "not a git repository".
-
-Final Response Blocker: before sending the final answer after publication, check the final ledger against the verified tracker readbacks. Do not summarize publication as complete unless the final answer includes: the approved-created count match; one row or compact bullet per created issue with issue URL, state/label proof, parent check, blocker or no-blocker check, placeholder/path sweep result, and `checklist mapped: yes` or `checklist mapped: N/A - <reason>`; parent ledger posted/skipped with the reason; temp-file cleanup result; and final `git status --short` with unrelated or intentional dirty files called out. Make the ledger decision explicit as a final-report line, for example `Parent ledger: posted/skipped - reason: <approved structural/durability/story-coverage rationale, tracker/house-style constraint, or explicit decline>`. If interrupted, resumed, or compacted after publication begins and before final reporting, rerun any Final Response Blocker checks whose outputs are not present in current context before reporting completion. If a parent ledger comment carries these details, the final answer may link it, but still include enough per-issue proof for the user to see the tracker verification without opening GitHub.
-
-For compact child-issue verification, prefer a query shaped like this, adjusting `hasParent` to the fetched house-style parent token (for example `#<parent>` or `PRD #<parent>`), adjusting `hasBlocker` for the expected blocker reference or replacing it with a no-blocker check, adjusting `hasNoPlaceholders` to the placeholder tokens used during staging, checking `hasStoryCoverage` when the source had numbered stories and the fetched house-style bodies carry the coverage section, and adding one boolean per expected non-triage label from house style (for example `hasEnhancement`) — drop `hasStoryCoverage` when house style omits that section:
-
-For issues with multiple blockers, add one boolean per expected blocker reference (for example `hasBlocker166`, `hasBlocker167`, `hasBlocker168`) and keep the placeholder-leak check. Do not collapse several blockers into one broad contains check unless the expected references are still individually visible in the final report.
-
-```sh
-gh issue view <number> --json number,title,body,labels,state,url --jq '{number,title,state,url,labels:[.labels[].name],isOpen:(.state == "OPEN"),hasReady:(any(.labels[].name; . == "ready-for-agent")),hasNeedsTriage:(any(.labels[].name; . == "needs-triage")),hasCategoryLabel:(any(.labels[].name; . == "<category-label>")),hasParent:(.body | contains("PRD #<parent>")),hasWhat:(.body | contains("## What to build")),hasStoryCoverage:(.body | contains("## User stories covered")),hasAcceptance:(.body | contains("## Acceptance criteria")),hasPrinciples:(.body | contains("## Principles")),hasBlocker:(.body | contains("#<blocker>")),hasNoPlaceholders:((.body | test("#SLICE|PLACEHOLDER")) | not),hasNoTmp:((.body | contains("/tmp")) | not),hasNoHome:((.body | contains("/home/")) | not)}'
-```
-
-<issue-template>
-## Parent
-
-A reference to the parent issue on the issue tracker (if the source was an existing issue, otherwise omit this section).
-
-## What to build
-
-A concise description of this vertical slice. Describe the end-to-end behavior, not layer-by-layer implementation.
-
-Avoid specific file paths or code snippets — they go stale fast. Citations of principle, ADR, and spec documents are exempt — they are stable identifiers and are themselves the conformance mechanism. Exception: if a prototype produced a snippet that encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it here and note briefly that it came from a prototype. Trim to the decision-rich parts — not a working demo, just the important bits.
-
-## User stories covered
-
-When the source had numbered or temporary user-story references, preserve the approved coverage mapping for this slice. If the source had no user stories, omit this section. If the source has user stories but the fetched house-style children omit this section, follow house style: omit it from the bodies and keep the approved coverage mapping in the Step 4 proposal only — the "match house style" directive outranks this template default, and `hasStoryCoverage` is dropped from the verification query for that run.
-
-## Acceptance criteria
-
-- [ ] Criterion 1
-- [ ] Criterion 2
-- [ ] Criterion 3
-
-## Blocked by
-
-- A reference to the blocking ticket (if any)
-
-Or "None - can start immediately" if no blockers.
-
-## Principles
-
-The conformance-rule section this repo requires of every implementable issue (`docs/principles/README.md`): name the principle documents and ADRs this slice touches, affirm non-contradiction with them, and flag any deliberate exception to the steward before implementation.
-
-</issue-template>
-
-Do NOT close or modify any parent issue (labels, body, or state). Posting the optional ledger comment on the parent is permitted — a comment is an addition, not a modification.
+Completion criterion: the approved-created count matches; every child and blocker is live-verified; checklist, ledger, placeholder/path, and cleanup gates pass; and the final response contains the proof required by the publication protocol.

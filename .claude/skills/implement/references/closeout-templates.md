@@ -32,22 +32,26 @@ Rows accounted for: <issue numbers / N/A because no tdd skill was invoked>
 Pre-red recovery status: <N/A - pre-red preflight/table was visible before first red / listed with TDD recovery addendum / N/A because no red commands were run / N/A because no tdd skill was invoked / blocked because ...>
 CONTEXT.md status: <present/absent/N/A>
 ADRs/principles/docs status: <present/N/A>
+Acceptance atom map: <all rows list exact criterion plus authoritative atoms and proof surfaces / all criteria atomic and rows list proof surfaces / blocked because ... / N/A because no tdd skill was invoked>
 Partial-red / red-first skip reasons: <none/listed>
 Evidence-only rows freshness: <none/listed with freshness reason>
 Evidence-only browser console state: <none / listed with 0 errors and 0 warnings, classified unrelated output with evidence, rerun clean session because HMR, reused session, or agent-induced setup/request error tainted proof, or N/A because no browser/manual evidence-only rows>
+Evidence-only backend process currentness: <server command and watch/reload mode; process or port ownership; restart/reload proof; expected API field/behavior probe / N/A because browser proof has no backend/API dependency / N/A because no browser/manual evidence-only rows / N/A because no tdd skill was invoked / blocked because ...>
 Existing-test contract-change rows: <none/listed expectation-rewrite rows>
 
 | Issue | CONTEXT.md status | ADRs/principles/docs status | Seam | Red command/failure | Green command or evidence | Acceptance covered | Review fix / red-first skip reason |
 |---|---|---|---|---|---|---|---|
-| #N | <present/absent/N/A> | <present/N/A> | <seam or evidence-only row> | <red command/failure or N/A because ...> | <green command or evidence> | <acceptance criteria covered> | <N/A / review-fix red-first skip reason> |
+| #N | <present/absent/N/A> | <present/N/A> | <seam or evidence-only row> | <red command/failure or N/A because ...> | <green command or evidence> | <exact criterion or checkbox; atoms: authoritative atoms or atomic; proof surfaces: surface for each atom> | <N/A / review-fix red-first skip reason> |
 
 For an existing-test contract-change row, use validator-exact wording:
 
-| #N | <present/absent/N/A> | <present/N/A> | existing contract-change expectation | existing contract-change expectation in `<test file>` because <old expected behavior no longer satisfied the issue/spec contract> | `<green command>` passed | <acceptance criteria covered> | N/A |
+| #N | <present/absent/N/A> | <present/N/A> | existing contract-change expectation | existing contract-change expectation in `<test file>` because <old expected behavior no longer satisfied the issue/spec contract> | `<green command>` passed | <exact criterion authorizing the rewrite; atoms: authoritative atoms or atomic; proof surfaces: affected surface for each atom> | N/A |
 
 TDD evidence gate passed: durable sink <inspected body file path before tracker URL exists / comment URL>; compact table/header <present after structural check>; seams accounted for <all listed / exceptions named>; CONTEXT.md status <present/absent/N/A>; ADRs/principles/docs status <present/N/A>; partial-red / red-first skip reasons <none/listed>; evidence-only rows <none/listed>; existing-test contract-change rows <none/listed expectation-rewrite rows>.
 Review evidence:
 - Review: <code-review fixed point/outcome/verification rerun; for accepted residuals use `Review: code-review against <fixed point>; outcome accepted residuals recorded <count/source/rationale>; unhandled findings none beyond accepted residuals; verification rerun <commands>.`>
+- Review subagents: <Standards and Spec reviewer IDs plus terminal initial/final statuses / N/A because local fallback was used>
+- Review subagent cleanup: <Standards <closed / close operation unavailable after terminal completion / auto-disposed after terminal completion>; Spec <same> / N/A because local fallback was used>
 - Review fallback: <fallback line, or N/A because code-review ran normally>
 - Normal review findings fixed: N/A because review had no findings / findings found <count and source>; fixes made <files/SHA>; final Standards re-review <outcome>; final Spec re-review <outcome>; verification rerun <commands>
 - Normal review accepted residuals: N/A because none / <axis, finding source, rationale, and why closeout is allowed>; unhandled findings <none/listed>
@@ -58,6 +62,7 @@ Principles/ADR conformance: <no deliberate exceptions / approved exception / N/A
 Browser evidence:
 - Route/action/outcome: <route and observed result / N/A because exact issue/PRD says browser/manual proof is N/A and browser contract/routes/rendered behavior/validation response/fixtures/action path are unchanged / N/A because ... / blocked because ...>
 - Console state: <0 errors and 0 warnings / classified unrelated output with evidence / rerun clean session because HMR, reused session, or agent-induced setup/request error tainted proof / N/A because browser evidence is N/A or blocked>
+- Backend process currentness: <server command and watch/reload mode; process or port ownership; restart/reload proof; expected API field/behavior probe / N/A because browser proof has no backend/API dependency / N/A because no browser/manual evidence was used / blocked because ...>
 - Final freshness delta: files touched since the last browser/manual smoke after final commit and verification edits <paths or none>; affects UI/routes/browser-consumed API/fixtures/action path <yes/no per path/group and why>; smoke freshness <rerun / not affected because changed path <path or group> leaves the evidence route/action/API/fixture <route/action/API/fixture> untouched and targeted proof <command> passed / blocked because ...>
 Fixed child inline close comment: <exact final text inspected / stable self-referential parent rollup wording inspected / local pending-parent template inspected and later patched / N/A>
 Fixed child final inline close comment inspected: <exact `Completed by <sha>. Evidence: <parent rollup comment URL>` line after parent URL captured / N/A before parent URL exists or non-fixed-template closeout>
@@ -113,7 +118,7 @@ sed -n '81,160p' "$body"
 sed -n '161,240p' "$body"
 # Run the applicable validator commands before posting; omit commands whose evidence type is N/A and drop only flags whose conditions do not apply.
 node .claude/skills/tdd/scripts/validate-tdd-closeout-body.mjs "$body" --parent-rollup
-node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs "$body" --implement --child-family --tdd-parent-rollup
+node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs "$body" --implement --child-family --browser --tdd-parent-rollup
 node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body" --closing --principles --local-only --fixed-child-pending --review-fallback
 rg -n "<[^>\n]{1,120}>" "$body"
 rg -n "Closeout gate passed: audit sink|Closeout body check passed|Final SHA:|Verification:|Review:|Review fallback:|TDD evidence gate passed|Principles/ADR conformance:|Local-only SHA:" "$body"
