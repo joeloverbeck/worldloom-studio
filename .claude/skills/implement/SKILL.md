@@ -10,6 +10,8 @@ Implement the work described by the user in the PRD or issues.
 
 Load the phase-specific reference before acting in that phase:
 
+Read each selected reference independently through EOF before acting on it. If a reference is long, read it in bounded, contiguous chunks and confirm that the final chunk reaches EOF. A truncated combined read, summary, grep hit, or partial excerpt does not count as reading the selected reference.
+
 - Read [references/scope-ledger.md](references/scope-ledger.md) before the first edit whenever work is based on a PRD, issue, issue range, or related tracker family.
 - Read [references/implementation-evidence.md](references/implementation-evidence.md) while working issue-by-issue, before writing tests, before browser/manual proof, and before staging an implementation commit.
 - Read [references/review-evidence.md](references/review-evidence.md) once implementation is ready for review, before pushing or closing issues, and after any review-fix commit or amend.
@@ -76,9 +78,10 @@ Before declaring completion, closing issues, or closing a parent PRD, read [refe
 Tracker mutation is blocked until all of these are true:
 
 - A pre-close audit exists in an allowed durable sink with exact `Acceptance criterion or conformance check` and `Status` columns.
-- Every acceptance checkbox or conformance check is named explicitly, and every row for the issue being closed is `satisfied`.
+- Every acceptance checkbox or conformance check is named explicitly, every row for the issue being closed is `satisfied`, and each satisfied row's Evidence cell contains `atoms:`, `proof surfaces:`, and `sequence:` (use a justified `sequence: N/A because ...` for criteria that are not sequence-sensitive).
+- For issue-family closeout, a manifest generated from saved exact issue JSON has been checked with `--acceptance-manifest`, so every acceptance criterion and Principles check has exactly one audit row.
 - The final SHA is known, matches the tree that passed verification, and is either remote-reachable or covered by the full `Local-only SHA:` sentence.
-- Verification evidence, TDD evidence or explicit N/A, review evidence, Principles/ADR conformance or explicit N/A, and browser evidence/freshness or explicit N/A/blocked are present.
+- Verification evidence, TDD evidence or explicit N/A, review evidence, Principles/ADR conformance or explicit N/A, browser evidence/freshness or explicit N/A/blocked, and a post-review evidence-identity refresh with a superseded-token sweep are present.
 - Applicable closeout validators have run against the exact inspected body when available, and visual inspection still confirms grouped criteria and literal statuses.
 - For parent PRD closure, related child states have been verified by exact issue number.
 

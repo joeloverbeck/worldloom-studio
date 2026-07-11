@@ -4,22 +4,15 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { validateTddCloseoutBody } from "../../tdd/scripts/validate-tdd-closeout-body.mjs";
+import {
+  fieldValue,
+  unresolvedValue,
+  validateReviewEvidenceIdentities,
+  validateReviewSpecCoverage
+} from "./review-evidence-contract.mjs";
 
 const usage =
-  "Usage: node .claude/skills/code-review/scripts/validate-review-normal-body.mjs <body.md> [--immediate-fix] [--parent-prd] [--browser] [--tdd] [--tdd-parent-rollup]";
-
-const fieldPattern = (label) => {
-  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`^\\s*[-*]?\\s*(?:\\*\\*)?${escaped}(?:\\*\\*)?:\\s*(.+)$`, "im");
-};
-
-const fieldValue = (text, label) => text.match(fieldPattern(label))?.[1]?.trim() ?? "";
-
-const unresolvedValue = (value) =>
-  !value ||
-  /^<.*>$/.test(value) ||
-  /\b(?:TBD|TODO|pending|unknown)\b/i.test(value) ||
-  /<[^>]+>/.test(value);
+  "Usage: node .claude/skills/code-review/scripts/validate-review-normal-body.mjs <body.md> [--immediate-fix] [--parent-prd] [--child-family] [--acceptance-manifest <path>] [--browser] [--tdd] [--tdd-parent-rollup]";
 
 const validateRevisitTrigger = (value) => {
   if (unresolvedValue(value)) return "is empty or unresolved";
@@ -205,7 +198,7 @@ export const validateReviewNormalBody = (body, options = {}) => {
     errors.push("normal review body contains fallback evidence or labeling");
   }
 
-  const immediateFix = flags.has("--immediate-fix") || fieldPattern("Findings found").test(body);
+  const immediateFix = flags.has("--immediate-fix") || Boolean(fieldValue(body, "Findings found"));
   validateSubagentStatuses(requireField("Review subagents"), errors, { requireFinal: immediateFix });
   validateSubagentCleanup(requireField("Review subagent cleanup"), errors);
   const axisSummary = requireField("Axis summary");
@@ -219,6 +212,12 @@ export const validateReviewNormalBody = (body, options = {}) => {
     errors.push("Residual findings must be none or fully recorded as accepted residuals");
   }
   validateAcceptedResiduals(body, errors);
+  validateReviewSpecCoverage(body, errors, {
+    requireChildFamily: flags.has("--child-family"),
+    requireParentPrd: flags.has("--parent-prd"),
+    acceptanceManifest: options.acceptanceManifest
+  });
+  validateReviewEvidenceIdentities(body, errors);
 
   if (flags.has("--parent-prd")) {
     const parentCoverage = requireField("Parent PRD coverage");
@@ -291,7 +290,10 @@ const isCli = process.argv[1] && import.meta.url === pathToFileURL(resolve(proce
 
 if (isCli) {
   const args = process.argv.slice(2);
-  const file = args.find((arg) => !arg.startsWith("--"));
+  const manifestIndex = args.indexOf("--acceptance-manifest");
+  const manifestPath = manifestIndex < 0 ? undefined : args[manifestIndex + 1];
+  const valueIndexes = new Set(manifestIndex < 0 ? [] : [manifestIndex + 1]);
+  const file = args.find((arg, index) => !arg.startsWith("--") && !valueIndexes.has(index));
   const flags = args.filter((arg) => arg.startsWith("--"));
 
   if (flags.includes("--help")) {
@@ -303,7 +305,21 @@ if (isCli) {
     process.exit(2);
   }
 
-  const errors = validateReviewNormalBody(readFileSync(file, "utf8"), { flags });
+  let acceptanceManifest;
+  if (manifestIndex >= 0 && (!manifestPath || manifestPath.startsWith("--"))) {
+    console.error("--acceptance-manifest requires a path");
+    process.exit(2);
+  }
+  if (manifestPath) {
+    try {
+      acceptanceManifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+    } catch (error) {
+      console.error(`Acceptance manifest read failed: ${error.message}`);
+      process.exit(1);
+    }
+  }
+
+  const errors = validateReviewNormalBody(readFileSync(file, "utf8"), { flags, acceptanceManifest });
   if (errors.length) {
     console.error(`Normal review body validation failed for ${file}:`);
     for (const error of errors) console.error(`- ${error}`);

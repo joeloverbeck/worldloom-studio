@@ -9,11 +9,20 @@ Large tracker body workflow: for long parent rollups or child-family audits, com
 
 For large bodies in constrained editors or Codex sessions, build the `/tmp` file in bounded sections. After construction, verify the file exists and has the expected rough shape with `test -f "$body"`, `wc -l "$body"`, targeted `sed -n` ranges, a placeholder sweep for unresolved angle-token placeholders such as `<context>` or `<parent-rollup-url pending>`, and the applicable validators before any tracker mutation. Run the bounded excerpts, token sweeps, and each validator as separate output-bounded calls; do not aggregate them into one parallel or combined result whose total output can truncate. If creation output, inspection output, or context compaction makes completeness uncertain, treat the body as untrusted: first rerun `test -f`, `wc -l`, targeted excerpts for the header, TDD/review/browser sections, audit table, and closeout gate lines, then rerun the placeholder sweep and every applicable validator before posting or closing. Passing validators do not restore trust in truncated inspection output.
 
+For issue-family closeout, save the exact `gh issue view --json number,title,body` results as one JSON object, an array, or an object with an `issues` array. Build a deterministic acceptance manifest and audit scaffold before drafting the durable body:
+
+```bash
+node .claude/skills/implement/scripts/build-acceptance-manifest.mjs /tmp/worldloom-issues.json --output /tmp/worldloom-acceptance-manifest.json --audit-output /tmp/worldloom-acceptance-audit.md
+node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body" --closing --acceptance-manifest /tmp/worldloom-acceptance-manifest.json
+```
+
+The scaffold assigns `AC1`, `AC2`, and so on in source order and adds one `Principles` check when the issue has a `## Principles` section. Preserve each generated ID and exact criterion text in the criterion cell. The manifest validator requires exactly one audit row for each generated check; it supplements, rather than replaces, exact body inspection.
+
 Long parent rollup or child-family audit bodies must include this table shape, either inline or by linking an already-posted durable audit sink:
 
 | Issue | Acceptance criterion or conformance check | Evidence | Status |
 |---|---|---|---|
-| #N | ... | commit/tests/browser route/store seam/etc. | satisfied / blocked / not done |
+| #N | AC1 - exact criterion | atoms: authoritative atoms; proof surfaces: surface for each atom; sequence: ordered proof / N/A because criterion is not sequence-sensitive | satisfied / blocked / not done |
 
 For parent PRD rollups, including a single child plus parent PRD closeout, 4+ child issues, and small child families that choose a parent rollup as the durable sink, start from this body shape unless the issue set needs a richer audit:
 
@@ -33,37 +42,56 @@ Pre-red recovery status: <N/A - pre-red preflight/table was visible before first
 CONTEXT.md status: <present/absent/N/A>
 ADRs/principles/docs status: <present/N/A>
 Acceptance atom map: <all rows list exact criterion plus authoritative atoms and proof surfaces / all criteria atomic and rows list proof surfaces / blocked because ... / N/A because no tdd skill was invoked>
+Acceptance sequence map: <all rows list ordered proof or justified sequence N/A / blocked because ... / N/A because no tdd skill was invoked>
 Partial-red / red-first skip reasons: <none/listed>
 Evidence-only rows freshness: <none/listed with freshness reason>
 Evidence-only browser console state: <none / listed with 0 errors and 0 warnings, classified unrelated output with evidence, rerun clean session because HMR, reused session, or agent-induced setup/request error tainted proof, or N/A because no browser/manual evidence-only rows>
 Evidence-only backend process currentness: <server command and watch/reload mode; process or port ownership; restart/reload proof; expected API field/behavior probe / N/A because browser proof has no backend/API dependency / N/A because no browser/manual evidence-only rows / N/A because no tdd skill was invoked / blocked because ...>
+Evidence identity refresh: <same-sink current/historical-red/superseded identity block below inspected / N/A because no tdd skill was invoked / blocked because ...>
 Existing-test contract-change rows: <none/listed expectation-rewrite rows>
 
 | Issue | CONTEXT.md status | ADRs/principles/docs status | Seam | Red command/failure | Green command or evidence | Acceptance covered | Review fix / red-first skip reason |
 |---|---|---|---|---|---|---|---|
-| #N | <present/absent/N/A> | <present/N/A> | <seam or evidence-only row> | <red command/failure or N/A because ...> | <green command or evidence> | <exact criterion or checkbox; atoms: authoritative atoms or atomic; proof surfaces: surface for each atom> | <N/A / review-fix red-first skip reason> |
+| #N | <present/absent/N/A> | <present/N/A> | <seam or evidence-only row> | <red command/failure or N/A because ...> | <green command or evidence> | <exact criterion or checkbox; atoms: authoritative atoms or atomic; proof surfaces: surface for each atom; sequence: ordered proof / N/A because criterion is not sequence-sensitive> | <N/A / review-fix red-first skip reason> |
 
 For an existing-test contract-change row, use validator-exact wording:
 
-| #N | <present/absent/N/A> | <present/N/A> | existing contract-change expectation | existing contract-change expectation in `<test file>` because <old expected behavior no longer satisfied the issue/spec contract> | `<green command>` passed | <exact criterion authorizing the rewrite; atoms: authoritative atoms or atomic; proof surfaces: affected surface for each atom> | N/A |
+| #N | <present/absent/N/A> | <present/N/A> | existing contract-change expectation | existing contract-change expectation in `<test file>` because <old expected behavior no longer satisfied the issue/spec contract> | `<green command>` passed | <exact criterion authorizing the rewrite; atoms: authoritative atoms or atomic; proof surfaces: affected surface for each atom; sequence: ordered proof / N/A because criterion is not sequence-sensitive> | N/A |
 
-TDD evidence gate passed: durable sink <inspected body file path before tracker URL exists / comment URL>; compact table/header <present after structural check>; seams accounted for <all listed / exceptions named>; CONTEXT.md status <present/absent/N/A>; ADRs/principles/docs status <present/N/A>; partial-red / red-first skip reasons <none/listed>; evidence-only rows <none/listed>; existing-test contract-change rows <none/listed expectation-rewrite rows>.
+TDD evidence gate passed: durable sink <inspected body file path before tracker URL exists / comment URL>; compact table/header <present after structural check>; seams accounted for <all listed / exceptions named>; CONTEXT.md status <present/absent/N/A>; ADRs/principles/docs status <present/N/A>; sequence evidence <present/N/A>; evidence identities <present/N/A>; partial-red / red-first skip reasons <none/listed>; evidence-only rows <none/listed>; existing-test contract-change rows <none/listed expectation-rewrite rows>.
 Review evidence:
-- Review: <code-review fixed point/outcome/verification rerun; for accepted residuals use `Review: code-review against <fixed point>; outcome accepted residuals recorded <count/source/rationale>; unhandled findings none beyond accepted residuals; verification rerun <commands>.`>
-- Review subagents: <Standards and Spec reviewer IDs plus terminal initial/final statuses / N/A because local fallback was used>
-- Review subagent cleanup: <Standards <closed / close operation unavailable after terminal completion / auto-disposed after terminal completion>; Spec <same> / N/A because local fallback was used>
-- Review fallback: <fallback line, or N/A because code-review ran normally>
-- Normal review findings fixed: N/A because review had no findings / findings found <count and source>; fixes made <files/SHA>; final Standards re-review <outcome>; final Spec re-review <outcome>; verification rerun <commands>
-- Normal review accepted residuals: N/A because none / <axis, finding source, rationale, and why closeout is allowed>; unhandled findings <none/listed>
-- Full review fallback block: <embedded below or linked adjacent durable sink; N/A because code-review ran normally>
-- Review fallback child coverage exactness: when the embedded fallback block includes `| Issue | Acceptance source | Evidence reviewed | Findings/residuals |` and a row has zero residual findings, every row including parent PRD rows must enumerate exact AC/list items or cite exact audit table rows in this same durable sink; example parent row: `| #PARENT | exact acceptance audit table rows below for #PARENT PRD solution, implementation decisions, testing decisions, principles, and child map | <diff/tests/docs reviewed> | none |`
-- TDD closeout gate: <copy the code-review fallback block's TDD closeout gate field when both TDD and local review fallback were used, including the full TDD evidence gate reference; N/A because no tdd skill was invoked or code-review ran normally>
+- Review: code-review against <fixed point>; outcome <no findings / findings fixed / accepted residuals recorded count/source/rationale with unhandled findings none beyond accepted residuals>; verification rerun <commands>.
+- Review subagents: Standards <reviewer ID and terminal status>; Spec <reviewer ID and terminal status>
+- Review subagent cleanup: Standards <closed / close operation unavailable after terminal completion / auto-disposed after terminal completion>; Spec <same>
+
+## Standards
+
+Sources reviewed: <exact standards sources>
+Findings: <none / exact findings>
+
+## Spec
+
+Sources reviewed: <exact issue/PRD/acceptance sources>
+Findings: <none / exact findings>
+
+| Issue | Acceptance source | Evidence reviewed | Findings/residuals |
+|---|---|---|---|
+| #N | <issue #N AC1, AC2, Principles; sequence: ordered events plus observing proof / N/A because these criteria are not sequence-sensitive> | <diff/tests/docs reviewed> | <none / finding> |
+
+Axis summary: Standards <count/worst>, Spec <count/worst>
+Residual findings: <none / accepted residual records below>
+Parent PRD coverage: <exact parent PRD rows/checks covered by the review>
 Principles/ADR conformance: <no deliberate exceptions / approved exception / N/A>
 Browser evidence:
 - Route/action/outcome: <route and observed result / N/A because exact issue/PRD says browser/manual proof is N/A and browser contract/routes/rendered behavior/validation response/fixtures/action path are unchanged / N/A because ... / blocked because ...>
 - Console state: <0 errors and 0 warnings / classified unrelated output with evidence / rerun clean session because HMR, reused session, or agent-induced setup/request error tainted proof / N/A because browser evidence is N/A or blocked>
 - Backend process currentness: <server command and watch/reload mode; process or port ownership; restart/reload proof; expected API field/behavior probe / N/A because browser proof has no backend/API dependency / N/A because no browser/manual evidence was used / blocked because ...>
 - Final freshness delta: files touched since the last browser/manual smoke after final commit and verification edits <paths or none>; affects UI/routes/browser-consumed API/fixtures/action path <yes/no per path/group and why>; smoke freshness <rerun / not affected because changed path <path or group> leaves the evidence route/action/API/fixture <route/action/API/fixture> untouched and targeted proof <command> passed / blocked because ...>
+Evidence identity refresh:
+- Current evidence identities: fixture paths <paths/none>; browser sessions <names/none>; packet paths/hashes <paths and hashes/none>; active revisions <IDs/none>; artifacts <paths/IDs/none>
+- Historical red identities retained: <fixture paths ...; browser sessions ...; packet paths/hashes ...; active revisions ...; artifacts ... / none>
+- Superseded evidence identities: fixture paths <paths/none>; browser sessions <names/none>; packet paths/hashes <paths and hashes/none>; active revisions <IDs/none>; artifacts <paths/IDs/none>
+- Superseded-token sweep: <command and no-hit result / N/A because every superseded category is none>
 Fixed child inline close comment: <exact final text inspected / stable self-referential parent rollup wording inspected / local pending-parent template inspected and later patched / N/A>
 Fixed child final inline close comment inspected: <exact `Completed by <sha>. Evidence: <parent rollup comment URL>` line after parent URL captured / N/A before parent URL exists or non-fixed-template closeout>
 Child state snapshot before child closeout: <exact issue numbers and states before closing children / N/A>
@@ -71,7 +99,7 @@ Post-child closure verification before parent closeout: <exact issue numbers and
 
 | Issue | Acceptance criterion or conformance check | Evidence | Status |
 |---|---|---|---|
-| #N | ... | commit/tests/browser route/store seam/etc. | satisfied / blocked / not done |
+| #N | AC1 - exact criterion | atoms: authoritative atoms; proof surfaces: surface for each atom; sequence: ordered proof / N/A because criterion is not sequence-sensitive | satisfied / blocked / not done |
 
 Closeout preflight:
 - Audit sink: <conversation/comment URL/issue reference/body file inspected>
@@ -85,6 +113,7 @@ Closeout preflight:
 - Local-only SHA: <full explanatory sentence present/N/A>
 - TDD evidence: <present/N/A because no tdd skill was invoked>
 - Review evidence: <Review:/Review fallback: line or reference>
+- Evidence identity refresh: <current/superseded category inventory and superseded-token sweep present>
 - Browser console state: <0 errors and 0 warnings / classified unrelated output with evidence / rerun clean session because HMR, reused session, or agent-induced setup/request error tainted proof / N/A because browser evidence is N/A or blocked>
 - Browser evidence freshness: <files touched since smoke; affects UI/routes/browser-consumed API/fixtures/action path yes/no and why; rerun / not affected because changed path <path or group> leaves the evidence route/action/API/fixture <route/action/API/fixture> untouched and targeted proof <command> passed / blocked because ...>
 - Final post-commit freshness delta: <files touched since last browser/manual proof after final commit and verification edits; rerun / not affected because changed path <path or group> leaves the evidence route/action/API/fixture <route/action/API/fixture> untouched and targeted proof <command> passed / blocked because ...>
@@ -92,8 +121,12 @@ Closeout preflight:
 
 Closeout gate passed: audit sink <conversation/comment URL/issue reference/inspected body file path before parent URL exists>; review evidence <line/reference>; TDD evidence <present/N/A>; final SHA <sha>; Principles/ADR conformance <present/N/A>; Local-only SHA sentence <full explanatory sentence present/N/A>; child states verified <yes/N/A>; browser evidence <present/N/A/blocked>.
 
-Closeout body check passed: audit table columns exact; every acceptance checkbox or conformance check named; every status literal satisfied/blocked/not done; final SHA present; verification evidence present; TDD evidence present or N/A; review evidence present; Principles/ADR conformance string present or N/A; full Local-only SHA explanatory sentence present or N/A; browser evidence present/N/A/blocked; browser console state recorded when browser evidence is present or N/A/blocked; final browser/manual freshness delta present/N/A; exact fixed child inline comment inspected <yes/N/A>.
+Closeout body check passed: audit table columns exact; every acceptance checkbox or conformance check named; every satisfied Evidence cell contains atoms/proof surfaces/sequence; every status literal satisfied/blocked/not done; final SHA present; verification evidence present; TDD evidence present or N/A; review evidence present; evidence identity refresh and superseded-token sweep present; Principles/ADR conformance string present or N/A; full Local-only SHA explanatory sentence present or N/A; browser evidence present/N/A/blocked; browser console state recorded when browser evidence is present or N/A/blocked; final browser/manual freshness delta present/N/A; exact fixed child inline comment inspected <yes/N/A>.
 ```
+
+The review portion above is the normal `code-review` path. A normal body must include `## Standards`, `## Spec`, and the full shared `Evidence identity refresh:` block, and must not contain `Review fallback:` or `Review fallback gate passed:` anywhere. Use `Historical red identities retained: none` when no red proof ran. For child issue families, give every zero-residual coverage row exact acceptance items plus `sequence:` ordered proof or a justified N/A, then run the normal validator with `--child-family`. When normal review findings were fixed, add the exact immediate-fix fields required by the normal-review validator: `Initial Standards outcome:`, `Initial Spec outcome:`, `Final Standards outcome:`, `Final Spec outcome:`, `Findings found:`, `Fixes made:`, `TDD/review-fix evidence:`, `TDD closeout gate:`, `Verification rerun:`, `Browser/manual evidence freshness:`, `Browser/manual console state:`, `Evidence identity refresh:`, and `Commit handling:`. Ensure the `Review:` line says `outcome findings fixed` and that `Review subagents:` names terminal final Standards and Spec reviewers.
+
+For local fallback, replace the entire normal review portion with the full fallback block from [review-evidence.md](review-evidence.md); do not combine the two routes. The fallback body uses `Review fallback:`, the fallback `## Standards`/`## Spec` block, and the fallback validator.
 
 After the parent rollup URL is captured and before the first fixed-template child close command, inspect the exact final inline child comment with the real URL. Paste or echo this exact string in the conversation or durable audit sink:
 
@@ -118,11 +151,14 @@ sed -n '81,160p' "$body"
 sed -n '161,240p' "$body"
 # Run the applicable validator commands before posting; omit commands whose evidence type is N/A and drop only flags whose conditions do not apply.
 node .claude/skills/tdd/scripts/validate-tdd-closeout-body.mjs "$body" --parent-rollup
-node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs "$body" --implement --child-family --browser --tdd-parent-rollup
-node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body" --closing --principles --local-only --fixed-child-pending --review-fallback
+# Normal child-family review path; drop only inapplicable --immediate-fix/--parent-prd/--child-family/--browser/--tdd-parent-rollup flags.
+node .claude/skills/code-review/scripts/validate-review-normal-body.mjs "$body" --parent-prd --child-family --acceptance-manifest /tmp/worldloom-acceptance-manifest.json --browser --tdd-parent-rollup
+# Local fallback path; run this commented command instead of the normal-review validator, then add --review-fallback to the implement validator.
+# node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs "$body" --implement --child-family --acceptance-manifest /tmp/worldloom-acceptance-manifest.json --browser --tdd-parent-rollup
+node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body" --closing --principles --local-only --fixed-child-pending --acceptance-manifest /tmp/worldloom-acceptance-manifest.json
 rg -n "<[^>\n]{1,120}>" "$body"
-rg -n "Closeout gate passed: audit sink|Closeout body check passed|Final SHA:|Verification:|Review:|Review fallback:|TDD evidence gate passed|Principles/ADR conformance:|Local-only SHA:" "$body"
-rg -n "Acceptance criterion or conformance check|Status|satisfied|blocked|not done" "$body"
+rg -n "Closeout gate passed: audit sink|Closeout body check passed|Final SHA:|Verification:|Review:|Review fallback:|TDD evidence gate passed|Principles/ADR conformance:|Local-only SHA:|Evidence identity refresh|Current evidence identities|Superseded evidence identities|Superseded-token sweep" "$body"
+rg -n "Acceptance criterion or conformance check|Status|satisfied|blocked|not done|atoms:|proof surfaces:|sequence:" "$body"
 rg -n "browser smoke|browser evidence|Console state|Browser console state|Final freshness delta|Fixed child inline close comment|Fixed child final inline close comment inspected" "$body"
 # If any inspection output is truncated, treat it as not inspected. Split the check into bounded token sweeps and short table/status excerpts before posting or closing.
 comment_url="$(gh issue comment <issue> --body-file "$body")"
@@ -162,7 +198,7 @@ Implementation state:
 Satisfied evidence:
 | Issue | Acceptance criterion or conformance check | Evidence | Status |
 |---|---|---|---|
-| #N | <criterion exactly named> | <tests/browser/report/readback> | satisfied |
+| #N | <criterion exactly named> | atoms: <authoritative atoms>; proof surfaces: <tests/browser/report/readback>; sequence: <ordered proof / N/A because criterion is not sequence-sensitive> | satisfied |
 
 Blocked or not-done criteria:
 | Issue | Acceptance criterion or conformance check | Missing proof or blocker | Next action | Status |
@@ -174,6 +210,9 @@ Commit/SHA decision:
 
 Review evidence:
 - <Review:/Review fallback: line, or N/A because tracker closeout is blocked before review>
+
+Evidence identity refresh:
+- <current/superseded category inventory and superseded-token sweep present / N/A because closeout is blocked before review>
 
 Next session priority:
 1. <exact proof or implementation step needed>
@@ -199,6 +238,7 @@ Closeout preflight:
 - Local-only SHA: <full explanatory sentence present/N/A>
 - TDD evidence: <present/N/A because no tdd skill was invoked>
 - Review evidence: <Review:/Review fallback: line or reference>
+- Evidence identity refresh: <current/superseded category inventory and superseded-token sweep present>
 - Browser console state: <0 errors and 0 warnings / classified unrelated output with evidence / rerun clean session because HMR, reused session, or agent-induced setup/request error tainted proof / N/A because browser evidence is N/A or blocked>
 - Browser evidence freshness: <files touched since smoke; affects UI/routes/browser-consumed API/fixtures/action path yes/no and why; rerun / N/A because ... / not affected because changed path <path or group> leaves the evidence route/action/API/fixture <route/action/API/fixture> untouched and targeted proof <command> passed / blocked because ...>
 - Final post-commit freshness delta: <files touched since last browser/manual proof after final commit and verification edits; rerun / not affected because changed path <path or group> leaves the evidence route/action/API/fixture <route/action/API/fixture> untouched and targeted proof <command> passed / blocked because ...>

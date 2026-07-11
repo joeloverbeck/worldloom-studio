@@ -38,6 +38,21 @@ render(<OrderSummary initialResponse={response} />);
 
 An unavoidable type escape hatch must be local, explain why the public type cannot be used, and pair the cast with an explicit assertion or parser result that proves the full boundary contract. A broad `as any` around the fixture or rendered prop is not contract evidence.
 
+**Schema-valid persisted fixtures**: A fixture written through a repository, temporary database, world/store API, or runtime parser must satisfy that public setup contract before it can support a behavior red. Prefer the public typed builder or parser, include every runtime-required field even when a TypeScript input type marks it optional, and run the smallest setup-only probe when the fixture is complex enough that setup failure could mask the intended assertion. If setup fails, record `partial red - wrong reason: fixture/setup failed because ...`, repair only the fixture, and rerun the behavior assertion red before changing production code.
+
+```typescript
+const record = world.createRecord({
+  recordTypeKey: "canon_fact",
+  title: "Accepted calendar",
+  body: "The calendar follows the oath cycle.",
+  truthLayer: "Objective canon",
+  canonStatus: "accepted"
+});
+
+expect(record.shortId).toMatch(/^FAC-/); // setup contract reached
+expect(selectPressureContext(world, record.id)).toContainEqual(expectedContext); // intended behavior red
+```
+
 **Static contract checks**: Use these only when the spec names a source-level contract, such as a required route string or a forbidden legacy import. Pair them with public-interface coverage when behavior is user-visible. Do not use source-file string checks merely to prove browser-visible UI text, controls, or flow behavior; use a public UI/rendered DOM test or evidence-only browser smoke unless the spec names the source contract.
 
 ```typescript

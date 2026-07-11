@@ -21,6 +21,8 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     "seams accounted for",
     "CONTEXT.md status",
     "ADRs/principles/docs status",
+    "sequence evidence",
+    "evidence identities",
     "partial-red / red-first skip reasons",
     "evidence-only rows",
     "existing-test contract-change rows"
@@ -34,7 +36,8 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     "Green command or evidence",
     "Acceptance covered",
     "atoms:",
-    "proof surfaces:"
+    "proof surfaces:",
+    "sequence:"
   ];
   const reviewFixEquivalentLabels = [
     "Finding:",
@@ -42,7 +45,8 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     "Green command/evidence:",
     "Updated TDD table row:",
     "Browser/manual freshness:",
-    "Backend process currentness:"
+    "Backend process currentness:",
+    "Evidence identity refresh:"
   ];
   const requiredPreflightLabels = [
     "TDD closeout preflight:",
@@ -53,9 +57,15 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     "CONTEXT.md status:",
     "ADRs/principles/docs status:",
     "Acceptance atom map:",
+    "Acceptance sequence map:",
     "Partial-red / red-first skip reasons:",
     "Evidence-only rows freshness:",
     "Evidence-only backend process currentness:",
+    "Evidence identity refresh:",
+    "Current evidence identities:",
+    "Historical red identities retained:",
+    "Superseded evidence identities:",
+    "Superseded-token sweep:",
     "Existing-test contract-change rows:"
   ];
 
@@ -213,6 +223,16 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     return "must state that all rows list authoritative atoms and proof surfaces, that all criteria are atomic with proof surfaces listed, or blocked because";
   };
 
+  const validateAcceptanceSequenceMapValue = (value) => {
+    const normalized = value.replace(/\s+/g, " ").trim();
+    if (!normalized) return "is empty";
+    if (/^<.*>$/.test(normalized)) return "is unresolved placeholder";
+    if (/\bblocked\b.+\b(because|reason|unable|cannot)\b/i.test(normalized)) return "";
+    if (/\ball rows?\b.+\b(sequence|ordered proof|sequence N\/A)\b/i.test(normalized)) return "";
+    if (/\ball criteria\b.+\bnot sequence-sensitive\b/i.test(normalized)) return "";
+    return "must state that all rows list ordered proof or justified sequence N/A, that all criteria are not sequence-sensitive, or blocked because";
+  };
+
   const validateBackendCurrentnessValue = (value) => {
     const normalized = value.replace(/\s+/g, " ").trim();
     if (!normalized) return "is empty";
@@ -358,6 +378,68 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     errors.push(`Acceptance atom map ${acceptanceAtomMapError}`);
   }
 
+  const acceptanceSequenceMapValue = extractFieldValue("Acceptance sequence map");
+  const acceptanceSequenceMapError = validateAcceptanceSequenceMapValue(acceptanceSequenceMapValue);
+  if (acceptanceSequenceMapError) {
+    errors.push(`Acceptance sequence map ${acceptanceSequenceMapError}`);
+  }
+
+  const identityRefreshValue = extractFieldValue("Evidence identity refresh");
+  if (
+    !identityRefreshValue ||
+    /^<.*>$/.test(identityRefreshValue) ||
+    /\b(?:TODO|TBD|pending|unknown)\b/i.test(identityRefreshValue)
+  ) {
+    errors.push("Evidence identity refresh is empty or unresolved");
+  }
+
+  const currentIdentities = extractFieldValue("Current evidence identities");
+  const historicalRedIdentities = extractFieldValue("Historical red identities retained");
+  const supersededIdentities = extractFieldValue("Superseded evidence identities");
+  const supersededSweep = extractFieldValue("Superseded-token sweep");
+  const identityCategories = [
+    /fixture paths\s+[^;\s][^;]*(?:;|$)/i,
+    /browser sessions\s+[^;\s][^;]*(?:;|$)/i,
+    /packet paths\/hashes\s+[^;\s][^;]*(?:;|$)/i,
+    /active revisions\s+[^;\s][^;]*(?:;|$)/i,
+    /artifacts\s+[^;\s][^;]*(?:;|$)/i
+  ];
+  for (const [label, value] of [
+    ["Current evidence identities", currentIdentities],
+    ["Superseded evidence identities", supersededIdentities]
+  ]) {
+    if (identityCategories.some((pattern) => !pattern.test(value))) {
+      errors.push(`${label} must list fixture paths, browser sessions, packet paths/hashes, active revisions, and artifacts`);
+    }
+  }
+  if (
+    !historicalRedIdentities ||
+    !supersededSweep ||
+    /\b(?:TODO|TBD|pending|unknown)\b|<[^>]+>/i.test(
+      `${currentIdentities} ${historicalRedIdentities} ${supersededIdentities} ${supersededSweep}`
+    )
+  ) {
+    errors.push("evidence identity fields are empty or unresolved");
+  }
+  const allSupersededCategoriesNone = [
+    /fixture paths\s+none(?:;|$)/i,
+    /browser sessions\s+none(?:;|$)/i,
+    /packet paths\/hashes\s+none(?:;|$)/i,
+    /active revisions\s+none(?:;|$)/i,
+    /artifacts\s+none(?:;|$)/i
+  ].every((pattern) => pattern.test(supersededIdentities));
+  if (
+    !allSupersededCategoriesNone &&
+    !/\b(?:no active-proof hits?|zero active-proof matches|0 active-proof matches|absent from active proof)\b/i.test(
+      supersededSweep
+    )
+  ) {
+    errors.push("Superseded-token sweep must report no active-proof hits for listed superseded identities");
+  }
+  if (allSupersededCategoriesNone && /^N\/A\b/i.test(supersededSweep) && !/because/i.test(supersededSweep)) {
+    errors.push("Superseded-token sweep N/A must include 'because'");
+  }
+
   if (body.includes("Pre-red recovery status:")) {
     const preRedRecoveryStatusValue = extractFieldValue("Pre-red recovery status");
     const preRedRecoveryStatusError = validatePreRedRecoveryStatusValue(preRedRecoveryStatusValue);
@@ -450,10 +532,26 @@ export const validateTddCloseoutBody = (body, options = {}) => {
         `compact TDD row ${lineNumber} does not cite an exact AC/US, quoted criterion, or named checkbox in Acceptance covered`
       );
     }
-    if (!/\batoms?\s*:/i.test(acceptanceCell) || !/\bproof surfaces?\s*:/i.test(acceptanceCell)) {
+    if (
+      !/\batoms?\s*:/i.test(acceptanceCell) ||
+      !/\bproof surfaces?\s*:/i.test(acceptanceCell) ||
+      !/\bsequence\s*:/i.test(acceptanceCell)
+    ) {
       errors.push(
-        `compact TDD row ${lineNumber} Acceptance covered must include atoms: and proof surfaces: for the exact criterion`
+        `compact TDD row ${lineNumber} Acceptance covered must include atoms:, proof surfaces:, and sequence: for the exact criterion`
       );
+    }
+    if (/\b(?:TODO|TBD|pending|unknown)\b/i.test(acceptanceCell)) {
+      errors.push(`compact TDD row ${lineNumber} Acceptance covered contains an unresolved value`);
+    }
+    for (const label of ["atoms", "proof surfaces", "sequence"]) {
+      const emptyLabel = new RegExp(`${label}:\\s*(?:;|$)`, "i");
+      if (emptyLabel.test(acceptanceCell)) {
+        errors.push(`compact TDD row ${lineNumber} Acceptance covered has an empty ${label}: value`);
+      }
+    }
+    if (/\bsequence\s*:\s*N\/A\s*(?:;|$)/i.test(acceptanceCell)) {
+      errors.push(`compact TDD row ${lineNumber} sequence N/A must include 'because'`);
     }
     const claimsCoverageOnlyExistingBehavior = /\bcoverage-only existing behavior\b/i.test(rowText);
     if (claimsCoverageOnlyExistingBehavior && !hasConcreteGreenEvidence(greenCell)) {

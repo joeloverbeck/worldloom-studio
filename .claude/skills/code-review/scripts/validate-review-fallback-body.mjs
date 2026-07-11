@@ -3,12 +3,19 @@
 import { readFileSync } from "node:fs";
 import { validateTddCloseoutBody } from "../../tdd/scripts/validate-tdd-closeout-body.mjs";
 import { validateAcceptedResiduals } from "./validate-review-normal-body.mjs";
+import {
+  validateReviewEvidenceIdentities,
+  validateReviewSpecCoverage
+} from "./review-evidence-contract.mjs";
 
 const args = process.argv.slice(2);
-const file = args.find((arg) => !arg.startsWith("--"));
+const manifestIndex = args.indexOf("--acceptance-manifest");
+const manifestPath = manifestIndex < 0 ? undefined : args[manifestIndex + 1];
+const valueIndexes = new Set(manifestIndex < 0 ? [] : [manifestIndex + 1]);
+const file = args.find((arg, index) => !arg.startsWith("--") && !valueIndexes.has(index));
 const flags = new Set(args.filter((arg) => arg.startsWith("--")));
 
-const usage = `Usage: node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs <body.md> [--implement] [--child-family] [--immediate-fix] [--browser] [--tdd] [--tdd-parent-rollup]`;
+const usage = `Usage: node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs <body.md> [--implement] [--child-family] [--acceptance-manifest <path>] [--immediate-fix] [--browser] [--tdd] [--tdd-parent-rollup]`;
 
 if (flags.has("--help")) {
   console.error(usage);
@@ -22,6 +29,16 @@ if (!file) {
 
 const body = readFileSync(file, "utf8");
 const errors = [];
+let acceptanceManifest;
+if (manifestIndex >= 0 && (!manifestPath || manifestPath.startsWith("--"))) {
+  errors.push("--acceptance-manifest requires a path");
+} else if (manifestPath) {
+  try {
+    acceptanceManifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  } catch (error) {
+    errors.push(`acceptance manifest read failed: ${error.message}`);
+  }
+}
 
 const requireText = (needle, label = needle) => {
   if (!body.includes(needle)) errors.push(`missing ${label}`);
@@ -42,6 +59,7 @@ const gateLabels = [
   "Spec",
   "child table",
   "smell baseline",
+  "evidence identities",
   "found-vs-residual",
   "closeout line",
   "immediate-fix block",
@@ -206,33 +224,6 @@ const validateBackendCurrentnessValue = (value) => {
   return "must state server command, watch/reload mode, process or port ownership, restart/reload proof, and expected API field/behavior probe, or a justified N/A/blocked reason";
 };
 
-const splitMarkdownTableRow = (row) => row.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
-
-const sourceEnumeratesAcceptanceItems = (source) =>
-  /\b(?:AC|A)\s*#?\d+\b/i.test(source) ||
-  /\b(?:acceptance item|acceptance criterion|criterion|criteria|checkbox|checklist item|user story|story)\s*#?\d+\b/i.test(source);
-
-const sourceCitesExactAcceptanceRows = (source) =>
-  /\b(?:exact\s+)?(?:acceptance|criterion|checkbox|audit|closeout)\s+(?:table|rows?)\b/i.test(source) &&
-  /\b(?:row|rows?|range|below|above|adjacent|#\d+)\b/i.test(source);
-
-const cellClaimsNoResidualFindings = (cell) =>
-  /\b(?:no findings|none|no residuals?|residuals?\s+none|0 residuals?)\b/i.test(cell);
-
-const findRowsAfterTableHeader = (header) => {
-  const lines = body.split(/\r?\n/);
-  const headerIndex = lines.findIndex((line) => line.trim() === header);
-  if (headerIndex === -1) return [];
-
-  const rows = [];
-  for (const line of lines.slice(headerIndex + 2)) {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith("|")) break;
-    rows.push(trimmed);
-  }
-  return rows;
-};
-
 requireText("Review frame:");
 requireText("fixed point resolved SHA");
 requireText("reviewed HEAD SHA");
@@ -249,6 +240,7 @@ requireText("## Spec");
 requireText("Findings:");
 requireMatch(/Axis summary:\s*Standards\s+.+?,\s*Spec\s+.+/i, "axis summary");
 validateAcceptedResiduals(body, errors);
+validateReviewEvidenceIdentities(body, errors);
 
 const fixedPointSha = extractLooseValue("fixed point resolved SHA").match(/\b[0-9a-f]{7,40}\b/i)?.[0] || "";
 const diffCommandValue = extractLooseValue("diff command");
@@ -285,6 +277,7 @@ requireGateValue(
   flags.has("--child-family") ? "yes when --child-family is used" : "yes or N/A"
 );
 requireGateValue(gateFields, "smell baseline", yesOnly, "yes");
+requireGateValue(gateFields, "evidence identities", yesOnly, "yes");
 requireGateValue(gateFields, "found-vs-residual", yesOrNA, "yes or N/A");
 requireGateValue(
   gateFields,
@@ -349,43 +342,10 @@ if (shouldRequireImplementLine) {
   forbidMatch(/^\s*-?\s*Review:\s+.*\bfallback\b/im, "fallback review evidence labeled Review: instead of Review fallback:");
 }
 
-if (shouldRequireChildFamily) {
-  const childTableHeader = "| Issue | Acceptance source | Evidence reviewed | Findings/residuals |";
-  requireText(childTableHeader, "PRD child coverage table header");
-  requireText("|---|---|---|---|", "PRD child coverage table separator");
-
-  const childRows = findRowsAfterTableHeader(childTableHeader);
-  const childIssueRows = childRows.filter((row) => {
-    const cells = splitMarkdownTableRow(row);
-    return cells.length >= 4 && /^#\d+\b/.test(cells[0]);
-  });
-
-  if (!childIssueRows.length) {
-    errors.push("PRD child coverage table has no issue rows");
-  }
-
-  const rowsByIssue = new Map();
-  for (const row of childIssueRows) {
-    const [issue] = splitMarkdownTableRow(row);
-    rowsByIssue.set(issue, (rowsByIssue.get(issue) ?? 0) + 1);
-  }
-
-  for (const row of childIssueRows) {
-    const cells = splitMarkdownTableRow(row);
-    const [issue, acceptanceSource, , findingsCell] = cells;
-    const isSplitAcrossRows = (rowsByIssue.get(issue) ?? 0) > 1;
-    if (
-      cellClaimsNoResidualFindings(findingsCell ?? "") &&
-      !isSplitAcrossRows &&
-      !sourceEnumeratesAcceptanceItems(acceptanceSource ?? "") &&
-      !sourceCitesExactAcceptanceRows(acceptanceSource ?? "")
-    ) {
-      errors.push(
-        `PRD child coverage row ${issue} acceptance source is too broad for zero residual Spec findings; enumerate exact acceptance items or cite adjacent exact acceptance table rows: ${acceptanceSource}`
-      );
-    }
-  }
-}
+validateReviewSpecCoverage(body, errors, {
+  requireChildFamily: shouldRequireChildFamily,
+  acceptanceManifest
+});
 
 if (shouldRequireImmediateFix) {
   for (const token of [

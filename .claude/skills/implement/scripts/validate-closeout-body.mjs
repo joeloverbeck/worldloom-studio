@@ -3,10 +3,14 @@
 import { readFileSync } from "node:fs";
 
 const args = process.argv.slice(2);
-const file = args.find((arg) => !arg.startsWith("--"));
+const acceptanceManifestFlag = args.indexOf("--acceptance-manifest");
+const acceptanceManifestPath = acceptanceManifestFlag >= 0 ? args[acceptanceManifestFlag + 1] : undefined;
+const file = args.find(
+  (arg, index) => !arg.startsWith("--") && index !== acceptanceManifestFlag + 1
+);
 const flags = new Set(args.filter((arg) => arg.startsWith("--")));
 
-const usage = `Usage: node .claude/skills/implement/scripts/validate-closeout-body.mjs <body.md> [--closing] [--principles] [--local-only] [--fixed-child | --fixed-child-pending] [--review-fallback]`;
+const usage = `Usage: node .claude/skills/implement/scripts/validate-closeout-body.mjs <body.md> [--closing] [--principles] [--local-only] [--fixed-child | --fixed-child-pending] [--review-fallback] [--acceptance-manifest <manifest.json>]`;
 
 if (flags.has("--help")) {
   console.error(usage);
@@ -14,6 +18,12 @@ if (flags.has("--help")) {
 }
 
 if (!file) {
+  console.error(usage);
+  process.exit(2);
+}
+
+if (acceptanceManifestFlag >= 0 && (!acceptanceManifestPath || acceptanceManifestPath.startsWith("--"))) {
+  console.error("--acceptance-manifest requires a manifest path");
   console.error(usage);
   process.exit(2);
 }
@@ -68,6 +78,39 @@ requireMatch(/Review:|Review fallback:/, "review evidence");
 requireMatch(/Browser evidence:|browser evidence|browser smoke/i, "browser evidence or N/A");
 requireMatch(/Console state:|Browser console state:|browser console state recorded/i, "browser console state or N/A");
 requireMatch(/Final freshness delta|Browser\/manual evidence freshness|final browser\/manual freshness/i, "final browser/manual freshness");
+requireText("Evidence identity refresh:");
+requireMatch(
+  /^\s*[-*]?\s*Current evidence identities:\s+.*fixture paths.+browser sessions.+packet paths\/hashes.+active revisions.+artifacts/im,
+  "current evidence identity categories"
+);
+requireMatch(
+  /^\s*[-*]?\s*Superseded evidence identities:\s+.*fixture paths.+browser sessions.+packet paths\/hashes.+active revisions.+artifacts/im,
+  "superseded evidence identity categories"
+);
+requireMatch(/^\s*[-*]?\s*Superseded-token sweep:\s+\S.+$/im, "superseded-token sweep result");
+const currentIdentities = body.match(
+  /^\s*[-*]?\s*Current evidence identities:\s+(.+)$/im
+)?.[1] ?? "";
+const supersededIdentities = body.match(
+  /^\s*[-*]?\s*Superseded evidence identities:\s+(.+)$/im
+)?.[1] ?? "";
+const supersededSweep = body.match(/^\s*[-*]?\s*Superseded-token sweep:\s+(.+)$/im)?.[1] ?? "";
+const allSupersededCategoriesNone = [
+  /fixture paths\s+none(?:;|$)/i,
+  /browser sessions\s+none(?:;|$)/i,
+  /packet paths\/hashes\s+none(?:;|$)/i,
+  /active revisions\s+none(?:;|$)/i,
+  /artifacts\s+none(?:;|$)/i
+].every((pattern) => pattern.test(supersededIdentities));
+if (/\b(?:TODO|TBD|pending|unknown)\b/i.test(`${currentIdentities} ${supersededIdentities} ${supersededSweep}`)) {
+  errors.push("evidence identity refresh contains an unresolved value");
+}
+if (!allSupersededCategoriesNone && !/\b(?:no hits?|zero matches|0 matches|absent)\b/i.test(supersededSweep)) {
+  errors.push("superseded-token sweep must report no hits for listed superseded identities");
+}
+if (allSupersededCategoriesNone && /^N\/A\b/i.test(supersededSweep) && !/because/i.test(supersededSweep)) {
+  errors.push("superseded-token sweep N/A must include 'because'");
+}
 requireText("| Issue | Acceptance criterion or conformance check | Evidence | Status |", "audit table header");
 requireText("Closeout body check passed:", "closeout body check line");
 requireText("Closeout gate passed: audit sink", "closeout gate line");
@@ -145,12 +188,102 @@ for (let index = 0; index < lines.length; index += 1) {
 if (!statusRows.length) errors.push("audit table has no issue rows");
 
 for (const cells of statusRows) {
+  const evidence = cells[2] ?? "";
   const status = cells.at(-1);
   if (!["satisfied", "blocked", "not done"].includes(status)) {
     errors.push(`invalid audit status "${status}" in row: | ${cells.join(" | ")} |`);
   }
+  if (status === "satisfied") {
+    for (const label of ["atoms:", "proof surfaces:", "sequence:"]) {
+      if (!evidence.includes(label)) {
+        errors.push(`satisfied audit row Evidence is missing ${label} | ${cells.join(" | ")} |`);
+      }
+    }
+    if (/\b(?:TODO|TBD|pending|unknown)\b/i.test(evidence)) {
+      errors.push(`satisfied audit row Evidence contains an unresolved value: | ${cells.join(" | ")} |`);
+    }
+    for (const label of ["atoms", "proof surfaces", "sequence"]) {
+      const emptyLabel = new RegExp(`${label}:\\s*(?:;|$)`, "i");
+      if (emptyLabel.test(evidence)) {
+        errors.push(`satisfied audit row Evidence has an empty ${label}: value | ${cells.join(" | ")} |`);
+      }
+    }
+    if (/sequence:\s*N\/A\s*(?:;|$)/i.test(evidence)) {
+      errors.push(`satisfied audit row sequence N/A must include 'because': | ${cells.join(" | ")} |`);
+    }
+    if (/sequence:\s*$/i.test(evidence)) {
+      errors.push(`satisfied audit row sequence is empty: | ${cells.join(" | ")} |`);
+    }
+  }
   if (flags.has("--closing") && status !== "satisfied") {
     errors.push(`closing gate row is not satisfied: | ${cells.join(" | ")} |`);
+  }
+}
+
+if (acceptanceManifestPath) {
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(acceptanceManifestPath, "utf8"));
+  } catch (error) {
+    errors.push(`cannot read acceptance manifest ${acceptanceManifestPath}: ${error.message}`);
+  }
+
+  if (manifest) {
+    if (manifest.version !== 1 || !Array.isArray(manifest.issues)) {
+      errors.push("acceptance manifest must have version 1 and an issues array");
+    } else {
+      const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const normalizeCriterion = (value) =>
+        value.replaceAll("&#124;", "|").replace(/\s+/g, " ").trim().toLowerCase();
+      const seenIssueNumbers = new Set();
+      for (const issue of manifest.issues) {
+        if (!Number.isInteger(issue.number) || !Array.isArray(issue.checks)) {
+          errors.push("acceptance manifest issue requires an integer number and checks array");
+          continue;
+        }
+        if (seenIssueNumbers.has(issue.number)) {
+          errors.push(`acceptance manifest contains duplicate issue #${issue.number}`);
+          continue;
+        }
+        seenIssueNumbers.add(issue.number);
+        if (!issue.checks.length) {
+          errors.push(`acceptance manifest #${issue.number} has no checks`);
+          continue;
+        }
+
+        const issueRows = statusRows.filter((cells) => cells[0] === `#${issue.number}`);
+        const knownIds = new Set(issue.checks.map((check) => check.id));
+        if (knownIds.size !== issue.checks.length) {
+          errors.push(`acceptance manifest #${issue.number} contains duplicate check IDs`);
+        }
+
+        for (const check of issue.checks) {
+          if (!check || typeof check.id !== "string" || typeof check.text !== "string") {
+            errors.push(`acceptance manifest #${issue.number} has an invalid check`);
+            continue;
+          }
+          const idPattern = new RegExp(`(^|\\W)${escapeRegex(check.id)}(?=\\W|$)`, "i");
+          const expectedText = normalizeCriterion(check.text);
+          const matches = issueRows.filter((cells) => {
+            const criterion = cells[1] ?? "";
+            return idPattern.test(criterion) && normalizeCriterion(criterion).includes(expectedText);
+          });
+          if (matches.length !== 1) {
+            errors.push(
+              `acceptance manifest #${issue.number} ${check.id} requires exactly one audit row with exact criterion text; found ${matches.length}`
+            );
+          }
+        }
+
+        for (const cells of issueRows) {
+          for (const id of (cells[1] ?? "").match(/\bAC\d+\b/gi) ?? []) {
+            if (![...knownIds].some((knownId) => knownId.toLowerCase() === id.toLowerCase())) {
+              errors.push(`audit row for #${issue.number} contains unknown acceptance ID ${id}`);
+            }
+          }
+        }
+      }
+    }
   }
 }
 

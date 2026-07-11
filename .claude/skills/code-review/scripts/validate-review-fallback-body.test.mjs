@@ -8,7 +8,23 @@ import { spawnSync } from "node:child_process";
 
 const directory = mkdtempSync(join(tmpdir(), "worldloom-review-fallback-"));
 const script = fileURLToPath(new URL("./validate-review-fallback-body.mjs", import.meta.url));
+const manifestPath = join(directory, "manifest.json");
 let sequence = 0;
+
+writeFileSync(
+  manifestPath,
+  JSON.stringify({
+    version: 1,
+    issues: [{ number: 359, title: "Review child", checks: [{ id: "AC1", kind: "acceptance", text: "Behavior" }] }]
+  })
+);
+
+const identityBlock = `Evidence identity refresh:
+- Current evidence identities: fixture paths none; browser sessions none; packet paths/hashes none; active revisions none; artifacts none
+- Historical red identities retained: none
+- Superseded evidence identities: fixture paths none; browser sessions none; packet paths/hashes none; active revisions none; artifacts none
+- Superseded-token sweep: N/A because every superseded category is none
+`;
 
 after(() => rmSync(directory, { recursive: true, force: true }));
 
@@ -33,14 +49,16 @@ Findings: none.
 
 Sources reviewed: issue #355.
 Findings: none.
+Spec sequence coverage: sequence: N/A because the reviewed acceptance is not sequence-sensitive
 
 Residual findings: none.
 Browser/manual evidence freshness: N/A because no browser/manual evidence was used
 Browser/manual console state: N/A because no browser/manual evidence was used
 Backend process currentness: N/A because no browser/manual evidence was used
+${identityBlock}
 Axis summary: Standards 0/none, Spec 0/none
 
-Review fallback gate passed: frame yes; delegation policy source yes; Standards yes; Spec yes; child table N/A; smell baseline yes; found-vs-residual N/A; closeout line N/A; immediate-fix block N/A; tdd fielded closeout gate N/A; verification/browser freshness N/A.
+Review fallback gate passed: frame yes; delegation policy source yes; Standards yes; Spec yes; child table N/A; smell baseline yes; evidence identities yes; found-vs-residual N/A; closeout line N/A; immediate-fix block N/A; tdd fielded closeout gate N/A; verification/browser freshness N/A.
 `;
 
 const browserBody = baseBody
@@ -76,4 +94,51 @@ test("rejects no-browser and stale backend claims when --browser is used", () =>
   );
   assert.notEqual(stale.status, 0);
   assert.match(stale.stderr, /Backend process currentness/);
+});
+
+test("requires exact sequence-aware child coverage when --child-family is used", () => {
+  const missingManifest = runValidator(baseBody, ["--child-family"]);
+  assert.notEqual(missingManifest.status, 0);
+  assert.match(missingManifest.stderr, /acceptance manifest/);
+
+  const childFlags = ["--child-family", "--acceptance-manifest", manifestPath];
+  const missing = runValidator(baseBody, childFlags);
+  assert.notEqual(missing.status, 0);
+  assert.match(missing.stderr, /PRD child coverage table header/);
+
+  const childFamilyBody = baseBody
+    .replace("child table N/A", "child table yes")
+    .replace(
+      "Spec sequence coverage: sequence: N/A because the reviewed acceptance is not sequence-sensitive\n\nResidual findings",
+      `Spec sequence coverage: sequence: N/A because the reviewed acceptance is not sequence-sensitive
+
+| Issue | Acceptance source | Evidence reviewed | Findings/residuals |
+|---|---|---|---|
+| #359 | issue #359 AC1; sequence: N/A because AC1 is not sequence-sensitive | validator test | none |
+
+Residual findings`
+    );
+  const complete = runValidator(childFamilyBody, childFlags);
+  assert.equal(complete.status, 0, complete.stderr);
+
+  const noSequence = runValidator(
+    childFamilyBody.replace("; sequence: N/A because AC1 is not sequence-sensitive", ""),
+    childFlags
+  );
+  assert.notEqual(noSequence.status, 0);
+  assert.match(noSequence.stderr, /sequence:/);
+});
+
+test("requires sequence disposition for an ordinary zero-finding Spec review", () => {
+  const result = runValidator(
+    baseBody.replace("Spec sequence coverage: sequence: N/A because the reviewed acceptance is not sequence-sensitive\n", "")
+  );
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Spec sequence coverage/);
+});
+
+test("requires review-native evidence identity reconciliation", () => {
+  const result = runValidator(baseBody.replace(identityBlock, ""));
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Evidence identity refresh/);
 });
