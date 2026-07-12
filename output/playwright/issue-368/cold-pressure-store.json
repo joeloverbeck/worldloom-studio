@@ -1,0 +1,68 @@
+{
+  "packetIdentity": {
+    "flowKey": "propagation",
+    "flowId": 1,
+    "stepKey": "propagation:third",
+    "mode": "pressure",
+    "activeSetRevision": 28,
+    "packetHash": "c2a23962d202a493c11bafc7c7f5d31b3e84ea0bf52c2730344f7b77c2d0e7d1",
+    "bodyHash": "0ca00b690eaa7cec36e0d3460fa8d705ff4c3df701467561f0ebd4aa3ed3ec28",
+    "sourceManifestHash": "156e0384641b4cb0a5204a1f7dd4077c7a0e9d5ffcdd70173ebf7f95bfbca186"
+  },
+  "advisoryRecord": {
+    "id": 3,
+    "shortId": "ADV-1",
+    "recordTypeKey": "advisory_artifact",
+    "canonStatus": "proposed",
+    "bodyIncludesActiveSetRevision": true
+  },
+  "pressureCurrentness": {
+    "status": "current",
+    "activeSetRevision": 28,
+    "priorPressureRevision": 28,
+    "reason": "The active-set identity matches the current Propagation run.",
+    "recovery": {
+      "action": "load-current-packet",
+      "changedKind": "consequence-added",
+      "changedRowId": 9,
+      "href": "/api/prompt-out/steps",
+      "body": {
+        "flowKey": "propagation",
+        "flowId": 1,
+        "templateKey": "propagation_consequence_scout",
+        "recordId": 1,
+        "stepKey": "propagation:third",
+        "mode": "pressure",
+        "label": "Current Propagation Pressure"
+      }
+    },
+    "pressure": {
+      "status": "current-or-unused",
+      "reasonRequired": true,
+      "externalLlmRequired": false,
+      "freshPacket": {
+        "method": "POST",
+        "href": "/api/prompt-out/steps",
+        "body": {
+          "flowKey": "propagation",
+          "flowId": 1,
+          "templateKey": "propagation_consequence_scout",
+          "recordId": 1,
+          "stepKey": "propagation:third",
+          "mode": "pressure",
+          "label": "Fresh Pressure over current active set",
+          "admissionLevel": "5",
+          "workScale": "catastrophic"
+        }
+      },
+      "skip": {
+        "method": "POST",
+        "href": "/api/prompt-out/steps/actions/skip?flowKey=propagation&flowId=1&templateKey=propagation_consequence_scout&recordId=1&stepKey=propagation%3Athird&mode=pressure&activeSetRevision=28&admissionLevel=5&workScale=catastrophic"
+      }
+    }
+  },
+  "closeReadiness": {
+    "status": "ready",
+    "blockers": []
+  }
+}

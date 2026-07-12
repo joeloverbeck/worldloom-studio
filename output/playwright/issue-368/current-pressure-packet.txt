@@ -1,0 +1,281 @@
+Prompt packet manifest
+world: /tmp/worldloom-issue-368-1783823891512.sqlite
+flow: propagation
+flow_id: 1
+record_id: 1
+record_short_id: FAC-1
+record_type: canon_fact
+section: none
+step: propagation:third
+mode: pressure
+template: propagation_consequence_scout
+decision: The Meridian Archive can hear every oath ever sworn
+generated_at: 2026-07-12T02:47:47.369Z
+packet_hash: c2a23962d202a493c11bafc7c7f5d31b3e84ea0bf52c2730344f7b77c2d0e7d1
+body_hash: 0ca00b690eaa7cec36e0d3460fa8d705ff4c3df701467561f0ebd4aa3ed3ec28
+source_manifest_hash: 156e0384641b4cb0a5204a1f7dd4077c7a0e9d5ffcdd70173ebf7f95bfbca186
+admission_level: 5
+work_scale: catastrophic
+draft_state: not_applicable
+draft_digest: none
+draft_sections: none
+
+Prompt packet body
+<compact_top_block>
+Mode: Pressure mode
+Role stance (not an accuracy claim): Consequence scout frames pressure, risks, alternatives, and questions.
+Advisory/canon warning: This prompt is optional advisory support. Pasted responses stay advisory artifacts until the steward authors and admits canon through the governed flow.
+Forbidden-move summary: no canon standing, no truth layer or status assignment, no separated package-label assignment, no final canon wording, no hidden assumptions, and no automatic adoption.
+Output-label names: selected; deleted; challenged; ignored; standing ruling; adopted with steward revision; rejected
+</compact_top_block>
+
+<context_packet>
+Context preview:
+
+<bearing_context>
+Micro-instruction: use this as decision-bearing context only; omissions are listed with reasons.
+Mode: pressure
+Flow: propagation
+Flow id: 1
+Active set revision: 28
+Step: propagation:third
+Propagation source fact: FAC-1 The Meridian Archive can hear every oath ever sworn
+Owed debt: none
+Flow id: 1
+Active set revision: 28
+Last active-set change: consequence-added row 9 - Added Third-order: institutionalization consequence
+Current step: propagation:third
+Severity path: admission_level 5, work_scale catastrophic
+Required coverage: full domain-atlas sweep
+Recorded consequences: 6
+Active consequence lineage propagation-consequence:115ad60a-26eb-4461-8979-d469f14f1eaa v2 #8: order fourth, domain none, pressure normal, prose Abandoned witness galleries become protected civic memorials after the fraud trials.
+Active consequence lineage propagation-consequence:4fe0fbd2-258b-43ae-9686-c02df5e18d03 v1 #1: order zeroth, domain none, pressure normal, prose Only witnessed oaths inside the old empire can be replayed at the Archive.
+Active consequence lineage propagation-consequence:b2f7e4d4-955e-4337-b4f6-6a37b9983c11 v2 #7: order first, domain none, pressure high, prose Litigants compete for living witnesses whose identity the Archive can verify before noon.
+Active consequence lineage propagation-consequence:d6a48ece-853d-4098-bcaa-e90e96f330cd v1 #6: order fifth, domain none, pressure normal, prose People redefine an oath as a relationship among speaker, witness, and remembered institution.
+Active consequence lineage propagation-consequence:d827a63b-b511-4936-8109-feefe67e336c v1 #3: order second, domain none, pressure normal, prose Witness-brokers sell verified names and protective anonymity.
+Active consequence lineage propagation-consequence:f90b4d8e-8d73-4dcb-b8bc-0f88a9d3a8b1 v1 #9: order third, domain Physics, metaphysics, and cosmology, pressure normal, prose Oath fraud drives a permanent tribunal that audits witness provenance.
+Retired consequence versions: 3
+Historical consequence lineage propagation-consequence:115ad60a-26eb-4461-8979-d469f14f1eaa v1 #5 superseded: Abandoned witness galleries and noon bells become historical fossils.; reason Concurrent steward correction creates a genuine stale browser target.
+Historical consequence lineage propagation-consequence:231cbd7a-0db8-4f04-9cb5-d0de1378ae27 v1 #4 retracted: Courts establish an Oath Provenance Office and a counter-fraud bench.; reason The office duplicated the domain declaration and should leave the active shock cone.
+Historical consequence lineage propagation-consequence:b2f7e4d4-955e-4337-b4f6-6a37b9983c11 v1 #2 superseded: Litigants race to secure living witnesses before the noon hearing.; reason The first wording implied every witness was equally reachable.
+Domain coverage: 14
+Active domain lineage propagation-domain:065ff7e5-600a-4f60-9749-caf17cef3dd4 v1 #4 Population, demography, and household life: negative - Population, demography, and household life is explicitly governed as a negative effect of replayable oaths.
+Active domain lineage propagation-domain:24ca654c-a904-468d-9c8c-94021ac53ff4 v1 #5 Production, labor, and technology/magic: direct - Production, labor, and technology/magic is explicitly governed as a direct effect of replayable oaths.
+Active domain lineage propagation-domain:2b97433a-29ed-4af9-b49a-0c0b93bec909 v1 #3 Ecology, food, disease, and nonhuman life: reaction - Ecology, food, disease, and nonhuman life is explicitly governed as a reaction effect of replayable oaths.
+Active domain lineage propagation-domain:32f21c5e-c8f7-429f-8377-e8171482ebc5 v1 #10 Culture, custom, language, and identity: dependency - Culture, custom, language, and identity is explicitly governed as a dependency effect of replayable oaths.
+Active domain lineage propagation-domain:3573f994-0988-4066-9bcd-b64af1343023 v1 #12 History, memory, and path dependence: negative - History, memory, and path dependence is explicitly governed as a negative effect of replayable oaths.
+Active domain lineage propagation-domain:3de8284b-1a42-43eb-bef7-edaa9c850b49 v1 #8 War, coercion, and security: negative - War, coercion, and security is explicitly governed as a negative effect of replayable oaths.
+Active domain lineage propagation-domain:3e89ab71-3369-4571-b997-b20a2eeab2fe v1 #11 Knowledge, education, science, and records: reaction - Knowledge, education, science, and records is explicitly governed as a reaction effect of replayable oaths.
+Active domain lineage propagation-domain:4f12ed3c-3b7f-4c07-9658-b86bcc2e0779 v1 #13 Daily life and material residue: direct - Daily life and material residue is explicitly governed as a direct effect of replayable oaths.
+Active domain lineage propagation-domain:5c814ee0-8fa4-4d35-99f9-c26872050ffc v1 #7 Governance, law, and bureaucracy: reaction - Governance, law, and bureaucracy is explicitly governed as a reaction effect of replayable oaths.
+Active domain lineage propagation-domain:5da6d77f-bb9f-41dc-8631-07f17980da53 v1 #14 Aesthetics, tone, and narrative use: dependency - Aesthetics, tone, and narrative use is explicitly governed as a dependency effect of replayable oaths.
+Active domain lineage propagation-domain:85a47774-9d1a-4e00-99d1-b98f80ac5bd2 v2 #16 Economy, trade, and scarcity: dependency - Oath replay creates a market for verified witness availability.
+Active domain lineage propagation-domain:872896ce-686f-4f94-8457-95b4b2115d29 v1 #2 Geography, climate, and infrastructure: dependency - Geography, climate, and infrastructure is explicitly governed as a dependency effect of replayable oaths.
+Active domain lineage propagation-domain:b8b080b4-48ab-4177-90c9-8387bc46ad72 v1 #9 Religion, ritual, myth, and meaning: direct - Religion, ritual, myth, and meaning is explicitly governed as a direct effect of replayable oaths.
+Active domain lineage propagation-domain:eb95bbf1-93f4-472f-b219-b2669f542f10 v2 #15 Physics, metaphysics, and cosmology: direct - The Archive replays sworn wording but cannot establish whether the oath was sincere or true.
+Retired domain versions: 2
+Active dispositions: 1
+Active disposition for consequence #7: answered Verification scarcity and witness brokerage govern the active version.
+Surfaced proposals: 0
+Blockers: none
+Close preview: 6 active consequence version(s), 14 active domain version(s), 5 retired audit row(s); report not assigned; blockers none
+Related-world budget: 12000 Unicode characters aggregate; 2000 per record
+Related-world selected records: 0
+Related-world excerpt characters used: 0
+Related-world selection is structural, deterministic, non-recursive, and read-only; inclusion changes no record standing or world state.
+</bearing_context>
+
+<package_doctrine>
+Micro-instruction: these are excerpts or app-owned derivations at point of use; omissions are listed separately.
+Decision: Answer, scope out, assign as canon debt, or protect each high-pressure consequence as a mystery boundary.
+Operative rule: Every high-pressure consequence must reach one of the four stopping states before close.
+Why the method asks: The stop rule prevents fatigue from masquerading as completion.
+What good material looks like: Good disposition names the chosen state and gives enough note, debt, or preservation boundary to resume or audit later.
+Vocabulary guardrail: label whether any suggestion touches truth layer, canon status, constraint tag, admission decision operation, repair operation, consequence mode, or preservation boundary. Do not blur those categories.
+Label assumptions instruction: separate direct consequences from speculative assumptions and mark unadmitted assumptions plainly.
+</package_doctrine>
+
+<decision_material>
+Micro-instruction: treat steward-authored material as material under review and pasted/proposed material as advisory until the steward acts.
+Record context:
+FAC-1 The Meridian Archive can hear every oath ever sworn
+Type: canon_fact
+Truth layer: Objective canon
+Canon status: accepted
+At noon, the Meridian Archive can replay any oath sworn within the old empire, but only while a living witness names the speaker.
+</decision_material>
+
+<source_records>
+<documents>
+<document>
+<source>selected_record:FAC-1</source>
+<document_content>
+FAC-1 The Meridian Archive can hear every oath ever sworn
+Type: canon_fact
+Truth layer: Objective canon
+Canon status: accepted
+At noon, the Meridian Archive can replay any oath sworn within the old empire, but only while a living witness names the speaker.
+</document_content>
+</document>
+
+<document>
+<source>flow_context:propagation:propagation:third</source>
+<document_content>
+Propagation source fact: FAC-1 The Meridian Archive can hear every oath ever sworn
+
+Owed debt: none
+
+Flow id: 1
+
+Active set revision: 28
+
+Last active-set change: consequence-added row 9 - Added Third-order: institutionalization consequence
+
+Current step: propagation:third
+
+Severity path: admission_level 5, work_scale catastrophic
+
+Required coverage: full domain-atlas sweep
+
+Recorded consequences: 6
+
+Active consequence lineage propagation-consequence:115ad60a-26eb-4461-8979-d469f14f1eaa v2 #8: order fourth, domain none, pressure normal, prose Abandoned witness galleries become protected civic memorials after the fraud trials.
+
+Active consequence lineage propagation-consequence:4fe0fbd2-258b-43ae-9686-c02df5e18d03 v1 #1: order zeroth, domain none, pressure normal, prose Only witnessed oaths inside the old empire can be replayed at the Archive.
+
+Active consequence lineage propagation-consequence:b2f7e4d4-955e-4337-b4f6-6a37b9983c11 v2 #7: order first, domain none, pressure high, prose Litigants compete for living witnesses whose identity the Archive can verify before noon.
+
+Active consequence lineage propagation-consequence:d6a48ece-853d-4098-bcaa-e90e96f330cd v1 #6: order fifth, domain none, pressure normal, prose People redefine an oath as a relationship among speaker, witness, and remembered institution.
+
+Active consequence lineage propagation-consequence:d827a63b-b511-4936-8109-feefe67e336c v1 #3: order second, domain none, pressure normal, prose Witness-brokers sell verified names and protective anonymity.
+
+Active consequence lineage propagation-consequence:f90b4d8e-8d73-4dcb-b8bc-0f88a9d3a8b1 v1 #9: order third, domain Physics, metaphysics, and cosmology, pressure normal, prose Oath fraud drives a permanent tribunal that audits witness provenance.
+
+Retired consequence versions: 3
+
+Historical consequence lineage propagation-consequence:115ad60a-26eb-4461-8979-d469f14f1eaa v1 #5 superseded: Abandoned witness galleries and noon bells become historical fossils.; reason Concurrent steward correction creates a genuine stale browser target.
+
+Historical consequence lineage propagation-consequence:231cbd7a-0db8-4f04-9cb5-d0de1378ae27 v1 #4 retracted: Courts establish an Oath Provenance Office and a counter-fraud bench.; reason The office duplicated the domain declaration and should leave the active shock cone.
+
+Historical consequence lineage propagation-consequence:b2f7e4d4-955e-4337-b4f6-6a37b9983c11 v1 #2 superseded: Litigants race to secure living witnesses before the noon hearing.; reason The first wording implied every witness was equally reachable.
+
+Domain coverage: 14
+
+Active domain lineage propagation-domain:065ff7e5-600a-4f60-9749-caf17cef3dd4 v1 #4 Population, demography, and household life: negative - Population, demography, and household life is explicitly governed as a negative effect of replayable oaths.
+
+Active domain lineage propagation-domain:24ca654c-a904-468d-9c8c-94021ac53ff4 v1 #5 Production, labor, and technology/magic: direct - Production, labor, and technology/magic is explicitly governed as a direct effect of replayable oaths.
+
+Active domain lineage propagation-domain:2b97433a-29ed-4af9-b49a-0c0b93bec909 v1 #3 Ecology, food, disease, and nonhuman life: reaction - Ecology, food, disease, and nonhuman life is explicitly governed as a reaction effect of replayable oaths.
+
+Active domain lineage propagation-domain:32f21c5e-c8f7-429f-8377-e8171482ebc5 v1 #10 Culture, custom, language, and identity: dependency - Culture, custom, language, and identity is explicitly governed as a dependency effect of replayable oaths.
+
+Active domain lineage propagation-domain:3573f994-0988-4066-9bcd-b64af1343023 v1 #12 History, memory, and path dependence: negative - History, memory, and path dependence is explicitly governed as a negative effect of replayable oaths.
+
+Active domain lineage propagation-domain:3de8284b-1a42-43eb-bef7-edaa9c850b49 v1 #8 War, coercion, and security: negative - War, coercion, and security is explicitly governed as a negative effect of replayable oaths.
+
+Active domain lineage propagation-domain:3e89ab71-3369-4571-b997-b20a2eeab2fe v1 #11 Knowledge, education, science, and records: reaction - Knowledge, education, science, and records is explicitly governed as a reaction effect of replayable oaths.
+
+Active domain lineage propagation-domain:4f12ed3c-3b7f-4c07-9658-b86bcc2e0779 v1 #13 Daily life and material residue: direct - Daily life and material residue is explicitly governed as a direct effect of replayable oaths.
+
+Active domain lineage propagation-domain:5c814ee0-8fa4-4d35-99f9-c26872050ffc v1 #7 Governance, law, and bureaucracy: reaction - Governance, law, and bureaucracy is explicitly governed as a reaction effect of replayable oaths.
+
+Active domain lineage propagation-domain:5da6d77f-bb9f-41dc-8631-07f17980da53 v1 #14 Aesthetics, tone, and narrative use: dependency - Aesthetics, tone, and narrative use is explicitly governed as a dependency effect of replayable oaths.
+
+Active domain lineage propagation-domain:85a47774-9d1a-4e00-99d1-b98f80ac5bd2 v2 #16 Economy, trade, and scarcity: dependency - Oath replay creates a market for verified witness availability.
+
+Active domain lineage propagation-domain:872896ce-686f-4f94-8457-95b4b2115d29 v1 #2 Geography, climate, and infrastructure: dependency - Geography, climate, and infrastructure is explicitly governed as a dependency effect of replayable oaths.
+
+Active domain lineage propagation-domain:b8b080b4-48ab-4177-90c9-8387bc46ad72 v1 #9 Religion, ritual, myth, and meaning: direct - Religion, ritual, myth, and meaning is explicitly governed as a direct effect of replayable oaths.
+
+Active domain lineage propagation-domain:eb95bbf1-93f4-472f-b219-b2669f542f10 v2 #15 Physics, metaphysics, and cosmology: direct - The Archive replays sworn wording but cannot establish whether the oath was sincere or true.
+
+Retired domain versions: 2
+
+Active dispositions: 1
+
+Active disposition for consequence #7: answered Verification scarcity and witness brokerage govern the active version.
+
+Surfaced proposals: 0
+
+Blockers: none
+
+Close preview: 6 active consequence version(s), 14 active domain version(s), 5 retired audit row(s); report not assigned; blockers none
+
+Related-world budget: 12000 Unicode characters aggregate; 2000 per record
+
+Related-world selected records: 0
+
+Related-world excerpt characters used: 0
+
+Related-world selection is structural, deterministic, non-recursive, and read-only; inclusion changes no record standing or world state.
+</document_content>
+</document>
+</documents>
+</source_records>
+
+<standing_rulings>
+- none
+</standing_rulings>
+
+<omissions>
+- Owed propagation debt omitted: run was not started from a debt item.
+- Surfaced proposals omitted: none have been routed to Admission yet.
+- World kernel (not found): unavailable content; create or open the active world kernel before treating Pressure as context-complete.
+- No hidden repository context is available to the external LLM.
+- Unavailable world context must be named before copy-out rather than silently omitted.
+</omissions>
+
+<source_manifest>
+Source manifest:
+- Prompt template: propagation_consequence_scout (docs/worldbuilding-system/20_ai_assisted_workflow.md)
+- Method card: propagation.disposition (method-card/v1)
+- Package source: docs/worldbuilding-system/07_propagation_engine.md
+- Package source: docs/worldbuilding-system/04_domain_atlas.md
+- Propagation source fact: FAC-1 The Meridian Archive can hear every oath ever sworn
+- Propagation flow id: 1
+- Propagation active set revision: 28
+- Propagation step: propagation:third
+- Propagation required coverage: full domain-atlas sweep
+- Propagation blockers: none
+- Selected record: FAC-1 The Meridian Archive can hear every oath ever sworn
+- Standing rulings: 0
+- Omissions: no hidden repository context; unavailable world context must be named before copy-out.
+</source_manifest>
+</context_packet>
+
+Current decision:
+Flow propagation, step propagation:third; selected record FAC-1 The Meridian Archive can hear every oath ever sworn.
+
+Mode request:
+Provide pressure, risks, alternatives, and questions on steward-authored material. Do not author final canon.
+
+Quote-grounding pre-step: first quote the specific canon, doctrine, or source-record lines your candidates or critiques rest on before the main answer.
+
+Forbidden moves with rationales and positive restatements:
+Prohibition: do not assign canon standing. Rationale: only Admission and the steward can change canon standing. Positive restatement: label every proposal as a candidate for steward review.
+Prohibition: do not assign truth layer, status, constraint tag, admission operation, repair operation, consequence mode, or preservation boundary. Rationale: the methodology keeps these as separated steward judgments. Positive restatement: name any recommended label as a recommendation with reasons.
+Prohibition: do not write final canon. Rationale: the steward authors surviving material in their own wording. Positive restatement: return challenge, risks, alternatives, and questions for steward disposition.
+Prohibition: do not hide invented facts or borrowed assumptions. Rationale: cold prompt-out only works when provenance and assumptions are auditable. Positive restatement: mark assumptions and provenance gaps plainly.
+Prohibition: do not turn pressure mode into a rewrite. Rationale: pressure mode exists to challenge steward-authored material. Positive restatement: keep challenge, risks, alternatives, and questions separate from final canon authorship.
+
+Output label definitions:
+- selected: advisory label for steward disposition; not canon status.
+- deleted: advisory label for steward disposition; not canon status.
+- challenged: advisory label for steward disposition; not canon status.
+- ignored: advisory label for steward disposition; not canon status.
+- standing ruling: advisory label for steward disposition; not canon status.
+- adopted with steward revision: advisory label for steward disposition; not canon status.
+- rejected: advisory label for steward disposition; not canon status.
+
+Structural skeleton example (pressure mode)
+Grounding quotes:
+- "<short source or doctrine quote>" — <source id>
+
+Challenge: <what breaks or goes unsupported>
+Risk: <canon, mystery, causality, or fidelity risk>
+Alternative: <non-final option the steward may consider>
+Question: <decision the steward must answer>
+
+Default prompt derivation: Use the sandwich packet to pressure-test this propagation step. Work from steward material and the source manifest first, quote the lines your pressure rests on, then list direct consequences, adaptations, countermeasures, fossils, quiet domains, and assumptions. Do not admit facts because propagation only proposes and routes; label surfaced facts as proposed-only candidates, debt, risks, alternatives, or questions.
+
+Based on the material above, answer only for the current decision in pressure mode and keep every claim traceable to the quoted packet material.
