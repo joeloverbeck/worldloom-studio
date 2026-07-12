@@ -35,6 +35,11 @@ export const badRequest = (c: Context, error: unknown): Response =>
       typeof error === "object" && error !== null && "correctionContract" in error
         ? { correctionContract: (error as { correctionContract: unknown }).correctionContract }
         : {}
+    ),
+    ...(
+      typeof error === "object" && error !== null && "remediation" in error
+        ? { remediation: (error as { remediation: unknown }).remediation }
+        : {}
     )
   }, 400);
 

@@ -27,6 +27,311 @@ afterEach(() => {
 });
 
 describe("Temporal/Timeline flow HTTP API", () => {
+  it("assembles an explicit-mode, decision-complete, read-only Temporal packet from server-owned context", async () => {
+    const app = createApp();
+    expect((await postJson(app, "/api/worlds/create", { path: tempPath("temporal-packet.sqlite") })).status).toBe(201);
+
+    const createRecord = async (input: { recordTypeKey: string; title: string; body: string; truthLayer?: string; canonStatus?: string }) =>
+      (await json<{ record: { id: number; shortId: string } }>(await postJson(app, "/api/records", {
+        truthLayer: "Objective canon",
+        canonStatus: "accepted",
+        ...input
+      }))).record;
+    const link = async (fromRecordId: number, toRecordId: number, linkTypeKey: string, note: string) =>
+      postJson(app, "/api/links", { fromRecordId, toRecordId, linkTypeKey, note });
+
+    const fact = await createRecord({
+      recordTypeKey: "canon_fact",
+      title: "The salt bell tolls before deaths",
+      body: "A salt bell rings three days before a named citizen dies."
+    });
+    const propagationReport = await createRecord({
+      recordTypeKey: "propagation_report",
+      title: "Salt bell final Propagation report",
+      body: "Gate result: passed. The final shock cone requires a Temporal pass."
+    });
+    const relatedCanon = await createRecord({
+      recordTypeKey: "canon_fact",
+      title: "Ward courts archive false positives",
+      body: "Each ward court keeps an accepted register of unmatched bell tolls."
+    });
+    const debt = await createRecord({
+      recordTypeKey: "canon_debt",
+      title: "Explain the first false positive",
+      body: "State: open. Preserve this unresolved timing debt.",
+      canonStatus: "under review"
+    });
+    const boundary = await createRecord({
+      recordTypeKey: "mystery_ledger_entry",
+      title: "The bell's author-secret cause",
+      body: "Observable recurrence is public; the originating cause is forbidden knowledge."
+    });
+    const kernel = await createRecord({
+      recordTypeKey: "world_kernel",
+      title: "Salt city kernel",
+      body: "Premise: warnings create institutions before certainty. Protected effect: dread without solved causation."
+    });
+    const inactive = await createRecord({
+      recordTypeKey: "canon_fact",
+      title: "Retired bell calendar",
+      body: "This superseded calendar is historical only.",
+      canonStatus: "superseded"
+    });
+    const secondHop = await createRecord({
+      recordTypeKey: "canon_fact",
+      title: "Second-hop funeral custom",
+      body: "This is outside the bounded direct relationship set."
+    });
+    expect((await link(propagationReport.id, fact.id, "derived_from", "Final Propagation report for the Temporal source fact")).status).toBe(201);
+    expect((await link(fact.id, relatedCanon.id, "depends_on", "Direct canon dependency for the Temporal decision")).status).toBe(201);
+    expect((await link(fact.id, debt.id, "requires_follow_up", "Open Temporal debt")).status).toBe(201);
+    expect((await link(fact.id, boundary.id, "preserves_boundary_for", "Protected Temporal mystery boundary")).status).toBe(201);
+    expect((await link(fact.id, inactive.id, "depends_on", "Inactive historical support")).status).toBe(201);
+    expect((await link(relatedCanon.id, secondHop.id, "depends_on", "Bounded second-hop candidate")).status).toBe(201);
+
+    const run = await json<{ flow: { id: number } }>(await postJson(app, "/api/temporal/runs/start", { sourceType: "fact", recordId: fact.id }));
+    const omittedMode = await postJson(app, "/api/prompt-out/steps", {
+      flowKey: "temporal_timeline",
+      flowId: run.flow.id,
+      templateKey: "temporal_spatial_analyst",
+      recordId: fact.id,
+      stepKey: "temporal:spatial-temporal-analysis"
+    });
+    expect(omittedMode.status).toBe(400);
+    expect(await json(omittedMode)).toMatchObject({ error: expect.stringContaining("explicit Proposal or Pressure mode") });
+
+    const coverageInput = {
+      flowId: run.flow.id,
+      temporalQuestions: "The bell became true after the foundry accident, was noticed after three deaths, and changed ward routines before the courts believed it.",
+      firstTrueOrRelativeSequence: "The first true toll follows the salt-foundry accident and precedes the first named death by three days.",
+      firstKnownOrReason: "Witnesses first know the pattern after the third matched death; earlier tolls remain isolated rumor.",
+      dateTypesAndGranularity: "Event, discovery, public, institutional, ordinary-life, mythic, and authorial-revision dates stay separate at ward-season granularity.",
+      latency: "Proof takes three deaths and legal adaptation takes two seasons because ward courts test false positives.",
+      residueByTimescale: "Days bring panic, years bring licensing, generations leave funeral calendars, and eras leave obsolete bell offices.",
+      sequenceIntegrity: "The ordinance follows the third matched death; no law or institution appears before evidence exists.",
+      retrospectiveInsertion: "Earlier scenes gain local rumors, price boards, and an archive entry without rewriting every district.",
+      temporalMysteryBoundaries: "Recurrence windows and false positives are observable while the bell's cause remains author-secret and forbidden to solve.",
+      outcomeDecision: "Keep the report advisory, create no canon in this step, and route any new archive fact through Admission."
+    };
+    expect((await postJson(app, "/api/temporal/coverage", coverageInput)).status).toBe(201);
+
+    const before = {
+      records: await json(await app.request("/api/records")),
+      links: await json(await app.request("/api/links")),
+      run: await json(await app.request(`/api/temporal/runs/${run.flow.id}`))
+    };
+    const step = await json<{ step: { packetIdentity: { activeSetRevision: number }; actions: { generate: { href: string } } } }>(await postJson(app, "/api/prompt-out/steps", {
+      flowKey: "temporal_timeline",
+      flowId: run.flow.id,
+      templateKey: "temporal_spatial_analyst",
+      recordId: fact.id,
+      stepKey: "temporal:spatial-temporal-analysis",
+      mode: "proposal",
+      label: "Temporal Proposal"
+    }));
+    expect(step.step.packetIdentity.activeSetRevision).toBeTypeOf("number");
+    const generated = await json<{
+      prompt: string;
+      promptOut: {
+        packetIdentity: { packetHash: string; bodyHash: string; activeSetRevision: number };
+        temporalContext: {
+          serverOwned: true;
+          mode: "proposal" | "pressure";
+          flowKey: string;
+          stepKey: string;
+          completeness: { status: string; blockers: string[] };
+          coverage: Array<{ key: string; label: string; value: string }>;
+          selectedSource: { id: number; standing: { canonStatus: string }; provenance: { actor: string; timestamp: string; flowStep: string } };
+          sourcePropagation: Array<{ id: number; relationship: { kind: string }; inclusionReason: string }>;
+          relatedCanon: Array<{ id: number }>;
+          openDebt: Array<{ id: number }>;
+          protectedBoundaries: Array<{ id: number }>;
+          kernelCommitments: Array<{ id: number }>;
+          sourceDocuments: Array<{ source: string; content: string }>;
+          sourceManifest: string[];
+          omissions: string[];
+          outputLabels: string[];
+          advisoryCanonWarning: string;
+          recovery: { method: string; href: string; body: { mode: string; activeSetRevision: number } };
+          orientation: { current: string; next: string; resume: string; safeExit: string };
+          readOnlyGuarantee: string;
+        };
+      };
+    }>(await postJson(app, step.step.actions.generate.href));
+
+    expect(generated.promptOut.temporalContext).toMatchObject({
+      serverOwned: true,
+      mode: "proposal",
+      flowKey: "temporal_timeline",
+      stepKey: "temporal:spatial-temporal-analysis",
+      completeness: { status: "complete", blockers: [] },
+      selectedSource: {
+        id: fact.id,
+        standing: { canonStatus: "accepted" },
+        provenance: { actor: "steward", timestamp: expect.any(String), flowStep: expect.any(String) }
+      },
+      sourcePropagation: [expect.objectContaining({ id: propagationReport.id, inclusionReason: expect.stringContaining("Propagation") })],
+      relatedCanon: [expect.objectContaining({ id: relatedCanon.id })],
+      openDebt: [expect.objectContaining({ id: debt.id })],
+      protectedBoundaries: [expect.objectContaining({ id: boundary.id })],
+      kernelCommitments: [expect.objectContaining({ id: kernel.id })],
+      recovery: {
+        method: "POST",
+        href: "/api/prompt-out/steps",
+        body: expect.objectContaining({ mode: "proposal", activeSetRevision: step.step.packetIdentity.activeSetRevision })
+      },
+      orientation: {
+        current: expect.any(String),
+        next: expect.any(String),
+        resume: expect.any(String),
+        safeExit: expect.any(String)
+      }
+    });
+    expect(generated.promptOut.temporalContext.coverage).toHaveLength(10);
+    expect(generated.promptOut.temporalContext.coverage.map((item) => item.key)).toEqual([
+      "temporalQuestions",
+      "firstTrueOrRelativeSequence",
+      "firstKnownOrReason",
+      "dateTypesAndGranularity",
+      "latency",
+      "residueByTimescale",
+      "sequenceIntegrity",
+      "retrospectiveInsertion",
+      "temporalMysteryBoundaries",
+      "outcomeDecision"
+    ]);
+    expect(generated.promptOut.temporalContext.omissions).toEqual(expect.arrayContaining([
+      expect.stringContaining("inactive"),
+      expect.stringContaining(inactive.shortId),
+      expect.stringContaining("bounded second-hop"),
+      expect.stringContaining(secondHop.shortId)
+    ]));
+    expect(generated.promptOut.temporalContext.sourceDocuments.map((item) => item.source)).toEqual(expect.arrayContaining([
+      expect.stringContaining(fact.shortId),
+      expect.stringContaining(propagationReport.shortId),
+      expect.stringContaining(kernel.shortId)
+    ]));
+    expect(generated.promptOut.temporalContext.outputLabels).toContain("adopted with steward revision");
+    expect(generated.promptOut.temporalContext.advisoryCanonWarning).toContain("optional advisory");
+    expect(generated.promptOut.temporalContext.readOnlyGuarantee).toContain("no record");
+    for (const value of Object.values(coverageInput).filter((value): value is string => typeof value === "string")) {
+      expect(generated.prompt).toContain(value);
+    }
+    expect(generated.prompt).toContain("Gate result: passed");
+    for (const document of generated.promptOut.temporalContext.sourceDocuments) {
+      expect(generated.prompt).toContain(document.source);
+      expect(generated.prompt).toContain(document.content);
+    }
+    for (const manifestItem of generated.promptOut.temporalContext.sourceManifest) expect(generated.prompt).toContain(manifestItem);
+    for (const omission of generated.promptOut.temporalContext.omissions) expect(generated.prompt).toContain(omission);
+    for (const outputLabel of generated.promptOut.temporalContext.outputLabels) expect(generated.prompt).toContain(outputLabel);
+    expect(generated.prompt).toContain(generated.promptOut.temporalContext.advisoryCanonWarning);
+    expect(generated.promptOut.packetIdentity).toMatchObject({
+      packetHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      bodyHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      activeSetRevision: step.step.packetIdentity.activeSetRevision
+    });
+    const after = {
+      records: await json(await app.request("/api/records")),
+      links: await json(await app.request("/api/links")),
+      run: await json(await app.request(`/api/temporal/runs/${run.flow.id}`))
+    };
+    expect(after).toEqual(before);
+  });
+
+  it("binds both modes to current flow context, blocks incomplete Pressure, and changes identity with saved coverage", async () => {
+    const app = createApp();
+    expect((await postJson(app, "/api/worlds/create", { path: tempPath("temporal-sensitivity.sqlite") })).status).toBe(201);
+    const fact = (await json<{ record: { id: number } }>(await postJson(app, "/api/records", {
+      recordTypeKey: "canon_fact",
+      title: "The winter archive opens after every third thaw",
+      body: "The archive's recurrence governs inheritance evidence.",
+      truthLayer: "Objective canon",
+      canonStatus: "accepted"
+    }))).record;
+    const otherFact = (await json<{ record: { id: number } }>(await postJson(app, "/api/records", {
+      recordTypeKey: "canon_fact",
+      title: "Unrelated summer ledger",
+      body: "This record is not the selected Temporal source.",
+      truthLayer: "Objective canon",
+      canonStatus: "accepted"
+    }))).record;
+    const firstRun = await json<{ flow: { id: number } }>(await postJson(app, "/api/temporal/runs/start", { sourceType: "fact", recordId: fact.id }));
+
+    const incompleteStep = await json<{ step: { actions: { generate: { href: string } } } }>(await postJson(app, "/api/prompt-out/steps", {
+      flowKey: "temporal_timeline",
+      flowId: firstRun.flow.id,
+      templateKey: "temporal_spatial_analyst",
+      recordId: fact.id,
+      stepKey: "temporal:spatial-temporal-analysis",
+      mode: "pressure",
+      label: "Spatial-temporal analyst"
+    }));
+    const incomplete = await postJson(app, incompleteStep.step.actions.generate.href);
+    expect(incomplete.status).toBe(400);
+    expect(await json(incomplete)).toMatchObject({
+      error: expect.stringContaining("Pressure requires all ten saved Temporal coverage lenses"),
+      remediation: expect.stringContaining("Preserve the selected mode")
+    });
+
+    const coverageA = {
+      flowId: firstRun.flow.id,
+      temporalQuestions: "Version A asks when the third-thaw rule became true, known, teachable, regulated, and remembered.",
+      firstTrueOrRelativeSequence: "Version A begins after the first sealed inheritance dispute and before the first winter archive.",
+      firstKnownOrReason: "Version A becomes known when three executors independently match the thaw recurrence.",
+      dateTypesAndGranularity: "Version A separates event, discovery, public, institutional, ordinary-life, mythic, and revision dates by thaw cycle.",
+      latency: "Version A requires two thaw cycles for proof and one generation for ordinary legal reliance.",
+      residueByTimescale: "Version A leaves witness queues, licensing, inherited archive guilds, and obsolete winter seals.",
+      sequenceIntegrity: "Version A keeps the archive after the dispute and the inheritance code after repeated proof.",
+      retrospectiveInsertion: "Version A adds sealed ledgers and family strategies to earlier scenes without universal foreknowledge.",
+      temporalMysteryBoundaries: "Version A fixes the recurrence while forbidding explanation of why the third thaw matters.",
+      outcomeDecision: "Version A records a non-mutating review and routes any new inheritance claim through Admission."
+    };
+    expect((await postJson(app, "/api/temporal/coverage", coverageA)).status).toBe(201);
+
+    const generate = async (flowId: number, mode: "proposal" | "pressure", recordId = fact.id) => {
+      const step = await json<{ step: { actions: { generate: { href: string } } } }>(await postJson(app, "/api/prompt-out/steps", {
+        flowKey: "temporal_timeline",
+        flowId,
+        templateKey: "temporal_spatial_analyst",
+        recordId,
+        stepKey: "temporal:spatial-temporal-analysis",
+        mode,
+        label: mode === "proposal" ? "Temporal Proposal" : "Spatial-temporal analyst"
+      }));
+      return postJson(app, step.step.actions.generate.href);
+    };
+
+    const mismatched = await generate(firstRun.flow.id, "proposal", otherFact.id);
+    expect(mismatched.status).toBe(400);
+    expect(await json(mismatched)).toMatchObject({
+      error: expect.stringContaining(`selected record ${otherFact.id} does not match Temporal source record ${fact.id}`),
+      remediation: expect.any(String)
+    });
+
+    const proposalA = await json<{ prompt: string; promptOut: { mode: string; packetIdentity: { packetHash: string; bodyHash: string }; temporalContext: { mode: string; completeness: { status: string } } } }>(await generate(firstRun.flow.id, "proposal"));
+    const pressureA = await json<{ prompt: string; promptOut: { mode: string; packetIdentity: { packetHash: string; bodyHash: string }; temporalContext: { mode: string; completeness: { status: string } } } }>(await generate(firstRun.flow.id, "pressure"));
+    expect(proposalA.promptOut).toMatchObject({ mode: "proposal", temporalContext: { mode: "proposal", completeness: { status: "complete" } } });
+    expect(pressureA.promptOut).toMatchObject({ mode: "pressure", temporalContext: { mode: "pressure", completeness: { status: "complete" } } });
+    expect(proposalA.prompt).toContain(coverageA.temporalQuestions);
+    expect(pressureA.prompt).toContain(coverageA.temporalMysteryBoundaries);
+    expect(proposalA.promptOut.packetIdentity.packetHash).not.toBe(pressureA.promptOut.packetIdentity.packetHash);
+    expect((await postJson(app, `/api/temporal/runs/${firstRun.flow.id}/close`)).status).toBe(201);
+
+    const secondRun = await json<{ flow: { id: number } }>(await postJson(app, "/api/temporal/runs/start", { sourceType: "fact", recordId: fact.id }));
+    expect(secondRun.flow.id).not.toBe(firstRun.flow.id);
+    const coverageB = Object.fromEntries(Object.entries(coverageA).map(([key, value]) => [
+      key,
+      key === "flowId" ? secondRun.flow.id : String(value).replaceAll("Version A", "Version B materially changes the saved chronology")
+    ]));
+    expect((await postJson(app, "/api/temporal/coverage", coverageB)).status).toBe(201);
+    const proposalB = await json<{ prompt: string; promptOut: { packetIdentity: { packetHash: string; bodyHash: string } } }>(await generate(secondRun.flow.id, "proposal"));
+    expect(proposalB.prompt).toContain("Version B materially changes the saved chronology");
+    expect(proposalB.prompt).not.toContain(coverageA.temporalQuestions);
+    expect(proposalB.promptOut.packetIdentity.packetHash).not.toBe(proposalA.promptOut.packetIdentity.packetHash);
+    expect(proposalB.promptOut.packetIdentity.bodyHash).not.toBe(proposalA.promptOut.packetIdentity.bodyHash);
+  });
+
   it("drives Temporal run entry, lifecycle writes, Prompt-out, outcomes, skips, and close readiness", async () => {
     const app = createApp();
     expect((await postJson(app, "/api/worlds/create", { path: tempPath("temporal.sqlite") })).status).toBe(201);
@@ -281,7 +586,34 @@ describe("Temporal/Timeline flow HTTP API", () => {
     }));
     expect(debtResponse.debt).toMatchObject({ recordTypeKey: "canon_debt", canonStatus: "under review" });
 
-    const skip = await json<{ record: { recordTypeKey: string }; debt: { recordTypeKey: string } | null }>(await postJson(app, promptStep.step.actions.skip.href, {
+    const sourceRevision = await app.request(`/api/records/${fact.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ body: "A salt bell rings three days before a named citizen dies; a newly saved ward note narrows the current source material." })
+    });
+    expect(sourceRevision.status).toBe(200);
+
+    const staleSkip = await postJson(app, promptStep.step.actions.skip.href, {
+      reason: "The pressure prompt was declined after the steward recorded enough latency and residue evidence.",
+      unresolved: true,
+      debtName: "Review declined temporal pressure later"
+    });
+    expect(staleSkip.status).toBe(400);
+    expect(await json(staleSkip)).toMatchObject({
+      error: expect.stringContaining("stale Temporal packet identity"),
+      remediation: expect.anything()
+    });
+    const currentRun = await json<{
+      decisionPoint: { sharedContract: { promptOut: { modes: Array<{ mode: string; stepRequest: { method: "POST"; href: string; body: Record<string, unknown> } | null }> } } };
+    }>(await app.request(`/api/temporal/runs/${run.flow.id}`));
+    const pressureRecovery = currentRun.decisionPoint.sharedContract.promptOut.modes.find((mode) => mode.mode === "pressure")?.stepRequest;
+    expect(pressureRecovery).toMatchObject({
+      method: "POST",
+      href: "/api/prompt-out/steps",
+      body: expect.objectContaining({ mode: "pressure", activeSetRevision: expect.any(Number) })
+    });
+    const recoveredStep = await json<{ step: { actions: { skip: { href: string } } } }>(await postJson(app, pressureRecovery!.href, pressureRecovery!.body));
+    const skip = await json<{ record: { recordTypeKey: string }; debt: { recordTypeKey: string } | null }>(await postJson(app, recoveredStep.step.actions.skip.href, {
       reason: "The pressure prompt was declined after the steward recorded enough latency and residue evidence.",
       unresolved: true,
       debtName: "Review declined temporal pressure later"

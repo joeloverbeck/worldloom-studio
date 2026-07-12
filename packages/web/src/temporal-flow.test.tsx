@@ -58,5 +58,29 @@ describe("Temporal/Timeline web surface", () => {
     expect(source).toContain("/api/prompt-out/steps");
     expect(source).toContain("promptStep.actions.storeAdvisory.href");
     expect(source).not.toContain("/api/temporal/advisory-artifacts");
+    expect(html).toContain("Load Current Proposal Packet");
+    expect(html).toContain("Load Current Pressure Packet");
+    expect(html).toContain("Temporal packet identity");
+    expect(html).toContain("Temporal source documents");
+    expect(html).toContain("Temporal source manifest");
+    expect(html).toContain("Temporal omissions");
+    expect(html).toContain("Temporal output labels");
+    expect(html).toContain("Recover Current Temporal Packet");
+    expect(source).toContain("TemporalPromptOutPanel");
+    expect(source).toContain("loadTemporalPromptStep");
+    expect(source).toContain("temporalPromptMode");
+    expect(source).toContain("promptPacketExportText = (_origin: LoadedPromptOrigin, promptText: string): string => promptText");
+    expect(source).not.toContain('promptFlowKey === "temporal_timeline" ? "temporal:spatial-temporal-analysis"');
+    const temporalPromptLifecycleSource = source.slice(
+      source.indexOf("const loadTemporalPromptStep"),
+      source.indexOf("const temporalStartPayload")
+    );
+    expect(temporalPromptLifecycleSource).toContain("request.body");
+    expect(temporalPromptLifecycleSource).toContain("generated.promptOut.temporalContext");
+    expect(temporalPromptLifecycleSource).not.toContain("/api/links");
+    expect(temporalPromptLifecycleSource).not.toContain("linkTypeKey");
+    expect(temporalPromptLifecycleSource).not.toContain("createHash");
+    expect(temporalPromptLifecycleSource).not.toContain("sourceManifest:");
   });
+
 });

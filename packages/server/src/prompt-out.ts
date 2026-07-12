@@ -125,7 +125,68 @@ export interface PromptGenerationResult {
     recordId: number | null;
     packetIdentity: PromptPacketIdentity;
     propagationContext?: PropagationPacketContextPreview | null;
+    temporalContext?: TemporalPacketContextPreview | null;
   };
+}
+
+export interface TemporalPacketContextRecord {
+  id: number;
+  shortId: string;
+  title: string;
+  recordTypeKey: string;
+  body: string;
+  standing: {
+    truthLayer: string | null;
+    canonStatus: string | null;
+  };
+  relationship: {
+    kind: string;
+    direction: "selected" | "incoming" | "outgoing" | "world";
+    note: string;
+  };
+  provenance: {
+    actor: string;
+    timestamp: string;
+    flowStep: string;
+  };
+  inclusionReason: string;
+}
+
+export interface TemporalPacketContextPreview {
+  serverOwned: true;
+  mode: PromptMode;
+  flowKey: "temporal_timeline";
+  stepKey: string;
+  packageSources: string[];
+  completeness: { status: "complete" | "incomplete"; blockers: string[] };
+  coverage: Array<{ key: string; label: string; value: string }>;
+  selectedSource: TemporalPacketContextRecord | null;
+  sourcePropagation: TemporalPacketContextRecord[];
+  relatedCanon: TemporalPacketContextRecord[];
+  openDebt: TemporalPacketContextRecord[];
+  protectedBoundaries: TemporalPacketContextRecord[];
+  kernelCommitments: TemporalPacketContextRecord[];
+  sourceDocuments: PromptDocument[];
+  sourceManifest: string[];
+  omissions: string[];
+  outputLabels: string[];
+  advisoryCanonWarning: string;
+  recovery: {
+    method: "POST";
+    href: "/api/prompt-out/steps";
+    body: {
+      flowKey: "temporal_timeline";
+      flowId: number;
+      recordId?: number;
+      templateKey: string;
+      stepKey: string;
+      mode: PromptMode;
+      label: string;
+      activeSetRevision: number;
+    };
+  };
+  orientation: { current: string; next: string; resume: string; safeExit: string };
+  readOnlyGuarantee: string;
 }
 
 export interface PropagationPacketContextPreview {
@@ -586,23 +647,294 @@ const temporalReportIdFromStep = (step: string): number | null => {
   return match ? Number(match[1]) : null;
 };
 
-const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): { lines: string[]; sourceManifest: string[] } => {
-  if (input.flowKey !== "temporal_timeline" || input.flowId == null) return { lines: [], sourceManifest: [] };
+const TEMPORAL_COVERAGE_FIELDS = [
+  ["temporalQuestions", "Temporal questions"],
+  ["firstTrueOrRelativeSequence", "First true or relative sequence"],
+  ["firstKnownOrReason", "First known date or reason"],
+  ["dateTypesAndGranularity", "Date types and granularity"],
+  ["latency", "Latency"],
+  ["residueByTimescale", "Residue by timescale"],
+  ["sequenceIntegrity", "Sequence integrity"],
+  ["retrospectiveInsertion", "Retrospective insertion"],
+  ["temporalMysteryBoundaries", "Temporal mystery boundaries"],
+  ["outcomeDecision", "Outcome decision"]
+] as const;
+
+const temporalLineValue = (body: string, label: string): string => {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return body.match(new RegExp(`^${escaped}: (.*)$`, "m"))?.[1]?.trim() ?? "";
+};
+
+const temporalRecordProvenance = (world: WorldFile, recordId: number, fallbackTimestamp: string) => {
+  const row = world.db.prepare(`
+    SELECT actor.name AS actor, record.updated_at AS timestamp
+    FROM records record
+    JOIN actors actor ON actor.id = record.actor_id
+    WHERE record.id = ?
+  `).get(recordId) as { actor: string; timestamp: string } | undefined;
+  return {
+    actor: row?.actor ?? "steward",
+    timestamp: row?.timestamp ?? fallbackTimestamp,
+    flowStep: "record current state selected by temporal:spatial-temporal-analysis"
+  };
+};
+
+const temporalContextRecord = (
+  world: WorldFile,
+  record: RecordRow,
+  relationship: TemporalPacketContextRecord["relationship"],
+  inclusionReason: string
+): TemporalPacketContextRecord => ({
+  id: record.id,
+  shortId: record.shortId,
+  title: record.title,
+  recordTypeKey: record.recordTypeKey,
+  body: record.body,
+  standing: { truthLayer: record.truthLayer, canonStatus: record.canonStatus },
+  relationship,
+  provenance: temporalRecordProvenance(world, record.id, record.updatedAt),
+  inclusionReason
+});
+
+const temporalRelationship = (recordId: number, link: ReturnType<WorldFile["listLinks"]>[number]): TemporalPacketContextRecord["relationship"] => ({
+  kind: link.linkTypeKey,
+  direction: link.fromRecordId === recordId ? "outgoing" : "incoming",
+  note: link.note
+});
+
+const temporalRecordManifest = (record: TemporalPacketContextRecord): string =>
+  `${record.shortId} ${record.title}; type ${record.recordTypeKey}; standing truth=${record.standing.truthLayer ?? "unset"}, canon=${record.standing.canonStatus ?? "unset"}; relationship ${record.relationship.direction}:${record.relationship.kind} (${record.relationship.note || "no note"}); inclusion ${record.inclusionReason}; provenance actor=${record.provenance.actor}, timestamp=${record.provenance.timestamp}, flow_step=${record.provenance.flowStep}`;
+
+const inactiveTemporalStatuses = new Set(["superseded", "deprecated", "rejected", "withdrawn"]);
+
+export const temporalPacketRevision = (world: WorldFile, flowId: number): number => {
+  const flow = world.getFlowInstance(flowId, "temporal_timeline");
+  const reportId = temporalReportIdFromStep(String(flow.current_step));
+  if (reportId == null) throw new Error("Temporal packet identity requires a pass report bound to the current flow");
+  const report = world.getRecord(reportId);
+  const sourceRecordIdText = temporalLineValue(report.body, "Source record id");
+  const sourceRecordId = sourceRecordIdText ? Number(sourceRecordIdText) : null;
+  const directLinks = sourceRecordId == null ? [] : world.listLinks(sourceRecordId);
+  const directIds = new Set(directLinks.flatMap((link) => [link.fromRecordId, link.toRecordId]));
+  if (sourceRecordId != null) directIds.delete(sourceRecordId);
+  const secondHopLinks = [...directIds].flatMap((recordId) => world.listLinks(recordId));
+  const contextLinks = [...directLinks, ...secondHopLinks]
+    .filter((link, index, links) => links.findIndex((candidate) => candidate.id === link.id) === index)
+    .filter((link) => {
+      const fromType = world.getRecord(link.fromRecordId).recordTypeKey;
+      const toType = world.getRecord(link.toRecordId).recordTypeKey;
+      return fromType !== "advisory_artifact" && fromType !== "skip_record"
+        && toType !== "advisory_artifact" && toType !== "skip_record";
+    });
+  const contextRecordIds = new Set<number>([
+    reportId,
+    ...(sourceRecordId == null ? [] : [sourceRecordId]),
+    ...directIds,
+    ...contextLinks.flatMap((link) => [link.fromRecordId, link.toRecordId]),
+    ...world.listRecords().filter((record) => record.recordTypeKey === "world_kernel").map((record) => record.id)
+  ]);
+  const digest = createHash("sha256").update(stableJson({
+    report,
+    sections: world.listSections(reportId),
+    records: world.listRecords().filter((record) => contextRecordIds.has(record.id) && record.recordTypeKey !== "advisory_artifact" && record.recordTypeKey !== "skip_record"),
+    links: contextLinks
+  })).digest();
+  return digest.readUInt32BE(0);
+};
+
+export const assertTemporalPacketCurrent = (world: WorldFile, flowId: number, submittedRevision?: number | null): void => {
+  const currentRevision = temporalPacketRevision(world, flowId);
+  if (submittedRevision == null || submittedRevision !== currentRevision) {
+    const error = new Error(`stale Temporal packet identity (submitted revision ${submittedRevision ?? "missing"}; current revision ${currentRevision})`) as Error & { remediation: string };
+    error.remediation = "Preserve the selected Temporal mode, refresh the run, and invoke its server-provided current-packet recovery action.";
+    throw error;
+  }
+};
+
+const temporalIncompleteContextError = (detail: string): Error & { remediation: string } => {
+  const error = new Error(`Temporal Prompt-out incomplete context: ${detail}`) as Error & { remediation: string };
+  error.remediation = "Preserve the selected mode, repair the named Temporal context, refresh the run, and use its server-provided current-packet recovery action.";
+  return error;
+};
+
+const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): {
+  lines: string[];
+  sourceDocuments: PromptDocument[];
+  sourceManifest: string[];
+  omissions: string[];
+  preview: TemporalPacketContextPreview | null;
+} => {
+  if (input.flowKey !== "temporal_timeline" || input.flowId == null) {
+    return { lines: [], sourceDocuments: [], sourceManifest: [], omissions: [], preview: null };
+  }
+  if (input.mode == null) throw new Error("Temporal Prompt-out requires an explicit Proposal or Pressure mode; omitted mode is never an implicit Pressure request");
   const flow = world.getFlowInstance(input.flowId, "temporal_timeline");
   const reportId = temporalReportIdFromStep(String(flow.current_step));
-  if (reportId == null) return { lines: ["Temporal pass report omitted: flow current step does not name a report."], sourceManifest: ["Omission: Temporal pass report not found in current step"] };
+  if (reportId == null) {
+    throw temporalIncompleteContextError("the current flow does not identify its pass report");
+  }
   const report = world.getRecord(reportId);
   const sections = world.listSections(report.id);
+  const coverageSection = sections.find((section) => section.heading === "Coverage lenses") ?? null;
+  const coverage = TEMPORAL_COVERAGE_FIELDS.map(([key, label]) => ({
+    key,
+    label,
+    value: coverageSection ? temporalLineValue(coverageSection.body, label) : ""
+  }));
+  const sourceRecordIdText = temporalLineValue(report.body, "Source record id");
+  const sourceRecordId = sourceRecordIdText ? Number(sourceRecordIdText) : null;
+  const materialBody = temporalLineValue(report.body, "Material body");
+  const blockers: string[] = [];
+  if (input.recordId != null && sourceRecordId != null && input.recordId !== sourceRecordId) {
+    blockers.push(`selected record ${input.recordId} does not match Temporal source record ${sourceRecordId}`);
+  }
+  if (sourceRecordId == null && !materialBody) blockers.push("selected source fact or material is unavailable");
+  if (input.mode === "pressure" && coverage.some((item) => !item.value)) blockers.push("Pressure requires all ten saved Temporal coverage lenses");
+
+  const selectedRecord = sourceRecordId == null ? null : world.getRecord(sourceRecordId);
+  const selectedSource = selectedRecord == null ? null : temporalContextRecord(world, selectedRecord, {
+    kind: "selected_temporal_source",
+    direction: "selected",
+    note: "Source identity persisted by the Temporal pass report"
+  }, "The selected source is the material whose timing, latency, residue, and sequence are under decision.");
+  const directLinks = selectedRecord == null ? [] : world.listLinks(selectedRecord.id);
+  const directIds = new Set(directLinks.flatMap((link) => [link.fromRecordId, link.toRecordId]));
+  directIds.delete(selectedRecord?.id ?? -1);
+  const sourcePropagation: TemporalPacketContextRecord[] = [];
+  const relatedCanon: TemporalPacketContextRecord[] = [];
+  const openDebt: TemporalPacketContextRecord[] = [];
+  const protectedBoundaries: TemporalPacketContextRecord[] = [];
+  const omissions: string[] = [];
+
+  for (const link of directLinks) {
+    const otherId = link.fromRecordId === selectedRecord?.id ? link.toRecordId : link.fromRecordId;
+    const candidate = world.getRecord(otherId);
+    if (candidate.id === report.id) continue;
+    if (inactiveTemporalStatuses.has(candidate.canonStatus ?? "")) {
+      omissions.push(`${candidate.shortId} omitted as inactive ${candidate.canonStatus} context; it is historical rather than current support.`);
+      continue;
+    }
+    const relationship = temporalRelationship(selectedRecord!.id, link);
+    if (candidate.recordTypeKey === "propagation_report") {
+      sourcePropagation.push(temporalContextRecord(world, candidate, relationship, "The linked final Propagation report and any recorded gate result establish why Temporal work is owed."));
+    } else if (candidate.recordTypeKey === "canon_fact") {
+      relatedCanon.push(temporalContextRecord(world, candidate, relationship, "This directly related canon fact can constrain the current Temporal decision."));
+    } else if (candidate.recordTypeKey === "canon_debt") {
+      if (candidate.canonStatus === "accepted" || candidate.body.includes("State: closed")) {
+        omissions.push(`${candidate.shortId} omitted because the linked canon debt is closed or inactive.`);
+      } else {
+        openDebt.push(temporalContextRecord(world, candidate, relationship, "This open debt bears on unresolved timing or residue work."));
+      }
+    } else if (candidate.recordTypeKey === "mystery_ledger_entry") {
+      protectedBoundaries.push(temporalContextRecord(world, candidate, relationship, "This linked mystery ledger entry bounds what the Temporal pass may explain."));
+    } else if (candidate.recordTypeKey !== "world_kernel") {
+      omissions.push(`${candidate.shortId} omitted as irrelevant to the Spatial-temporal role despite direct relationship ${link.linkTypeKey}.`);
+    }
+  }
+
+  const kernelCommitments = world.listRecords()
+    .filter((record) => record.recordTypeKey === "world_kernel" && !inactiveTemporalStatuses.has(record.canonStatus ?? ""))
+    .map((record) => temporalContextRecord(world, record, {
+      kind: "world_kernel_commitment",
+      direction: "world",
+      note: "Current kernel commitments bound every guided-flow decision"
+    }, "Current premise, tone, constraints, or protected effects can bound Temporal candidates and pressure."));
+
+  for (const directId of directIds) {
+    for (const link of world.listLinks(directId)) {
+      const secondHopId = link.fromRecordId === directId ? link.toRecordId : link.fromRecordId;
+      if (secondHopId === selectedRecord?.id || directIds.has(secondHopId)) continue;
+      const candidate = world.getRecord(secondHopId);
+      if (candidate.recordTypeKey === "world_kernel") continue;
+      omissions.push(`${candidate.shortId} omitted by the bounded second-hop rule; only the selected source and its direct structural relationships are decision context.`);
+    }
+  }
+  if (!sourcePropagation.length) omissions.push("Source Propagation report unavailable: no directly linked final Propagation report is present for this Temporal source.");
+  if (!relatedCanon.length) omissions.push("Related canon unavailable: no active directly linked canon fact bears on this Temporal decision.");
+  if (!openDebt.length) omissions.push("Open debt unavailable: no active directly linked canon debt bears on this Temporal decision.");
+  if (!protectedBoundaries.length) omissions.push("Protected-boundary context unavailable: no active directly linked mystery ledger entry bears on this decision.");
+  if (!kernelCommitments.length) omissions.push("Kernel commitments unavailable: this world has no active world-kernel record.");
+  if (!coverageSection) omissions.push("Saved Temporal coverage unavailable: no Coverage lenses section exists yet; Proposal may help draft candidates, but Pressure is incomplete.");
+  for (const item of coverage.filter((item) => !item.value)) omissions.push(`${item.label} unavailable: no saved steward-authored value exists yet.`);
+
+  const includedRecords = [
+    ...(selectedSource ? [selectedSource] : []),
+    ...sourcePropagation,
+    ...relatedCanon,
+    ...openDebt,
+    ...protectedBoundaries,
+    ...kernelCommitments
+  ];
+  const sourceDocuments: PromptDocument[] = [
+    { source: `temporal_report:${report.shortId}`, content: [report.body, ...sections.map((section) => `## ${section.heading}\n${section.body}`)].join("\n\n") },
+    ...includedRecords.map((record) => ({ source: `${record.recordTypeKey}:${record.shortId}`, content: [temporalRecordManifest(record), record.body].join("\n") }))
+  ];
+  const sourceManifest = [
+    `Temporal pass report: ${report.shortId} ${report.title}; flow ${input.flowId}; provenance current step ${String(flow.current_step)}`,
+    ...coverage.map((item) => `Temporal coverage lens: ${item.label}; saved=${item.value ? "yes" : "no"}`),
+    ...includedRecords.map(temporalRecordManifest),
+    ...omissions.map((omission) => `Omission: ${omission}`)
+  ];
+  const revision = temporalPacketRevision(world, input.flowId);
+  const stepKey = input.stepKey ?? input.templateKey;
+  const advisoryCanonWarning = "This Prompt-out packet is optional advisory support. The steward authors surviving material; only Admission may change canon standing.";
+  const preview: TemporalPacketContextPreview = {
+    serverOwned: true,
+    mode: input.mode,
+    flowKey: "temporal_timeline",
+    stepKey,
+    packageSources: [
+      "docs/worldbuilding-system/09_temporal_and_timeline_protocol.md",
+      "docs/worldbuilding-system/20_ai_assisted_workflow.md"
+    ],
+    completeness: { status: blockers.length ? "incomplete" : "complete", blockers },
+    coverage,
+    selectedSource,
+    sourcePropagation,
+    relatedCanon,
+    openDebt,
+    protectedBoundaries,
+    kernelCommitments,
+    sourceDocuments,
+    sourceManifest,
+    omissions,
+    outputLabels: [...DEFAULT_OUTPUT_LABELS],
+    advisoryCanonWarning,
+    recovery: {
+      method: "POST",
+      href: "/api/prompt-out/steps",
+      body: {
+        flowKey: "temporal_timeline",
+        flowId: input.flowId,
+        ...(selectedRecord ? { recordId: selectedRecord.id } : {}),
+        templateKey: input.templateKey,
+        stepKey,
+        mode: input.mode,
+        label: input.mode === "proposal" ? "Temporal Proposal" : "Spatial-temporal analyst",
+        activeSetRevision: revision
+      }
+    },
+    orientation: {
+      current: `Temporal/Timeline · ${String(flow.current_step)}`,
+      next: coverageSection ? "Review the current packet, then choose an explicit Temporal outcome or close preview." : "Save Temporal coverage or use Proposal mode to draft candidates.",
+      resume: `Resume Temporal run ${input.flowId} from pass report ${report.shortId}.`,
+      safeExit: "Return to a fresh workflow map; the in-progress pass report preserves current and next orientation."
+    },
+    readOnlyGuarantee: "Generation, loading, preview, copy, and download create or change no record, link, flow, disposition, skip, debt, status, or world-file content."
+  };
+  if (blockers.length) {
+    throw temporalIncompleteContextError(blockers.join("; "));
+  }
   return {
     lines: [
       `Temporal pass report: ${report.shortId} ${report.title}`,
-      report.body,
-      ...sections.map((section) => `### ${section.heading}\n${section.body}`)
+      ...coverage.map((item) => `${item.label}: ${item.value || "not saved"}`),
+      ...includedRecords.map((record) => temporalRecordManifest(record))
     ],
-    sourceManifest: [
-      `Temporal pass report: ${report.shortId} ${report.title}`,
-      ...sections.map((section) => `Temporal report section: ${section.heading}`)
-    ]
+    sourceDocuments,
+    sourceManifest,
+    omissions,
+    preview
   };
 };
 
@@ -1106,9 +1438,9 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
   const flowContext = {
     lines: [...temporalContext.lines, ...propagationContext.lines],
     doctrineLines: propagationContext.doctrineLines,
-    sourceDocuments: propagationContext.sourceDocuments,
+    sourceDocuments: [...temporalContext.sourceDocuments, ...propagationContext.sourceDocuments],
     sourceManifest: [...temporalContext.sourceManifest, ...propagationContext.sourceManifest],
-    omissions: [...propagationContext.omissions]
+    omissions: [...temporalContext.omissions, ...propagationContext.omissions]
   };
   const admissionDraftContext = admissionFullGateDraftContext(input);
   const sourceManifest = [
@@ -1127,7 +1459,8 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
     "No hidden repository context is available to the external LLM.",
     "Unavailable world context must be named before copy-out rather than silently omitted."
   ];
-  const advisoryWarning = "This prompt is optional advisory support. Pasted responses stay advisory artifacts until the steward authors and admits canon through the governed flow.";
+  const advisoryWarning = temporalContext.preview?.advisoryCanonWarning
+    ?? "This prompt is optional advisory support. Pasted responses stay advisory artifacts until the steward authors and admits canon through the governed flow.";
   const foundationalPropagation = propagationContext.severity != null && isFoundationalSeverity(propagationContext.severity);
   const atlasDomains = mode === "proposal" && foundationalPropagation
     ? PROPAGATION_ATLAS_DOMAINS.map((domain) => ({ ...domain }))
@@ -1224,6 +1557,8 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
             readOnlyGuarantee: "Preview and copy create no record, link, status, debt, skip, advisory artifact, disposition, flow-state, or world-file mutation."
           }
         : null
+      ,
+      temporalContext: input.flowKey === "temporal_timeline" ? temporalContext.preview : null
     }
   };
 };

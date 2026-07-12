@@ -145,7 +145,7 @@ export const promptOutActionContextFromQuery = (query: (key: string) => string |
   templateKey: query("templateKey"),
   recordId: optionalNumber(query("recordId")),
   stepKey: query("stepKey") ?? "",
-  mode: query("mode") === "proposal" ? "proposal" : "pressure",
+  mode: query("mode") === "proposal" ? "proposal" : query("mode") === "pressure" ? "pressure" : undefined,
   activeSetRevision: optionalNumber(query("activeSetRevision")),
   selectedSectionHeading: query("selectedSectionHeading"),
   admissionLevel: query("admissionLevel"),
@@ -155,10 +155,15 @@ export const promptOutActionContextFromQuery = (query: (key: string) => string |
 export const buildPromptOutStep = (world: WorldFile, input: PromptOutStepOfferInput): PromptOutStepDto => {
   const template = PromptOut.listPromptTemplates(world).find((row) => row.key === input.templateKey);
   if (!template) throw new Error(`Prompt template not found: ${input.templateKey}`);
+  if (input.flowKey === TemporalFlow.FLOW_KEY && input.mode == null) {
+    throw new Error("Temporal Prompt-out requires an explicit Proposal or Pressure mode; omitted mode is never an implicit Pressure request");
+  }
   const mode = input.mode ?? "pressure";
   const actionInput = input.flowKey === "propagation" && input.flowId != null
     ? { ...input, activeSetRevision: PropagationFlow.propagationActiveSet(world, input.flowId).revision }
-    : input;
+    : input.flowKey === TemporalFlow.FLOW_KEY && input.flowId != null
+      ? { ...input, activeSetRevision: PromptOut.temporalPacketRevision(world, input.flowId) }
+      : input;
   return {
     id: stepId(actionInput),
     label: input.label?.trim() || template.role_name || input.stepKey,
@@ -221,6 +226,9 @@ export const runPromptOutGenerateAction = (world: WorldFile, input: PromptOutSte
   if (input.flowKey === "propagation" && input.flowId != null) {
     PropagationFlow.assertPropagationPacketCurrent(world, input.flowId, input.activeSetRevision);
   }
+  if (input.flowKey === TemporalFlow.FLOW_KEY && input.flowId != null) {
+    PromptOut.assertTemporalPacketCurrent(world, input.flowId, input.activeSetRevision);
+  }
   return PromptOut.generatePrompt(world, {
     flowKey: input.flowKey,
     flowId: input.flowId,
@@ -277,6 +285,7 @@ export const runPromptOutStoreAdvisoryAction = (
   }
   if (input.flowKey === TemporalFlow.FLOW_KEY) {
     if (input.flowId == null) throw new Error("Temporal Prompt-out actions require a flow id");
+    PromptOut.assertTemporalPacketCurrent(world, input.flowId, input.activeSetRevision);
     return TemporalFlow.storeTemporalAdvisory(world, {
       flowId: input.flowId,
       stepKey: input.stepKey,
@@ -305,6 +314,9 @@ export const runPromptOutDispositionAction = (
 ): { disposition: PromptOut.AdvisoryDispositionRow } => {
   if (input.flowKey === "propagation" && input.flowId != null) {
     PropagationFlow.assertPropagationPacketCurrent(world, input.flowId, input.activeSetRevision);
+  }
+  if (input.flowKey === TemporalFlow.FLOW_KEY && input.flowId != null) {
+    PromptOut.assertTemporalPacketCurrent(world, input.flowId, input.activeSetRevision);
   }
   return { disposition: PromptOut.disposeAdvisoryArtifact(world, payload.advisoryRecordId, payload) };
 };
@@ -363,6 +375,9 @@ export const runPromptOutSkipAction = (
   input: PromptOutStepActionContext,
   payload: PromptOutSkipBody = {}
 ): unknown => {
+  if (input.flowKey === TemporalFlow.FLOW_KEY && input.flowId != null) {
+    PromptOut.assertTemporalPacketCurrent(world, input.flowId, input.activeSetRevision);
+  }
   const handler = input.flowKey ? skipHandlers[input.flowKey] : undefined;
   const mergedInput = {
     ...input,

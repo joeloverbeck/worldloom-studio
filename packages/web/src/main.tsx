@@ -10,6 +10,12 @@ import {
   type PropagationWorkspaceDomain
 } from "./propagation-workspace.js";
 import { WorkflowShell } from "./workflow-shell.js";
+import {
+  TemporalPromptOutPanel,
+  type TemporalPacketContextView,
+  type TemporalPromptError,
+  type TemporalPromptModeOffer
+} from "./temporal-prompt-out-panel.js";
 import "./styles.css";
 
 interface RecordRow {
@@ -1155,6 +1161,7 @@ interface AppProps {
   initialMinimalViableWorld?: MinimalViableWorldState | null;
   initialPropagationQueue?: PropagationQueueRow[];
   initialPropagationRun?: PropagationRunPayload | null;
+  initialTemporalRun?: TemporalRun | null;
   initialQaScorecard?: QaScorecard | null;
   initialLoadedPromptStatus?: LoadedPromptStatusState | null;
   initialPromptText?: string;
@@ -1705,32 +1712,7 @@ const describePromptOrigin = (origin: LoadedPromptOrigin): string => [
   `admission section keys ${origin.admissionSectionKeys?.length ? origin.admissionSectionKeys.join(",") : "none"}`
 ].join(" · ");
 
-const promptPacketExportText = (origin: LoadedPromptOrigin, promptText: string): string => [
-  "Prompt packet manifest",
-  `world: ${origin.worldPath}`,
-  `flow: ${origin.flowKey ?? "none"}`,
-  `flow_id: ${origin.flowId ?? "none"}`,
-  `record_id: ${origin.recordId ?? "none"}`,
-  `record_short_id: ${origin.recordShortId ?? "none"}`,
-  `record_type: ${origin.recordTypeKey ?? "none"}`,
-  `section: ${origin.selectedSectionHeading ?? "none"}`,
-  `step: ${origin.stepKey}`,
-  `mode: ${origin.mode ?? "none"}`,
-  `template: ${origin.templateKey}`,
-  `decision: ${origin.decisionLabel}`,
-  `generated_at: ${origin.createdAt || "unknown"}`,
-  `packet_hash: ${origin.packetHash ?? "none"}`,
-  `body_hash: ${origin.bodyHash ?? "none"}`,
-  `source_manifest_hash: ${origin.sourceManifestHash ?? "none"}`,
-  `admission_level: ${origin.admissionLevel ?? "none"}`,
-  `work_scale: ${origin.workScale ?? "none"}`,
-  `draft_state: ${origin.admissionDraftState ?? "not_applicable"}`,
-  `draft_digest: ${origin.admissionDraftHash ?? "none"}`,
-  `draft_sections: ${origin.admissionSectionKeys?.length ? origin.admissionSectionKeys.join(",") : "none"}`,
-  "",
-  "Prompt packet body",
-  promptText
-].join("\n");
+const promptPacketExportText = (_origin: LoadedPromptOrigin, promptText: string): string => promptText;
 
 function LoadedPromptStatusPanel({
   view,
@@ -1840,6 +1822,17 @@ function DecisionContractPanel({ title, contract }: { title: string; contract?: 
           ) : (
             <p>Proposal and pressure mode availability loads from the server contract.</p>
           )}
+        </section>
+        <section>
+          <h4>Decision obligations</h4>
+          {contract ? (
+            <>
+              <p>Required: {contract.obligations.required.join(" · ") || "none"}</p>
+              <p>Optional: {contract.obligations.optional.join(" · ") || "none"}</p>
+              <p>Skippable: {contract.obligations.skippable.join(" · ") || "none"}</p>
+              <p>Severity-dependent: {contract.obligations.severityDependent.join(" · ") || "none"}</p>
+            </>
+          ) : <p>Required, optional, skippable, and severity-dependent work loads from the server contract.</p>}
         </section>
         <section>
           <h4>Write intent</h4>
@@ -2219,6 +2212,7 @@ function App({
   initialMinimalViableWorld = null,
   initialPropagationQueue = [],
   initialPropagationRun = null,
+  initialTemporalRun = null,
   initialQaScorecard = null,
   initialLoadedPromptStatus = null,
   initialPromptText = "",
@@ -2301,20 +2295,23 @@ function App({
   const [constraintAdvisoryRecordId, setConstraintAdvisoryRecordId] = useState("");
   const [constraintSkipStep, setConstraintSkipStep] = useState("constraint:challenge");
   const [constraintSkipUnresolved, setConstraintSkipUnresolved] = useState(false);
-  const [temporalRun, setTemporalRun] = useState<TemporalRun | null>(null);
-  const [temporalFlowId, setTemporalFlowId] = useState<number | null>(null);
+  const [temporalRun, setTemporalRun] = useState<TemporalRun | null>(initialTemporalRun);
+  const [temporalFlowId, setTemporalFlowId] = useState<number | null>(initialTemporalRun?.flow.id ?? null);
   const [temporalSourceType, setTemporalSourceType] = useState<"fact" | "capability" | "canon_debt" | "material" | "pass_report">("fact");
-  const [temporalSourceRecordId, setTemporalSourceRecordId] = useState("");
+  const [temporalSourceRecordId, setTemporalSourceRecordId] = useState(initialTemporalRun?.source.sourceRecordId == null ? "" : String(initialTemporalRun.source.sourceRecordId));
   const [temporalMaterialTitle, setTemporalMaterialTitle] = useState("");
   const [temporalMaterialBody, setTemporalMaterialBody] = useState("");
-  const [temporalSubject, setTemporalSubject] = useState("");
-  const [temporalCoverage, setTemporalCoverage] = useState<TemporalCoverage>(emptyTemporalCoverage);
+  const [temporalSubject, setTemporalSubject] = useState(initialTemporalRun?.source.auditedSubject ?? "");
+  const [temporalCoverage, setTemporalCoverage] = useState<TemporalCoverage>(initialTemporalRun?.coverage ?? emptyTemporalCoverage);
   const [temporalExistingCardId, setTemporalExistingCardId] = useState("");
   const [temporalCardRelation, setTemporalCardRelation] = useState("");
   const [temporalSourceStep, setTemporalSourceStep] = useState("temporal:outcome");
   const [temporalAdvisoryRecordId, setTemporalAdvisoryRecordId] = useState("");
   const [temporalSkipStep, setTemporalSkipStep] = useState("temporal:spatial-temporal-analysis");
   const [temporalSkipUnresolved, setTemporalSkipUnresolved] = useState(false);
+  const [temporalPromptMode, setTemporalPromptMode] = useState<"proposal" | "pressure">("proposal");
+  const [temporalPacketContext, setTemporalPacketContext] = useState<TemporalPacketContextView | null>(null);
+  const [temporalPromptError, setTemporalPromptError] = useState<TemporalPromptError | null>(null);
   const [stage13Run, setStage13Run] = useState<Stage13Run | null>(null);
   const [stage13FlowId, setStage13FlowId] = useState<number | null>(null);
   const [stage13SourceRecordId, setStage13SourceRecordId] = useState("");
@@ -2794,6 +2791,9 @@ function App({
     ?? null;
   const propagationPromptStepRequest = selectedPropagationPromptMode?.stepRequest ?? null;
   const canLoadPropagationPromptStep = Boolean(openWorld && propagationPromptStepRequest && selectedPropagationPromptMode?.availability !== "blocked");
+  const temporalPromptModes = (temporalRun?.decisionPoint?.sharedContract.promptOut.modes ?? []) as TemporalPromptModeOffer[];
+  const selectedTemporalPromptMode = temporalPromptModes.find((mode) => mode.mode === temporalPromptMode) ?? null;
+  const temporalPromptStepRequest = selectedTemporalPromptMode?.stepRequest ?? null;
   const currentLoadedPromptOrigin = useMemo<LoadedPromptOrigin | null>(() => {
     if (!openWorld) return null;
 
@@ -2882,6 +2882,33 @@ function App({
       };
     }
 
+    if (activeDestination === "temporal" && temporalRun && temporalPromptStepRequest) {
+      const request = temporalPromptStepRequest.body;
+      return {
+        worldPath: openWorld,
+        flowKey: "temporal_timeline",
+        flowId: originNumber(request.flowId) ?? temporalRun.flow.id,
+        recordId: originNumber(request.recordId) ?? temporalRun.source.sourceRecordId,
+        recordShortId: temporalRun.source.sourceRecordId == null ? null : loadedPromptStatus?.origin.recordShortId ?? null,
+        recordTypeKey: temporalRun.source.sourceRecordId == null ? null : loadedPromptStatus?.origin.recordTypeKey ?? null,
+        selectedSectionHeading: null,
+        stepKey: String(request.stepKey ?? temporalRun.promptOut.stepKey),
+        mode: typeof request.mode === "string" ? request.mode : temporalPromptMode,
+        templateKey: String(request.templateKey ?? temporalRun.promptOut.templateKey),
+        decisionLabel: temporalRun.decisionPoint?.sharedContract.step.localDecision ?? "Temporal/Timeline Prompt-out",
+        createdAt: loadedPromptStatus?.origin.createdAt ?? "",
+        admissionLevel: null,
+        workScale: null,
+        activeSetRevision: originNumber(request.activeSetRevision) ?? null,
+        admissionDraftState: "not_applicable",
+        admissionDraftHash: null,
+        admissionSectionKeys: [],
+        packetHash: loadedPromptStatus?.origin.packetHash ?? null,
+        bodyHash: loadedPromptStatus?.origin.bodyHash ?? null,
+        sourceManifestHash: loadedPromptStatus?.origin.sourceManifestHash ?? null
+      };
+    }
+
     if (activeDestination === "substrate" && promptStep) {
       return {
         worldPath: openWorld,
@@ -2933,6 +2960,9 @@ function App({
     propagationPromptStepRequest,
     propagationRun,
     displayedPropagationContract,
+    temporalPromptMode,
+    temporalPromptStepRequest,
+    temporalRun,
     selectedAdmissionPromptMode,
     selectedCreationPromptMode
   ]);
@@ -3030,6 +3060,9 @@ function App({
       origin={promptPacketView.origin}
     />
   ) : null;
+  const currentTemporalPacket = temporalPacketContext && promptPacketOrigin?.flowKey === "temporal_timeline" && promptText
+    ? { promptText, identity: promptPacketOrigin, context: temporalPacketContext }
+    : null;
   const loadedPromptStatusPanel = loadedPromptStatusView ? (
     <LoadedPromptStatusPanel
       view={loadedPromptStatusView}
@@ -3976,6 +4009,12 @@ function App({
     setPropagationPacketContext(null);
   };
 
+  const selectedPromptStepKey = () => {
+    if (promptFlowKey === "constraint_composition") return "constraint:challenge";
+    if (promptFlowKey === "temporal_timeline") return temporalRun?.promptOut.stepKey ?? "temporal:spatial-temporal-analysis";
+    return promptTemplateKey;
+  };
+
   const loadPromptStep = async () => {
     const payload = await api<{ step: PromptOutStep }>("/api/prompt-out/steps", {
       method: "POST",
@@ -3984,7 +4023,8 @@ function App({
         flowId: promptStepFlowId(),
         templateKey: promptTemplateKey,
         recordId: promptStepRecordId(),
-        stepKey: promptFlowKey === "constraint_composition" ? "constraint:challenge" : promptFlowKey === "temporal_timeline" ? "temporal:spatial-temporal-analysis" : promptTemplateKey,
+        stepKey: selectedPromptStepKey(),
+        mode: promptFlowKey === "temporal_timeline" ? temporalPromptMode : undefined,
         label: selectedTemplate?.role_name ?? promptTemplateKey,
         admissionLevel: admissionLevel || undefined,
         workScale: promptFlowKey === "contradiction" ? (stage13WorkScale || undefined) : (workScale || undefined)
@@ -5252,6 +5292,57 @@ function App({
     applyTemporalRun(await api<TemporalRun>(`/api/temporal/runs/${flowId}`));
   };
 
+  const loadTemporalPromptStep = async (
+    mode: "proposal" | "pressure",
+    requestOverride?: TemporalPromptModeOffer["stepRequest"]
+  ) => {
+    setTemporalPromptMode(mode);
+    const offer = temporalPromptModes.find((item) => item.mode === mode) ?? null;
+    const request = requestOverride ?? offer?.stepRequest ?? null;
+    if (!request || offer?.availability === "blocked" || offer?.available === false) {
+      const message = offer?.blocker ?? `The server returned no current ${mode} packet action.`;
+      setTemporalPromptError({ message, remediation: "Preserve this mode, complete the named server blocker, refresh the Temporal run, and recover the current packet." });
+      return;
+    }
+    try {
+      setTemporalPromptError(null);
+      setPromptFlowKey("temporal_timeline");
+      setPromptTemplateKey(String(request.body.templateKey ?? "temporal_spatial_analyst"));
+      if (request.body.recordId != null) setPromptRecordId(String(request.body.recordId));
+      const stepPayload = await api<{ step: PromptOutStep }>(request.href, {
+        method: request.method,
+        body: JSON.stringify(request.body)
+      });
+      setPromptStep(stepPayload.step);
+      const generated = await api<{
+        prompt: string;
+        promptOut: { packetIdentity: PromptPacketIdentity; temporalContext: TemporalPacketContextView };
+      }>(stepPayload.step.actions.generate.href, { method: stepPayload.step.actions.generate.method });
+      setLoadedPromptAndPacket(promptOriginFromPacketIdentity(generated.promptOut.packetIdentity, {
+        decisionLabel: temporalRun?.decisionPoint?.sharedContract.step.localDecision ?? stepPayload.step.label,
+        mode
+      }), generated.prompt);
+      setTemporalPacketContext(generated.promptOut.temporalContext);
+      setMessage(`Loaded current Temporal ${mode === "proposal" ? "Proposal" : "Pressure"} packet.`);
+    } catch (error) {
+      const payload = error instanceof ApiError ? error.payload as { error?: string; remediation?: string } : null;
+      const message = payload?.error ?? apiErrorMessage(error);
+      const remediation = payload?.remediation ?? "Preserve the selected mode, refresh the Temporal run, and use the server-provided current-packet recovery action.";
+      setTemporalPromptError({ message, remediation });
+      setMessage(message);
+      if (temporalFlowId != null) await refreshTemporalRun(temporalFlowId);
+    }
+  };
+
+  const recoverTemporalPromptPacket = async () => {
+    if (temporalFlowId == null) return;
+    const fresh = await api<TemporalRun>(`/api/temporal/runs/${temporalFlowId}`);
+    applyTemporalRun(fresh);
+    const recovery = (fresh.decisionPoint?.sharedContract.promptOut.modes ?? [])
+      .find((mode) => mode.mode === temporalPromptMode)?.stepRequest as TemporalPromptModeOffer["stepRequest"] | undefined;
+    await loadTemporalPromptStep(temporalPromptMode, recovery ?? null);
+  };
+
   const temporalStartPayload = () => {
     if (temporalSourceType === "material") {
       return {
@@ -5354,6 +5445,7 @@ function App({
         templateKey: "temporal_spatial_analyst",
         recordId: optionalNumber(temporalSourceRecordId),
         stepKey: temporalSkipStep,
+        mode: temporalPromptMode,
         label: "Spatial-temporal analyst",
         workScale: workScale || undefined
       })
@@ -6055,16 +6147,23 @@ function App({
           <p>Skips: {temporalRun?.skips.map((skip) => `${skip.record.shortId} ${skip.record.title}`).join(", ") || "none"}</p>
         </section>
         <section className="subpanel">
-          <h3>Prompt-out preview</h3>
+          <h3>Prompt-out advisory trail</h3>
           <p className="meta">{temporalRun?.promptOut.coldUseEvidence ?? "Prompt-out becomes available after steward-authored Temporal material exists."}</p>
-          <button onClick={() => {
-            setPromptFlowKey("temporal_timeline");
-            setPromptTemplateKey("temporal_spatial_analyst");
-            if (temporalRun?.promptOut.sourceRecordId != null) setPromptRecordId(String(temporalRun.promptOut.sourceRecordId));
-          }} disabled={!temporalRun}>Use Spatial-temporal analyst</button>
           <p>Advisory: {temporalRun?.advisories.map((advisory) => `${advisory.record.shortId} ${advisory.record.title}`).join(", ") || "none"}</p>
         </section>
       </div>
+
+      <TemporalPromptOutPanel
+        modes={temporalPromptModes}
+        selectedMode={temporalPromptMode}
+        packet={currentTemporalPacket}
+        error={temporalPromptError}
+        packetState={promptPacketView?.state}
+        packetStateReason={promptPacketView?.reason}
+        copyDownloadControls={promptPacketExportControls}
+        onLoadMode={(mode) => { void loadTemporalPromptStep(mode); }}
+        onRecover={() => { void recoverTemporalPromptPacket(); }}
+      />
 
       <section className="subpanel">
         <h3>Read-side trail</h3>

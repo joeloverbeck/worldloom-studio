@@ -231,12 +231,14 @@ const promptOutState = (world: WorldFile, flowId: number) => {
 const temporalPromptModes = (world: WorldFile, flowId: number): DecisionPointPromptMode[] => {
   const promptOut = promptOutState(world, flowId);
   const source = sourceFromReport(readReport(world, flowId));
+  const activeSetRevision = PromptOut.temporalPacketRevision(world, flowId);
   const commonBody = {
     flowKey: FLOW_KEY,
     flowId,
     recordId: promptOut.sourceRecordId ?? undefined,
     templateKey: PROMPT_TEMPLATE_KEY,
-    stepKey: promptOut.stepKey
+    stepKey: promptOut.stepKey,
+    activeSetRevision
   };
   return withPromptModeSummaries([
     promptMode({
