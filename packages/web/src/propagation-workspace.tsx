@@ -81,6 +81,7 @@ export interface PropagationWorkspaceProps {
 }
 
 type EditorTarget = { kind: "consequence" | "domain"; rowId: number };
+type SuccessfulFocusTarget = EditorTarget & { lineageId: string };
 
 const targetKey = (target: EditorTarget) => `${target.kind}:${target.rowId}`;
 
@@ -91,6 +92,7 @@ export function PropagationWorkspace(props: PropagationWorkspaceProps) {
   const [actionErrors, setActionErrors] = useState<Record<string, string>>({});
   const [consequenceLineageOpen, setConsequenceLineageOpen] = useState(false);
   const [domainLineageOpen, setDomainLineageOpen] = useState(false);
+  const [successfulFocusTarget, setSuccessfulFocusTarget] = useState<SuccessfulFocusTarget | null>(null);
   const editorHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const rowControlRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const workspaceRef = useRef<HTMLElement | null>(null);
@@ -104,6 +106,18 @@ export function PropagationWorkspace(props: PropagationWorkspaceProps) {
   useEffect(() => {
     if (openEditor) editorHeadingRef.current?.focus();
   }, [openEditor]);
+
+  useEffect(() => {
+    if (!successfulFocusTarget) return;
+    const retiredRowReachedBrowser = successfulFocusTarget.kind === "consequence"
+      ? !props.consequences.some((row) => row.id === successfulFocusTarget.rowId && row.lifecycleState === "active")
+      : !props.domains.some((row) => row.id === successfulFocusTarget.rowId && row.lifecycleState === "active");
+    if (!retiredRowReachedBrowser) return;
+    const editorControl = Array.from(workspaceRef.current?.querySelectorAll<HTMLButtonElement>("[data-editor-control]") ?? [])
+      .find((control) => control.dataset.editorControl === `${successfulFocusTarget.kind}:${successfulFocusTarget.lineageId}`);
+    (editorControl ?? (successfulFocusTarget.kind === "consequence" ? consequenceLineageControlRef.current : domainLineageControlRef.current))?.focus();
+    setSuccessfulFocusTarget(null);
+  }, [props.consequences, props.domains, successfulFocusTarget]);
 
   const consequenceDraft = (row: PropagationWorkspaceConsequence): ConsequenceRevisionInput => consequenceDrafts[row.id] ?? {
     reason: "",
@@ -153,9 +167,7 @@ export function PropagationWorkspace(props: PropagationWorkspaceProps) {
     clearActionError(target);
     clearDraft(target);
     setOpenEditor(null);
-    const editorControl = Array.from(workspaceRef.current?.querySelectorAll<HTMLButtonElement>("[data-editor-control]") ?? [])
-      .find((control) => control.dataset.editorControl === `${target.kind}:${lineageId}`);
-    (editorControl ?? (target.kind === "consequence" ? consequenceLineageControlRef.current : domainLineageControlRef.current))?.focus();
+    setSuccessfulFocusTarget({ ...target, lineageId });
   };
 
   const recordActionError = (target: EditorTarget, error: unknown) => {

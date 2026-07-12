@@ -174,49 +174,55 @@ describe("compact Pre-close Propagation workspace", () => {
   });
 
   it("recounts refreshed lineage and restores focus after successful replacement and retraction", async () => {
-    const props = workspaceProps();
-    let rerender!: ReturnType<typeof render>["rerender"];
-    props.onReviseConsequence = async (row) => {
-      props.consequences = [
-        {
-          ...row,
-          lifecycleState: "superseded",
-          provenance: {
-            ...row.provenance,
-            retired: { actor: { id: 1, name: "steward" }, timestamp: "2026-07-12T11:00:00.000Z", flowStep: "propagation:consequence-revision" }
-          }
-        },
-        {
-          ...row,
-          id: 53,
-          version: 3,
-          priorVersionId: row.id,
-          body: "Only licensed courthouse markets close.",
-          provenance: provenance("propagation:consequence-revision")
-        }
-      ];
-      rerender(<PropagationWorkspace {...props} />);
-    };
-    props.onRetractDomain = async (row) => {
-      props.domains = props.domains.map((candidate) => candidate.id === row.id ? {
-        ...candidate,
-        lifecycleState: "retracted",
-        revisionReason: "The domain no longer changes.",
-        provenance: {
-          ...candidate.provenance,
-          retired: { actor: { id: 1, name: "steward" }, timestamp: "2026-07-12T11:05:00.000Z", flowStep: "propagation:domain-retraction" }
-        }
-      } : candidate);
-      rerender(<PropagationWorkspace {...props} />);
-    };
-    ({ rerender } = render(<PropagationWorkspace {...props} />));
+    function RefreshHarness() {
+      const [props, setProps] = React.useState(workspaceProps);
+      const onReviseConsequence: PropagationWorkspaceProps["onReviseConsequence"] = async (row) => {
+        setTimeout(() => setProps((current) => ({
+            ...current,
+            consequences: [
+              {
+                ...row,
+                lifecycleState: "superseded",
+                provenance: {
+                  ...row.provenance,
+                  retired: { actor: { id: 1, name: "steward" }, timestamp: "2026-07-12T11:00:00.000Z", flowStep: "propagation:consequence-revision" }
+                }
+              },
+              {
+                ...row,
+                id: 53,
+                version: 3,
+                priorVersionId: row.id,
+                body: "Only licensed courthouse markets close.",
+                provenance: provenance("propagation:consequence-revision")
+              }
+            ]
+          })), 0);
+      };
+      const onRetractDomain: PropagationWorkspaceProps["onRetractDomain"] = async (row) => {
+        setTimeout(() => setProps((current) => ({
+            ...current,
+            domains: current.domains.map((candidate) => candidate.id === row.id ? {
+              ...candidate,
+              lifecycleState: "retracted",
+              revisionReason: "The domain no longer changes.",
+              provenance: {
+                ...candidate.provenance,
+                retired: { actor: { id: 1, name: "steward" }, timestamp: "2026-07-12T11:05:00.000Z", flowStep: "propagation:domain-retraction" }
+              }
+            } : candidate)
+          })), 0);
+      };
+      return <PropagationWorkspace {...props} onReviseConsequence={onReviseConsequence} onRetractDomain={onRetractDomain} />;
+    }
+    render(<RefreshHarness />);
 
     expect(screen.getByRole("button", { name: "Retired consequence lineage (0)" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Edit consequence #52" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Steward revision reason for consequence #52" }), { target: { value: "Refresh the active lineage." } });
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "Save replacement consequence #52" })));
 
-    expect(screen.getByRole("button", { name: "Retired consequence lineage (1)" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Retired consequence lineage (1)" })).toBeTruthy();
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Edit consequence #53" }));
 
     const domainName = domainNames[0];
@@ -224,7 +230,7 @@ describe("compact Pre-close Propagation workspace", () => {
     fireEvent.change(screen.getByRole("textbox", { name: `Steward revision reason for domain ${domainName}` }), { target: { value: "The domain no longer changes." } });
     await act(async () => fireEvent.click(screen.getByRole("button", { name: `Confirm retraction of domain: ${domainName}` })));
 
-    expect(screen.getByRole("button", { name: "Retired domain lineage (1)" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Retired domain lineage (1)" })).toBeTruthy();
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Retired domain lineage (1)" }));
   });
 
