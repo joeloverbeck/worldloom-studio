@@ -32,7 +32,7 @@ describe("Temporal/Timeline flow HTTP API", () => {
     expect((await postJson(app, "/api/worlds/create", { path: tempPath("temporal-packet.sqlite") })).status).toBe(201);
 
     const createRecord = async (input: { recordTypeKey: string; title: string; body: string; truthLayer?: string; canonStatus?: string }) =>
-      (await json<{ record: { id: number; shortId: string } }>(await postJson(app, "/api/records", {
+      (await json<{ record: { id: number; shortId: string; createdAt: string; updatedAt: string } }>(await postJson(app, "/api/records", {
         truthLayer: "Objective canon",
         canonStatus: "accepted",
         ...input
@@ -218,7 +218,11 @@ describe("Temporal/Timeline flow HTTP API", () => {
       selectedSource: {
         id: fact.id,
         standing: { canonStatus: "accepted" },
-        provenance: { actor: "steward", timestamp: expect.any(String), flowStep: expect.any(String) }
+        provenance: {
+          actor: "steward",
+          timestamp: fact.createdAt,
+          flowStep: "unavailable: record creation did not persist a flow step"
+        }
       },
       sourcePropagation: [expect.objectContaining({ id: propagationReport.id, inclusionReason: expect.stringContaining("Propagation") })],
       relatedCanon: [expect.objectContaining({ id: relatedCanon.id })],
@@ -376,7 +380,11 @@ describe("Temporal/Timeline flow HTTP API", () => {
       body: "The fragment places three tolls before the first public archive.",
       standing: { truthLayer: null, canonStatus: null },
       relationship: { direction: "selected", kind: "selected_temporal_material" },
-      provenance: { actor: "steward", timestamp: expect.any(String), flowStep: expect.any(String) },
+      provenance: {
+        actor: "steward",
+        timestamp: expect.any(String),
+        flowStep: "unavailable: record creation did not persist a flow step"
+      },
       inclusionReason: expect.stringContaining("selected material")
     });
     expect(generated.prompt).toContain("Recovered bell-calendar fragment");

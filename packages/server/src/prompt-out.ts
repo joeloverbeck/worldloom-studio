@@ -669,17 +669,17 @@ const temporalLineValue = (body: string, label: string): string => {
   return body.match(new RegExp(`^${escaped}: (.*)$`, "m"))?.[1]?.trim() ?? "";
 };
 
-const temporalRecordProvenance = (world: WorldFile, recordId: number, fallbackTimestamp: string) => {
+const temporalRecordProvenance = (world: WorldFile, recordId: number, fallbackCreatedAt: string) => {
   const row = world.db.prepare(`
-    SELECT actor.name AS actor, record.updated_at AS timestamp
+    SELECT actor.name AS actor, record.created_at AS timestamp
     FROM records record
     JOIN actors actor ON actor.id = record.actor_id
     WHERE record.id = ?
   `).get(recordId) as { actor: string; timestamp: string } | undefined;
   return {
     actor: row?.actor ?? "steward",
-    timestamp: row?.timestamp ?? fallbackTimestamp,
-    flowStep: "record current state selected by temporal:spatial-temporal-analysis"
+    timestamp: row?.timestamp ?? fallbackCreatedAt,
+    flowStep: "unavailable: record creation did not persist a flow step"
   };
 };
 
@@ -696,7 +696,7 @@ const temporalContextRecord = (
   body: record.body,
   standing: { truthLayer: record.truthLayer, canonStatus: record.canonStatus },
   relationship,
-  provenance: temporalRecordProvenance(world, record.id, record.updatedAt),
+  provenance: temporalRecordProvenance(world, record.id, record.createdAt),
   inclusionReason
 });
 
@@ -821,7 +821,7 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
             direction: "selected" as const,
             note: "Selected steward material persisted by the Temporal pass report"
           },
-          provenance: temporalRecordProvenance(world, report.id, report.updatedAt),
+          provenance: temporalRecordProvenance(world, report.id, report.createdAt),
           inclusionReason: "This selected material is the steward-authored subject whose timing, latency, residue, and sequence are under decision."
         }
       : null
