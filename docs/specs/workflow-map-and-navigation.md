@@ -94,6 +94,22 @@ Priority changes orientation only. It does not admit canon, change canon standin
 
 This pairwise rule leaves current behavior unchanged for unresolved Creation coverage, Admission-only, Propagation-only, owed-boundary, Temporal/Timeline, Minimal Viable World, QA, and other destination combinations outside this proven collision.
 
+### Source-linked conditional passes after Propagation close
+
+The map receives a server-owned ordered ledger of `conditional_pass_obligation` records backed by structured flow-owned state. Each obligation has exactly one source fact, one final Propagation report, one stable pass key, one ordinal, one disposition (`outstanding`, `covered`, or `deferred`), optional rationale, and optional covering evidence. The unique identity is source fact + report + pass key. Titles, bodies, rationales, debt prose, report prose, and link-note prose never determine identity, applicability, coverage, disposition, ordering, or routing.
+
+Fresh foundational Propagation close owes three obligations in this order, reusing existing guided destinations:
+
+1. `temporal_timeline` → Temporal/Timeline;
+2. `constraint_composition` → Constraint Composition;
+3. `institutional_economic_suppression` → Institutional / Economic / Suppression.
+
+World open/migration reconciliation creates missing obligations for historical closed foundational runs before this read-only map is built. Reconciliation uses typed source/report relationships and structured foundational severity, is idempotent, and does not change append-only report text, source canon, debt history, or completed flow state.
+
+After preserved higher-priority Creation cases and the routeable open-Propagation arbitration above, the first outstanding obligation is the primary decision ahead of queued Admission. Conditional passes and the affected destination are `owed`; the response includes the full ledger grouped by source fact and report, stable order, source-selected start/resume input, doctrine, blockers, provenance, governed history, and current/next/resume state. The primary label and reason name the pass, source fact, and report and explain that the closed foundational run still owes specialized work before further dependency-bearing Admission.
+
+Admission remains visible, active when queued, truthfully counted, and directly navigable. When every obligation for a handoff is `covered` by matching completed pass evidence or explicitly `deferred` with a steward rationale, a fresh read may elevate Admission under the existing ordering; governed obligations remain visible. Map reads never emit, reconcile, cover, defer, or otherwise mutate obligations. Canon-debt title/body keyword matching is not a source of Conditional-pass or Temporal/Timeline state.
+
 ## Destinations
 
 The map owns destination entry for:
@@ -173,6 +189,7 @@ A browser workflow slice that changes navigation must show:
 - for pre-Admission handoff changes, a cognitive walkthrough that starts with a saved kernel before seed parking, identifies seed decomposition as the owed decision, distinguishes unlock guidance from provenance, predicts that the map writes nothing, follows the Creation resume destination, parks proposed seeds, and returns to a refreshed Admission queue state.
 - for seed-family coverage changes, a walkthrough that starts with parked proposed seeds and unresolved required coverage, verifies Creation remains current or owed, verifies Admission queue visibility is secondary, resolves or deliberately disposes coverage rows, refreshes the map, and verifies Admission becomes the primary next decision only after server-owned coverage state is resolved.
 - for Admission-versus-routeable-Propagation arbitration, a cognitive walkthrough that starts after major-or-higher Admission completion with another proposal waiting and open source-linked Propagation debt; reloads the map; identifies owed Propagation as primary and understands the accepted-canon shock-cone reason; verifies both queue counts and destinations remain truthful and Admission remains directly navigable; follows the primary route into the debt item with source, debt, severity, blocker, and start/resume state visible; predicts that map reads and navigation do not write; and returns safely to a freshly reloaded map. Package provenance, the decision contract, routeability and severity context, doctrine at point of use, blockers, current/next/resume state, source/debt provenance, read-only behavior, and the cognitive walkthrough are required at this seam. Prompt-out packets, advisory material, and skip recording are N/A for this map-priority rule.
+- for the post-Propagation conditional-pass handoff, a cognitive walkthrough that closes foundational Propagation with another proposal queued; reloads the map; identifies Temporal/Timeline from the source fact/report obligation rather than debt prose; inspects all three ordered obligations and their destinations; keeps Admission visible and navigable; follows the source-selected Temporal route; returns safely to a fresh map; previews and submits one explicit rationale-bearing deferral; observes persisted provenance and governed history; governs the remaining obligations through matching evidence or deferral; and confirms that a fresh map elevates Admission without hiding the ledger. The walkthrough records browser/API parity, declared-action-only writes, and separate console error/warning state.
 
 ## Principles
 

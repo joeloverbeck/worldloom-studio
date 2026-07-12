@@ -12,7 +12,7 @@ import {
 import { QA_RED_TEAM_PROMPT_TEXT, QA_TEST_CATALOG } from "./qa-catalog.js";
 
 export const APPLICATION_ID = 0x574c4f4d;
-export const CURRENT_SCHEMA_VERSION = 11;
+export const CURRENT_SCHEMA_VERSION = 12;
 
 const sqlString = (value: string): string => `'${value.replaceAll("'", "''")}'`;
 
@@ -1660,4 +1660,64 @@ BEGIN
 END;
 
 PRAGMA user_version = 11;
+`;
+
+export const migration012 = `
+INSERT OR IGNORE INTO record_types (key, label, namespace, mutation_regime, package_source, untested_surface)
+VALUES ('conditional_pass_obligation', 'Conditional-pass obligation', 'CPO', 'card', 'docs/worldbuilding-system/07_propagation_engine.md', 0);
+
+INSERT OR IGNORE INTO record_type_sequences (record_type_key, next_value)
+VALUES ('conditional_pass_obligation', 1);
+
+CREATE TABLE IF NOT EXISTS conditional_pass_obligations (
+  id INTEGER PRIMARY KEY,
+  record_id INTEGER NOT NULL UNIQUE REFERENCES records(id) ON DELETE CASCADE,
+  source_fact_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE RESTRICT,
+  propagation_report_record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE RESTRICT,
+  pass_key TEXT NOT NULL CHECK (pass_key IN ('temporal_timeline', 'constraint_composition', 'institutional_economic_suppression')),
+  ordinal INTEGER NOT NULL CHECK (ordinal BETWEEN 1 AND 3),
+  disposition TEXT NOT NULL DEFAULT 'outstanding' CHECK (disposition IN ('outstanding', 'covered', 'deferred')),
+  rationale TEXT,
+  covering_report_record_id INTEGER REFERENCES records(id) ON DELETE RESTRICT,
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (source_fact_record_id, propagation_report_record_id, pass_key),
+  CHECK (
+    (pass_key = 'temporal_timeline' AND ordinal = 1)
+    OR (pass_key = 'constraint_composition' AND ordinal = 2)
+    OR (pass_key = 'institutional_economic_suppression' AND ordinal = 3)
+  ),
+  CHECK (
+    (disposition = 'outstanding' AND rationale IS NULL AND covering_report_record_id IS NULL)
+    OR (disposition = 'deferred' AND length(trim(COALESCE(rationale, ''))) > 0 AND covering_report_record_id IS NULL)
+    OR (disposition = 'covered' AND rationale IS NULL AND covering_report_record_id IS NOT NULL)
+  )
+) STRICT;
+
+CREATE TRIGGER IF NOT EXISTS conditional_pass_obligations_touch_updated_at
+AFTER UPDATE ON conditional_pass_obligations
+WHEN old.updated_at = new.updated_at
+BEGIN
+  UPDATE conditional_pass_obligations
+  SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+  WHERE id = new.id;
+END;
+
+CREATE TABLE IF NOT EXISTS conditional_pass_obligation_events (
+  id INTEGER PRIMARY KEY,
+  obligation_id INTEGER NOT NULL REFERENCES conditional_pass_obligations(id) ON DELETE CASCADE,
+  action_key TEXT NOT NULL CHECK (action_key IN ('emitted', 'reconciled', 'deferred', 'covered')),
+  prior_disposition TEXT CHECK (prior_disposition IN ('outstanding', 'covered', 'deferred')),
+  resulting_disposition TEXT NOT NULL CHECK (resulting_disposition IN ('outstanding', 'covered', 'deferred')),
+  rationale TEXT,
+  evidence_record_id INTEGER REFERENCES records(id) ON DELETE RESTRICT,
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (obligation_id, action_key, resulting_disposition, evidence_record_id)
+) STRICT;
+
+PRAGMA user_version = 12;
 `;

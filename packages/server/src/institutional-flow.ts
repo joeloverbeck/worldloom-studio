@@ -1,6 +1,7 @@
 import { intakeProposedFact } from "./admission-flow.js";
 import { ADVISORY_OUTPUT_LABELS, promptMode, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
 import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest, methodCardsForFlow } from "./method-cards.js";
+import { coverMatchingConditionalPassObligation } from "./conditional-pass-obligations.js";
 import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, RecordRow, WorldFile } from "./world-file.js";
 
@@ -850,6 +851,14 @@ export const closeStage12Run = (world: WorldFile, flowId: number) => {
     const source = readSource(world, flowId);
     writeCloseSections(world, flowId);
     const complete = world.updateFlowInstance(flowId, { state: "complete", currentStep: "stage12:complete" });
+    if (source.sourceRecordId != null) {
+      coverMatchingConditionalPassObligation(world, {
+        passKey: "institutional_economic_suppression",
+        sourceFactRecordId: source.sourceRecordId,
+        coveringReportRecordId: source.passReportRecordId,
+        flowStep: "stage12:complete"
+      });
+    }
     return {
       ...getStage12Run(world, flowId),
       flow: complete,

@@ -33,6 +33,8 @@ This spec defines Worldloom Studio's dedicated guided flow for `09_temporal_and_
 11. **Governed skips.** Offered instruments and steps may be skipped. Major-or-higher skipped Temporal work requires a reason and preserves or creates canon debt when unresolved work remains.
 12. **Read-side trail.** Current Canon, Audit Trail, record detail, and export surfaces show or link pass reports, timeline cards, proposals, debt, advisory artifacts, dispositions, skip records, and explicit-use links.
 13. **No schema migration.** The flow uses existing records, sections, links, prompt templates, advisory dispositions, and `flow_instances`.
+14. **Source-linked obligation entry.** A Temporal/Timeline destination may carry a server-returned `temporal_timeline` obligation. The existing fact start is preselected from the obligation's typed source fact, and the decision surface names the final Propagation report and safe return. The browser does not infer applicability from prose.
+15. **Evidence-based coverage.** Successful close of a Temporal/Timeline pass covers only an outstanding `temporal_timeline` obligation whose typed source fact matches this run. The completed `pass_report` is recorded as covering evidence with actor, timestamp, flow/action provenance, prior/result state, and source/report identity. A mismatched fact, report, flow key, incomplete pass, or unknown obligation cannot cover work; no manual completion checkbox is introduced.
 
 ## Step Map
 
@@ -48,6 +50,8 @@ This spec defines Worldloom Studio's dedicated guided flow for `09_temporal_and_
 | Prompt-out and skips | `20`, W-1, W-4, and ADR 0007 | Use, dispose, cite, or skip advisory Temporal pressure. | yes | Major skipped work requires a reason and may create debt. | Spatial-temporal analyst. |
 | Close preview | checklist completion rule | Confirm substance and append the report. | yes | Server blockers only. | Prompt-out can be skipped; pressure mode never changes canon standing directly. |
 | Read-side trail | W-5, W-6, W-8, and ADR 0009 | Follow report, source, cards, proposals, debt, advisory artifacts, and skips. | no | Not severity-dependent. | None. |
+
+When entry is obligation-backed, the run-entry response also returns the obligation, source Propagation report, destination, doctrine, current disposition, blockers, and safe-return route. After successful close, a fresh workflow-map read shows the obligation covered while retaining it as governed history.
 
 ## Browser Acceptance Scenarios
 

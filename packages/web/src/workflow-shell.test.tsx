@@ -82,6 +82,61 @@ const bothQueuesWorkflowMap = {
   ]
 };
 
+const conditionalPassWorkflowMap = {
+  ...bothQueuesWorkflowMap,
+  world: { path: "/tmp/conditional-pass.sqlite" },
+  stages: [
+    { key: "admission", label: "Admission", state: "active", summary: "Admission remains a directly navigable steward choice.", destinationKey: "admission" },
+    { key: "conditional-passes", label: "Conditional passes", state: "owed", summary: "Three source-linked passes remain owed.", destinationKey: "temporal" }
+  ],
+  queues: [
+    { key: "admission", label: "Admission queue", count: 1, destinationKey: "admission", href: "/api/admission/queue", summary: "One proposed fact remains available." },
+    { key: "conditional-passes", label: "Conditional passes", count: 3, destinationKey: "temporal", href: "/api/conditional-pass-obligations", summary: "Source-linked specialized passes remain owed." }
+  ],
+  nextDecision: {
+    destinationKey: "temporal",
+    label: "Work Temporal/Timeline for FAC-3 after PRP-1",
+    reason: "A completed foundational Propagation run still owes specialized work before further dependency-bearing Admission; Admission remains directly available.",
+    href: "/api/temporal/runs/start"
+  },
+  destinations: [
+    { key: "admission", label: "Admission", kind: "guided-flow", summary: "Govern proposed facts into canon standing.", state: "active" },
+    { key: "temporal", label: "Temporal/Timeline", kind: "guided-flow", summary: "Work the source-selected timing pass.", state: "owed" },
+    { key: "constraint", label: "Constraint Composition", kind: "guided-flow", summary: "Work the source-selected constraint pass.", state: "owed" },
+    { key: "stage12", label: "Institutional / Economic / Suppression", kind: "guided-flow", summary: "Work the source-selected institutional pass.", state: "owed" }
+  ],
+  conditionalPasses: {
+    readOnly: true,
+    doctrine: "The foundational full-pass rule owes all three passes; Admission remains available and is not a hard gate.",
+    outstandingCount: 3,
+    governedCount: 0,
+    nextOrResumeState: { current: "Temporal/Timeline", next: "Constraint Composition", resume: "Return safely to a fresh workflow-map response." },
+    obligations: [
+      ["temporal_timeline", "Temporal/Timeline", 1, "temporal"],
+      ["constraint_composition", "Constraint Composition", 2, "constraint"],
+      ["institutional_economic_suppression", "Institutional / Economic / Suppression", 3, "stage12"]
+    ].map(([passKey, passLabel, ordinal, destinationKey], index) => ({
+      id: index + 1,
+      record: { id: 10 + index, shortId: `CPO-${index + 1}`, recordTypeKey: "conditional_pass_obligation", title: `${passLabel} owed`, body: "Structured state owns identity.", canonStatus: "accepted" },
+      sourceFact: { id: 3, shortId: "FAC-3", recordTypeKey: "canon_fact", title: "Foundational chrononaut", body: "Source fact body.", canonStatus: "accepted" },
+      propagationReport: { id: 9, shortId: "PRP-1", recordTypeKey: "propagation_report", title: "Chrononaut shock cone", body: "Append-only report.", canonStatus: "accepted" },
+      passKey,
+      passLabel,
+      ordinal,
+      disposition: index === 2 ? "deferred" : "outstanding",
+      rationale: index === 2 ? "Govern after institutional actors are named." : null,
+      coveringEvidence: null,
+      doctrine: "Foundational Propagation owes this specialized pass before further dependency-bearing Admission.",
+      blocker: null,
+      destination: { destinationKey, label: passLabel, method: "POST", href: `/api/${destinationKey}/runs/start`, body: { sourceType: "fact", recordId: 3 } },
+      provenance: { actor: "steward", timestamp: "2026-07-12T10:00:00.000Z", flowStep: "propagation:close:conditional-pass-handoff", sourceFact: { id: 3, shortId: "FAC-3" }, propagationReport: { id: 9, shortId: "PRP-1" } },
+      history: [],
+      readSideTrail: [],
+      action: index === 2 ? null : { method: "POST", href: `/api/conditional-pass-obligations/${index + 1}/defer`, requiredRationale: true, body: { disposition: "deferred", passKey, sourceFactRecordId: 3, propagationReportRecordId: 9 }, proposedWrite: `Defer ${passLabel} while preserving governed history.`, willLeaveUntouched: ["source fact", "Propagation report", "Admission queue"] }
+    }))
+  }
+};
+
 describe("workflow map shell", () => {
   it("opens an existing world on the workflow map rather than the stacked workspace", () => {
     const html = renderToString(<App initialOpenWorld="/tmp/map-first.sqlite" initialWorkflowMap={workflowMap as any} />);
@@ -173,8 +228,39 @@ describe("workflow map shell", () => {
     expect(shellSource).toContain("workflowMap.nextDecision.destinationKey");
     expect(shellSource).toContain("queue.destinationKey");
     expect(shellSource).not.toContain("work_scale");
-    expect(shellSource).not.toContain("sourceFact");
+    expect(shellSource).toContain("obligation.sourceFact.shortId");
+    expect(shellSource).toContain("obligation.propagationReport.shortId");
     expect(shellSource).not.toContain("derived_from");
     expect(shellSource).not.toContain("canon_debt");
+  });
+
+  it("renders the server-owned post-Propagation handoff, governed ledger, and deferral contract", () => {
+    const html = renderToString(<App
+      initialOpenWorld="/tmp/conditional-pass.sqlite"
+      initialWorkflowMap={conditionalPassWorkflowMap as any}
+    />);
+    const shellSource = readFileSync(new URL("./workflow-shell.tsx", import.meta.url), "utf8");
+
+    expect(html).toContain("Post-Propagation conditional-pass handoff");
+    expect(html).toContain("Work Temporal/Timeline for FAC-3 after PRP-1");
+    expect(html).toContain("The foundational full-pass rule owes all three passes");
+    expect(html).toContain("Temporal/Timeline");
+    expect(html).toContain("Constraint Composition");
+    expect(html).toContain("Institutional / Economic / Suppression");
+    expect(html).toContain("FAC-3");
+    expect(html).toContain("Foundational chrononaut");
+    expect(html).toContain("PRP-1");
+    expect(html).toContain("Chrononaut shock cone");
+    expect(html).toContain("outstanding");
+    expect(html).toContain("deferred");
+    expect(html).toContain("Govern after institutional actors are named.");
+    expect(html).toContain("Follow source-selected pass");
+    expect(html).toContain("Deferral rationale");
+    expect(html).toContain("Preview governed deferral");
+    expect(html).toContain("Admission queue");
+    expect(html).toContain("One proposed fact remains available.");
+    expect(shellSource).toContain("const handoff = workflowMap.conditionalPasses");
+    expect(shellSource).toContain("handoff.obligations.map");
+    expect(shellSource).not.toMatch(/title.*includes\(|body.*includes\(|temporal.*test\(/i);
   });
 });

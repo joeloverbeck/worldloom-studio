@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import type { MethodCard, WorkflowMapPayload } from "@worldloom/shared";
+import { useState, type ReactNode } from "react";
+import type { MethodCard, WorkflowMapConditionalPassObligation, WorkflowMapPayload } from "@worldloom/shared";
 
 interface WorkflowShellProps {
   workflowMap: WorkflowMapPayload;
@@ -8,6 +8,8 @@ interface WorkflowShellProps {
   surfaces: Record<string, ReactNode>;
   status?: ReactNode;
   onNavigate: (destinationKey: string) => void;
+  onFollowConditionalPass: (obligation: WorkflowMapConditionalPassObligation) => void;
+  onDeferConditionalPass: (obligation: WorkflowMapConditionalPassObligation, rationale: string) => Promise<void>;
 }
 
 interface DestinationSurfaceProps {
@@ -56,7 +58,86 @@ export function SurfaceNavigation({ workflowMap, activeDestination, onNavigate }
   );
 }
 
-export function WorkflowMapHome({ workflowMap, onNavigate }: Pick<WorkflowShellProps, "workflowMap" | "onNavigate">) {
+function ConditionalPassHandoff({
+  workflowMap,
+  onFollowConditionalPass,
+  onDeferConditionalPass
+}: Pick<WorkflowShellProps, "workflowMap" | "onFollowConditionalPass" | "onDeferConditionalPass">) {
+  const [rationales, setRationales] = useState<Record<number, string>>({});
+  const [errors, setErrors] = useState<Record<number, string | null>>({});
+  const [pendingId, setPendingId] = useState<number | null>(null);
+  const handoff = workflowMap.conditionalPasses;
+  if (!handoff || handoff.obligations.length === 0) return null;
+
+  const submitDeferral = async (obligation: WorkflowMapConditionalPassObligation) => {
+    setPendingId(obligation.id);
+    setErrors((current) => ({ ...current, [obligation.id]: null }));
+    try {
+      await onDeferConditionalPass(obligation, rationales[obligation.id] ?? "");
+    } catch (error) {
+      setErrors((current) => ({ ...current, [obligation.id]: error instanceof Error ? error.message : String(error) }));
+    } finally {
+      setPendingId(null);
+    }
+  };
+
+  return (
+    <section className="panel conditional-pass-handoff" aria-labelledby="conditional-pass-handoff-heading">
+      <h2 id="conditional-pass-handoff-heading">Post-Propagation conditional-pass handoff</h2>
+      <p>{handoff.doctrine}</p>
+      <div className="chips">
+        <span>{handoff.outstandingCount} outstanding</span>
+        <span>{handoff.governedCount} governed</span>
+        <span>Current: {handoff.nextOrResumeState.current ?? "fully governed"}</span>
+        <span>Next: {handoff.nextOrResumeState.next ?? "return to Admission ordering"}</span>
+      </div>
+      <p className="meta">{handoff.nextOrResumeState.resume}</p>
+      <div className="grid">
+        {handoff.obligations.map((obligation) => (
+          <article className={`subpanel conditional-pass-row ${obligation.disposition}`} key={obligation.id}>
+            <div className="row">
+              <h3>{obligation.ordinal}. {obligation.passLabel}</h3>
+              <span className="pill">{stateLabel(obligation.disposition)}</span>
+            </div>
+            <p>{obligation.doctrine}</p>
+            <p><strong>Source fact</strong>: {obligation.sourceFact.shortId} · {obligation.sourceFact.title}</p>
+            <p><strong>Propagation report</strong>: {obligation.propagationReport.shortId} · {obligation.propagationReport.title}</p>
+            <p><strong>Destination</strong>: {obligation.destination.label} · {obligation.destination.href}</p>
+            {obligation.blocker && <p className="error">{obligation.blocker}</p>}
+            {obligation.coveringEvidence && <p><strong>Coverage evidence</strong>: {obligation.coveringEvidence.shortId} · {obligation.coveringEvidence.title}</p>}
+            {obligation.rationale && <p><strong>Deferral rationale</strong>: {obligation.rationale}</p>}
+            <details>
+              <summary>Provenance and governed history</summary>
+              <p>{obligation.provenance.actor} · {obligation.provenance.timestamp} · {obligation.provenance.flowStep}</p>
+              {obligation.history.map((event, index) => (
+                <p key={`${event.action}:${event.timestamp}:${index}`}>{event.action}: {event.priorState ?? "emitted"} → {event.resultingState} · {event.actor} · {event.timestamp} · {event.flowStep}</p>
+              ))}
+            </details>
+            <button onClick={() => onFollowConditionalPass(obligation)} disabled={obligation.disposition !== "outstanding"}>
+              Follow source-selected pass
+            </button>
+            {obligation.action && (
+              <section className="subpanel conditional-pass-deferral">
+                <h4>Preview governed deferral</h4>
+                <p>{obligation.action.proposedWrite}</p>
+                <p className="meta">Leaves untouched: {obligation.action.willLeaveUntouched.join(" · ")}</p>
+                <label>Deferral rationale<textarea
+                  rows={3}
+                  value={rationales[obligation.id] ?? ""}
+                  onChange={(event) => setRationales((current) => ({ ...current, [obligation.id]: event.target.value }))}
+                /></label>
+                {errors[obligation.id] && <p className="error">{errors[obligation.id]}</p>}
+                <button onClick={() => void submitDeferral(obligation)} disabled={pendingId === obligation.id}>Defer with rationale</button>
+              </section>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export function WorkflowMapHome({ workflowMap, onNavigate, onFollowConditionalPass, onDeferConditionalPass }: Pick<WorkflowShellProps, "workflowMap" | "onNavigate" | "onFollowConditionalPass" | "onDeferConditionalPass">) {
   return (
     <section className="workflow-map-home" aria-labelledby="workflow-map-heading">
       <div className="panel">
@@ -86,6 +167,12 @@ export function WorkflowMapHome({ workflowMap, onNavigate }: Pick<WorkflowShellP
           ))}
         </div>
       </section>
+
+      <ConditionalPassHandoff
+        workflowMap={workflowMap}
+        onFollowConditionalPass={onFollowConditionalPass}
+        onDeferConditionalPass={onDeferConditionalPass}
+      />
 
       <section className="panel">
         <h2>Queues</h2>
@@ -140,7 +227,7 @@ export function DestinationSurface({ destinationKey, workflowMap, children, onNa
   );
 }
 
-export function WorkflowShell({ workflowMap, activeDestination, setupControls, surfaces, status, onNavigate }: WorkflowShellProps) {
+export function WorkflowShell({ workflowMap, activeDestination, setupControls, surfaces, status, onNavigate, onFollowConditionalPass, onDeferConditionalPass }: WorkflowShellProps) {
   const surface = activeDestination === "map" ? null : surfaces[activeDestination] ?? surfaces.substrate;
 
   return (
@@ -151,7 +238,12 @@ export function WorkflowShell({ workflowMap, activeDestination, setupControls, s
       </aside>
       <section className="editor">
         {activeDestination === "map" ? (
-          <WorkflowMapHome workflowMap={workflowMap} onNavigate={onNavigate} />
+          <WorkflowMapHome
+            workflowMap={workflowMap}
+            onNavigate={onNavigate}
+            onFollowConditionalPass={onFollowConditionalPass}
+            onDeferConditionalPass={onDeferConditionalPass}
+          />
         ) : (
           <DestinationSurface destinationKey={activeDestination} workflowMap={workflowMap} onNavigate={onNavigate}>
             {surface}

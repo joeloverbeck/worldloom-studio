@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { HealthPayload, LinkTypeDefinition, MethodCard, RecordTypeDefinition, WorkflowMapPayload } from "@worldloom/shared";
+import type { HealthPayload, LinkTypeDefinition, MethodCard, RecordTypeDefinition, WorkflowMapConditionalPassObligation, WorkflowMapPayload } from "@worldloom/shared";
 import {
   PropagationWorkspace,
   type ConsequenceRevisionInput,
@@ -3268,6 +3268,29 @@ function App({
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
     }
+  };
+
+  const followConditionalPass = async (obligation: WorkflowMapConditionalPassObligation) => {
+    const sourceId = String(obligation.destination.body.recordId);
+    if (obligation.passKey === "temporal_timeline") {
+      setTemporalSourceType("fact");
+      setTemporalSourceRecordId(sourceId);
+    } else if (obligation.passKey === "constraint_composition") {
+      setConstraintSourceType("fact");
+      setConstraintSourceRecordId(sourceId);
+    } else {
+      setStage12SourceType("fact");
+      setStage12SourceRecordId(sourceId);
+    }
+    await navigateWorkflow(obligation.destination.destinationKey);
+  };
+
+  const deferConditionalPass = async (obligation: WorkflowMapConditionalPassObligation, rationale: string) => {
+    await api<{ obligation: WorkflowMapConditionalPassObligation }>(obligation.action?.href ?? `/api/conditional-pass-obligations/${obligation.id}/defer`, {
+      method: "POST",
+      body: JSON.stringify({ ...obligation.action?.body, rationale })
+    });
+    await loadWorldData();
   };
 
   const resetAdmissionFullGateDraftState = (decision: AdmissionDecisionPoint | null = null) => {
@@ -7256,6 +7279,8 @@ function App({
             </>
           ) : null}
           onNavigate={(destinationKey) => void navigateWorkflow(destinationKey)}
+          onFollowConditionalPass={(obligation) => void followConditionalPass(obligation)}
+          onDeferConditionalPass={deferConditionalPass}
         />
       </main>
     );

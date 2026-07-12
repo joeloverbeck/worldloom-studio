@@ -3,6 +3,7 @@ import * as AdmissionFlow from "./admission-flow.js";
 import * as CanonDebt from "./canon-debt.js";
 import * as ContradictionFlow from "./contradiction-flow.js";
 import * as CreationCoverage from "./creation-coverage.js";
+import * as ConditionalPassObligations from "./conditional-pass-obligations.js";
 import * as MinimalViableWorld from "./minimal-viable-world.js";
 import { workflowMapMethodCards } from "./method-cards.js";
 import * as PropagationFlow from "./propagation-flow.js";
@@ -120,7 +121,9 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
   const owedBoundaries = ContradictionFlow.owedBoundariesQueue(world);
   const openCanonDebt = CanonDebt.listCanonDebt(world, true);
   const skipCount = records.filter((record) => record.recordTypeKey === "skip_record").length;
-  const temporalDebt = openCanonDebt.filter((debt) => /\btemporal\b|\btimeline\b/i.test(`${debt.title}\n${debt.body}`));
+  const conditionalPassObligations = ConditionalPassObligations.listConditionalPassObligations(world);
+  const outstandingConditionalPasses = conditionalPassObligations.filter((obligation) => obligation.disposition === "outstanding");
+  const firstOutstandingConditionalPass = outstandingConditionalPasses[0] ?? null;
   const minimalViableWorldOwed = MinimalViableWorld.owedQueueCount(world);
   const routeablePropagationCollision =
     hasKernel &&
@@ -136,13 +139,14 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
   const activeDestination =
     coverageBlocksAdmission ? "creation"
       : routeablePropagationCollision ? "propagation"
+      : firstOutstandingConditionalPass ? firstOutstandingConditionalPass.destination.destinationKey
       : admissionQueue.length > 0 ? "admission"
       : !hasKernel || preAdmissionSeedDecompositionOwed ? "creation"
         : flows[0] ? flowDestination(String(flows[0].flow_key)) : null;
   const owedDestinations = new Set<string>([
     ...(propagationQueue.length > 0 ? ["propagation"] : []),
     ...(owedBoundaries.length > 0 ? ["contradiction"] : []),
-    ...(temporalDebt.length > 0 ? ["temporal"] : []),
+    ...outstandingConditionalPasses.map((obligation) => obligation.destination.destinationKey),
     ...(minimalViableWorldOwed > 0 ? ["creation"] : [])
   ]);
   const creationState: WorkflowMapStage["state"] = !hasKernel
@@ -198,9 +202,9 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
     stage(
       "conditional-passes",
       "Conditional passes",
-      hasInProgressFlow(flows, "institutional_economic_suppression") || hasInProgressFlow(flows, "constraint_composition") || hasInProgressFlow(flows, "temporal_timeline") ? "active" : temporalDebt.length > 0 ? "owed" : worldHasCanonMaterial ? "blocked" : "not_yet_earned",
+      hasInProgressFlow(flows, "institutional_economic_suppression") || hasInProgressFlow(flows, "constraint_composition") || hasInProgressFlow(flows, "temporal_timeline") ? "active" : outstandingConditionalPasses.length > 0 ? "owed" : worldHasCanonMaterial ? "blocked" : "not_yet_earned",
       "Constraint, Temporal/Timeline, and institutional/economic/suppression passes run when facts apply.",
-      temporalDebt.length > 0 ? "temporal" : "stage12",
+      firstOutstandingConditionalPass?.destination.destinationKey ?? "stage12",
       worldHasCanonMaterial ? "Run these passes when the fact's domain or `09` trigger recommendation makes them relevant." : "Canon material must exist before conditional passes apply."
     ),
     stage(
@@ -235,9 +239,9 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
     ["creation", stateForStage("creation")],
     ["admission", stateForStage("admission")],
     ["propagation", stateForStage("propagation")],
-    ["constraint", conditionalState],
-    ["temporal", temporalDebt.length > 0 ? "owed" : conditionalState],
-    ["stage12", conditionalState],
+    ["constraint", outstandingConditionalPasses.some((item) => item.passKey === "constraint_composition") ? "owed" : conditionalState],
+    ["temporal", outstandingConditionalPasses.some((item) => item.passKey === "temporal_timeline") ? "owed" : conditionalState],
+    ["stage12", outstandingConditionalPasses.some((item) => item.passKey === "institutional_economic_suppression") ? "owed" : conditionalState],
     ["contradiction", stateForStage("contradiction")],
     ["qa", stateForStage("qa")]
   ]);
@@ -256,6 +260,14 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
         : "Proposed or under-review facts awaiting governance."
     ),
     queue("owed-propagation", "Owed propagation", propagationQueue.length, "propagation", "/api/propagation/queue", "Propagation-scoped debt and owed shock cones."),
+    queue(
+      "conditional-passes",
+      "Conditional passes",
+      outstandingConditionalPasses.length,
+      firstOutstandingConditionalPass?.destination.destinationKey ?? "temporal",
+      "/api/conditional-pass-obligations",
+      "Source-linked specialized passes still owed after completed Propagation."
+    ),
     queue("owed-boundaries", "Owed boundaries", owedBoundaries.length, "contradiction", "/api/contradiction/owed-boundaries", "Protected consequences that still need mystery-ledger governance."),
     queue("minimal-viable-world", "Minimal Viable World checkpoint", minimalViableWorldOwed, "creation", "/api/flows/creation/minimal-viable-world", "Creation phases 4-8 checkpoint owed after admitted seed evidence exists."),
     queue("canon-debt", "Canon debt", openCanonDebt.length, "substrate", "/api/canon-debt?open=true", "Open canon debt across flows."),
@@ -278,15 +290,20 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
           reason: "Accepted canon has an owed shock cone that should be worked before further dependency-bearing Admission.",
           href: "/api/propagation/queue"
         }
+    : firstOutstandingConditionalPass
+      ? {
+          destinationKey: firstOutstandingConditionalPass.destination.destinationKey,
+          label: `Work ${firstOutstandingConditionalPass.passLabel} for ${firstOutstandingConditionalPass.sourceFact.shortId} after ${firstOutstandingConditionalPass.propagationReport.shortId}`,
+          reason: "A completed foundational Propagation run still owes specialized work before further dependency-bearing Admission; Admission remains directly available.",
+          href: firstOutstandingConditionalPass.destination.href
+        }
     : admissionQueue.length > 0
     ? { destinationKey: "admission", label: "Work Admission queue", reason: "Proposed facts are waiting for governance.", href: "/api/admission/queue" }
     : owedBoundaries.length > 0
       ? { destinationKey: "contradiction", label: "Work owed boundaries", reason: "A protected propagation consequence needs mystery-ledger governance.", href: "/api/contradiction/owed-boundaries" }
       : propagationQueue.length > 0
         ? { destinationKey: "propagation", label: "Work owed propagation", reason: "Propagation-scoped canon debt is open.", href: "/api/propagation/queue" }
-        : temporalDebt.length > 0
-          ? { destinationKey: "temporal", label: "Work Temporal/Timeline debt", reason: "Open Temporal/Timeline canon debt needs sequence, latency, residue, or boundary work.", href: "/api/temporal/runs/start" }
-          : minimalViableWorldOwed > 0
+        : minimalViableWorldOwed > 0
             ? { destinationKey: "creation", label: "Work Minimal Viable World checkpoint", reason: "Admitted seed evidence exists and no earlier owed queue is foregrounded.", href: "/api/flows/creation/minimal-viable-world" }
           : !hasKernel
             ? { destinationKey: "creation", label: "Start Creation", reason: "No world kernel exists yet; create the world kernel first.", href: "/api/flows/creation/start" }
@@ -301,6 +318,18 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
     queues,
     nextDecision,
     destinations: destinations(activeDestination, owedDestinations, stageStates),
+    conditionalPasses: {
+      readOnly: true,
+      doctrine: "The foundational full-pass rule owes Temporal/Timeline, Constraint Composition, and Institutional / Economic / Suppression in that order; Admission remains available and is not a hard gate.",
+      outstandingCount: outstandingConditionalPasses.length,
+      governedCount: conditionalPassObligations.length - outstandingConditionalPasses.length,
+      obligations: conditionalPassObligations,
+      nextOrResumeState: {
+        current: firstOutstandingConditionalPass?.passLabel ?? null,
+        next: outstandingConditionalPasses[1]?.passLabel ?? null,
+        resume: "Return safely to a fresh workflow-map response after every conditional-pass or deferral action."
+      }
+    },
     methodCards: workflowMapMethodCards()
   };
 };

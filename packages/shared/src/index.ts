@@ -58,6 +58,71 @@ export interface WorkflowMapDestination {
   state: WorkflowMapDestinationState;
 }
 
+export type ConditionalPassKey = "temporal_timeline" | "constraint_composition" | "institutional_economic_suppression";
+export type ConditionalPassDisposition = "outstanding" | "covered" | "deferred";
+
+export interface WorkflowMapRecordRef {
+  id: number;
+  shortId: string;
+  recordTypeKey: string;
+  title: string;
+  body: string;
+  canonStatus: string | null;
+}
+
+export interface WorkflowMapConditionalPassObligation {
+  id: number;
+  record: WorkflowMapRecordRef;
+  sourceFact: WorkflowMapRecordRef;
+  propagationReport: WorkflowMapRecordRef;
+  passKey: ConditionalPassKey;
+  passLabel: string;
+  ordinal: number;
+  disposition: ConditionalPassDisposition;
+  rationale: string | null;
+  coveringEvidence: WorkflowMapRecordRef | null;
+  doctrine: string;
+  blocker: string | null;
+  destination: {
+    destinationKey: string;
+    label: string;
+    method: "POST";
+    href: string;
+    body: { sourceType: "fact"; recordId: number };
+  };
+  provenance: {
+    actor: string;
+    timestamp: string;
+    flowStep: string;
+    sourceFact: { id: number; shortId: string };
+    propagationReport: { id: number; shortId: string };
+  };
+  history: Array<{
+    action: string;
+    priorState: string | null;
+    resultingState: string;
+    rationale: string | null;
+    evidenceRecordId: number | null;
+    actor: string;
+    timestamp: string;
+    flowStep: string;
+  }>;
+  readSideTrail: Array<{ label: string; recordId: number; href: string }>;
+  action: null | {
+    method: "POST";
+    href: string;
+    requiredRationale: true;
+    proposedWrite: string;
+    willLeaveUntouched: string[];
+    body: {
+      disposition: "deferred";
+      passKey: ConditionalPassKey;
+      sourceFactRecordId: number;
+      propagationReportRecordId: number;
+    };
+  };
+}
+
 export type MethodCardGuidanceDepth = "lean" | "standard" | "full";
 
 export interface MethodCard {
@@ -85,6 +150,18 @@ export interface WorkflowMapPayload {
     href: string;
   };
   destinations: WorkflowMapDestination[];
+  conditionalPasses: {
+    readOnly: true;
+    doctrine: string;
+    outstandingCount: number;
+    governedCount: number;
+    obligations: WorkflowMapConditionalPassObligation[];
+    nextOrResumeState: {
+      current: string | null;
+      next: string | null;
+      resume: string;
+    };
+  };
   methodCards?: {
     operatingCard: MethodCard;
     setup: MethodCard;
@@ -112,6 +189,7 @@ export const RECORD_TYPES: RecordTypeDefinition[] = [
   { key: "skip_record", label: "Skip record", namespace: "SKP", mutationRegime: "card", packageSource: "docs/worldbuilding-system/21_templates_index.md" },
   { key: "canon_branch_diff", label: "Canon branch diff", namespace: "BRD", mutationRegime: "card", packageSource: "docs/worldbuilding-system/templates/canon_branch_diff.md", untestedSurface: true },
   { key: "propagation_report", label: "Propagation report", namespace: "PRP", mutationRegime: "report", packageSource: "docs/worldbuilding-system/templates/propagation_report.md" },
+  { key: "conditional_pass_obligation", label: "Conditional-pass obligation", namespace: "CPO", mutationRegime: "card", packageSource: "docs/worldbuilding-system/07_propagation_engine.md" },
   { key: "contradiction_report", label: "Contradiction report", namespace: "CTR", mutationRegime: "report", packageSource: "docs/worldbuilding-system/templates/contradiction_report.md" },
   { key: "uncertainty_evidence_card", label: "Uncertainty evidence card", namespace: "UNC", mutationRegime: "report", packageSource: "docs/worldbuilding-system/templates/uncertainty_evidence_card.md", untestedSurface: true },
   { key: "canon_change_proposal", label: "Canon change proposal", namespace: "CCP", mutationRegime: "report", packageSource: "docs/worldbuilding-system/templates/canon_change_proposal.md", untestedSurface: true },

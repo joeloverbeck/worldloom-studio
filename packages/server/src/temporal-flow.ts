@@ -1,6 +1,7 @@
 import { intakeProposedFact } from "./admission-flow.js";
 import { ADVISORY_OUTPUT_LABELS, promptMode, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
 import { methodCard, methodCardDoctrineSlots, methodCardsForFlow, methodCardSourceManifest } from "./method-cards.js";
+import { coverMatchingConditionalPassObligation } from "./conditional-pass-obligations.js";
 import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, RecordRow, SectionRow, WorldFile } from "./world-file.js";
 
@@ -730,6 +731,14 @@ export const closeTemporalRun = (world: WorldFile, flowId: number) => {
     ].filter((section) => !existingHeadings.has(section.heading));
     if (inserts.length) world.replaceSections(report.id, inserts);
     const complete = world.updateFlowInstance(flowId, { state: "complete", currentStep: stepWithReport(report.id, "complete") });
+    if (source.sourceRecordId != null) {
+      coverMatchingConditionalPassObligation(world, {
+        passKey: "temporal_timeline",
+        sourceFactRecordId: source.sourceRecordId,
+        coveringReportRecordId: report.id,
+        flowStep: "temporal:complete"
+      });
+    }
     return { ...getTemporalRun(world, flowId), flow: complete, report: world.getRecord(report.id) };
   });
 };

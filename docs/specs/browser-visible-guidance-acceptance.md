@@ -47,6 +47,26 @@ Coverage-ledger promotion should wait for corresponding active-route replay evid
 
 This field-build closure pattern is additive reviewer guidance. It does not create a repo-wide browser automation gate, require a specific browser tool, introduce direct LLM integration, or amend the methodology package, principles, or ADRs.
 
+## Post-Propagation Conditional-Pass Handoff Evidence Pattern
+
+When a slice claims the source-linked post-Propagation handoff, active-route evidence must show:
+
+- a fresh foundational close or typed historical reconciliation yielding exactly three ordered obligations for one source fact and final Propagation report;
+- browser/API agreement on Conditional-pass and destination state, Admission and Propagation counts, the ordered ledger, dispositions, source/report provenance, blockers, routes, read-only state, and `nextDecision`;
+- Temporal/Timeline primary from typed obligation identity, with app-owned full-pass doctrine and no title/body/link-note keyword inference;
+- Constraint Composition and Institutional / Economic / Suppression as remaining obligations, plus Admission as a truthful directly navigable alternative rather than a hidden or blocked path;
+- each row's pass identity, source fact, report, destination, blocker, evidence or rationale, and outstanding/covered/deferred state, including governed history after disposition;
+- source-selected entry into an existing guided-flow destination and safe return that awaits a fresh workflow-map response before rendering current/next/resume state;
+- a deferral preview naming doctrine, obligation, source/report identity, proposed write, affected state, required rationale, provenance, and non-mutation guarantees;
+- one invalid deferral whose server blocker is rendered beside preserved input and one valid deferral whose rationale and provenance survive refresh;
+- matching completed-pass evidence for coverage, with mismatched fact/report/pass and incomplete-pass controls rejected;
+- all obligations governed followed by fresh-map Admission elevation while the governed ledger remains inspectable;
+- a negative control proving unrelated canon-debt prose containing `temporal` or `timeline` has no effect, plus a keyword-free typed obligation that remains effective;
+- before/after fingerprints proving map/read-side reads, rendering, navigation, refresh, and safe return do not mutate source text/standing, append-only report content, debt history, Admission contents, obligation identity, sibling obligations, or unrelated world data; and
+- separate browser console errors and warnings with zero unexplained entries, plus a docs-naive walkthrough that can identify what is owed, why, what deferral writes, where Admission remains available, and how to return safely.
+
+Prompt-out packets and advisory material are N/A for this handoff. Package paths are provenance; the visible decision and doctrine remain sufficient without opening them.
+
 ## Propagation Pre-Close Revision Evidence Pattern
 
 When a slice claims the Pre-close Propagation revision and finalization contract, active-route evidence should also show:

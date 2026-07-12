@@ -1,6 +1,7 @@
 import { intakeProposedFact } from "./admission-flow.js";
 import { ADVISORY_OUTPUT_LABELS, promptMode, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
 import { methodCard, methodCardDoctrineSlots, methodCardsForFlow, methodCardSourceManifest } from "./method-cards.js";
+import { coverMatchingConditionalPassObligation } from "./conditional-pass-obligations.js";
 import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, RecordRow, WorldFile } from "./world-file.js";
 
@@ -1258,6 +1259,14 @@ export const closeConstraintRun = (world: WorldFile, flowId: number) => {
     const source = readSource(world, flowId);
     writeCloseSections(world, flowId);
     const complete = world.updateFlowInstance(flowId, { state: "complete", currentStep: "constraint:complete" });
+    if (source.sourceRecordId != null) {
+      coverMatchingConditionalPassObligation(world, {
+        passKey: "constraint_composition",
+        sourceFactRecordId: source.sourceRecordId,
+        coveringReportRecordId: source.passReportRecordId,
+        flowStep: "constraint:complete"
+      });
+    }
     return {
       ...getConstraintRun(world, flowId),
       flow: complete,

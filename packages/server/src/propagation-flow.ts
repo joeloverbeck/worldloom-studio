@@ -1,4 +1,5 @@
 import { isFoundationalSeverity, isMajorOrHigher, type DeclaredSeverity } from "./severity-policy.js";
+import * as ConditionalPassObligations from "./conditional-pass-obligations.js";
 import { intakeProposedFact } from "./admission-flow.js";
 import { ADVISORY_OUTPUT_LABELS, promptMode, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
 import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest, methodCardsForFlow } from "./method-cards.js";
@@ -1253,13 +1254,18 @@ export const closePropagationRun = (store: WorldFile, flowId: number): { flow: u
     }
     const debt = flow.propagation_debt_record_id == null ? null : store.closeCanonDebt(flow.propagation_debt_record_id);
     const updatedFlow = store.updateFlowInstance(flowId, { state: "complete", currentStep: "propagation:complete", propagationReportRecordId: report.id });
+    const obligations = ConditionalPassObligations.emitFoundationalObligations(store, {
+      sourceFactRecordId: fact.id,
+      propagationReportRecordId: report.id
+    });
     return {
       flow: updatedFlow,
       report,
       debt,
       missing: [],
       closePreview: propagationClosePreview(store, flowId),
-      readSideTrail: propagationReadSideTrail(store, flowId)
+      readSideTrail: propagationReadSideTrail(store, flowId),
+      obligations
     };
   });
 };

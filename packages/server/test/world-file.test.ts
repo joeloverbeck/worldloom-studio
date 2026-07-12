@@ -137,7 +137,7 @@ describe("WorldFile", () => {
     expect(store.db.pragma("application_id", { simple: true })).toBe(APPLICATION_ID);
     expect(store.db.pragma("user_version", { simple: true })).toBe(CURRENT_SCHEMA_VERSION);
     expect(store.db.pragma("journal_mode", { simple: true })).toBe("wal");
-    expect(store.db.prepare("SELECT COUNT(*) AS count FROM record_types").get()).toMatchObject({ count: 27 });
+    expect(store.db.prepare("SELECT COUNT(*) AS count FROM record_types").get()).toMatchObject({ count: 28 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM link_types").get()).toMatchObject({ count: 25 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'canon_status'").get()).toMatchObject({ count: 11 });
     expect(store.db.prepare("SELECT COUNT(*) AS count FROM vocabulary_terms WHERE vocabulary = 'consequence_disposition'").get()).toMatchObject({ count: 4 });
