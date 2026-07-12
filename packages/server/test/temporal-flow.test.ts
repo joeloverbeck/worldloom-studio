@@ -305,6 +305,35 @@ describe("Temporal/Timeline flow HTTP API", () => {
       run: await json(await app.request(`/api/temporal/runs/${run.flow.id}`))
     };
     expect(after).toEqual(before);
+
+    const currentProposalRevision = async () => {
+      const current = await json<{
+        decisionPoint: { sharedContract: { promptOut: { modes: Array<{ mode: string; stepRequest: { body: { activeSetRevision: number } } | null }> } } };
+      }>(await app.request(`/api/temporal/runs/${run.flow.id}`));
+      return current.decisionPoint.sharedContract.promptOut.modes.find((mode) => mode.mode === "proposal")?.stepRequest?.body.activeSetRevision;
+    };
+    const revisionBeforeDisposition = await currentProposalRevision();
+    expect((await postJson(app, `/api/advisory-artifacts/${advisory.id}/dispositions`, {
+      disposition: "challenged",
+      note: "A later steward ruling changes the packet-bearing disposition history."
+    })).status).toBe(201);
+    const revisionAfterDisposition = await currentProposalRevision();
+    expect(revisionAfterDisposition).not.toBe(revisionBeforeDisposition);
+
+    const laterSkip = await createRecord({
+      recordTypeKey: "skip_record",
+      title: "Later skipped Temporal instrument",
+      body: "Reason: later branch work remains unearned.",
+      canonStatus: "proposed"
+    });
+    expect((await link(run.report.id, laterSkip.id, "covers", "Later governed Temporal skip")).status).toBe(201);
+    expect(await currentProposalRevision()).not.toBe(revisionAfterDisposition);
+    const staleGeneration = await postJson(app, step.step.actions.generate.href);
+    expect(staleGeneration.status).toBe(400);
+    expect(await json(staleGeneration)).toMatchObject({
+      error: expect.stringContaining("stale Temporal packet identity"),
+      remediation: expect.any(String)
+    });
   });
 
   it("gives selected Temporal material stable server-owned identity and provenance", async () => {

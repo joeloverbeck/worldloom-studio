@@ -625,11 +625,11 @@ export const mintTemporalDebt = (
 
 export const storeTemporalAdvisory = (
   world: WorldFile,
-  input: { flowId: number; stepKey: string; mode?: "proposal" | "pressure"; promptText: string; responseText: string }
+  input: { flowId: number; stepKey: string; mode?: "proposal" | "pressure"; activeSetRevision?: number | null; promptText: string; responseText: string }
 ) => {
   const report = readReport(world, input.flowId);
   return world.atomicWrite(() => {
-    const record = PromptOut.storeAdvisoryResponse(world, { flowKey: FLOW_KEY, flowId: input.flowId, stepKey: input.stepKey, mode: input.mode, promptText: input.promptText, responseText: input.responseText });
+    const record = PromptOut.storeAdvisoryResponse(world, { flowKey: FLOW_KEY, flowId: input.flowId, stepKey: input.stepKey, mode: input.mode, activeSetRevision: input.activeSetRevision, promptText: input.promptText, responseText: input.responseText });
     world.createLinkIfMissing(report.id, record.id, "cites_advisory_artifact", "Temporal/Timeline pass stores this advisory artifact");
     world.createLinkIfMissing(record.id, report.id, "derived_from", "Temporal advisory artifact belongs to this pass report");
     world.updateFlowInstance(input.flowId, { currentStep: stepWithReport(report.id, `advisory:${input.stepKey}`) });

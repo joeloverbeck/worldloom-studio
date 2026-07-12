@@ -290,6 +290,7 @@ export const runPromptOutStoreAdvisoryAction = (
       flowId: input.flowId,
       stepKey: input.stepKey,
       mode: input.mode,
+      activeSetRevision: input.activeSetRevision,
       promptText: payload.promptText,
       responseText: payload.responseText
     });
@@ -316,7 +317,7 @@ export const runPromptOutDispositionAction = (
     PropagationFlow.assertPropagationPacketCurrent(world, input.flowId, input.activeSetRevision);
   }
   if (input.flowKey === TemporalFlow.FLOW_KEY && input.flowId != null) {
-    PromptOut.assertTemporalPacketCurrent(world, input.flowId, input.activeSetRevision);
+    PromptOut.assertTemporalAdvisoryDispositionPacket(world, payload.advisoryRecordId, input.flowId, input.activeSetRevision);
   }
   return { disposition: PromptOut.disposeAdvisoryArtifact(world, payload.advisoryRecordId, payload) };
 };

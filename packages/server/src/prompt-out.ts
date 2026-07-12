@@ -723,12 +723,7 @@ const temporalContextGraph = (world: WorldFile, reportId: number, sourceRecordId
   directIds.delete(reportId);
   const secondHopLinks = [...directIds].flatMap((recordId) => world.listLinks(recordId));
   const reportLinks = world.listLinks(reportId);
-  const revisionLinks = uniqueTemporalLinks([...directLinks, ...secondHopLinks, ...reportLinks]).filter((link) => {
-    const fromType = world.getRecord(link.fromRecordId).recordTypeKey;
-    const toType = world.getRecord(link.toRecordId).recordTypeKey;
-    return fromType !== "advisory_artifact" && fromType !== "skip_record"
-      && toType !== "advisory_artifact" && toType !== "skip_record";
-  });
+  const revisionLinks = uniqueTemporalLinks([...directLinks, ...secondHopLinks, ...reportLinks]);
   return { directLinks, directIds, secondHopLinks, reportLinks, revisionLinks };
 };
 
@@ -747,11 +742,16 @@ export const temporalPacketRevision = (world: WorldFile, flowId: number): number
     ...graph.revisionLinks.flatMap((link) => [link.fromRecordId, link.toRecordId]),
     ...world.listRecords().filter((record) => record.recordTypeKey === "world_kernel").map((record) => record.id)
   ]);
+  const contextRecords = world.listRecords().filter((record) => contextRecordIds.has(record.id));
+  const advisoryRecordIds = contextRecords.filter((record) => record.recordTypeKey === "advisory_artifact").map((record) => record.id);
   const digest = createHash("sha256").update(stableJson({
     report,
     sections: world.listSections(reportId),
-    records: world.listRecords().filter((record) => contextRecordIds.has(record.id) && record.recordTypeKey !== "advisory_artifact" && record.recordTypeKey !== "skip_record"),
-    links: graph.revisionLinks
+    records: contextRecords,
+    links: graph.revisionLinks,
+    advisoryDispositions: advisoryRecordIds.flatMap((recordId) => world.db.prepare("SELECT * FROM advisory_dispositions WHERE advisory_record_id = ? ORDER BY id").all(recordId)),
+    standingRulings: standingRulingRows(world),
+    promptTemplate: promptTemplateRow(world, "temporal_spatial_analyst")
   })).digest();
   return digest.readUInt32BE(0);
 };
@@ -879,14 +879,18 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
       note: "Current kernel commitments bound every guided-flow decision"
     }, "Current premise, tone, constraints, or protected effects can bound Temporal candidates and pressure."));
 
-  for (const directId of graph.directIds) {
-    for (const link of world.listLinks(directId)) {
-      const secondHopId = link.fromRecordId === directId ? link.toRecordId : link.fromRecordId;
-      if (secondHopId === selectedRecord?.id || graph.directIds.has(secondHopId) || secondHopId === report.id) continue;
-      const candidate = world.getRecord(secondHopId);
-      if (candidate.recordTypeKey === "world_kernel") continue;
-      omissions.push(`${candidate.shortId} omitted by the bounded second-hop rule; only the selected source and its direct structural relationships are decision context.`);
-    }
+  for (const link of graph.secondHopLinks) {
+    const directId = graph.directIds.has(link.fromRecordId)
+      ? link.fromRecordId
+      : graph.directIds.has(link.toRecordId)
+        ? link.toRecordId
+        : null;
+    if (directId == null) continue;
+    const secondHopId = link.fromRecordId === directId ? link.toRecordId : link.fromRecordId;
+    if (secondHopId === selectedRecord?.id || graph.directIds.has(secondHopId) || secondHopId === report.id) continue;
+    const candidate = world.getRecord(secondHopId);
+    if (candidate.recordTypeKey === "world_kernel") continue;
+    omissions.push(`${candidate.shortId} omitted by the bounded second-hop rule; only the selected source and its direct structural relationships are decision context.`);
   }
 
   const seenOutcomeIds = new Set<number>();
@@ -1664,6 +1668,30 @@ export const storeAdvisoryResponse = (world: WorldFile, input: AdvisoryResponseI
 const advisoryContextValue = (body: string, label: string): string | null => {
   const prefix = `${label}: `;
   return body.split("\n").find((line) => line.startsWith(prefix))?.slice(prefix.length).trim() ?? null;
+};
+
+export const assertTemporalAdvisoryDispositionPacket = (
+  world: WorldFile,
+  advisoryRecordId: number,
+  flowId: number,
+  submittedRevision?: number | null
+): void => {
+  const advisory = world.getRecord(advisoryRecordId);
+  const artifactFlow = advisoryContextValue(advisory.body, "Flow");
+  const artifactFlowId = Number(advisoryContextValue(advisory.body, "Flow id"));
+  const artifactRevision = Number(advisoryContextValue(advisory.body, "Active set revision"));
+  if (
+    advisory.recordTypeKey !== "advisory_artifact"
+    || artifactFlow !== "temporal_timeline"
+    || artifactFlowId !== flowId
+    || submittedRevision == null
+    || !Number.isFinite(artifactRevision)
+    || artifactRevision !== submittedRevision
+  ) {
+    const error = new Error("stale Temporal packet identity: advisory disposition must use the packet revision that created its immutable artifact") as Error & { remediation: string };
+    error.remediation = "Preserve the selected Temporal mode, recover the current packet, and dispose only the advisory artifact created from that packet action.";
+    throw error;
+  }
 };
 
 const assertAdvisoryPacketCurrent = (world: WorldFile, advisory: RecordRow): void => {

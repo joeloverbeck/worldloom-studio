@@ -82,6 +82,12 @@ describe("Temporal/Timeline web surface", () => {
     expect(temporalPromptLifecycleSource).not.toContain("linkTypeKey");
     expect(temporalPromptLifecycleSource).not.toContain("createHash");
     expect(temporalPromptLifecycleSource).not.toContain("sourceManifest:");
+    const storeAdvisorySource = source.slice(
+      source.indexOf("const storeAdvisory"),
+      source.indexOf("const applyCreationDecisionPayload")
+    );
+    expect(storeAdvisorySource).toContain('promptStep.context.flowKey === "temporal_timeline"');
+    expect(storeAdvisorySource).toContain("refreshTemporalRun(temporalFlowId)");
   });
 
 });

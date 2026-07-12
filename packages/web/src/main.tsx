@@ -4281,6 +4281,9 @@ function App({
       body: JSON.stringify({ advisoryRecordId: artifact.record.id, disposition, note: responseText, standingRuling: disposition === "standing ruling" })
     });
     await loadWorldData();
+    if (promptStep.context.flowKey === "temporal_timeline" && temporalFlowId != null) {
+      await refreshTemporalRun(temporalFlowId);
+    }
     setMessage(`Stored ${artifact.record.shortId}`);
   };
 
