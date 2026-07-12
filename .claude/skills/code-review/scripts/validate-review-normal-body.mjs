@@ -155,9 +155,10 @@ const validateBackendCurrentnessValue = (value) => {
 
   const hasServerCommand = /\bserver command\b/i.test(value);
   const hasWatchMode = /\bwatch(?:\/reload)? mode\b/i.test(value);
-  const hasOwnership = /\b(?:process(?: or port)?|port(?: or process)?) ownership\b/i.test(value);
+  const hasOwnership = /\b(?:process|port)(?:(?:\s+or\s+|\s*\/\s*)(?:process|port))? ownership\b/i.test(value);
   const hasRestartOrReloadProof = /\b(?:restart|reload)(?:\/(?:restart|reload))? proof\b/i.test(value);
-  const hasExpectedApiProbe = /\bexpected API (?:field|behavior)(?: probe)?\b|\bAPI probe\b/i.test(value);
+  const hasExpectedApiProbe =
+    /\bexpected(?: [\w-]+){0,3} API (?:field|behavior)(?: probe)?\b|\bAPI probe\b/i.test(value);
   if (hasServerCommand && hasWatchMode && hasOwnership && hasRestartOrReloadProof && hasExpectedApiProbe) return "";
 
   return "must state server command, watch/reload mode, process or port ownership, restart/reload proof, and expected API field/behavior probe, or a justified N/A/blocked reason";

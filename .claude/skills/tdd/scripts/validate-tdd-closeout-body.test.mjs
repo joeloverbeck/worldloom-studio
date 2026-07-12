@@ -44,6 +44,30 @@ Evidence identity refresh:
 TDD evidence gate passed: durable sink test fixture; compact table/header present after structural check; seams accounted for all listed; CONTEXT.md status present; ADRs/principles/docs status present; sequence evidence present; evidence identities present; partial-red / red-first skip reasons none; evidence-only rows none; existing-test contract-change rows none.
 `;
 
+const browserEvidenceBodyWith = (backendCurrentness) =>
+  bodyWith()
+    .replace("red-first public workflow", "evidence-only browser route")
+    .replace(
+      "- Evidence-only rows freshness: none",
+      "- Evidence-only rows freshness: browser smoke rerun passed on final tree for route/action/API/fixture Propagation with observed outcome ready\n- Evidence-only browser console state: 0 errors and 0 warnings"
+    )
+    .replace(
+      "- Evidence-only backend process currentness: N/A because no browser/manual evidence-only rows",
+      `- Evidence-only backend process currentness: ${backendCurrentness}`
+    );
+
+const reviewFixBodyWith = (freshnessLabel) => `${bodyWith()}
+TDD review-fix addendum:
+- Finding: closeout citation wording
+- Intended red command/failure: red-first skipped because Standards-only/conformance-only fix did not change behavior
+- Green command/evidence: validator passed
+- Updated TDD table row: #1 red-first public workflow
+- Regression durability: N/A because the intended red was not a transient browser/manual probe
+- ${freshnessLabel}: N/A because no UI/routes/browser-consumed API/fixtures/action path changed
+- Backend process currentness: N/A because no browser/manual proof was used
+- Evidence identity refresh: same-sink current/historical-red/superseded identity block inspected
+`;
+
 test("accepts sequence evidence and reconciled evidence identities", () => {
   assert.deepEqual(validateTddCloseoutBody(bodyWith()), []);
 });
@@ -121,6 +145,32 @@ test("accepts cross-validator-safe sweep wording with classified historical red 
   assert.deepEqual(validateTddCloseoutBody(body), []);
 });
 
+test("accepts slash ownership and a domain-qualified expected API field probe", () => {
+  const body = browserEvidenceBodyWith(
+    "server command pnpm dev; watch/reload mode active; process/port ownership PID 23056 on ports 5173 and 4173; restart/reload proof server restarted; expected Propagation API field probe returned blockers"
+  );
+
+  assert.deepEqual(validateTddCloseoutBody(body), []);
+});
+
+test("still rejects backend currentness without an expected API probe", () => {
+  const body = browserEvidenceBodyWith(
+    "server command pnpm dev; watch/reload mode active; process/port ownership PID 23056 on ports 5173 and 4173; restart/reload proof server restarted"
+  );
+
+  assert.ok(
+    validateTddCloseoutBody(body).some((error) => error.includes("expected API field/behavior probe"))
+  );
+});
+
+test("accepts the shared browser/manual evidence freshness review-fix label", () => {
+  assert.deepEqual(validateTddCloseoutBody(reviewFixBodyWith("Browser/manual evidence freshness")), []);
+});
+
+test("continues to accept the legacy browser/manual freshness review-fix label", () => {
+  assert.deepEqual(validateTddCloseoutBody(reviewFixBodyWith("Browser/manual freshness")), []);
+});
+
 test("rejects unresolved evidence identity placeholders", () => {
   const body = bodyWith({
     current:
@@ -151,6 +201,8 @@ test("guidance carries sink, snapshot, exactness, and shared closeout contracts"
   assert.match(closeout, /Nested-validator angle-token check/);
   assert.match(closeout, /no hits outside classified identity\/history lines and no active-proof hits/);
   assert.match(closeout, /published current artifact is not safe to remove until closeout is complete/);
+  assert.match(closeout, /Browser\/manual evidence freshness:/);
+  assert.match(closeout, /legacy `Browser\/manual freshness:` alias/);
   assert.equal(
     closeout.match(/no hits outside classified identity\/history lines and no active-proof hits/g)?.length,
     3

@@ -408,6 +408,22 @@ test("requires current freshness and console evidence when --browser is used", (
     );
   assert.deepEqual(validateReviewNormalBody(browserBody, { flags: ["--browser"] }), []);
 
+  const semanticVariants = browserBody.replace(
+    "process or port ownership PID 123 on port 4173; restart/reload proof server restarted; expected API field probe returned created",
+    "process/port ownership PID 123 on port 4173; restart/reload proof server restarted; expected Propagation API field probe returned created"
+  );
+  assert.deepEqual(validateReviewNormalBody(semanticVariants, { flags: ["--browser"] }), []);
+
+  const missingExpectedApiProbe = semanticVariants.replace(
+    "; expected Propagation API field probe returned created",
+    ""
+  );
+  assert.ok(
+    validateReviewNormalBody(missingExpectedApiProbe, { flags: ["--browser"] }).some((error) =>
+      error.includes("expected API field/behavior probe")
+    )
+  );
+
   const staleBackend = validateReviewNormalBody(
     browserBody.replace(
       "server command pnpm dev; watch/reload mode watch; process or port ownership PID 123 on port 4173; restart/reload proof server restarted; expected API field probe returned created",
@@ -527,7 +543,7 @@ TDD review-fix addendum:
 - Green command/evidence: pnpm typecheck passed
 - Updated TDD table row: #355 typed public contract
 - Regression durability: N/A because the intended red was not a transient browser/manual probe
-- Browser/manual freshness: N/A because no UI/routes/browser-consumed API/fixtures/action path changed
+- Browser/manual evidence freshness: N/A because no UI/routes/browser-consumed API/fixtures/action path changed
 - Backend process currentness: N/A because no browser/manual proof was used
 - Evidence identity refresh: same-sink identity block inspected
 

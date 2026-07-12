@@ -100,6 +100,22 @@ test("accepts current backend evidence when --browser is used", () => {
   assert.equal(result.status, 0, result.stderr);
 });
 
+test("accepts slash ownership and a domain-qualified expected API probe", () => {
+  const semanticVariants = browserBody.replace(
+    "process or port ownership PID 123 on port 4173; restart/reload proof server restarted; expected API field probe returned created",
+    "process/port ownership PID 123 on port 4173; restart/reload proof server restarted; expected Propagation API field probe returned created"
+  );
+  const result = runValidator(semanticVariants, ["--browser"]);
+  assert.equal(result.status, 0, result.stderr);
+
+  const missingExpectedApiProbe = runValidator(
+    semanticVariants.replace("; expected Propagation API field probe returned created", ""),
+    ["--browser"]
+  );
+  assert.notEqual(missingExpectedApiProbe.status, 0);
+  assert.match(missingExpectedApiProbe.stderr, /expected API field\/behavior probe/);
+});
+
 test("rejects no-browser and stale backend claims when --browser is used", () => {
   const noBrowser = runValidator(baseBody, ["--browser"]);
   assert.notEqual(noBrowser.status, 0);

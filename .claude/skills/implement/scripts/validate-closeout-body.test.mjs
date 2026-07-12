@@ -344,12 +344,16 @@ test("implementation guidance carries the audited staging, exactness, and siblin
 
   assert.match(skill, /Implementation pre-stage gate passed:/);
   assert.match(skill, /Implementation commit gate passed: staged files scoped yes/);
+  assert.match(skill, /Tracked implementation evidence and publishable closeout evidence are separate sinks/);
   assert.match(evidenceGuide, /two independent snapshots or server renders are not equivalent/);
   assert.match(evidenceGuide, /SQLite `.backup`/);
   assert.match(evidenceGuide, /package manifest or lockfile changes/);
   assert.match(evidenceGuide, /published current artifact is not safe to remove until closeout is complete/);
   assert.match(template, /## Sibling-Issue Rollup/);
   assert.match(template, /capture-github-issues\.mjs 369 370 371/);
+  assert.match(template, /build-closeout-body\.mjs/);
+  assert.match(reviewGuide, /Two-sink boundary/);
+  assert.match(reviewGuide, /Do not amend a tracked evidence report solely to append/);
   assert.match(template, /stable issue reference before tracker URL exists/);
   assert.match(template, /Review subagents: Standards final reviewer <ID> completed; Spec final reviewer <ID> completed/);
   assert.match(template, /no hits outside classified identity\/history lines and no active-proof hits/);

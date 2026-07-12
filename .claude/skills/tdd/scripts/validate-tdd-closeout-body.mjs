@@ -45,9 +45,12 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     "Intended red command/failure:",
     "Green command/evidence:",
     "Updated TDD table row:",
-    "Browser/manual freshness:",
     "Backend process currentness:",
     "Evidence identity refresh:"
+  ];
+  const reviewFixFreshnessLabels = [
+    "Browser/manual evidence freshness:",
+    "Browser/manual freshness:"
   ];
   const requiredPreflightLabels = [
     "TDD closeout preflight:",
@@ -244,9 +247,12 @@ export const validateTddCloseoutBody = (body, options = {}) => {
 
     const hasServerCommand = /\bserver command\b/i.test(normalized);
     const hasWatchMode = /\bwatch(?:\/reload)? mode\b/i.test(normalized);
-    const hasOwnership = /\b(?:process(?: or port)?|port(?: or process)?) ownership\b/i.test(normalized);
+    const hasOwnership = /\b(?:process|port)(?:(?:\s+or\s+|\s*\/\s*)(?:process|port))? ownership\b/i.test(
+      normalized
+    );
     const hasRestartOrReloadProof = /\b(?:restart|reload)(?:\/(?:restart|reload))? proof\b/i.test(normalized);
-    const hasExpectedApiProbe = /\bexpected API (?:field|behavior)(?: probe)?\b|\bAPI probe\b/i.test(normalized);
+    const hasExpectedApiProbe =
+      /\bexpected(?: [\w-]+){0,3} API (?:field|behavior)(?: probe)?\b|\bAPI probe\b/i.test(normalized);
     if (hasServerCommand && hasWatchMode && hasOwnership && hasRestartOrReloadProof && hasExpectedApiProbe) return "";
 
     return "must state server command, watch/reload mode, process or port ownership, restart/reload proof, and expected API field/behavior probe, or a justified N/A/blocked reason";
@@ -675,7 +681,9 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     /TDD\/review-fix evidence|Review-fix red evidence/i.test(body) ||
     (body.includes("TDD review-fix addendum:") && !hasExplicitNoReviewFixAddendum);
   const hasReviewFixAddendum = body.includes("TDD review-fix addendum:") && !hasExplicitNoReviewFixAddendum;
-  const hasReviewFixEquivalent = reviewFixEquivalentLabels.every((label) => body.includes(label));
+  const hasReviewFixEquivalent =
+    reviewFixEquivalentLabels.every((label) => body.includes(label)) &&
+    reviewFixFreshnessLabels.some((label) => body.includes(label));
 
   if (hasReviewFixSignal && !hasReviewFixAddendum && !hasReviewFixEquivalent) {
     errors.push(
@@ -684,10 +692,11 @@ export const validateTddCloseoutBody = (body, options = {}) => {
   }
 
   if (hasReviewFixSignal) {
-    const browserFreshnessValue = extractFieldValue("Browser/manual freshness");
+    const browserFreshnessValue =
+      extractFieldValue("Browser/manual evidence freshness") || extractFieldValue("Browser/manual freshness");
     const browserFreshnessError = validateFreshnessValue(browserFreshnessValue);
     if (browserFreshnessError) {
-      errors.push(`Browser/manual freshness ${browserFreshnessError}`);
+      errors.push(`Browser/manual evidence freshness ${browserFreshnessError}`);
     }
 
     const reviewBackendCurrentnessValue = extractFieldValue("Backend process currentness");
