@@ -166,6 +166,10 @@ export interface TemporalPacketContextPreview {
   openDebt: TemporalPacketContextRecord[];
   protectedBoundaries: TemporalPacketContextRecord[];
   kernelCommitments: TemporalPacketContextRecord[];
+  timelineCards: TemporalPacketContextRecord[];
+  routedProposals: TemporalPacketContextRecord[];
+  skips: TemporalPacketContextRecord[];
+  advisoryDispositions: Array<{ advisory: TemporalPacketContextRecord; dispositions: AdvisoryDispositionRow[] }>;
   sourceDocuments: PromptDocument[];
   sourceManifest: string[];
   omissions: string[];
@@ -707,6 +711,27 @@ const temporalRecordManifest = (record: TemporalPacketContextRecord): string =>
 
 const inactiveTemporalStatuses = new Set(["superseded", "deprecated", "rejected", "withdrawn"]);
 
+type TemporalContextLink = ReturnType<WorldFile["listLinks"]>[number];
+
+const uniqueTemporalLinks = (links: TemporalContextLink[]): TemporalContextLink[] =>
+  links.filter((link, index) => links.findIndex((candidate) => candidate.id === link.id) === index);
+
+const temporalContextGraph = (world: WorldFile, reportId: number, sourceRecordId: number | null) => {
+  const directLinks = sourceRecordId == null ? [] : world.listLinks(sourceRecordId);
+  const directIds = new Set(directLinks.flatMap((link) => [link.fromRecordId, link.toRecordId]));
+  if (sourceRecordId != null) directIds.delete(sourceRecordId);
+  directIds.delete(reportId);
+  const secondHopLinks = [...directIds].flatMap((recordId) => world.listLinks(recordId));
+  const reportLinks = world.listLinks(reportId);
+  const revisionLinks = uniqueTemporalLinks([...directLinks, ...secondHopLinks, ...reportLinks]).filter((link) => {
+    const fromType = world.getRecord(link.fromRecordId).recordTypeKey;
+    const toType = world.getRecord(link.toRecordId).recordTypeKey;
+    return fromType !== "advisory_artifact" && fromType !== "skip_record"
+      && toType !== "advisory_artifact" && toType !== "skip_record";
+  });
+  return { directLinks, directIds, secondHopLinks, reportLinks, revisionLinks };
+};
+
 export const temporalPacketRevision = (world: WorldFile, flowId: number): number => {
   const flow = world.getFlowInstance(flowId, "temporal_timeline");
   const reportId = temporalReportIdFromStep(String(flow.current_step));
@@ -714,30 +739,19 @@ export const temporalPacketRevision = (world: WorldFile, flowId: number): number
   const report = world.getRecord(reportId);
   const sourceRecordIdText = temporalLineValue(report.body, "Source record id");
   const sourceRecordId = sourceRecordIdText ? Number(sourceRecordIdText) : null;
-  const directLinks = sourceRecordId == null ? [] : world.listLinks(sourceRecordId);
-  const directIds = new Set(directLinks.flatMap((link) => [link.fromRecordId, link.toRecordId]));
-  if (sourceRecordId != null) directIds.delete(sourceRecordId);
-  const secondHopLinks = [...directIds].flatMap((recordId) => world.listLinks(recordId));
-  const contextLinks = [...directLinks, ...secondHopLinks]
-    .filter((link, index, links) => links.findIndex((candidate) => candidate.id === link.id) === index)
-    .filter((link) => {
-      const fromType = world.getRecord(link.fromRecordId).recordTypeKey;
-      const toType = world.getRecord(link.toRecordId).recordTypeKey;
-      return fromType !== "advisory_artifact" && fromType !== "skip_record"
-        && toType !== "advisory_artifact" && toType !== "skip_record";
-    });
+  const graph = temporalContextGraph(world, reportId, sourceRecordId);
   const contextRecordIds = new Set<number>([
     reportId,
     ...(sourceRecordId == null ? [] : [sourceRecordId]),
-    ...directIds,
-    ...contextLinks.flatMap((link) => [link.fromRecordId, link.toRecordId]),
+    ...graph.directIds,
+    ...graph.revisionLinks.flatMap((link) => [link.fromRecordId, link.toRecordId]),
     ...world.listRecords().filter((record) => record.recordTypeKey === "world_kernel").map((record) => record.id)
   ]);
   const digest = createHash("sha256").update(stableJson({
     report,
     sections: world.listSections(reportId),
     records: world.listRecords().filter((record) => contextRecordIds.has(record.id) && record.recordTypeKey !== "advisory_artifact" && record.recordTypeKey !== "skip_record"),
-    links: contextLinks
+    links: graph.revisionLinks
   })).digest();
   return digest.readUInt32BE(0);
 };
@@ -783,6 +797,7 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
   }));
   const sourceRecordIdText = temporalLineValue(report.body, "Source record id");
   const sourceRecordId = sourceRecordIdText ? Number(sourceRecordIdText) : null;
+  const materialTitle = temporalLineValue(report.body, "Material title");
   const materialBody = temporalLineValue(report.body, "Material body");
   const blockers: string[] = [];
   if (input.recordId != null && sourceRecordId != null && input.recordId !== sourceRecordId) {
@@ -792,21 +807,41 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
   if (input.mode === "pressure" && coverage.some((item) => !item.value)) blockers.push("Pressure requires all ten saved Temporal coverage lenses");
 
   const selectedRecord = sourceRecordId == null ? null : world.getRecord(sourceRecordId);
-  const selectedSource = selectedRecord == null ? null : temporalContextRecord(world, selectedRecord, {
-    kind: "selected_temporal_source",
-    direction: "selected",
-    note: "Source identity persisted by the Temporal pass report"
-  }, "The selected source is the material whose timing, latency, residue, and sequence are under decision.");
-  const directLinks = selectedRecord == null ? [] : world.listLinks(selectedRecord.id);
-  const directIds = new Set(directLinks.flatMap((link) => [link.fromRecordId, link.toRecordId]));
-  directIds.delete(selectedRecord?.id ?? -1);
+  const selectedSource = selectedRecord == null
+    ? materialBody
+      ? {
+          id: report.id,
+          shortId: `${report.shortId}:material`,
+          title: materialTitle,
+          recordTypeKey: "selected_material",
+          body: materialBody,
+          standing: { truthLayer: null, canonStatus: null },
+          relationship: {
+            kind: "selected_temporal_material",
+            direction: "selected" as const,
+            note: "Selected steward material persisted by the Temporal pass report"
+          },
+          provenance: temporalRecordProvenance(world, report.id, report.updatedAt),
+          inclusionReason: "This selected material is the steward-authored subject whose timing, latency, residue, and sequence are under decision."
+        }
+      : null
+    : temporalContextRecord(world, selectedRecord, {
+        kind: "selected_temporal_source",
+        direction: "selected",
+        note: "Source identity persisted by the Temporal pass report"
+      }, "The selected source is the material whose timing, latency, residue, and sequence are under decision.");
+  const graph = temporalContextGraph(world, report.id, selectedRecord?.id ?? null);
   const sourcePropagation: TemporalPacketContextRecord[] = [];
   const relatedCanon: TemporalPacketContextRecord[] = [];
   const openDebt: TemporalPacketContextRecord[] = [];
   const protectedBoundaries: TemporalPacketContextRecord[] = [];
+  const timelineCards: TemporalPacketContextRecord[] = [];
+  const routedProposals: TemporalPacketContextRecord[] = [];
+  const skips: TemporalPacketContextRecord[] = [];
+  const advisoryDispositions: Array<{ advisory: TemporalPacketContextRecord; dispositions: AdvisoryDispositionRow[] }> = [];
   const omissions: string[] = [];
 
-  for (const link of directLinks) {
+  for (const link of graph.directLinks) {
     const otherId = link.fromRecordId === selectedRecord?.id ? link.toRecordId : link.fromRecordId;
     const candidate = world.getRecord(otherId);
     if (candidate.id === report.id) continue;
@@ -832,21 +867,63 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
     }
   }
 
-  const kernelCommitments = world.listRecords()
-    .filter((record) => record.recordTypeKey === "world_kernel" && !inactiveTemporalStatuses.has(record.canonStatus ?? ""))
+  const kernelRecords = world.listRecords().filter((record) => record.recordTypeKey === "world_kernel");
+  for (const record of kernelRecords.filter((candidate) => inactiveTemporalStatuses.has(candidate.canonStatus ?? ""))) {
+    omissions.push(`${record.shortId} omitted as inactive ${record.canonStatus} world-kernel context; it is historical rather than a current commitment.`);
+  }
+  const kernelCommitments = kernelRecords
+    .filter((record) => !inactiveTemporalStatuses.has(record.canonStatus ?? ""))
     .map((record) => temporalContextRecord(world, record, {
       kind: "world_kernel_commitment",
       direction: "world",
       note: "Current kernel commitments bound every guided-flow decision"
     }, "Current premise, tone, constraints, or protected effects can bound Temporal candidates and pressure."));
 
-  for (const directId of directIds) {
+  for (const directId of graph.directIds) {
     for (const link of world.listLinks(directId)) {
       const secondHopId = link.fromRecordId === directId ? link.toRecordId : link.fromRecordId;
-      if (secondHopId === selectedRecord?.id || directIds.has(secondHopId)) continue;
+      if (secondHopId === selectedRecord?.id || graph.directIds.has(secondHopId) || secondHopId === report.id) continue;
       const candidate = world.getRecord(secondHopId);
       if (candidate.recordTypeKey === "world_kernel") continue;
       omissions.push(`${candidate.shortId} omitted by the bounded second-hop rule; only the selected source and its direct structural relationships are decision context.`);
+    }
+  }
+
+  const seenOutcomeIds = new Set<number>();
+  for (const link of graph.reportLinks.filter((candidate) => candidate.fromRecordId === report.id)) {
+    const candidate = world.getRecord(link.toRecordId);
+    if (candidate.id === selectedRecord?.id || seenOutcomeIds.has(candidate.id)) continue;
+    seenOutcomeIds.add(candidate.id);
+    if (inactiveTemporalStatuses.has(candidate.canonStatus ?? "")) {
+      omissions.push(`${candidate.shortId} omitted as inactive ${candidate.canonStatus} Temporal outcome context.`);
+      continue;
+    }
+    const relationship = temporalRelationship(report.id, link);
+    if (candidate.recordTypeKey === "temporal_timeline") {
+      timelineCards.push(temporalContextRecord(world, candidate, relationship, "This existing timeline card records timing already proposed or adopted for the current Temporal pass."));
+    } else if (candidate.recordTypeKey === "canon_fact" && link.linkTypeKey === "covers") {
+      routedProposals.push(temporalContextRecord(world, candidate, relationship, "This proposed fact was routed from the current Temporal pass for Admission review."));
+    } else if (candidate.recordTypeKey === "canon_debt") {
+      if (candidate.canonStatus === "accepted" || candidate.body.includes("State: closed")) {
+        omissions.push(`${candidate.shortId} omitted because the report-linked canon debt is closed or inactive.`);
+      } else if (!openDebt.some((record) => record.id === candidate.id)) {
+        openDebt.push(temporalContextRecord(world, candidate, relationship, "This open debt records unresolved work from the current Temporal pass."));
+      }
+    } else if (candidate.recordTypeKey === "skip_record") {
+      skips.push(temporalContextRecord(world, candidate, relationship, "This governed skip records a declined Temporal instrument and its reason."));
+    } else if (candidate.recordTypeKey === "advisory_artifact") {
+      const dispositions = world.db.prepare("SELECT * FROM advisory_dispositions WHERE advisory_record_id = ? ORDER BY id")
+        .all(candidate.id)
+        .map((row) => rowToAdvisoryDisposition(row as Record<string, unknown>));
+      if (!dispositions.length) omissions.push(`${candidate.shortId} advisory disposition unavailable: the stored advisory has no explicit steward disposition yet.`);
+      const dispositionBody = dispositions.map((row) => `${row.disposition}${row.note ? `: ${row.note}` : ""}`).join("\n");
+      const advisory = temporalContextRecord(world, {
+        ...candidate,
+        body: [candidate.body, dispositionBody ? `Advisory dispositions:\n${dispositionBody}` : ""].filter(Boolean).join("\n\n")
+      }, relationship, "This stored advisory and its steward dispositions can constrain repeated suggestions without changing canon standing.");
+      advisoryDispositions.push({ advisory, dispositions });
+    } else if (candidate.recordTypeKey !== "pass_report") {
+      omissions.push(`${candidate.shortId} omitted as irrelevant report-linked context for the current Temporal decision.`);
     }
   }
   if (!sourcePropagation.length) omissions.push("Source Propagation report unavailable: no directly linked final Propagation report is present for this Temporal source.");
@@ -854,6 +931,10 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
   if (!openDebt.length) omissions.push("Open debt unavailable: no active directly linked canon debt bears on this Temporal decision.");
   if (!protectedBoundaries.length) omissions.push("Protected-boundary context unavailable: no active directly linked mystery ledger entry bears on this decision.");
   if (!kernelCommitments.length) omissions.push("Kernel commitments unavailable: this world has no active world-kernel record.");
+  if (!timelineCards.length) omissions.push("Existing timeline cards unavailable: this Temporal pass has no linked timeline card.");
+  if (!routedProposals.length) omissions.push("Routed proposals unavailable: this Temporal pass has no fact proposal routed to Admission.");
+  if (!skips.length) omissions.push("Governed skips unavailable: this Temporal pass has no recorded skipped instrument.");
+  if (!advisoryDispositions.length) omissions.push("Advisory dispositions unavailable: this Temporal pass has no linked advisory artifact and disposition history.");
   if (!coverageSection) omissions.push("Saved Temporal coverage unavailable: no Coverage lenses section exists yet; Proposal may help draft candidates, but Pressure is incomplete.");
   for (const item of coverage.filter((item) => !item.value)) omissions.push(`${item.label} unavailable: no saved steward-authored value exists yet.`);
 
@@ -863,7 +944,11 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
     ...relatedCanon,
     ...openDebt,
     ...protectedBoundaries,
-    ...kernelCommitments
+    ...kernelCommitments,
+    ...timelineCards,
+    ...routedProposals,
+    ...skips,
+    ...advisoryDispositions.map((item) => item.advisory)
   ];
   const sourceDocuments: PromptDocument[] = [
     { source: `temporal_report:${report.shortId}`, content: [report.body, ...sections.map((section) => `## ${section.heading}\n${section.body}`)].join("\n\n") },
@@ -895,6 +980,10 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
     openDebt,
     protectedBoundaries,
     kernelCommitments,
+    timelineCards,
+    routedProposals,
+    skips,
+    advisoryDispositions,
     sourceDocuments,
     sourceManifest,
     omissions,

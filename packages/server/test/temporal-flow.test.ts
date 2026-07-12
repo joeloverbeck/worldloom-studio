@@ -71,6 +71,12 @@ describe("Temporal/Timeline flow HTTP API", () => {
       title: "Salt city kernel",
       body: "Premise: warnings create institutions before certainty. Protected effect: dread without solved causation."
     });
+    const inactiveKernel = await createRecord({
+      recordTypeKey: "world_kernel",
+      title: "Retired salt city kernel",
+      body: "This superseded premise is no longer an active world commitment.",
+      canonStatus: "superseded"
+    });
     const inactive = await createRecord({
       recordTypeKey: "canon_fact",
       title: "Retired bell calendar",
@@ -89,7 +95,47 @@ describe("Temporal/Timeline flow HTTP API", () => {
     expect((await link(fact.id, inactive.id, "depends_on", "Inactive historical support")).status).toBe(201);
     expect((await link(relatedCanon.id, secondHop.id, "depends_on", "Bounded second-hop candidate")).status).toBe(201);
 
-    const run = await json<{ flow: { id: number } }>(await postJson(app, "/api/temporal/runs/start", { sourceType: "fact", recordId: fact.id }));
+    const run = await json<{ flow: { id: number }; report: { id: number } }>(await postJson(app, "/api/temporal/runs/start", { sourceType: "fact", recordId: fact.id }));
+    const timelineCard = await createRecord({
+      recordTypeKey: "temporal_timeline",
+      title: "Existing salt bell chronology",
+      body: "The existing card separates event, discovery, public, and institutional dates.",
+      canonStatus: "proposed"
+    });
+    const routedProposal = await createRecord({
+      recordTypeKey: "canon_fact",
+      title: "Proposed ward archive",
+      body: "Candidate fact routed to Admission rather than admitted in Temporal.",
+      canonStatus: "proposed"
+    });
+    const reportDebt = await createRecord({
+      recordTypeKey: "canon_debt",
+      title: "Resolve unmatched toll jurisdiction",
+      body: "State: open. This Temporal outcome remains unresolved.",
+      canonStatus: "under review"
+    });
+    const governedSkip = await createRecord({
+      recordTypeKey: "skip_record",
+      title: "Skipped branch chronology instrument",
+      body: "Reason: branch chronology is not yet earned.",
+      canonStatus: "proposed"
+    });
+    const advisory = await createRecord({
+      recordTypeKey: "advisory_artifact",
+      title: "Earlier Temporal pressure",
+      body: "Advisory response: test the ward archive against false positives.",
+      truthLayer: "disputed claim",
+      canonStatus: "proposed"
+    });
+    expect((await link(run.report.id, timelineCard.id, "covers", "Existing Temporal timeline card")).status).toBe(201);
+    expect((await link(run.report.id, routedProposal.id, "covers", "Temporal proposal routed to Admission")).status).toBe(201);
+    expect((await link(run.report.id, reportDebt.id, "requires_follow_up", "Open Temporal outcome debt")).status).toBe(201);
+    expect((await link(run.report.id, governedSkip.id, "covers", "Governed Temporal skip")).status).toBe(201);
+    expect((await link(run.report.id, advisory.id, "cites_advisory_artifact", "Disposed Temporal advisory")).status).toBe(201);
+    expect((await postJson(app, `/api/advisory-artifacts/${advisory.id}/dispositions`, {
+      disposition: "selected",
+      note: "Use only the false-positive archive pressure."
+    })).status).toBe(201);
     const omittedMode = await postJson(app, "/api/prompt-out/steps", {
       flowKey: "temporal_timeline",
       flowId: run.flow.id,
@@ -147,6 +193,10 @@ describe("Temporal/Timeline flow HTTP API", () => {
           openDebt: Array<{ id: number }>;
           protectedBoundaries: Array<{ id: number }>;
           kernelCommitments: Array<{ id: number }>;
+          timelineCards: Array<{ id: number }>;
+          routedProposals: Array<{ id: number }>;
+          skips: Array<{ id: number }>;
+          advisoryDispositions: Array<{ advisory: { id: number }; dispositions: Array<{ disposition: string; note: string }> }>;
           sourceDocuments: Array<{ source: string; content: string }>;
           sourceManifest: string[];
           omissions: string[];
@@ -172,9 +222,19 @@ describe("Temporal/Timeline flow HTTP API", () => {
       },
       sourcePropagation: [expect.objectContaining({ id: propagationReport.id, inclusionReason: expect.stringContaining("Propagation") })],
       relatedCanon: [expect.objectContaining({ id: relatedCanon.id })],
-      openDebt: [expect.objectContaining({ id: debt.id })],
+      openDebt: expect.arrayContaining([
+        expect.objectContaining({ id: debt.id }),
+        expect.objectContaining({ id: reportDebt.id })
+      ]),
       protectedBoundaries: [expect.objectContaining({ id: boundary.id })],
       kernelCommitments: [expect.objectContaining({ id: kernel.id })],
+      timelineCards: [expect.objectContaining({ id: timelineCard.id })],
+      routedProposals: [expect.objectContaining({ id: routedProposal.id })],
+      skips: [expect.objectContaining({ id: governedSkip.id })],
+      advisoryDispositions: [expect.objectContaining({
+        advisory: expect.objectContaining({ id: advisory.id }),
+        dispositions: [expect.objectContaining({ disposition: "selected", note: "Use only the false-positive archive pressure." })]
+      })],
       recovery: {
         method: "POST",
         href: "/api/prompt-out/steps",
@@ -203,14 +263,22 @@ describe("Temporal/Timeline flow HTTP API", () => {
     expect(generated.promptOut.temporalContext.omissions).toEqual(expect.arrayContaining([
       expect.stringContaining("inactive"),
       expect.stringContaining(inactive.shortId),
+      expect.stringContaining(inactiveKernel.shortId),
       expect.stringContaining("bounded second-hop"),
       expect.stringContaining(secondHop.shortId)
     ]));
     expect(generated.promptOut.temporalContext.sourceDocuments.map((item) => item.source)).toEqual(expect.arrayContaining([
       expect.stringContaining(fact.shortId),
       expect.stringContaining(propagationReport.shortId),
-      expect.stringContaining(kernel.shortId)
+      expect.stringContaining(kernel.shortId),
+      expect.stringContaining(timelineCard.shortId),
+      expect.stringContaining(routedProposal.shortId),
+      expect.stringContaining(reportDebt.shortId),
+      expect.stringContaining(governedSkip.shortId),
+      expect.stringContaining(advisory.shortId)
     ]));
+    expect(generated.promptOut.temporalContext.sourceDocuments.find((document) => document.source.includes(advisory.shortId))?.content)
+      .toContain("selected: Use only the false-positive archive pressure.");
     expect(generated.promptOut.temporalContext.outputLabels).toContain("adopted with steward revision");
     expect(generated.promptOut.temporalContext.advisoryCanonWarning).toContain("optional advisory");
     expect(generated.promptOut.temporalContext.readOnlyGuarantee).toContain("no record");
@@ -237,6 +305,53 @@ describe("Temporal/Timeline flow HTTP API", () => {
       run: await json(await app.request(`/api/temporal/runs/${run.flow.id}`))
     };
     expect(after).toEqual(before);
+  });
+
+  it("gives selected Temporal material stable server-owned identity and provenance", async () => {
+    const app = createApp();
+    expect((await postJson(app, "/api/worlds/create", { path: tempPath("temporal-material.sqlite") })).status).toBe(201);
+    const run = await json<{ flow: { id: number } }>(await postJson(app, "/api/temporal/runs/start", {
+      sourceType: "material",
+      materialTitle: "Recovered bell-calendar fragment",
+      materialBody: "The fragment places three tolls before the first public archive.",
+      auditedSubject: "Recovered bell chronology"
+    }));
+    const step = await json<{ step: { actions: { generate: { href: string } } } }>(await postJson(app, "/api/prompt-out/steps", {
+      flowKey: "temporal_timeline",
+      flowId: run.flow.id,
+      templateKey: "temporal_spatial_analyst",
+      stepKey: "temporal:spatial-temporal-analysis",
+      mode: "proposal",
+      label: "Temporal Proposal"
+    }));
+    const generated = await json<{
+      prompt: string;
+      promptOut: { temporalContext: { selectedSource: {
+        id: number;
+        shortId: string;
+        title: string;
+        recordTypeKey: string;
+        body: string;
+        standing: { truthLayer: null; canonStatus: null };
+        relationship: { direction: string; kind: string };
+        provenance: { actor: string; timestamp: string; flowStep: string };
+        inclusionReason: string;
+      } } };
+    }>(await postJson(app, step.step.actions.generate.href));
+
+    expect(generated.promptOut.temporalContext.selectedSource).toMatchObject({
+      id: expect.any(Number),
+      shortId: expect.stringContaining("material"),
+      title: "Recovered bell-calendar fragment",
+      recordTypeKey: "selected_material",
+      body: "The fragment places three tolls before the first public archive.",
+      standing: { truthLayer: null, canonStatus: null },
+      relationship: { direction: "selected", kind: "selected_temporal_material" },
+      provenance: { actor: "steward", timestamp: expect.any(String), flowStep: expect.any(String) },
+      inclusionReason: expect.stringContaining("selected material")
+    });
+    expect(generated.prompt).toContain("Recovered bell-calendar fragment");
+    expect(generated.prompt).toContain("The fragment places three tolls before the first public archive.");
   });
 
   it("binds both modes to current flow context, blocks incomplete Pressure, and changes identity with saved coverage", async () => {

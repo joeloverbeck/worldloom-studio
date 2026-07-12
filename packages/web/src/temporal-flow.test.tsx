@@ -69,7 +69,8 @@ describe("Temporal/Timeline web surface", () => {
     expect(source).toContain("TemporalPromptOutPanel");
     expect(source).toContain("loadTemporalPromptStep");
     expect(source).toContain("temporalPromptMode");
-    expect(source).toContain("promptPacketExportText = (_origin: LoadedPromptOrigin, promptText: string): string => promptText");
+    expect(source).toContain('if (origin.flowKey === "temporal_timeline") return promptText');
+    expect(source).toContain('"Prompt packet manifest"');
     expect(source).not.toContain('promptFlowKey === "temporal_timeline" ? "temporal:spatial-temporal-analysis"');
     const temporalPromptLifecycleSource = source.slice(
       source.indexOf("const loadTemporalPromptStep"),

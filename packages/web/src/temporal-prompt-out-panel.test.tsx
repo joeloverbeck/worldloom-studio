@@ -112,4 +112,58 @@ describe("Temporal Prompt-out in-flow review", () => {
     fireEvent.click(recovery);
     expect(onRecover).toHaveBeenCalledOnce();
   });
+
+  it("preserves Pressure mode and server orientation while announcing incomplete-context recovery", () => {
+    const onRecover = vi.fn();
+    render(<TemporalPromptOutPanel
+      modes={[
+        { mode: "proposal", label: "Proposal mode", available: true, blocker: null, framing: "Candidates", stepRequest: { method: "POST", href: "/api/prompt-out/steps", body: { mode: "proposal" } } },
+        { mode: "pressure", label: "Pressure mode", available: true, blocker: null, framing: "Challenge", stepRequest: { method: "POST", href: "/api/prompt-out/steps", body: { mode: "pressure" } } }
+      ]}
+      selectedMode="pressure"
+      packet={{
+        promptText: "Previously current Temporal packet",
+        identity: { flowKey: "temporal_timeline", flowId: 41, stepKey: "temporal:spatial-temporal-analysis", mode: "proposal", recordId: 3, activeSetRevision: 7, packetHash: "packet-hash", bodyHash: "body-hash", sourceManifestHash: "manifest-hash" },
+        context: {
+          serverOwned: true,
+          mode: "proposal",
+          flowKey: "temporal_timeline",
+          stepKey: "temporal:spatial-temporal-analysis",
+          packageSources: ["docs/worldbuilding-system/09_temporal_and_timeline_protocol.md", "docs/worldbuilding-system/20_ai_assisted_workflow.md"],
+          completeness: { status: "complete", blockers: [] },
+          coverage: [],
+          selectedSource: { id: 3, shortId: "FAC-1", title: "Salt bell" },
+          sourceDocuments: [],
+          sourceManifest: [],
+          omissions: [],
+          outputLabels: [],
+          advisoryCanonWarning: "Optional advisory support.",
+          recovery: { method: "POST", href: "/api/prompt-out/steps", body: { mode: "proposal" } },
+          orientation: {
+            current: "Review saved Temporal coverage",
+            next: "Repair missing outcome decision",
+            resume: "Resume pass report PAS-1",
+            safeExit: "Return to the workflow map"
+          },
+          readOnlyGuarantee: "No world mutation."
+        }
+      }}
+      error={{
+        message: "Temporal Prompt-out incomplete context: Pressure requires all ten saved Temporal coverage lenses",
+        remediation: "Preserve the selected mode, repair the named Temporal context, refresh the run, and use its server-provided current-packet recovery action."
+      }}
+      copyDownloadControls={<><button>Copy Current Packet</button><button>Download Current Packet</button></>}
+      onLoadMode={() => undefined}
+      onRecover={onRecover}
+    />);
+
+    expect(screen.getByRole("button", { name: "Load Current Pressure Packet" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("alert").textContent).toContain("incomplete context");
+    expect(screen.getByText("Current: Review saved Temporal coverage")).toBeTruthy();
+    expect(screen.getByText("Next: Repair missing outcome decision")).toBeTruthy();
+    expect(screen.getByText("Resume: Resume pass report PAS-1")).toBeTruthy();
+    expect(screen.getByText("Safe exit: Return to the workflow map")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Recover Current Temporal Packet" }));
+    expect(onRecover).toHaveBeenCalledOnce();
+  });
 });

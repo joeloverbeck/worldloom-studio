@@ -1712,7 +1712,35 @@ const describePromptOrigin = (origin: LoadedPromptOrigin): string => [
   `admission section keys ${origin.admissionSectionKeys?.length ? origin.admissionSectionKeys.join(",") : "none"}`
 ].join(" · ");
 
-const promptPacketExportText = (_origin: LoadedPromptOrigin, promptText: string): string => promptText;
+const promptPacketExportText = (origin: LoadedPromptOrigin, promptText: string): string => {
+  if (origin.flowKey === "temporal_timeline") return promptText;
+  return [
+    "Prompt packet manifest",
+    `world: ${origin.worldPath}`,
+    `flow: ${origin.flowKey ?? "none"}`,
+    `flow_id: ${origin.flowId ?? "none"}`,
+    `record_id: ${origin.recordId ?? "none"}`,
+    `record_short_id: ${origin.recordShortId ?? "none"}`,
+    `record_type: ${origin.recordTypeKey ?? "none"}`,
+    `section: ${origin.selectedSectionHeading ?? "none"}`,
+    `step: ${origin.stepKey}`,
+    `mode: ${origin.mode ?? "none"}`,
+    `template: ${origin.templateKey}`,
+    `decision: ${origin.decisionLabel}`,
+    `generated_at: ${origin.createdAt || "unknown"}`,
+    `packet_hash: ${origin.packetHash ?? "none"}`,
+    `body_hash: ${origin.bodyHash ?? "none"}`,
+    `source_manifest_hash: ${origin.sourceManifestHash ?? "none"}`,
+    `admission_level: ${origin.admissionLevel ?? "none"}`,
+    `work_scale: ${origin.workScale ?? "none"}`,
+    `draft_state: ${origin.admissionDraftState ?? "not_applicable"}`,
+    `draft_digest: ${origin.admissionDraftHash ?? "none"}`,
+    `draft_sections: ${origin.admissionSectionKeys?.length ? origin.admissionSectionKeys.join(",") : "none"}`,
+    "",
+    "Prompt packet body",
+    promptText
+  ].join("\n");
+};
 
 function LoadedPromptStatusPanel({
   view,
