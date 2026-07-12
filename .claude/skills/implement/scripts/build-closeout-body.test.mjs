@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,7 +7,12 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 
 import { buildAcceptanceManifest, buildAuditScaffold } from "./build-acceptance-manifest.mjs";
-import { buildCloseoutBodyScaffold, validateAuditInput } from "./build-closeout-body.mjs";
+import {
+  DEFAULT_CLOSEOUT_BODY_MAX_BYTES,
+  assertCloseoutBodySize,
+  buildCloseoutBodyScaffold,
+  validateAuditInput
+} from "./build-closeout-body.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const builder = resolve(here, "build-closeout-body.mjs");
@@ -48,6 +53,8 @@ test("buildCloseoutBodyScaffold emits selected normal-review closeout fields", (
   assert.match(body, /Scaffold status: incomplete/);
   assert.match(body, /Local-only SHA: <final SHA> is not remote-reachable/);
   assert.match(body, /TDD closeout preflight:/);
+  assert.match(body, /Evidence-only proof server preflight:/);
+  assert.match(body, /proof server preflight <present or N\/A>/);
   assert.match(body, /Review: code-review against <resolved fixed point>/);
   assert.match(body, /## Standards[\s\S]+## Spec/);
   assert.match(body, /Browser evidence:\n- Route\/action\/outcome:/);
@@ -87,6 +94,20 @@ test("validateAuditInput rejects missing exact manifest coverage", () => {
     () => validateAuditInput(manifest, audit),
     /#368 AC1 requires exactly one exact audit row; found 0/
   );
+});
+
+test("closeout scaffold enforces the configured UTF-8 byte ceiling", () => {
+  assert.equal(assertCloseoutBodySize("é", 2), "é");
+  assert.throws(() => assertCloseoutBodySize("é", 1), /closeout body is 2 bytes; maximum is 1 bytes/);
+  assert.throws(
+    () => buildCloseoutBodyScaffold(manifest, {
+      parentIssue: 364,
+      reviewMode: "normal",
+      maxBytes: 100
+    }),
+    /Shorten concrete evidence or split it into separately validated durable tracker sinks/
+  );
+  assert.equal(DEFAULT_CLOSEOUT_BODY_MAX_BYTES, 65_536);
 });
 
 test("buildCloseoutBodyScaffold emits fallback and explicit N/A branches", () => {
@@ -139,4 +160,33 @@ test("closeout scaffold CLI writes a deterministic body", () => {
   assert.equal(first.status, 0, first.stderr);
   assert.equal(second.status, 0, second.stderr);
   assert.equal(secondBody, firstBody);
+});
+
+test("closeout scaffold CLI refuses an oversized output", () => {
+  const directory = mkdtempSync(join(tmpdir(), "implement-closeout-size-test-"));
+  const manifestPath = join(directory, "manifest.json");
+  const outputPath = join(directory, "closeout.md");
+  writeFileSync(manifestPath, JSON.stringify(manifest));
+
+  const result = spawnSync(
+    process.execPath,
+    [
+      builder,
+      manifestPath,
+      "--output",
+      outputPath,
+      "--parent",
+      "364",
+      "--review",
+      "normal",
+      "--max-bytes",
+      "100"
+    ],
+    { encoding: "utf8" }
+  );
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /maximum is 100 bytes/);
+  assert.equal(existsSync(outputPath), false);
+  rmSync(directory, { recursive: true, force: true });
 });

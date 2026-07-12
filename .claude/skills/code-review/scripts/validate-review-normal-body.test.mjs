@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { unresolvedValue } from "./review-evidence-contract.mjs";
+import {
+  DEFAULT_REVIEW_CLOSEOUT_BODY_MAX_BYTES,
+  unresolvedValue
+} from "./review-evidence-contract.mjs";
 import { validateReviewNormalBody } from "./validate-review-normal-body.mjs";
 
 const identityBlock = `Evidence identity refresh:
@@ -102,6 +105,20 @@ Review: code-review against abc1234; outcome findings fixed in SHA def5678; veri
 
 test("accepts a complete normal no-fix body", () => {
   assert.deepEqual(validateReviewNormalBody(noFixBody), []);
+});
+
+test("closing enforces the configured UTF-8 byte ceiling", () => {
+  assert.equal(DEFAULT_REVIEW_CLOSEOUT_BODY_MAX_BYTES, 65_536);
+  assert.deepEqual(validateReviewNormalBody(noFixBody, { flags: ["--closing"] }), []);
+  assert.deepEqual(validateReviewNormalBody(noFixBody, { maxBytes: 100 }), []);
+
+  const errors = validateReviewNormalBody(noFixBody, { flags: ["--closing"], maxBytes: 100 });
+  assert.ok(errors.some((error) => error.includes("maximum is 100 bytes")));
+
+  const defaultLimitErrors = validateReviewNormalBody(noFixBody.padEnd(65_537, "x"), {
+    flags: ["--closing"]
+  });
+  assert.ok(defaultLimitErrors.some((error) => error.includes("maximum is 65536 bytes")));
 });
 
 test("requires parent PRD coverage only when requested", () => {
@@ -297,6 +314,33 @@ test("requires review-native evidence identity reconciliation", () => {
   );
   assert.ok(emptyCategories.some((error) => error.includes("fixture paths requires a value")));
 
+  const hash = "a".repeat(64);
+  const structuredWithholding = noFixBody.replace(
+    "fixture paths none; browser sessions none",
+    `fixture paths withheld because issue #378 forbids local path publication; logical fixture world-alpha; content SHA-256 ${hash}; provenance generated from issue #378 seed; browser sessions none`
+  );
+  assert.deepEqual(validateReviewNormalBody(structuredWithholding), []);
+
+  const legacyWithholding = noFixBody.replace(
+    "fixture paths none; browser sessions none",
+    "fixture paths none published because issue #378 forbids local path publication; browser sessions none"
+  );
+  assert.ok(
+    validateReviewNormalBody(legacyWithholding).some((error) =>
+      error.includes("must use the structured 'fixture paths withheld because ...' identity form")
+    )
+  );
+
+  const incompleteWithholding = noFixBody.replace(
+    "fixture paths none; browser sessions none",
+    "fixture paths withheld because issue #378 forbids local path publication; browser sessions none"
+  );
+  assert.ok(
+    validateReviewNormalBody(incompleteWithholding).some((error) =>
+      error.includes("withheld fixture identity must include reason")
+    )
+  );
+
   const invalidSweep = validateReviewNormalBody(
     noFixBody.replace(
       "Superseded evidence identities: fixture paths none; browser sessions none; packet paths/hashes none; active revisions none; artifacts none",
@@ -358,6 +402,14 @@ test("rejects HTML-like angle tokens and documents shared identity safety", () =
   assert.match(identities, /no hits outside classified identity\/history lines and no active-proof hits/);
   assert.match(implementTemplate, /no hits outside classified identity\/history lines and no active-proof hits/);
   assert.match(identities, /published current artifact is not safe to remove until closeout is complete/);
+  assert.match(identities, /fixture paths withheld because/);
+  assert.match(identities, /Never use `fixture paths none published because/);
+  for (const contract of [skill, fallback]) {
+    assert.match(contract, /Evidence-only proof server preflight:/);
+    assert.match(contract, /proof server preflight/);
+    assert.match(contract, /65,536-byte body maximum/);
+    assert.match(contract, /--max-bytes <positive integer>/);
+  }
 });
 
 test("rejects non-terminal review subagent status", () => {
@@ -558,6 +610,7 @@ TDD closeout preflight:
 - Acceptance sequence map: all rows list justified sequence N/A
 - Partial-red / red-first skip reasons: listed
 - Evidence-only rows freshness: none
+- Evidence-only proof server preflight: N/A because no browser/manual evidence-only rows
 - Evidence-only backend process currentness: N/A because no browser/manual evidence-only rows
 - Evidence identity refresh: same-sink identity block inspected
 - Existing-test contract-change rows: none
@@ -568,7 +621,7 @@ Evidence identity refresh:
 - Superseded evidence identities: fixture paths none; browser sessions none; packet paths/hashes none; active revisions none; artifacts none
 - Superseded-token sweep: N/A because every superseded category is none
 
-TDD evidence gate passed: durable sink issue #355 closeout comment; compact table/header present after structural check; seams accounted for all listed; CONTEXT.md status present; ADRs/principles/docs status present; sequence evidence N/A; evidence identities present; partial-red / red-first skip reasons listed; evidence-only rows none; existing-test contract-change rows none.
+TDD evidence gate passed: durable sink issue #355 closeout comment; compact table/header present after structural check; seams accounted for all listed; CONTEXT.md status present; ADRs/principles/docs status present; sequence evidence N/A; evidence identities present; partial-red / red-first skip reasons listed; evidence-only rows none; proof server preflight N/A; existing-test contract-change rows none.
 `;
 
   assert.deepEqual(validateReviewNormalBody(body, { flags: ["--immediate-fix", "--tdd"] }), []);

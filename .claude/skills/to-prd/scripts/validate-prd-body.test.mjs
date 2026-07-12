@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -60,16 +63,18 @@ Runtime implementation.
 Seam confirmation was answered.
 `;
 
-const validate = (body) => {
-  const result = spawnSync(process.execPath, [validatorPath, "--stdin", "--expect-checklist"], {
+const runValidator = (body, args = ["--stdin", "--expect-checklist"]) => {
+  const result = spawnSync(process.execPath, [validatorPath, ...args], {
     encoding: "utf8",
     input: body,
   });
   return {
     ...result,
-    report: JSON.parse(result.stdout),
+    report: result.stdout.trim() ? JSON.parse(result.stdout) : null,
   };
 };
+
+const validate = (body) => runValidator(body);
 
 test("accepts lowercase browser checklist labels", () => {
   const result = validate(bodyWithChecklist(checklistItems));
@@ -90,4 +95,73 @@ test("still rejects a genuinely missing browser checklist item", () => {
 
   assert.equal(result.status, 1);
   assert.deepEqual(result.report.checklistMissing, ["cognitive walkthrough scenario"]);
+});
+
+test("loads checklist and source policy from a reusable policy file", () => {
+  const directory = mkdtempSync(join(tmpdir(), "worldloom-prd-policy-"));
+  const policyFile = join(directory, "policy.json");
+  try {
+    writeFileSync(policyFile, JSON.stringify({
+      expectChecklist: true,
+      approvedSources: ["CONTEXT.md"],
+      disallowedSources: ["reports/local-prep.md"],
+    }));
+    const body = bodyWithChecklist(checklistItems).replace(
+      "Publication provenance was ratified in this session.",
+      "Publication provenance from CONTEXT.md was ratified in this session.",
+    );
+
+    const result = runValidator(body, ["--stdin", "--policy-file", policyFile]);
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.report.policyFile, policyFile);
+    assert.equal(result.report.expectsChecklist, true);
+    assert.deepEqual(result.report.approvedDurableSourcePaths, ["CONTEXT.md"]);
+    assert.deepEqual(result.report.disallowedLocalSources, ["reports/local-prep.md"]);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects mixing a policy file with inline policy options", () => {
+  const directory = mkdtempSync(join(tmpdir(), "worldloom-prd-policy-"));
+  const policyFile = join(directory, "policy.json");
+  try {
+    writeFileSync(policyFile, JSON.stringify({
+      expectChecklist: true,
+      approvedSources: [],
+      disallowedSources: [],
+    }));
+
+    const result = runValidator(bodyWithChecklist(checklistItems), [
+      "--stdin",
+      "--policy-file",
+      policyFile,
+      "--expect-checklist",
+    ]);
+
+    assert.equal(result.status, 2);
+    assert.match(result.stderr, /Do not combine --policy-file with inline checklist or source-policy options/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects malformed validator policy fields", () => {
+  const directory = mkdtempSync(join(tmpdir(), "worldloom-prd-policy-"));
+  const policyFile = join(directory, "policy.json");
+  try {
+    writeFileSync(policyFile, JSON.stringify({
+      expectChecklist: "yes",
+      approvedSources: [],
+      disallowedSources: [],
+    }));
+
+    const result = runValidator(bodyWithChecklist(checklistItems), ["--stdin", "--policy-file", policyFile]);
+
+    assert.equal(result.status, 2);
+    assert.match(result.stderr, /expectChecklist must be a boolean/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

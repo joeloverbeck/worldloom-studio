@@ -36,4 +36,35 @@ git diff --quiet <publication-ref> -- <path>
 
 A clean status, tracked-path readback, publication-ref path readback, and a zero-exit content comparison together are the durable-citation proof. Run the content comparison separately or inspect its exit status explicitly; a quiet command with no captured status is not proof. The publication ref is normally `origin/main`; if it is not, substitute the resolved default branch ref and name it in the final report.
 
+Record the proof as a labeled ledger with one row per emitted source or resolved ADR. Unlabeled bulk output, an unexplained empty status command, or grouped path counts do not prove that the same path set passed every check:
+
+| Path | Clean | Tracked | Visible on publication ref | Content matches ref |
+|---|---|---|---|---|
+| `<source path>` | `yes/no` | `yes/no` | `yes/no` | `yes/no` |
+
+This inline run-sheet pattern keeps the required checks as direct Git commands while making every result auditable:
+
+```sh
+PUBLICATION_REF=origin/main
+SOURCE_PATHS=(<one path per validator-emitted source and resolved ADR>)
+
+for path in "${SOURCE_PATHS[@]}"; do
+  clean=no
+  test -z "$(git status --porcelain -- "$path")" && clean=yes
+
+  tracked=no
+  git ls-files --error-unmatch "$path" >/dev/null 2>&1 && tracked=yes
+
+  visible=no
+  git ls-tree -r --name-only "$PUBLICATION_REF" -- "$path" | rg -Fx -- "$path" >/dev/null && visible=yes
+
+  content_match=no
+  git diff --quiet "$PUBLICATION_REF" -- "$path" && content_match=yes
+
+  printf '| `%s` | %s | %s | %s | %s |\n' "$path" "$clean" "$tracked" "$visible" "$content_match"
+done
+```
+
+Every cell must be `yes` before the path may remain a durable citation. Preserve the completed ledger for both the staged and published durability runs; do not infer the second run from the first.
+
 Also scan for ADR shorthand such as `ADR 0006`, `ADR 0008`, or `ADR 0009`. Resolve each unique shorthand reference to exactly one `docs/adr/<number>-*.md` file and run the same tracked, dirty, publication-ref path, and publication-ref content checks on that resolved path. If no ADR file resolves, or more than one file resolves, treat the shorthand as unresolved and either cite a durable explicit path, summarize the decision without a stable citation, or stop before publishing if the PRD cannot be accurate without it.

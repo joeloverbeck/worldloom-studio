@@ -6,7 +6,24 @@ import { pathToFileURL } from "node:url";
 
 import { buildAuditScaffold } from "./build-acceptance-manifest.mjs";
 
-const usage = `Usage: node .claude/skills/implement/scripts/build-closeout-body.mjs <manifest.json> --output <body.md> --parent <issue> --review <normal|fallback> [--audit-input <audit.md>] [--tdd-parent-rollup] [--browser] [--principles] [--local-only] [--fixed-child <none|pending|final>]`;
+export const DEFAULT_CLOSEOUT_BODY_MAX_BYTES = 65_536;
+
+const usage = `Usage: node .claude/skills/implement/scripts/build-closeout-body.mjs <manifest.json> --output <body.md> --parent <issue> --review <normal|fallback> [--audit-input <audit.md>] [--tdd-parent-rollup] [--browser] [--principles] [--local-only] [--fixed-child <none|pending|final>] [--max-bytes <positive integer>]`;
+
+export const assertCloseoutBodySize = (body, maxBytes = DEFAULT_CLOSEOUT_BODY_MAX_BYTES) => {
+  if (!Number.isInteger(maxBytes) || maxBytes <= 0) {
+    throw new Error("max bytes must be a positive integer");
+  }
+
+  const bodyBytes = Buffer.byteLength(body, "utf8");
+  if (bodyBytes > maxBytes) {
+    throw new Error(
+      `closeout body is ${bodyBytes} bytes; maximum is ${maxBytes} bytes. Shorten concrete evidence or split it into separately validated durable tracker sinks before publication`
+    );
+  }
+
+  return body;
+};
 
 const tableText = (value) => value.replaceAll("|", "&#124;").replaceAll("\n", " ").trim();
 
@@ -79,11 +96,12 @@ TDD closeout preflight:
 - Partial-red / red-first skip reasons: <none or listed>
 - Evidence-only rows freshness: <none or freshness result>
 - Evidence-only browser console state: <state or N/A>
+- Evidence-only proof server preflight: <configured ports/owner-check/isolation/proxy/cleanup proof or N/A>
 - Evidence-only backend process currentness: <currentness proof or N/A>
 - Evidence identity refresh: <same-sink identity block inspected>
 - Existing-test contract-change rows: <none or listed>
 
-TDD evidence gate passed: durable sink <stable issue reference>; compact table/header <present after structural check>; seams accounted for <all listed>; CONTEXT.md status <present, absent, or N/A>; ADRs/principles/docs status <present or N/A>; sequence evidence <present or N/A>; evidence identities <present>; partial-red / red-first skip reasons <none or listed>; evidence-only rows <none or listed>; existing-test contract-change rows <none or listed>.`;
+TDD evidence gate passed: durable sink <stable issue reference>; compact table/header <present after structural check>; seams accounted for <all listed>; CONTEXT.md status <present, absent, or N/A>; ADRs/principles/docs status <present or N/A>; sequence evidence <present or N/A>; evidence identities <present>; partial-red / red-first skip reasons <none or listed>; evidence-only rows <none or listed>; proof server preflight <present or N/A>; existing-test contract-change rows <none or listed>.`;
 };
 
 const reviewRows = (manifest) => manifest.issues.map(
@@ -169,7 +187,7 @@ Backend process currentness: N/A because no browser/manual evidence was used
 Final freshness delta: N/A because browser evidence is N/A`;
 
 const identityBlock = `Evidence identity refresh:
-- Current evidence identities: fixture paths <paths or none>; browser sessions <names or none>; packet paths/hashes <paths and hashes or none>; active revisions <IDs or none>; artifacts <paths/IDs or none>
+- Current evidence identities: fixture paths <paths, none, or structured withheld identity>; browser sessions <names or none>; packet paths/hashes <paths and hashes or none>; active revisions <IDs or none>; artifacts <paths/IDs or none>
 - Historical red identities retained: <all five categories or none>
 - Superseded evidence identities: fixture paths <paths or none>; browser sessions <names or none>; packet paths/hashes <paths and hashes or none>; active revisions <IDs or none>; artifacts <paths/IDs or none>
 - Superseded-token sweep: <rg/grep command and classified result, or N/A because every superseded category is none>`;
@@ -197,7 +215,8 @@ export const buildCloseoutBodyScaffold = (manifest, options) => {
     browser = false,
     principles = false,
     localOnly = false,
-    fixedChildMode = "none"
+    fixedChildMode = "none",
+    maxBytes = DEFAULT_CLOSEOUT_BODY_MAX_BYTES
   } = options;
 
   if (!Number.isInteger(parentIssue) || parentIssue <= 0) throw new Error("parent issue must be a positive integer");
@@ -216,7 +235,7 @@ export const buildCloseoutBodyScaffold = (manifest, options) => {
     ? "Principles/ADR conformance: <no deliberate exceptions or approved exception>."
     : "Principles/ADR conformance: N/A because no in-scope issue has a Principles section.";
 
-  return `Implementation closeout for #${parentIssue}
+  const body = `Implementation closeout for #${parentIssue}
 
 Scaffold status: incomplete — replace every angle-bracket placeholder and validate before publication.
 
@@ -269,13 +288,15 @@ Closeout gate passed: audit sink <stable issue reference>; review evidence <line
 
 Closeout body check passed: audit table columns exact; every acceptance checkbox or conformance check named; every satisfied Evidence cell contains atoms/proof surfaces/sequence; every status literal satisfied/blocked/not done; final SHA present; verification evidence present; TDD evidence present or N/A; review evidence present; evidence identity refresh and superseded-token sweep present; Principles/ADR conformance string present or N/A; full Local-only SHA explanatory sentence present or N/A; browser evidence present/N/A/blocked; browser console state recorded when browser evidence is present or N/A/blocked; final browser/manual freshness delta present/N/A; exact fixed child inline comment inspected <yes or N/A>.
 `;
+
+  return assertCloseoutBodySize(body, maxBytes);
 };
 
 const isCli = process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
 
 if (isCli) {
   const args = process.argv.slice(2);
-  const valueFlags = ["--output", "--audit-input", "--parent", "--review", "--fixed-child"];
+  const valueFlags = ["--output", "--audit-input", "--parent", "--review", "--fixed-child", "--max-bytes"];
   const valueFor = (flag) => {
     const index = args.indexOf(flag);
     return index < 0 ? undefined : args[index + 1];
@@ -310,6 +331,10 @@ if (isCli) {
     if (args.includes("--fixed-child") && (!fixedChildMode || fixedChildMode.startsWith("--"))) {
       throw new Error("--fixed-child requires a value");
     }
+    if (args.includes("--max-bytes")) {
+      const value = valueFor("--max-bytes");
+      if (!value || value.startsWith("--")) throw new Error("--max-bytes requires a value");
+    }
 
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
     const auditPath = valueFor("--audit-input");
@@ -321,7 +346,10 @@ if (isCli) {
       browser: args.includes("--browser"),
       principles: args.includes("--principles"),
       localOnly: args.includes("--local-only"),
-      fixedChildMode
+      fixedChildMode,
+      maxBytes: valueFor("--max-bytes") === undefined
+        ? DEFAULT_CLOSEOUT_BODY_MAX_BYTES
+        : Number(valueFor("--max-bytes"))
     });
     writeFileSync(outputPath, body);
   } catch (error) {

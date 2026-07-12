@@ -4,22 +4,30 @@ Read this file in full during Step 3 of [`to-prd`](../SKILL.md) before validatin
 
 ## Staged-body validator
 
-For a staged body file, run the skill-local validator before `gh issue create`. Pass every cited durable local path with a repeated `--approved-source`; any extracted local or root authority path omitted from that allowlist fails validation. Pass every summarized, dirty, untracked, temp-only, publication-ref-missing, or publication-ref-content-different source with a repeated `--disallowed-source`. Add `--expect-checklist` whenever the browser-visible guidance checklist gate applies:
+For a staged body file, run the skill-local validator before `gh issue create`. Put the validation policy in one temporary JSON manifest: `expectChecklist`, `approvedSources`, and `disallowedSources`. Every cited durable local path belongs in `approvedSources`; any extracted local or root authority path omitted from that allowlist fails validation. Every summarized, dirty, untracked, temp-only, publication-ref-missing, or publication-ref-content-different source belongs in `disallowedSources`. Set `expectChecklist` to `true` whenever the browser-visible guidance checklist gate applies.
 
-Build the validator option set once after source extraction, then reuse the exact array for staged and published validation in the same shell session. If publication or readback resumes in a fresh shell, reconstruct this array from the staged validation record before continuing:
+Create the policy manifest with the environment-approved editing mechanism after source extraction, then reuse that same file for staged and published validation, including across fresh shells or resumed sessions:
+
+```json
+{
+  "expectChecklist": true,
+  "approvedSources": [
+    "docs/principles/example.md",
+    "CONTEXT.md"
+  ],
+  "disallowedSources": [
+    "reports/example-local-prep.md"
+  ]
+}
+```
 
 ```sh
 BODY_FILE=path/to/prd-body.md
-VALIDATOR_ARGS=(
-  --expect-checklist
-  --approved-source docs/principles/example.md
-  --approved-source CONTEXT.md
-  --disallowed-source reports/example-local-prep.md
-)
-node .claude/skills/to-prd/scripts/validate-prd-body.mjs "$BODY_FILE" "${VALIDATOR_ARGS[@]}"
+POLICY_FILE=path/to/prd-body.policy.json
+node .claude/skills/to-prd/scripts/validate-prd-body.mjs "$BODY_FILE" --policy-file "$POLICY_FILE"
 ```
 
-If any item fails, edit the body before publishing. Omit `--expect-checklist` only when the gate does not apply; the validator rejects a checklist marker whose expectation was not declared. For a checklist-gated PRD, `checklistMissing` must be empty: every current issue-tracker checklist item must have a row or stable anchor in the PRD body, and each row must identify a covering PRD home or `N/A - <reason>`.
+If any item fails, edit the body before publishing. Set `expectChecklist` to `false` only when the gate does not apply; the validator rejects a checklist marker whose expectation was not declared. For a checklist-gated PRD, `checklistMissing` must be empty: every current issue-tracker checklist item must have a row or stable anchor in the PRD body, and each row must identify a covering PRD home or `N/A - <reason>`.
 
 The validator also emits `localSourcePaths`, `unexpectedLocalSourcePaths`, `adrShorthands`, `resolvedAdrPaths`, and `unresolvedAdrShorthands`; its resolver does not replace the direct Git durability checks on the emitted paths. After publication, if validation shows a section is malformed or incomplete, edit the issue and re-run verification before final reporting.
 
@@ -50,9 +58,9 @@ After creation, verify tracker metadata with `gh issue view`: the exact title, c
 gh issue view <number> --json number,title,labels,state,url \
   --jq '{number,title,state,url,labels:[.labels[].name]}'
 
-test "${VALIDATOR_ARGS+x}" = x || { printf 'VALIDATOR_ARGS must be reconstructed from staged validation\n' >&2; exit 1; }
+test -f "$POLICY_FILE" || { printf 'validator policy manifest is missing\n' >&2; exit 1; }
 gh issue view <number> --json body --jq '.body' \
-  | node .claude/skills/to-prd/scripts/validate-prd-body.mjs --stdin "${VALIDATOR_ARGS[@]}"
+  | node .claude/skills/to-prd/scripts/validate-prd-body.mjs --stdin --policy-file "$POLICY_FILE"
 ```
 
 Use the published validator output only when it matches the staged validator configuration and returns no failures. Rerun the [source-durability gate](source-durability.md#durability-gate) for every emitted `localSourcePaths` and `resolvedAdrPaths` entry; the helper does not replace Git durability proof.
@@ -65,4 +73,14 @@ If interrupted, resumed, or compacted before issue creation begins, do not rely 
 
 If interrupted, resumed, or compacted after issue creation begins, first recover the issue number without creating a duplicate. When the number is unknown, do not retry `gh issue create` until you have searched by exact title with `gh issue list --state all --search '"<title>" in:title' --json number,title,state,url,labels,updatedAt --limit 10`; use the single exact-title match, stop and report if multiple matches exist, and retry creation only after proving no matching issue was created. Then re-run the compact `gh issue view` verification, re-check the published body's local-source paths against the approved durable citation list, resolve any published ADR shorthands and re-check the resolved ADR paths, check whether any temporary body file still exists and remove it if needed, then re-run `git status --short` before final reporting.
 
-Remove any temporary body file you created using the environment-approved edit/removal mechanism, run `git status --short`, and include only remaining pre-existing or intentional dirty files in the final report. For temporary body files outside the repository, verify cleanup with direct existence checks such as `test ! -e <path>`; repo-local Git status cannot prove cleanup of files outside the worktree.
+Remove every temporary body and validator-policy file you created using the environment-approved edit/removal mechanism, run `git status --short`, and include only remaining pre-existing or intentional dirty files in the final report. For temporary files outside the repository, verify cleanup with direct existence checks such as `test ! -e <path>`; repo-local Git status cannot prove cleanup of files outside the worktree.
+
+## Final closeout ledger
+
+Before the final response, reconcile tracker proof, validator results, staged and published durability ledgers, seam/checklist outcome, deferred or sequenced work, and temporary-file cleanup. Then reproduce the final `git status --short` as one row per remaining path:
+
+| Path | Final status | Class | Ownership |
+|---|---|---|---|
+| `<exact path>` | `<git status code>` | `pre-existing` / `intentional` | `not changed by this run` / `<why this run owns it>` |
+
+Do not collapse paths into counts or unnamed families. If the worktree is clean, record `clean` instead of inventing a row. The final answer must name the branch and publication ref separately; neither substitutes for the per-path ledger.

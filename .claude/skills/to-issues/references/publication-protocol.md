@@ -104,11 +104,14 @@ node .claude/skills/to-issues/scripts/validate-publication.mjs child "$BODY_FILE
   --parent "PRD #<parent>" \
   --blocker "#<backward-blocker>" \
   --external-blocker "<exact external prerequisite text>" \
+  --forbid-pattern '<run-specific-token-or-path-pattern>' \
   --expect-stories \
   --expect-ac-count <count>
 ```
 
 Repeat `--blocker` for every expected backward reference and `--external-blocker` for every exact non-tracker prerequisite. Put each external prerequisite in its own `## Blocked by` bullet. Use `--expect-no-blocker` only when neither tracker nor external blockers exist. Use `--placeholder-re` when the run uses tokens outside the default `#SLICE|PLACEHOLDER` pattern.
+
+Repeat `--forbid-pattern` for every additional run-specific token or machine-local path regex. The validator preserves the distinction mechanically: no match passes, a match fails validation, and an invalid regex is a usage error. Apply the same options to ledger validation and to current-slice or full run-sheet validation when those artifacts can carry the pattern.
 
 For a shared multi-slice run sheet, the default command must configure every slice represented in that file:
 
@@ -141,7 +144,9 @@ The validator does not replace relationship/tense review, live tracker readback,
 
 ## 4. Run a status-preserving negative sweep
 
-Sweep each staged body and ledger for any additional run-specific tokens or machine-local path patterns not covered by the validator. Never use `rg ... || true` for this gate; it hides real command failures.
+The canonical sweep is the staged-artifact validator's repeatable `--forbid-pattern` option. Pass every run-specific token or machine-local path regex on each child, ledger, and applicable run-sheet invocation. Never replace it with `rg ... || true`; that hides real command failures.
+
+If a one-off investigation cannot be expressed through the validator, use this status-preserving shell fallback:
 
 ```sh
 if sweep_output="$(rg --no-filename -n '<run-specific-token-or-path-pattern>' "$BODY_FILE" 2>&1)"; then
@@ -156,7 +161,7 @@ case "$sweep_status" in
 esac
 ```
 
-Exit 1 with no output is the clean no-hit case. Exit 0 means actionable content was found. Exit greater than 1 is a command failure. Rerun both validator and sweep after every substitution or body edit. Do not batch these gates with the corresponding tracker creation call.
+Exit 1 with no output is the clean no-hit case. Exit 0 means actionable content was found. Exit greater than 1 is a command failure. Rerun validation with every `--forbid-pattern` after each substitution or body edit; rerun the shell fallback too when it was needed. Do not batch these gates with the corresponding tracker creation call.
 
 ## 5. Publish serially in dependency order
 
@@ -164,15 +169,31 @@ Create blockers first. Use placeholder substitution only for backward references
 
 After each substitution:
 
-1. rerun child validation;
-2. rerun the current-slice run-sheet validation;
-3. rerun the status-preserving negative sweep;
-4. inspect relationship and tense words such as `blocked by`, `depends on`, `sibling`, `consumes`, `closed`, `completed`, `implemented`, `open`, and `ready`; and
-5. only then call `gh issue create --body-file`.
+1. rerun child validation with every repeatable `--forbid-pattern`;
+2. rerun the current-slice run-sheet validation with every repeatable `--forbid-pattern`;
+3. inspect relationship and tense words such as `blocked by`, `depends on`, `sibling`, `consumes`, `closed`, `completed`, `implemented`, `open`, and `ready`; and
+4. only then call `gh issue create --body-file`.
+
+Never replace either validator invocation with `rg ... || true`.
 
 Create issues one at a time and stop on the first failure. Predicted identifiers are a fallback only for strictly backward references with chained creation and immediate prediction verification. If creation fails ambiguously, apply the mutation-reconciliation rule in Step 1 before deciding whether a retry is safe.
 
-Immediately read each created issue with `gh issue view` and verify title, state, full labels, parent, body sections, story coverage when expected, each blocker individually, and absence of placeholders and machine-local paths. Correct defects with the tracker edit command and re-read before continuing.
+Immediately verify each created issue with one fetch through the single-child verifier:
+
+```sh
+node .claude/skills/to-issues/scripts/verify-published-family.mjs child "$ISSUE_NUMBER" "$BODY_FILE" \
+  --title "$TITLE" \
+  --parent "PRD #<parent>" \
+  --state OPEN \
+  --label enhancement \
+  --label ready-for-agent \
+  --blocker "#<backward-blocker>" \
+  --external-blocker "<exact external prerequisite text>" \
+  --expect-stories \
+  --placeholder-re '#SLICE|PLACEHOLDER|<run-specific-token-or-path-pattern>'
+```
+
+Repeat label and blocker options exactly as approved. Use `--expect-no-blocker` instead of blocker options only when neither tracker nor external blockers exists. The verifier fetches the issue once, normalizes Markdown before comparing the full staged body, requires the exact label set and state, and checks the parent, required sections, story posture, blockers, placeholders, and machine-local paths. Correct defects with the tracker edit command and rerun this verifier before continuing.
 
 ## 6. Parent ledger
 
@@ -256,7 +277,7 @@ Run:
 node .claude/skills/to-issues/scripts/verify-published-family.mjs "$FAMILY_MANIFEST"
 ```
 
-The verifier reruns the complete checklist sheet, fetches the parent and every child live through `gh`, compares published bodies with staged bodies, verifies exact blockers and expected labels/state/title/parent, verifies the posted ledger body or skipped-ledger reason, and prints one JSON report. A nonzero exit blocks final reporting.
+The verifier reruns the complete checklist sheet, fetches the parent and every child live through `gh`, compares published bodies with staged bodies, verifies exact blockers and the exact label set/state/title/parent, verifies the posted ledger body or skipped-ledger reason, and prints one JSON report. A nonzero exit blocks final reporting.
 
 ## 8. Cleanup and final response
 

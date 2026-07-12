@@ -7,13 +7,14 @@ import { validateTddCloseoutBody } from "../../tdd/scripts/validate-tdd-closeout
 import {
   fieldValue,
   unresolvedValue,
+  validateReviewClosingBodySize,
   validateReviewEvidenceIdentities,
   validateReviewFixtureSnapshotCurrentness,
   validateReviewSpecCoverage
 } from "./review-evidence-contract.mjs";
 
 const usage =
-  "Usage: node .claude/skills/code-review/scripts/validate-review-normal-body.mjs <body.md> [--immediate-fix] [--parent-prd] [--child-family] [--issue-set] [--acceptance-manifest <path>] [--browser] [--tdd] [--tdd-parent-rollup] [--closing]";
+  "Usage: node .claude/skills/code-review/scripts/validate-review-normal-body.mjs <body.md> [--immediate-fix] [--parent-prd] [--child-family] [--issue-set] [--acceptance-manifest <path>] [--browser] [--tdd] [--tdd-parent-rollup] [--closing] [--max-bytes <positive integer>]";
 
 const validateRevisitTrigger = (value) => {
   if (unresolvedValue(value)) return "is empty or unresolved";
@@ -181,6 +182,10 @@ const validateRegressionDurability = (body, errors) => {
 export const validateReviewNormalBody = (body, options = {}) => {
   const flags = new Set(options.flags ?? []);
   const errors = [];
+  validateReviewClosingBodySize(body, errors, {
+    closing: flags.has("--closing"),
+    maxBytes: options.maxBytes
+  });
   const requireText = (needle, label = needle) => {
     if (!body.includes(needle)) errors.push(`missing ${label}`);
   };
@@ -279,7 +284,7 @@ export const validateReviewNormalBody = (body, options = {}) => {
     const tddFlags = [];
     if (flags.has("--tdd-parent-rollup")) tddFlags.push("--parent-rollup");
     if (flags.has("--closing")) tddFlags.push("--closing");
-    const tddErrors = validateTddCloseoutBody(body, { flags: tddFlags });
+    const tddErrors = validateTddCloseoutBody(body, { flags: tddFlags, maxBytes: options.maxBytes });
     if (tddErrors.length) {
       errors.push(`TDD validator failed:\n${tddErrors.map((error) => `- ${error}`).join("\n")}`);
     }
@@ -298,7 +303,12 @@ if (isCli) {
   const args = process.argv.slice(2);
   const manifestIndex = args.indexOf("--acceptance-manifest");
   const manifestPath = manifestIndex < 0 ? undefined : args[manifestIndex + 1];
-  const valueIndexes = new Set(manifestIndex < 0 ? [] : [manifestIndex + 1]);
+  const maxBytesIndex = args.indexOf("--max-bytes");
+  const maxBytesValue = maxBytesIndex < 0 ? undefined : args[maxBytesIndex + 1];
+  const valueIndexes = new Set([
+    ...(manifestIndex < 0 ? [] : [manifestIndex + 1]),
+    ...(maxBytesIndex < 0 ? [] : [maxBytesIndex + 1])
+  ]);
   const file = args.find((arg, index) => !arg.startsWith("--") && !valueIndexes.has(index));
   const flags = args.filter((arg) => arg.startsWith("--"));
 
@@ -308,6 +318,16 @@ if (isCli) {
   }
   if (!file) {
     console.error(usage);
+    process.exit(2);
+  }
+
+  if (maxBytesIndex >= 0 && (!maxBytesValue || maxBytesValue.startsWith("--"))) {
+    console.error("--max-bytes requires a value");
+    process.exit(2);
+  }
+  const maxBytes = maxBytesValue === undefined ? undefined : Number(maxBytesValue);
+  if (maxBytes !== undefined && (!Number.isInteger(maxBytes) || maxBytes <= 0)) {
+    console.error("--max-bytes must be a positive integer");
     process.exit(2);
   }
 
@@ -325,7 +345,7 @@ if (isCli) {
     }
   }
 
-  const errors = validateReviewNormalBody(readFileSync(file, "utf8"), { flags, acceptanceManifest });
+  const errors = validateReviewNormalBody(readFileSync(file, "utf8"), { flags, acceptanceManifest, maxBytes });
   if (errors.length) {
     console.error(`Normal review body validation failed for ${file}:`);
     for (const error of errors) console.error(`- ${error}`);

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { validateTddCloseoutBody } from "../../tdd/scripts/validate-tdd-closeout-body.mjs";
 import { validateAcceptedResiduals } from "./validate-review-normal-body.mjs";
 import {
+  validateReviewClosingBodySize,
   validateReviewEvidenceIdentities,
   validateReviewFixtureSnapshotCurrentness,
   validateReviewSpecCoverage
@@ -12,11 +13,16 @@ import {
 const args = process.argv.slice(2);
 const manifestIndex = args.indexOf("--acceptance-manifest");
 const manifestPath = manifestIndex < 0 ? undefined : args[manifestIndex + 1];
-const valueIndexes = new Set(manifestIndex < 0 ? [] : [manifestIndex + 1]);
+const maxBytesIndex = args.indexOf("--max-bytes");
+const maxBytesValue = maxBytesIndex < 0 ? undefined : args[maxBytesIndex + 1];
+const valueIndexes = new Set([
+  ...(manifestIndex < 0 ? [] : [manifestIndex + 1]),
+  ...(maxBytesIndex < 0 ? [] : [maxBytesIndex + 1])
+]);
 const file = args.find((arg, index) => !arg.startsWith("--") && !valueIndexes.has(index));
 const flags = new Set(args.filter((arg) => arg.startsWith("--")));
 
-const usage = `Usage: node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs <body.md> [--implement] [--child-family] [--issue-set] [--acceptance-manifest <path>] [--immediate-fix] [--browser] [--tdd] [--tdd-parent-rollup] [--closing]`;
+const usage = `Usage: node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs <body.md> [--implement] [--child-family] [--issue-set] [--acceptance-manifest <path>] [--immediate-fix] [--browser] [--tdd] [--tdd-parent-rollup] [--closing] [--max-bytes <positive integer>]`;
 
 if (flags.has("--help")) {
   console.error(usage);
@@ -28,8 +34,22 @@ if (!file) {
   process.exit(2);
 }
 
+if (maxBytesIndex >= 0 && (!maxBytesValue || maxBytesValue.startsWith("--"))) {
+  console.error("--max-bytes requires a value");
+  process.exit(2);
+}
+const maxBytes = maxBytesValue === undefined ? undefined : Number(maxBytesValue);
+if (maxBytes !== undefined && (!Number.isInteger(maxBytes) || maxBytes <= 0)) {
+  console.error("--max-bytes must be a positive integer");
+  process.exit(2);
+}
+
 const body = readFileSync(file, "utf8");
 const errors = [];
+validateReviewClosingBodySize(body, errors, {
+  closing: flags.has("--closing"),
+  maxBytes
+});
 let acceptanceManifest;
 if (manifestIndex >= 0 && (!manifestPath || manifestPath.startsWith("--"))) {
   errors.push("--acceptance-manifest requires a path");
@@ -375,7 +395,7 @@ if (shouldRunTddValidator) {
   const tddFlags = [];
   if (flags.has("--tdd-parent-rollup")) tddFlags.push("--parent-rollup");
   if (flags.has("--closing")) tddFlags.push("--closing");
-  const tddErrors = validateTddCloseoutBody(body, { flags: tddFlags });
+  const tddErrors = validateTddCloseoutBody(body, { flags: tddFlags, maxBytes });
   if (tddErrors.length) {
     errors.push(`TDD validator failed:\n${tddErrors.map((error) => `- ${error}`).join("\n")}`);
   }

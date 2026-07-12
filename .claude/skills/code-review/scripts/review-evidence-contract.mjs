@@ -1,5 +1,16 @@
 const childTableHeader = "| Issue | Acceptance source | Evidence reviewed | Findings/residuals |";
 
+export const DEFAULT_REVIEW_CLOSEOUT_BODY_MAX_BYTES = 65_536;
+
+export const validateReviewClosingBodySize = (body, errors, options = {}) => {
+  if (!options.closing) return;
+  const maxBytes = options.maxBytes ?? DEFAULT_REVIEW_CLOSEOUT_BODY_MAX_BYTES;
+  const bodyBytes = Buffer.byteLength(body, "utf8");
+  if (bodyBytes > maxBytes) {
+    errors.push(`review closeout body is ${bodyBytes} bytes; maximum is ${maxBytes} bytes`);
+  }
+};
+
 const fieldPattern = (label) => {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`^\\s*[-*]?\\s*(?:\\*\\*)?${escaped}(?:\\*\\*)?:\\s*(.+)$`, "im");
@@ -255,6 +266,20 @@ export const validateReviewEvidenceIdentities = (body, errors) => {
 
   validateIdentityInventory(current, "Current evidence identities", errors);
   validateIdentityInventory(superseded, "Superseded evidence identities", errors);
+  const fixturePaths = identityInventory(current).get("fixture paths") ?? "";
+  if (/^none published because\b/i.test(fixturePaths)) {
+    errors.push("withheld fixture paths must use the structured 'fixture paths withheld because ...' identity form");
+  }
+  if (
+    /^withheld\b/i.test(fixturePaths) &&
+    !/fixture paths\s+withheld because\s+[^;]+;\s*logical fixture\s+[^;]+;\s*content SHA-256\s+[0-9a-f]{64};\s*provenance\s+[^;]+(?=;|$)/i.test(
+      current
+    )
+  ) {
+    errors.push(
+      "withheld fixture identity must include reason, logical fixture, 64-character content SHA-256, and provenance"
+    );
+  }
   if (unresolvedValue(historicalRed)) {
     errors.push("Historical red identities retained is empty or unresolved");
   } else if (!/^none$/i.test(historicalRed)) {

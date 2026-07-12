@@ -8,6 +8,7 @@ Before creating the issue, run a template-conformance pass over the body, not ju
 
 - The body starts with an untitled provenance preamble and does not repeat the title as an H1.
 - `## User Stories` is a numbered list, and each story follows `As an <actor>, I want <feature>, so that <benefit>` rather than a looser bullet or `I can` format.
+- `## Implementation Decisions` records every `resolved default` from the intake decision-closure ledger with its evidence-based rationale; any `still open` row remains explicit in `## Further Notes` and the label decision.
 - `## Testing Decisions` states the external-behavior testing rule, names the tested modules or surfaces, names prior-art tests descriptively rather than by file path, and records the seam-confirmation outcome.
 - `## Principles` names the touched principle documents and ADRs, affirms non-contradiction with them, and flags any deliberate exception before implementation.
 - `## Further Notes` records the seam-confirmation outcome: answered with the ratified seams, or timed out with the seams open to veto.
@@ -52,6 +53,8 @@ A list of implementation decisions that were made. This can include:
 - API contracts
 - Specific interactions
 
+When intake produced a decision-closure ledger, include each `resolved default` as a concrete implementation decision and state the durable authority or same-kind prior art that selected it. Do not present a synthesized default as explicit user ratification. Leave any `still open` decision in Further Notes and preserve its `needs-triage` consequence.
+
 Do NOT include specific file paths, code snippets, or volatile code symbols (function, variable, or private-helper names). They may end up being outdated very quickly. Stable data-model identifiers, by contrast, are acceptable and expected — schema table and column names, controlled-vocabulary names, link-type and record-type keys, and route/endpoint names — since they match house style (prior flow PRDs cite them freely) and are themselves conformance anchors. Citations of principle, ADR, spec, prior issue/PR, and methodology-module documents are exempt — they are stable identifiers and are themselves the conformance mechanism.
 
 Exception: if a prototype produced a snippet that encodes a decision more precisely than prose can (state machine, reducer, schema, type shape), inline it within the relevant decision and note briefly that it came from a prototype. Trim to the decision-rich parts — not a working demo, just the important bits.
@@ -77,4 +80,3 @@ A description of the things that are out of scope for this PRD.
 Any further notes about the feature. When the synthesized requirements rest on provisional or unratified decisions (e.g., an interview the user never answered), say so here and mark them open to veto before grooming — and record the seam-confirmation outcome either way (answered: name the seams ratified; timed out: open to veto), so a groomer can tell which parts of the PRD stand ratified and which do not.
 
 </prd-template>
-

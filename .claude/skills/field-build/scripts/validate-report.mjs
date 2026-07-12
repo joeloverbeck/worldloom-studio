@@ -4,8 +4,9 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const usage =
-  "Usage: node .claude/skills/field-build/scripts/validate-report.mjs <report.md> <live-log.md> [--no-prior-report]";
+const usage = `Usage:
+  node .claude/skills/field-build/scripts/validate-report.mjs <report.md> <live-log.md> [--no-prior-report]
+  node .claude/skills/field-build/scripts/validate-report.mjs --bootstrap-only <live-log.md>`;
 
 const REQUIRED_REPORT_HEADINGS = [
   "## Findings",
@@ -75,6 +76,21 @@ const WORKTREE_AUDIT_COLUMNS = [
   "final state",
   "field-build-owned?",
   "final note wording"
+];
+
+const REQUIRED_BOOTSTRAP_FIELDS = [
+  "Seed",
+  "Baseline worktree",
+  "Current HEAD",
+  "Report number/slug",
+  "Prior run for this seed",
+  "Latest canonical report loaded",
+  "Regression gate",
+  "Mandatory regression set",
+  "Opportunistic regression set",
+  "Prior-art surfaces",
+  "User-directed evidence targets",
+  "App/API URLs"
 ];
 
 const FINDING_HEADING = /^###\s+([PRMFVQ]-\d+)(?:\s+\((proposal|pressure)\))?\s+[-—]\s+(.+)$/i;
@@ -223,8 +239,14 @@ const validateRegression = ({ report, noPriorReport, errors }) => {
     if (!namesBoundary) continue;
 
     const proof = entry.match(/^\s+- Boundary proof:\s*(.+)$/im)?.[1] ?? "";
-    const prePassed = /pre-(?:boundary|close)[^.;\n]*(?:pass|succeed)/i.test(proof);
-    const afterPassed = /(?:after-(?:boundary|close)|negative control)[^.;\n]*(?:pass|succeed)/i.test(proof);
+    const prePassed =
+      /(?:pre-(?:boundary|close)|open staging|before close)[^.;\n]*(?:pass(?:ed)?|succeed(?:ed)?|retain(?:ed)?|preserv(?:e|ed)|remain(?:ed)?|current|copyable|exportable|available|visible)/i.test(
+        proof
+      );
+    const afterPassed =
+      /(?:after-(?:boundary|close)|post-(?:boundary|close)|after close|post-close|negative control)[^.;\n]*(?:pass(?:ed)?|succeed(?:ed)?|absent|disabled|refused|stale|own(?:ed)?)/i.test(
+        proof
+      );
     const admitsMissingProof =
       /defer|not reached|unreachable|unavailable|remaining[^.\n]*(?:blocked|cannot)/i.test(entry);
     if (!prePassed || !afterPassed || admitsMissingProof) {
@@ -279,6 +301,53 @@ const validateAppSeeds = (report, findings, errors) => {
     const uxScope = normalize(fieldValue(seed.body, "UX scope"));
     if (!ALLOWED_UX_SCOPES.has(uxScope)) {
       errors.push(`${seed.heading} has invalid or missing UX scope: ${uxScope || "(empty)"}`);
+    }
+  }
+};
+
+const validateUserDirectedEvidence = (liveLog, errors, { requireFinal = true } = {}) => {
+  const targetMatch = liveLog.match(/^- User-directed evidence targets:\s*(.*)$/im);
+  const targetSummary = targetMatch?.[1]?.trim();
+  if (!targetMatch || !validValue(targetSummary ?? "")) {
+    errors.push("live log User-directed evidence targets must name targets or say none");
+    return;
+  }
+  const hasTargets = !/^(?:none|N\/A)(?:\s*[-—:;]\s*.+)?$/i.test(targetSummary);
+  if (!hasTargets) return;
+
+  const initial = markdownTableAfter(liveLog, "## User-directed evidence checklist (initial)");
+  const targetColumns = ["target", "state", "evidence / reason"];
+  if (!initial || !columnsMatch(initial.columns, targetColumns)) {
+    errors.push("user-directed targets require the exact initial evidence checklist");
+  }
+  if (initial && columnsMatch(initial.columns, targetColumns)) {
+    if (initial.rows.length === 0) errors.push("initial user-directed evidence checklist has no targets");
+    if (initial.rows.some((row) => normalize(row[1] ?? "") !== "pending")) {
+      errors.push("every initial user-directed evidence target must be pending");
+    }
+    if (initial.rows.some((row) => !validValue(row[0] ?? "") || !validValue(row[2] ?? ""))) {
+      errors.push("initial user-directed evidence checklist has an empty target or evidence/reason cell");
+    }
+  }
+  if (!requireFinal) return;
+
+  const final = markdownTableAfter(liveLog, "## Final user-directed evidence checklist");
+  if (!final || !columnsMatch(final.columns, targetColumns)) {
+    errors.push("user-directed targets require the exact final evidence checklist");
+  }
+  if (initial && final && columnsMatch(initial.columns, targetColumns) && columnsMatch(final.columns, targetColumns)) {
+    const initialTargets = initial.rows.map(([target]) => target);
+    const finalTargets = final.rows.map(([target]) => target);
+    if (JSON.stringify(finalTargets) !== JSON.stringify(initialTargets)) {
+      errors.push("final user-directed evidence checklist must repeat initial targets in the same order");
+    }
+    for (const row of final.rows) {
+      if (!FINAL_TARGET_STATES.test(row[1] ?? "")) {
+        errors.push(`invalid final user-directed evidence state for ${row[0] || "unnamed target"}`);
+      }
+      if (!validValue(row[2] ?? "")) {
+        errors.push(`final user-directed evidence target ${row[0] || "unnamed target"} has no evidence/reason`);
+      }
     }
   }
 };
@@ -378,45 +447,37 @@ const validateLiveLog = ({ liveLog, findings, reportPath, errors }) => {
     errors.push("Worktree delta audit does not name the field-build report path");
   }
 
-  const targetMatch = liveLog.match(/^- User-directed evidence targets:\s*(.*)$/im);
-  const targetSummary = targetMatch?.[1]?.trim();
-  if (!targetMatch || !validValue(targetSummary ?? "")) {
-    errors.push("live log User-directed evidence targets must name targets or say none");
-  }
-  const hasTargets = targetSummary && !/^(none|N\/A(?: - .+)?)$/i.test(targetSummary);
-  if (hasTargets) {
-    const initial = markdownTableAfter(liveLog, "## User-directed evidence checklist (initial)");
-    const final = markdownTableAfter(liveLog, "## Final user-directed evidence checklist");
-    const targetColumns = ["target", "state", "evidence / reason"];
-    if (!initial || !columnsMatch(initial.columns, targetColumns)) {
-      errors.push("user-directed targets require the exact initial evidence checklist");
+  validateUserDirectedEvidence(liveLog, errors);
+};
+
+export const validateFieldBuildBootstrap = ({ liveLog }) => {
+  const errors = [];
+  const bootstrap = sectionBody(liveLog, /^## Bootstrap\s*$/i);
+  if (!bootstrap) {
+    errors.push("live log missing required heading: ## Bootstrap");
+  } else {
+    for (const label of REQUIRED_BOOTSTRAP_FIELDS) {
+      if (!validValue(fieldValue(bootstrap, label))) {
+        errors.push(`bootstrap missing required field: ${label}`);
+      }
     }
-    if (!final || !columnsMatch(final.columns, targetColumns)) {
-      errors.push("user-directed targets require the exact final evidence checklist");
-    }
-    if (initial && final && columnsMatch(initial.columns, targetColumns) && columnsMatch(final.columns, targetColumns)) {
-      const initialTargets = initial.rows.map(([target]) => target);
-      const finalTargets = final.rows.map(([target]) => target);
-      if (initial.rows.length === 0) errors.push("initial user-directed evidence checklist has no targets");
-      if (initial.rows.some((row) => normalize(row[1] ?? "") !== "pending")) {
-        errors.push("every initial user-directed evidence target must be pending");
-      }
-      if (initial.rows.some((row) => !validValue(row[0] ?? "") || !validValue(row[2] ?? ""))) {
-        errors.push("initial user-directed evidence checklist has an empty target or evidence/reason cell");
-      }
-      if (JSON.stringify(finalTargets) !== JSON.stringify(initialTargets)) {
-        errors.push("final user-directed evidence checklist must repeat initial targets in the same order");
-      }
-      for (const row of final.rows) {
-        if (!FINAL_TARGET_STATES.test(row[1] ?? "")) {
-          errors.push(`invalid final user-directed evidence state for ${row[0] || "unnamed target"}`);
-        }
-        if (!validValue(row[2] ?? "")) {
-          errors.push(`final user-directed evidence target ${row[0] || "unnamed target"} has no evidence/reason`);
-        }
-      }
+    const reportNumberSlug = fieldValue(bootstrap, "Report number/slug").replace(/`/g, "");
+    if (
+      reportNumberSlug &&
+      !/^\d+\/[a-z0-9]+(?:-[a-z0-9]+)*(?:\s*[-—:;]\s*.+)?$/i.test(reportNumberSlug)
+    ) {
+      errors.push("bootstrap Report number/slug must use <NN>/<world-slug>");
     }
   }
+  validateUserDirectedEvidence(liveLog, errors, { requireFinal: false });
+
+  return {
+    errors,
+    summary: {
+      bootstrapFields: REQUIRED_BOOTSTRAP_FIELDS.length,
+      userDirectedTargets: errors.some((error) => error.toLowerCase().includes("user-directed")) ? "invalid" : "valid"
+    }
+  };
 };
 
 export const validateFieldBuild = ({ report, liveLog, reportPath = "report.md", noPriorReport = false }) => {
@@ -454,16 +515,33 @@ const isCli = process.argv[1] && import.meta.url === pathToFileURL(resolve(proce
 
 if (isCli) {
   const args = process.argv.slice(2);
-  const unknownOptions = args.filter((arg) => arg.startsWith("--") && arg !== "--no-prior-report");
+  const unknownOptions = args.filter(
+    (arg) => arg.startsWith("--") && arg !== "--no-prior-report" && arg !== "--bootstrap-only"
+  );
   const noPriorReport = args.includes("--no-prior-report");
+  const bootstrapOnly = args.includes("--bootstrap-only");
   const paths = args.filter((arg) => !arg.startsWith("--"));
 
-  if (unknownOptions.length > 0 || paths.length !== 2) {
+  if (
+    unknownOptions.length > 0 ||
+    (bootstrapOnly && (noPriorReport || paths.length !== 1)) ||
+    (!bootstrapOnly && paths.length !== 2)
+  ) {
     console.error(usage);
     process.exit(2);
   }
 
   try {
+    if (bootstrapOnly) {
+      const liveLogPath = resolve(paths[0]);
+      const result = validateFieldBuildBootstrap({ liveLog: readFileSync(liveLogPath, "utf8") });
+      console.log(JSON.stringify(result.summary, null, 2));
+      for (const error of result.errors) console.error(`error: ${error}`);
+      if (result.errors.length > 0) process.exit(1);
+      console.log("Field-build bootstrap validated.");
+      process.exit(0);
+    }
+
     const [reportPath, liveLogPath] = paths.map((path) => resolve(path));
     const result = validateFieldBuild({
       report: readFileSync(reportPath, "utf8"),

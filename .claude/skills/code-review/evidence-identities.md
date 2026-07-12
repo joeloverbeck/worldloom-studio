@@ -4,13 +4,15 @@ Use one shared identity block for normal and fallback reviews, whether or not TD
 
 ```markdown
 Evidence identity refresh:
-- Current evidence identities: fixture paths <paths/none>; browser sessions <names/none>; packet paths/hashes <paths and hashes/none>; active revisions <IDs/none>; artifacts <paths/IDs/none>
+- Current evidence identities: fixture paths <paths/none / withheld because <authority and reason>; logical fixture <stable ID>; content SHA-256 <64 hexadecimal characters>; provenance <generated, derived, or copied-source statement>>; browser sessions <names/none>; packet paths/hashes <paths and hashes/none>; active revisions <IDs/none>; artifacts <paths/IDs/none>
 - Historical red identities retained: <fixture paths ...; browser sessions ...; packet paths/hashes ...; active revisions ...; artifacts ... / none>
 - Superseded evidence identities: fixture paths <paths/none>; browser sessions <names/none>; packet paths/hashes <paths and hashes/none>; active revisions <IDs/none>; artifacts <paths/IDs/none>
 - Superseded-token sweep: <`rg`/`grep` command naming every exact superseded value; no hits outside classified identity/history lines and no active-proof hits; historical-red hits classified or none / N/A because every superseded category is none>
 ```
 
 Keep historical red identities only when they are explicitly classified as earlier failing evidence. Use literal `none` when there are no historical red identities; otherwise enumerate all five categories just like the current and superseded inventories. If any superseded category is not `none`, run `rg` or `grep` for every exact superseded value and record `no hits outside classified identity/history lines and no active-proof hits`, followed by how any historical-red hits were classified; do not use the all-none N/A.
+
+When authority forbids publishing a local fixture path, use the structured `fixture paths withheld because <authority and reason>; logical fixture <stable ID>; content SHA-256 <64 hexadecimal characters>; provenance <generated, derived, or copied-source statement>` form. Never use `fixture paths none published because ...`: it hides the path without preserving a stable identity that another reviewer can compare.
 
 Nested-validator angle-token rule: in compact review, TDD, or audit cells and in evidence-identity values, avoid HTML-like angle tokens such as a backticked body tag even when intentional. Spell the token in prose, for example `document body`, because the shared parser classifies any angle token as an unresolved placeholder.
 

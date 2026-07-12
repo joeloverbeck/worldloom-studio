@@ -4,12 +4,26 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const usage = `Usage: node .claude/skills/tdd/scripts/validate-tdd-closeout-body.mjs <body.md> [--closing] [--parent-rollup]`;
+export const DEFAULT_TDD_CLOSEOUT_BODY_MAX_BYTES = 65_536;
+
+const usage = `Usage: node .claude/skills/tdd/scripts/validate-tdd-closeout-body.mjs <body.md> [--closing] [--parent-rollup] [--max-bytes <positive integer>]`;
 
 export const validateTddCloseoutBody = (body, options = {}) => {
   const flags = new Set(options.flags ?? []);
   const closing = flags.has("--closing");
   const errors = [];
+  const maxBytes = options.maxBytes ?? DEFAULT_TDD_CLOSEOUT_BODY_MAX_BYTES;
+
+  if (!Number.isInteger(maxBytes) || maxBytes <= 0) {
+    errors.push("max bytes must be a positive integer");
+  } else if (closing) {
+    const bodyBytes = Buffer.byteLength(body, "utf8");
+    if (bodyBytes > maxBytes) {
+      errors.push(
+        `TDD closeout body is ${bodyBytes} bytes; maximum is ${maxBytes} bytes. Shorten concrete evidence or split it into separately validated durable tracker sinks before publication`
+      );
+    }
+  }
 
   const compactHeader =
     "| Issue | CONTEXT.md status | ADRs/principles/docs status | Seam | Red command/failure | Green command or evidence | Acceptance covered | Review fix / red-first skip reason |";
@@ -26,6 +40,7 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     "evidence identities",
     "partial-red / red-first skip reasons",
     "evidence-only rows",
+    "proof server preflight",
     "existing-test contract-change rows"
   ];
   const equivalentFieldLabels = [
@@ -64,6 +79,7 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     "Acceptance sequence map:",
     "Partial-red / red-first skip reasons:",
     "Evidence-only rows freshness:",
+    "Evidence-only proof server preflight:",
     "Evidence-only backend process currentness:",
     "Evidence identity refresh:",
     "Current evidence identities:",
@@ -258,6 +274,29 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     return "must state server command, watch/reload mode, process or port ownership, restart/reload proof, and expected API field/behavior probe, or a justified N/A/blocked reason";
   };
 
+  const validateProofServerPreflightValue = (value) => {
+    const normalized = value.replace(/\s+/g, " ").trim();
+    if (!normalized) return "is empty";
+    if (/^<.*>$/.test(normalized)) return "is unresolved placeholder";
+    if (/^N\/A\b.+\bbecause\b.+\b(no browser\/manual evidence-only rows|no proof server applies)\b/i.test(normalized)) {
+      return "";
+    }
+    if (/\bblocked\b.+\b(because|reason|unable|cannot)\b/i.test(normalized)) return "";
+
+    const hasConfiguredPorts = /\bconfigured (?:API\/UI )?ports?\b/i.test(normalized);
+    const hasOwnerCheck = /\bowner(?:-check| check|ship)(?: result)?\b/i.test(normalized);
+    const hasUnrelatedOwners = /\bunrelated pre-existing owners?\b/i.test(normalized);
+    const hasPortDisposition =
+      /\bconfigured ports? (?:verified )?free\b/i.test(normalized) ||
+      (/\bisolated proof-owned ports?\b/i.test(normalized) && /\b(?:proxy|API base)\b/i.test(normalized));
+    const hasCleanupOwnership = /\bcleanup ownership\b/i.test(normalized);
+    if (hasConfiguredPorts && hasOwnerCheck && hasUnrelatedOwners && hasPortDisposition && hasCleanupOwnership) {
+      return "";
+    }
+
+    return "must state configured API/UI ports, owner-check result, unrelated pre-existing owners, configured-ports-free or isolated proof-owned ports with aligned proxy/API base, and cleanup ownership, or a justified N/A/blocked reason";
+  };
+
   const validatePreRedRecoveryStatusValue = (value) => {
     const normalized = value.replace(/\s+/g, " ").trim();
     if (!normalized) return "is empty";
@@ -306,6 +345,7 @@ export const validateTddCloseoutBody = (body, options = {}) => {
 
     const namesProofSurface =
       /`[^`]+`/.test(normalized) ||
+      /\b(?:pnpm|npm|npx|node|cargo|git|gh|curl|bash)\s+\S+/i.test(normalized) ||
       /\b(?:same|shared|linked|focused)\b.+\bcommand\b/i.test(normalized) ||
       /\b(?:browser|Playwright|route|action|request|response|HTTP|DOM|page|artifact|screenshot)\b/i.test(normalized);
     const namesObservedResult = /\b(pass(?:ed|ing)?|observed|received|rendered|returned|verified|confirmed|assert(?:ed|ion)?|HTTP\s+\d{3})\b/i.test(
@@ -314,6 +354,13 @@ export const validateTddCloseoutBody = (body, options = {}) => {
 
     return namesProofSurface && namesObservedResult;
   };
+
+  const evidenceField = (evidence, label, nextLabels) => {
+    const next = nextLabels.map((nextLabel) => nextLabel.replace(" ", "\\s+")).join("|");
+    return evidence.match(new RegExp(`${label.replace(" ", "\\s+")}:\\s*(.*?)(?=;\\s*(?:${next}):|$)`, "i"))?.[1].trim() ?? "";
+  };
+  const circularAcceptanceReference = /\b(?:(?:every|all)\s+exact(?:\s+named)?\b[^;]*\b(?:in|from|of)\s+(?:the\s+)?(?:issue\s+)?(?:criteria|criterion|checkbox|requirement)|exact named (?:items?|atoms?|contracts?|clauses?|surfaces?) in (?:this|the) (?:criterion|criteria|checkbox|requirement)|(?:criterion|checkbox|requirement) (?:above|as written|itself)|(?:all|every) (?:named|listed) (?:items?|atoms?|surfaces?))\b/i;
+  const concreteProofAnchor = /(?:https?:\/\/\S+|#\d+\b|\b(?:pnpm|npm|npx|node|cargo|git|gh|curl|bash)\s+[^;]+|(?:^|[\s`(])\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]+|\b(?:[A-Za-z0-9_.-]+\/)+[A-Za-z0-9_.-]+\b|\b[A-Za-z0-9_.-]+\.(?:test|spec)\.[cm]?[jt]sx?\b|\b[A-Za-z0-9_.-]+\.(?:md|json|html|sql|sqlite|wasm|png)\b)/i;
 
   const hasExactAcceptanceReference = (cell, refs) =>
     refs.size > 0 ||
@@ -428,6 +475,8 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     /active revisions\s+[^;\s][^;]*(?:;|$)/i,
     /artifacts\s+[^;\s][^;]*(?:;|$)/i
   ];
+  const withheldFixtureIdentity = /fixture paths\s+withheld\b/i.test(currentIdentities);
+  const completeWithheldFixtureIdentity = /fixture paths\s+withheld because\s+[^;]+;\s*logical fixture\s+[^;]+;\s*content SHA-256\s+[0-9a-f]{64};\s*provenance\s+[^;]+(?=;|$)/i;
   for (const [label, value] of [
     ["Current evidence identities", currentIdentities],
     ["Superseded evidence identities", supersededIdentities]
@@ -444,6 +493,14 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     )
   ) {
     errors.push("evidence identity fields are empty or unresolved");
+  }
+  if (/fixture paths\s+none published because/i.test(currentIdentities)) {
+    errors.push("withheld fixture paths must use the structured 'fixture paths withheld because ...' identity form");
+  }
+  if (withheldFixtureIdentity && !completeWithheldFixtureIdentity.test(currentIdentities)) {
+    errors.push(
+      "withheld fixture identity must include reason, logical fixture, 64-character content SHA-256, and provenance"
+    );
   }
   const allSupersededCategoriesNone = [
     /fixture paths\s+none(?:;|$)/i,
@@ -577,6 +634,16 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     if (/\bsequence\s*:\s*N\/A\s*(?:;|$)/i.test(acceptanceCell)) {
       errors.push(`compact TDD row ${lineNumber} sequence N/A must include 'because'`);
     }
+    const atoms = evidenceField(acceptanceCell, "atoms", ["proof surfaces", "sequence"]);
+    const proofSurfaces = evidenceField(acceptanceCell, "proof surfaces", ["sequence"]);
+    if (circularAcceptanceReference.test(atoms) || circularAcceptanceReference.test(proofSurfaces)) {
+      errors.push(`compact TDD row ${lineNumber} Acceptance covered uses a circular atom or proof-surface reference`);
+    }
+    if (proofSurfaces && !concreteProofAnchor.test(proofSurfaces) && !hasConcreteGreenEvidence(greenCell)) {
+      errors.push(
+        `compact TDD row ${lineNumber} proof surfaces require a concrete test, command, path, route, artifact, URL, tracker reference, or matching concrete Green evidence`
+      );
+    }
     const claimsCoverageOnlyExistingBehavior = /\bcoverage-only existing behavior\b/i.test(rowText);
     if (claimsCoverageOnlyExistingBehavior && !hasConcreteGreenEvidence(greenCell)) {
       errors.push(
@@ -653,6 +720,19 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     errors.push(`Evidence-only backend process currentness ${backendCurrentnessError}`);
   }
 
+  const proofServerPreflightValue = extractFieldValue("Evidence-only proof server preflight");
+  const proofServerPreflightClaimsNoBrowserRows =
+    /^N\/A\b.+\bno browser\/manual evidence-only rows\b/i.test(proofServerPreflightValue);
+  if (browserManualEvidenceRows.length && proofServerPreflightClaimsNoBrowserRows) {
+    errors.push(
+      `browser/manual evidence-only row(s) ${browserManualEvidenceRows.join(", ")} cannot use Evidence-only proof server preflight ${proofServerPreflightValue}`
+    );
+  }
+  const proofServerPreflightError = validateProofServerPreflightValue(proofServerPreflightValue);
+  if (proofServerPreflightError) {
+    errors.push(`Evidence-only proof server preflight ${proofServerPreflightError}`);
+  }
+
   const gateClaimsExistingTestsListed =
     /existing-test contract-change rows\s+(?!none\b)[^.;]+/i.test(gateLine);
   const gateClaimsExistingTestsNone =
@@ -726,7 +806,10 @@ const isCli = process.argv[1] && import.meta.url === pathToFileURL(resolve(proce
 
 if (isCli) {
   const args = process.argv.slice(2);
-  const file = args.find((arg) => !arg.startsWith("--"));
+  const maxBytesFlag = args.indexOf("--max-bytes");
+  const maxBytesText = maxBytesFlag >= 0 ? args[maxBytesFlag + 1] : undefined;
+  const maxBytesValueIndex = maxBytesFlag >= 0 ? maxBytesFlag + 1 : -1;
+  const file = args.find((arg, index) => !arg.startsWith("--") && index !== maxBytesValueIndex);
   const flags = new Set(args.filter((arg) => arg.startsWith("--")));
 
   if (flags.has("--help")) {
@@ -739,8 +822,21 @@ if (isCli) {
     process.exit(2);
   }
 
+  if (maxBytesFlag >= 0 && (!maxBytesText || maxBytesText.startsWith("--"))) {
+    console.error("--max-bytes requires a value");
+    console.error(usage);
+    process.exit(2);
+  }
+
+  const maxBytes = maxBytesText === undefined ? DEFAULT_TDD_CLOSEOUT_BODY_MAX_BYTES : Number(maxBytesText);
+  if (!Number.isInteger(maxBytes) || maxBytes <= 0) {
+    console.error("--max-bytes must be a positive integer");
+    console.error(usage);
+    process.exit(2);
+  }
+
   const body = readFileSync(file, "utf8");
-  const errors = validateTddCloseoutBody(body, { flags });
+  const errors = validateTddCloseoutBody(body, { flags, maxBytes });
 
   if (errors.length) {
     console.error(`TDD closeout body validation failed for ${file}:`);

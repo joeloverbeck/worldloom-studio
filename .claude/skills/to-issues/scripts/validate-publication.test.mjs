@@ -57,6 +57,7 @@ const options = (overrides = {}) => ({
   expectChecklistNa: false,
   expectNoBlocker: false,
   expectStories: false,
+  forbidPatterns: [],
   onlySlices: [],
   parent: null,
   placeholderRe: "#SLICE|PLACEHOLDER",
@@ -135,6 +136,29 @@ ${checklistRows("Slice A")}
   }
 });
 
+test("run-sheet mode rejects a run-specific forbidden pattern in a configured body", () => {
+  const directory = mkdtempSync(join(tmpdir(), "to-issues-validator-"));
+  try {
+    const bodyA = join(directory, "a.md");
+    const runSheet = join(directory, "run-sheet.md");
+    writeFileSync(bodyA, issueBody().replace("Build the slice.", "Build reports/.tmp-private.md."));
+    writeFileSync(runSheet, `
+| Slice | Checklist item | Covered by final AC ordinal/excerpt | N/A reason |
+|---|---|---|---|
+${checklistRows("Slice A")}
+`);
+
+    const report = validateRunSheet(readFile(runSheet), options({
+      forbidPatterns: ["reports/\\.tmp"],
+      sliceBodies: [{ slice: "Slice A", path: bodyA }],
+    }));
+    assert.equal(report.affected[0].checks.noForbiddenPatterns, false);
+    assert.equal(report.checks.affectedSlicesPass, false);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("child output distinguishes an inactive no-blocker expectation", () => {
   const directory = mkdtempSync(join(tmpdir(), "to-issues-validator-"));
   try {
@@ -181,6 +205,19 @@ test("child validation rejects an undeclared external blocker instead of treatin
 
   assert.deepEqual(report.actualExternalBlockers, ["P-03 conformance repair"]);
   assert.equal(report.checks.hasOnlyExpectedExternalBlockers, false);
+});
+
+test("child validation rejects each configured run-specific forbidden pattern", () => {
+  const report = validateChild(
+    issueBody().replace("Build the slice.", "Build reports/.tmp-private.md from field-build-18-local.md."),
+    options({
+      expectNoBlocker: true,
+      forbidPatterns: ["reports/\\.tmp", "field-build-18-.*\\.md"],
+    }),
+  );
+
+  assert.deepEqual(report.forbiddenPatterns, ["field-build-18-.*\\.md", "reports/\\.tmp"]);
+  assert.equal(report.checks.noForbiddenPatterns, false);
 });
 
 function readFile(path) {

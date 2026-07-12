@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { validateFieldBuild } from "./validate-report.mjs";
+import { validateFieldBuild, validateFieldBuildBootstrap } from "./validate-report.mjs";
 
 const finding = ({ id, mode = "", severity, extra = "" }) => `
 ### ${id}${mode ? ` (${mode})` : ""} - ${id} title
@@ -123,6 +123,33 @@ Worktree delta audit:
 | reports/field-build-17-example-world.md | absent | untracked | yes | new field-build report |
 `;
 
+const bootstrapFixture = ({
+  reportNumberSlug = "18/example-world",
+  targetSummary = "none",
+  targetTables = "",
+  omit = ""
+} = {}) => {
+  const fields = {
+    Seed: "A useful tension.",
+    "Baseline worktree": "clean",
+    "Current HEAD": "abc1234",
+    "Report number/slug": reportNumberSlug,
+    "Prior run for this seed": "reports/field-build-17-example-world.md",
+    "Latest canonical report loaded": "reports/field-build-17-example-world.md",
+    "Regression gate": "HEAD advanced",
+    "Mandatory regression set": "P-01",
+    "Opportunistic regression set": "R-01",
+    "Prior-art surfaces": "issues and reports available",
+    "User-directed evidence targets": targetSummary,
+    "App/API URLs": "http://127.0.0.1:5173 and http://127.0.0.1:4173"
+  };
+  const rows = Object.entries(fields)
+    .filter(([label]) => label !== omit)
+    .map(([label, value]) => `- ${label}: ${value}`)
+    .join("\n");
+  return `## Bootstrap\n${rows}\n\n${targetTables}`;
+};
+
 test("accepts a complete field-build report and live log", () => {
   const result = validateFieldBuild({
     report: reportFixture(),
@@ -158,6 +185,35 @@ test("accepts a fixed boundary regression only with explicit two-sided proof", (
   });
 
   assert.deepEqual(result.errors, []);
+});
+
+test("accepts natural two-sided boundary proof wording", () => {
+  const variants = [
+    "- Field Build 16 F-03 (closed-report boundary): fixed -> V-01.\n  - Boundary proof: pre-boundary origin was current and exportable; post-boundary flow completed and controls were disabled.",
+    "- Field Build 16 F-03 (closed-report boundary): fixed -> V-01.\n  - Boundary proof: open staging retained active lineage before close; after close the report owned the trail and edit controls were absent."
+  ];
+
+  for (const regressionLine of variants) {
+    const result = validateFieldBuild({
+      report: reportFixture({ regressionLine }),
+      liveLog: liveLogFixture(),
+      reportPath: "reports/field-build-17-example-world.md"
+    });
+    assert.deepEqual(result.errors, []);
+  }
+});
+
+test("rejects a post-close state that leaves controls visible", () => {
+  const result = validateFieldBuild({
+    report: reportFixture({
+      regressionLine:
+        "- Field Build 16 F-03 (closed-report boundary): fixed -> V-01.\n  - Boundary proof: open staging retained active lineage before close; after close the edit controls remained visible and usable."
+    }),
+    liveLog: liveLogFixture(),
+    reportPath: "reports/field-build-17-example-world.md"
+  });
+
+  assert.match(result.errors.join("\n"), /after-boundary negative-control pass/);
 });
 
 test("rejects invalid severity and a blocking finding without Repro", () => {
@@ -260,4 +316,55 @@ test("requires append-only initial and final user-directed target reconciliation
 
   assert.deepEqual(accepted.errors, []);
   assert.match(missingFinal.errors.join("\n"), /require the exact final evidence checklist/);
+});
+
+test("accepts an explanatory no-target bootstrap summary", () => {
+  const result = validateFieldBuild({
+    report: reportFixture(),
+    liveLog: liveLogFixture({ targetSummary: "none; same-world resume only" }),
+    reportPath: "reports/field-build-17-example-world.md"
+  });
+
+  assert.deepEqual(result.errors, []);
+});
+
+test("preflights a complete append-only bootstrap", () => {
+  const result = validateFieldBuildBootstrap({
+    liveLog: bootstrapFixture({
+      reportNumberSlug: "18/example-world; canonical report reports/field-build-18-example-world.md",
+      targetSummary: "none - same-world resume only"
+    })
+  });
+
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.summary, { bootstrapFields: 12, userDirectedTargets: "valid" });
+});
+
+test("bootstrap preflight accepts an initial target checklist without a final checklist", () => {
+  const initialTargets = `## User-directed evidence checklist (initial)
+| target | state | evidence / reason |
+|---|---|---|
+| Replay P-03 | pending | requested regression |
+`;
+  const result = validateFieldBuildBootstrap({
+    liveLog: bootstrapFixture({ targetSummary: "Replay P-03", targetTables: initialTargets })
+  });
+
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.summary, { bootstrapFields: 12, userDirectedTargets: "valid" });
+});
+
+test("bootstrap preflight rejects missing fields, malformed identity, and a missing initial target table", () => {
+  const result = validateFieldBuildBootstrap({
+    liveLog: bootstrapFixture({
+      reportNumberSlug: "field-build-18-example-world",
+      targetSummary: "Replay P-03",
+      omit: "Regression gate"
+    })
+  });
+
+  assert.match(result.errors.join("\n"), /bootstrap missing required field: Regression gate/);
+  assert.match(result.errors.join("\n"), /Report number\/slug must use/);
+  assert.match(result.errors.join("\n"), /require the exact initial evidence checklist/);
+  assert.doesNotMatch(result.errors.join("\n"), /require the exact final evidence checklist/);
 });

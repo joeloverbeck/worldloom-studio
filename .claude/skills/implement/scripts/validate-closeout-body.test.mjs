@@ -32,7 +32,7 @@ const issueInput = [
 ];
 
 const evidence =
-  "atoms: atomic; proof surfaces: focused test; sequence: N/A because criterion is not sequence-sensitive";
+  "atoms: atomic; proof surfaces: .claude/skills/implement/scripts/validate-closeout-body.test.mjs; sequence: N/A because criterion is not sequence-sensitive";
 
 const closeoutBody = (rows) => `Implementation closeout
 
@@ -236,7 +236,7 @@ test("closeout validator rejects incomplete satisfied-row evidence", () => {
 test("closeout validator rejects unresolved satisfied-row evidence", () => {
   const manifest = buildAcceptanceManifest(issueInput);
   const unresolvedEvidence =
-    "atoms: TODO; proof surfaces: focused test; sequence: N/A because criterion is not sequence-sensitive";
+    "atoms: TODO; proof surfaces: .claude/skills/implement/scripts/validate-closeout-body.test.mjs; sequence: N/A because criterion is not sequence-sensitive";
   const result = runValidator(
     closeoutBody([
       `| #359 | AC1 - First exact behavior | ${unresolvedEvidence} | satisfied |`,
@@ -248,6 +248,57 @@ test("closeout validator rejects unresolved satisfied-row evidence", () => {
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /contains an unresolved value/);
+});
+
+test("closeout validator rejects circular satisfied-row evidence", () => {
+  const manifest = buildAcceptanceManifest(issueInput);
+  const circularEvidence =
+    "atoms: exact named items in this criterion; proof surfaces: server lifecycle suite; sequence: N/A because criterion is not sequence-sensitive";
+  const result = runValidator(
+    closeoutBody([
+      `| #359 | AC1 - First exact behavior | ${circularEvidence} | satisfied |`,
+      `| #359 | AC2 - Second exact behavior with a continuation | ${evidence} | satisfied |`,
+      `| #359 | Principles - Principles/ADR conformance for #359 | ${evidence} | satisfied |`
+    ]),
+    manifest
+  );
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /uses a circular atom or proof-surface reference/);
+  assert.match(result.stderr, /proof surfaces must name a concrete test, command, path, route, URL, or tracker reference/);
+});
+
+test("closeout validator rejects an unanchored proof surface", () => {
+  const manifest = buildAcceptanceManifest(issueInput);
+  const unanchoredEvidence =
+    "atoms: lifecycle start and stop; proof surfaces: server lifecycle suite; sequence: start then stop observed by the suite";
+  const result = runValidator(
+    closeoutBody([
+      `| #359 | AC1 - First exact behavior | ${unanchoredEvidence} | satisfied |`,
+      `| #359 | AC2 - Second exact behavior with a continuation | ${evidence} | satisfied |`,
+      `| #359 | Principles - Principles/ADR conformance for #359 | ${evidence} | satisfied |`
+    ]),
+    manifest
+  );
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /proof surfaces must name a concrete test, command, path, route, URL, or tracker reference/);
+});
+
+test("closing validator rejects a body above the configured byte ceiling", () => {
+  const manifest = buildAcceptanceManifest(issueInput);
+  const result = runValidator(
+    closeoutBody([
+      `| #359 | AC1 - First exact behavior | ${evidence} | satisfied |`,
+      `| #359 | AC2 - Second exact behavior with a continuation | ${evidence} | satisfied |`,
+      `| #359 | Principles - Principles/ADR conformance for #359 | ${evidence} | satisfied |`
+    ]),
+    manifest,
+    ["--closing", "--max-bytes", "100"]
+  );
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /maximum is 100 bytes/);
 });
 
 test("closeout validator rejects a superseded inventory without a no-hit sweep", () => {
@@ -316,6 +367,38 @@ test("closing validator permits local fixture paths outside publishable sink fie
   assert.equal(result.status, 0, result.stderr);
 });
 
+test("closing validator accepts a complete authority-sensitive withheld fixture identity", () => {
+  const manifest = buildAcceptanceManifest(issueInput);
+  const hash = "a".repeat(64);
+  const body = closeoutBody([
+    `| #359 | AC1 - First exact behavior | ${evidence} | satisfied |`,
+    `| #359 | AC2 - Second exact behavior with a continuation | ${evidence} | satisfied |`,
+    `| #359 | Principles - Principles/ADR conformance for #359 | ${evidence} | satisfied |`
+  ]).replace(
+    "Current evidence identities: fixture paths none; browser sessions none",
+    `Current evidence identities: fixture paths withheld because issue #359 forbids local path publication; logical fixture world-alpha; content SHA-256 ${hash}; provenance generated from issue #359 seed; browser sessions none`
+  );
+  const result = runValidator(body, manifest);
+
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test("closing validator rejects an incomplete withheld fixture identity", () => {
+  const manifest = buildAcceptanceManifest(issueInput);
+  const body = closeoutBody([
+    `| #359 | AC1 - First exact behavior | ${evidence} | satisfied |`,
+    `| #359 | AC2 - Second exact behavior with a continuation | ${evidence} | satisfied |`,
+    `| #359 | Principles - Principles/ADR conformance for #359 | ${evidence} | satisfied |`
+  ]).replace(
+    "Current evidence identities: fixture paths none",
+    "Current evidence identities: fixture paths withheld because issue #359 forbids local path publication"
+  );
+  const result = runValidator(body, manifest);
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /withheld fixture identity must include reason, logical fixture, 64-character content SHA-256, and provenance/);
+});
+
 test("normal-review template and validator matrix use the normal contract", () => {
   const template = readFileSync(resolve(skillRoot, "references/closeout-templates.md"), "utf8");
   const gates = readFileSync(resolve(skillRoot, "references/tracker-closeout-gates.md"), "utf8");
@@ -338,6 +421,7 @@ test("normal-review template and validator matrix use the normal contract", () =
 test("implementation guidance carries the audited staging, exactness, and sibling contracts", () => {
   const skill = readFileSync(resolve(skillRoot, "SKILL.md"), "utf8");
   const evidenceGuide = readFileSync(resolve(skillRoot, "references/implementation-evidence.md"), "utf8");
+  const scopeGuide = readFileSync(resolve(skillRoot, "references/scope-ledger.md"), "utf8");
   const reviewGuide = readFileSync(resolve(skillRoot, "references/review-evidence.md"), "utf8");
   const template = readFileSync(resolve(skillRoot, "references/closeout-templates.md"), "utf8");
   const gates = readFileSync(resolve(skillRoot, "references/tracker-closeout-gates.md"), "utf8");
@@ -349,6 +433,10 @@ test("implementation guidance carries the audited staging, exactness, and siblin
   assert.match(evidenceGuide, /SQLite `.backup`/);
   assert.match(evidenceGuide, /package manifest or lockfile changes/);
   assert.match(evidenceGuide, /published current artifact is not safe to remove until closeout is complete/);
+  assert.match(evidenceGuide, /Before starting or attaching to any proof server, inspect the configured API\/UI ports/);
+  assert.match(evidenceGuide, /fixture paths withheld because <authority and reason>/);
+  assert.match(scopeGuide, /save one canonical ordered JSON snapshot/);
+  assert.match(scopeGuide, /capture-github-issues\.mjs <issue\.\.\.> --output \/tmp\/worldloom-issues\.json/);
   assert.match(template, /## Sibling-Issue Rollup/);
   assert.match(template, /capture-github-issues\.mjs 369 370 371/);
   assert.match(template, /build-closeout-body\.mjs/);
@@ -358,12 +446,18 @@ test("implementation guidance carries the audited staging, exactness, and siblin
   assert.match(template, /Review subagents: Standards final reviewer <ID> completed; Spec final reviewer <ID> completed/);
   assert.match(template, /no hits outside classified identity\/history lines and no active-proof hits/);
   assert.match(template, /Nested-validator angle-token rule/);
+  assert.match(template, /65,536-byte maximum/);
+  assert.match(template, /wc -c "\$body"/);
+  assert.match(template, /Do not recover space with circular evidence/);
+  assert.match(template, /Authority-sensitive alternative when local fixture paths must not be published/);
   assert.match(reviewGuide, /no hits outside classified identity\/history lines and no active-proof hits/);
   assert.doesNotMatch(template, /Durable sink\/body inspected: <inspected body file path/);
   assert.match(gates, /Working pre-review audit/);
   assert.match(gates, /--audit-only --acceptance-manifest/);
   assert.match(gates, /two or more sibling issues with no parent PRD/);
   assert.match(gates, /nested validator may classify the entire cell as unresolved/);
+  assert.match(gates, /default hard stop is 65,536 bytes/);
+  assert.match(gates, /atoms or surfaces point circularly/);
   assert.match(skill, /published `Current evidence identities:` inventory is not safe to remove/);
 });
 

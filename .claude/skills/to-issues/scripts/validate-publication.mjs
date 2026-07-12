@@ -42,6 +42,7 @@ Run-sheet options:
 
 Shared options:
   --placeholder-re <pattern>   Placeholder regex; defaults to #SLICE|PLACEHOLDER.
+  --forbid-pattern <pattern>   Reject a run-specific regex; repeat as needed.
   --help                       Show this help.`;
 
 function failUsage(message) {
@@ -80,6 +81,7 @@ function parseArgs(argv) {
     expectChecklistNa: false,
     expectNoBlocker: false,
     expectStories: false,
+    forbidPatterns: [],
     onlySlices: [],
     parent: null,
     placeholderRe: "#SLICE|PLACEHOLDER",
@@ -92,13 +94,14 @@ function parseArgs(argv) {
     if (argument === "--expect-no-blocker") options.expectNoBlocker = true;
     else if (argument === "--expect-stories") options.expectStories = true;
     else if (argument === "--expect-checklist-na") options.expectChecklistNa = true;
-    else if (["--parent", "--blocker", "--external-blocker", "--child", "--expect-ac-count", "--placeholder-re", "--slice-body", "--unaffected-slice", "--only-slice"].includes(argument)) {
+    else if (["--parent", "--blocker", "--external-blocker", "--child", "--expect-ac-count", "--placeholder-re", "--forbid-pattern", "--slice-body", "--unaffected-slice", "--only-slice"].includes(argument)) {
       const value = requireValue(args, index, argument);
       if (argument === "--parent") options.parent = value;
       else if (argument === "--blocker") options.blockers.push(value);
       else if (argument === "--external-blocker") options.externalBlockers.push(value);
       else if (argument === "--child") options.children.push(value);
       else if (argument === "--placeholder-re") options.placeholderRe = value;
+      else if (argument === "--forbid-pattern") options.forbidPatterns.push(value);
       else if (argument === "--slice-body") options.sliceBodies.push(parseSliceBody(value));
       else if (argument === "--unaffected-slice") options.unaffectedSlices.push(value);
       else if (argument === "--only-slice") options.onlySlices.push(value);
@@ -146,23 +149,29 @@ function sectionBody(body, heading) {
   return nextHeading < 0 ? remainder : remainder.slice(0, nextHeading);
 }
 
-function commonArtifactChecks(body, placeholderRe) {
-  let placeholderPattern;
+function compilePattern(pattern, option) {
   try {
-    placeholderPattern = new RegExp(placeholderRe);
+    return new RegExp(pattern);
   } catch (error) {
-    failUsage(`Invalid --placeholder-re: ${error.message}`);
+    failUsage(`Invalid ${option}: ${error.message}`);
   }
+}
+
+function commonArtifactChecks(body, options) {
+  const placeholderPattern = compilePattern(options.placeholderRe, "--placeholder-re");
+  const forbiddenPatterns = (options.forbidPatterns ?? [])
+    .map((pattern) => compilePattern(pattern, "--forbid-pattern"));
   return {
     hasContent: body.trim().length > 0,
     noPatchMarkers: !/\*\*\* (Begin|End) Patch/.test(body),
     noPlaceholders: !placeholderPattern.test(body),
+    noForbiddenPatterns: forbiddenPatterns.every((pattern) => !pattern.test(body)),
   };
 }
 
-function commonBodyChecks(body, placeholderRe) {
+function commonBodyChecks(body, options) {
   return {
-    ...commonArtifactChecks(body, placeholderRe),
+    ...commonArtifactChecks(body, options),
     noHome: !body.includes("/home/"),
     noTmp: !body.includes("/tmp"),
   };
@@ -191,7 +200,7 @@ export function validateChild(body, options) {
   const actualBlockers = unique(trackerEntries.flatMap((entry) => entry.match(/#\d+/g) ?? []));
   const count = acceptanceCount(body);
   const checks = {
-    ...commonBodyChecks(body, options.placeholderRe),
+    ...commonBodyChecks(body, options),
     hasParent: options.parent == null || body.includes(options.parent),
     hasWhat: body.includes("## What to build"),
     hasAcceptance: body.includes("## Acceptance criteria"),
@@ -227,19 +236,24 @@ export function validateChild(body, options) {
     expectedBlockers,
     expectedExternalBlockers,
     expectations: { noBlocker: options.expectNoBlocker },
+    forbiddenPatterns: unique(options.forbidPatterns ?? []),
     checks,
   };
 }
 
 function validateLedger(body, options) {
   const checks = {
-    ...commonBodyChecks(body, options.placeholderRe),
+    ...commonBodyChecks(body, options),
     hasChildMap: body.includes("Child Issue Map"),
     hasBreakdownDecisions: body.includes("Breakdown decisions"),
     hasStoryCoverage: body.includes("Story coverage"),
     hasChildren: options.children.every((reference) => body.includes(reference)),
   };
-  return { expectedChildren: unique(options.children), checks };
+  return {
+    expectedChildren: unique(options.children),
+    forbiddenPatterns: unique(options.forbidPatterns ?? []),
+    checks,
+  };
 }
 
 function parseChecklistRows(body) {
@@ -263,7 +277,7 @@ function referencedAcceptanceOrdinals(coverage) {
   return ordinals;
 }
 
-function validateAffectedSlice(rows, slice, path, placeholderRe) {
+function validateAffectedSlice(rows, slice, path, options) {
   const body = readText(path);
   const count = acceptanceCount(body);
   const sliceRows = rows.filter((row) => row[0] === slice);
@@ -284,7 +298,7 @@ function validateAffectedSlice(rows, slice, path, placeholderRe) {
   }
 
   const checks = {
-    ...commonBodyChecks(body, placeholderRe),
+    ...commonBodyChecks(body, options),
     hasAcceptanceItems: count > 0,
     hasExactRowCount: sliceRows.length === CHECKLIST_ITEMS.length,
     hasNoMissingItems: missingItems.length === 0,
@@ -335,7 +349,7 @@ export function validateRunSheet(body, options) {
     ? rows
     : rows.filter((row) => onlySlices.has(row[0]));
   const affected = selectedSliceBodies.map(({ slice, path }) =>
-    validateAffectedSlice(selectedRows, slice, path, options.placeholderRe));
+    validateAffectedSlice(selectedRows, slice, path, options));
   const unaffected = selectedUnaffectedSlices.map((slice) => validateUnaffectedSlice(selectedRows, slice));
   const configuredSlices = new Set([
     ...selectedSliceBodies.map(({ slice }) => slice),
@@ -343,7 +357,7 @@ export function validateRunSheet(body, options) {
   ]);
   const unconfiguredSlices = unique(selectedRows.map((row) => row[0]).filter((slice) => !configuredSlices.has(slice)));
   const checks = {
-    ...commonArtifactChecks(body, options.placeholderRe),
+    ...commonArtifactChecks(body, options),
     hasRows: rows.length > 0,
     hasSelectedRows: options.onlySlices.length === 0 || selectedRows.length > 0,
     hasNoMissingOnlySlices: missingOnlySlices.length === 0,
@@ -355,6 +369,7 @@ export function validateRunSheet(body, options) {
     affected,
     checklistItems: CHECKLIST_ITEMS,
     checks,
+    forbiddenPatterns: unique(options.forbidPatterns ?? []),
     missingOnlySlices,
     onlySlices: unique(options.onlySlices),
     rowCount: rows.length,

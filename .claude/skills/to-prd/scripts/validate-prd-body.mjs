@@ -10,6 +10,7 @@ Options:
   --expect-checklist           Require the browser-visible guidance checklist.
   --approved-source <path>     Allow a durable local citation; repeat as needed.
   --disallowed-source <path>   Reject a summarized/local-only source; repeat as needed.
+  --policy-file <path>         Load checklist and source policy from a reusable JSON file.
   --extract-sources            Print citation and ADR discovery without validating.
   --help                       Show this help.`;
 
@@ -33,6 +34,40 @@ function failUsage(message) {
   process.exit(2);
 }
 
+function parsePolicyFile(policyFile) {
+  let policy;
+  try {
+    policy = JSON.parse(readFileSync(policyFile, "utf8"));
+  } catch (error) {
+    failUsage(`Cannot read validator policy file ${policyFile}: ${error.message}`);
+  }
+
+  if (policy == null || typeof policy !== "object" || Array.isArray(policy)) {
+    failUsage("Validator policy must be a JSON object.");
+  }
+
+  const allowedKeys = new Set(["expectChecklist", "approvedSources", "disallowedSources"]);
+  const unknownKeys = Object.keys(policy).filter((key) => !allowedKeys.has(key));
+  if (unknownKeys.length > 0) {
+    failUsage(`Unknown validator policy field(s): ${unknownKeys.join(", ")}`);
+  }
+  if (typeof policy.expectChecklist !== "boolean") {
+    failUsage("Validator policy expectChecklist must be a boolean.");
+  }
+
+  for (const key of ["approvedSources", "disallowedSources"]) {
+    if (!Array.isArray(policy[key]) || policy[key].some((value) => typeof value !== "string" || value.length === 0)) {
+      failUsage(`Validator policy ${key} must be an array of non-empty strings.`);
+    }
+  }
+
+  return {
+    approvedSources: unique(policy.approvedSources),
+    disallowedSources: unique(policy.disallowedSources),
+    expectChecklist: policy.expectChecklist,
+  };
+}
+
 function parseArgs(argv) {
   const options = {
     approvedSources: [],
@@ -40,6 +75,8 @@ function parseArgs(argv) {
     disallowedSources: [],
     expectChecklist: false,
     extractSources: false,
+    inlinePolicyProvided: false,
+    policyFile: null,
     stdin: false,
   };
 
@@ -55,6 +92,7 @@ function parseArgs(argv) {
     }
     if (argument === "--expect-checklist") {
       options.expectChecklist = true;
+      options.inlinePolicyProvided = true;
       continue;
     }
     if (argument === "--extract-sources") {
@@ -66,6 +104,15 @@ function parseArgs(argv) {
       if (!value || value.startsWith("--")) failUsage(`${argument} requires a path.`);
       const destination = argument === "--approved-source" ? options.approvedSources : options.disallowedSources;
       destination.push(value);
+      options.inlinePolicyProvided = true;
+      index += 1;
+      continue;
+    }
+    if (argument === "--policy-file") {
+      const value = argv[index + 1];
+      if (!value || value.startsWith("--")) failUsage("--policy-file requires a path.");
+      if (options.policyFile) failUsage("Provide --policy-file only once.");
+      options.policyFile = value;
       index += 1;
       continue;
     }
@@ -75,6 +122,10 @@ function parseArgs(argv) {
   }
 
   if (options.stdin === Boolean(options.bodyFile)) failUsage("Provide exactly one body file, or use --stdin.");
+  if (options.policyFile && options.inlinePolicyProvided) {
+    failUsage("Do not combine --policy-file with inline checklist or source-policy options.");
+  }
+  if (options.policyFile) Object.assign(options, parsePolicyFile(options.policyFile));
   return options;
 }
 
@@ -175,6 +226,7 @@ const failures = Object.entries(checks)
 const report = {
   mode: options.stdin ? "stdin" : "file",
   bodyFile: options.bodyFile,
+  policyFile: options.policyFile,
   expectsChecklist: options.expectChecklist,
   checks,
   storyCount: storyLines.length - badStories.length,

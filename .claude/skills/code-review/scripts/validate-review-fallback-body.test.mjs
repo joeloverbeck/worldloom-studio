@@ -90,9 +90,70 @@ const browserBody = baseBody
   )
   .replace("verification/browser freshness N/A", "verification/browser freshness yes");
 
+const currentTddEvidence = `TDD closeout gate: canonical TDD evidence below passed the nested validator
+
+TDD evidence
+
+| Issue | CONTEXT.md status | ADRs/principles/docs status | Seam | Red command/failure | Green command or evidence | Acceptance covered | Review fix / red-first skip reason |
+|---|---|---|---|---|---|---|---|
+| #355 | read | ADR 0008 read | red-first public workflow | \`pnpm test -- workflow-order\` failed because Pressure appeared before staging | \`pnpm test -- workflow-order\` passed and observed Proposal then staging then Pressure | AC1 exact workflow; atoms: proposal + staging + pressure; proof surfaces: production test; sequence: Proposal -> staging -> Pressure observed by the test | N/A |
+
+Existing-test contract-change rows: none
+
+TDD closeout preflight:
+- Durable sink/body inspected: issue #355 closeout comment
+- Compact table/header: present after structural check
+- Rows accounted for: all in-scope issues and seams listed
+- Pre-red recovery status: N/A - pre-red preflight/table was visible before first red
+- CONTEXT.md status: present
+- ADRs/principles/docs status: present
+- Acceptance atom map: all rows list authoritative atoms and proof surfaces
+- Acceptance sequence map: all rows list ordered proof or justified sequence N/A
+- Partial-red / red-first skip reasons: none
+- Evidence-only rows freshness: none
+- Evidence-only proof server preflight: N/A because no browser/manual evidence-only rows
+- Evidence-only backend process currentness: N/A because no browser/manual evidence-only rows
+- Evidence identity refresh: same-sink current/historical-red/superseded identity block inspected
+- Existing-test contract-change rows: none
+
+Evidence identity refresh:
+- Current evidence identities: fixture paths none; browser sessions none; packet paths/hashes none; active revisions none; artifacts none
+- Historical red identities retained: none
+- Superseded evidence identities: fixture paths none; browser sessions none; packet paths/hashes none; active revisions none; artifacts none
+- Superseded-token sweep: N/A because every superseded category is none
+
+TDD evidence gate passed: durable sink issue #355 closeout comment; compact table/header present after structural check; seams accounted for all listed; CONTEXT.md status present; ADRs/principles/docs status present; sequence evidence present; evidence identities present; partial-red / red-first skip reasons none; evidence-only rows none; proof server preflight N/A; existing-test contract-change rows none.
+`;
+
+const fallbackWithCurrentTdd = `${baseBody
+  .replace(identityBlock, "")
+  .replace("tdd fielded closeout gate N/A", "tdd fielded closeout gate yes after structural check")}
+${currentTddEvidence}`;
+
 test("accepts explicit no-browser fallback evidence", () => {
   const result = runValidator(baseBody);
   assert.equal(result.status, 0, result.stderr);
+});
+
+test("closing enforces the default and configured UTF-8 byte ceilings", () => {
+  assert.equal(runValidator(baseBody, ["--closing"]).status, 0);
+  assert.equal(runValidator(baseBody, ["--max-bytes", "100"]).status, 0);
+
+  const configured = runValidator(baseBody, ["--closing", "--max-bytes", "100"]);
+  assert.notEqual(configured.status, 0);
+  assert.match(configured.stderr, /maximum is 100 bytes/);
+
+  const defaultLimit = runValidator(baseBody.padEnd(65_537, "x"), ["--closing"]);
+  assert.notEqual(defaultLimit.status, 0);
+  assert.match(defaultLimit.stderr, /maximum is 65536 bytes/);
+
+  const missingValue = runValidator(baseBody, ["--max-bytes"]);
+  assert.equal(missingValue.status, 2);
+  assert.match(missingValue.stderr, /--max-bytes requires a value/);
+
+  const invalidValue = runValidator(baseBody, ["--max-bytes", "many"]);
+  assert.equal(invalidValue.status, 2);
+  assert.match(invalidValue.stderr, /--max-bytes must be a positive integer/);
 });
 
 test("accepts current backend evidence when --browser is used", () => {
@@ -245,15 +306,34 @@ Residual findings`
   assert.match(missingCheck.stderr, /missing acceptance source AC2/);
 });
 
-test("forwards --closing to nested TDD validation", () => {
-  const body = `${baseBody}
-TDD closeout gate: nested TDD evidence follows
-TDD evidence gate passed: durable sink /tmp/review-closeout.md; compact table/header present after structural check; seams accounted for all listed; CONTEXT.md status present; ADRs/principles/docs status present; sequence evidence N/A; evidence identities present; partial-red / red-first skip reasons listed; evidence-only rows none; existing-test contract-change rows none.
-`;
-  const withoutClosing = runValidator(body, ["--tdd"]);
-  assert.doesNotMatch(withoutClosing.stderr, /published TDD closeout field/);
+test("accepts current nested TDD evidence and rejects missing proof-server fields", () => {
+  const complete = runValidator(fallbackWithCurrentTdd, ["--tdd", "--closing"]);
+  assert.equal(complete.status, 0, complete.stderr);
 
-  const withClosing = runValidator(body, ["--tdd", "--closing"]);
+  const missingPreflight = runValidator(
+    fallbackWithCurrentTdd.replace(
+      "- Evidence-only proof server preflight: N/A because no browser/manual evidence-only rows\n",
+      ""
+    ),
+    ["--tdd"]
+  );
+  assert.notEqual(missingPreflight.status, 0);
+  assert.match(missingPreflight.stderr, /Evidence-only proof server preflight/);
+
+  const missingGateField = runValidator(
+    fallbackWithCurrentTdd.replace("; proof server preflight N/A", ""),
+    ["--tdd"]
+  );
+  assert.notEqual(missingGateField.status, 0);
+  assert.match(missingGateField.stderr, /proof server preflight/);
+});
+
+test("forwards --closing to nested TDD validation", () => {
+  const localSinkBody = fallbackWithCurrentTdd.replaceAll("issue #355 closeout comment", "/tmp/review-closeout.md");
+  const withoutClosing = runValidator(localSinkBody, ["--tdd"]);
+  assert.equal(withoutClosing.status, 0, withoutClosing.stderr);
+
+  const withClosing = runValidator(localSinkBody, ["--tdd", "--closing"]);
   assert.notEqual(withClosing.status, 0);
   assert.match(withClosing.stderr, /published TDD closeout field/);
 });
@@ -270,6 +350,24 @@ test("requires review-native evidence identity reconciliation", () => {
   const result = runValidator(baseBody.replace(identityBlock, ""));
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Evidence identity refresh/);
+
+  const hash = "a".repeat(64);
+  const structured = runValidator(
+    baseBody.replace(
+      "fixture paths none; browser sessions none",
+      `fixture paths withheld because issue #378 forbids local path publication; logical fixture world-alpha; content SHA-256 ${hash}; provenance generated from issue #378 seed; browser sessions none`
+    )
+  );
+  assert.equal(structured.status, 0, structured.stderr);
+
+  const legacy = runValidator(
+    baseBody.replace(
+      "fixture paths none; browser sessions none",
+      "fixture paths none published because issue #378 forbids local path publication; browser sessions none"
+    )
+  );
+  assert.notEqual(legacy.status, 0);
+  assert.match(legacy.stderr, /must use the structured 'fixture paths withheld because/);
 });
 
 test("accepts the cross-validator-safe superseded-token sweep", () => {

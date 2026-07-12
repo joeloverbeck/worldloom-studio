@@ -47,10 +47,18 @@ For every intended PRD in the package:
 3. Read the [publication-package and label rules](references/publication.md) in full before finalizing the title, staging the issue, or choosing labels.
 4. Read the [validation and closeout procedure](references/validation-and-closeout.md) in full before validation or issue creation, then follow it through published-body readback, recovery if needed, and cleanup.
 
+After those reads, execute each issue in this order:
+
+1. Finalize the title and run the exact-title duplicate guard before creating the staged body.
+2. Draft the staged body and complete source extraction, ADR resolution, decision closure, the durability ledger, the label decision, and the browser-visible checklist gate.
+3. Create the reusable validator-policy manifest, validate the staged body, and run the final status-language pass.
+4. Create the issue, verify its metadata and published body with the same policy manifest, rerun durability, and remove every temporary body and policy file.
+5. Complete the [final closeout ledger](references/validation-and-closeout.md#final-closeout-ledger).
+
 Apply all four references separately to every issue in a ratified program. Do not publish until the staged body, source-durability gate, exact-title duplicate guard, label decision, and applicable browser-visible checklist gate all pass.
 
 ## Final Response Blocker
 
-Do not send the final answer until a final ledger reconciles the verified tracker readbacks and local cleanup evidence. Include the issue number, URL, exact title, state, and labels; staged- and published-body validator results; cited-source and ADR durability results with the publication ref; seam and browser-checklist outcome; deferred follow-ons or program sequencing; temporary-body cleanup proof; and final branch plus `git status --short`, listing every remaining dirty path and classifying it as intentional or pre-existing. Do not claim any gate that lacks current evidence. If interrupted, resumed, or compacted after publication begins, rerun every blocker check whose output is no longer in context before reporting completion.
+Do not send the final answer until the [final closeout ledger](references/validation-and-closeout.md#final-closeout-ledger) reconciles the verified tracker readbacks and local cleanup evidence. Include the issue number, URL, exact title, state, and labels; staged- and published-body validator results; cited-source and ADR durability results with the publication ref; seam and browser-checklist outcome; deferred follow-ons or program sequencing; temporary-body and policy-file cleanup proof; and final branch plus `git status --short`. List and classify every remaining dirty path individually; grouped counts or unnamed path families do not satisfy the blocker. Do not claim any gate that lacks current evidence. If interrupted, resumed, or compacted after publication begins, rerun every blocker check whose output is no longer in context before reporting completion.
 
 Done only when every intended issue satisfies this blocker and every temporary body is absent.

@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { validateManifest, verifyPublishedFamily } from "./verify-published-family.mjs";
+import {
+  validateManifest,
+  verifyPublishedChild,
+  verifyPublishedFamily,
+} from "./verify-published-family.mjs";
 
 const body = ({ blocker = null, externalBlocker = null } = {}) => `
 ## Parent
@@ -126,6 +130,58 @@ test("verifies an approved published family and ledger", () => {
   assert.equal(report.checks.approvedCreatedCount, true);
   assert.equal(report.children[1].checks.blockersMatch, true);
   assert.equal(report.parent.checks.ledgerChildrenPresent, true);
+});
+
+test("fails the family when a published child has an unexpected label", () => {
+  const wrongPayloads = new Map(childPayloads);
+  wrongPayloads.set(354, {
+    ...wrongPayloads.get(354),
+    labels: [...wrongPayloads.get(354).labels, { name: "needs-info" }],
+  });
+
+  const report = verifyPublishedFamily({
+    manifest,
+    childPayloads: wrongPayloads,
+    stagedBodies,
+    parentPayload,
+    ledgerBody,
+    checklistVerified: true,
+  });
+
+  assert.equal(report.children[0].checks.labelsMatch, false);
+  assert.equal(report.checks.childrenPass, false);
+  assert.deepEqual(report.failedChecks, ["childrenPass"]);
+});
+
+test("single-child verification normalizes markdown and checks the exact contract", () => {
+  const report = verifyPublishedChild({
+    actual: childPayloads.get(354),
+    expected: manifest.children[0],
+    expectedBody: `${stagedBodies.get(354)}\n`,
+    parentToken: manifest.parent.token,
+  });
+
+  assert.equal(report.checks.stagedBodyMatches, true);
+  assert.equal(report.checks.labelsMatch, true);
+  assert.equal(report.checks.noBlockerPhraseMatches, true);
+  assert.equal("checklistMapped" in report.checks, false);
+  assert.equal(Object.values(report.checks).every(Boolean), true);
+});
+
+test("single-child verification applies a run-specific placeholder pattern", () => {
+  const actual = {
+    ...childPayloads.get(354),
+    body: childPayloads.get(354).body.replace("Build the slice.", "Build RUN_TOKEN."),
+  };
+  const report = verifyPublishedChild({
+    actual,
+    expected: manifest.children[0],
+    expectedBody: actual.body,
+    parentToken: manifest.parent.token,
+    placeholderRe: "#SLICE|PLACEHOLDER|RUN_TOKEN",
+  });
+
+  assert.equal(report.checks.noPlaceholders, false);
 });
 
 test("fails the family when a published blocker differs from the manifest", () => {

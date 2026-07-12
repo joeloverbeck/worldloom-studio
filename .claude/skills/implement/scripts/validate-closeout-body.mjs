@@ -5,15 +5,22 @@ import { readFileSync } from "node:fs";
 const args = process.argv.slice(2);
 const acceptanceManifestFlag = args.indexOf("--acceptance-manifest");
 const acceptanceManifestPath = acceptanceManifestFlag >= 0 ? args[acceptanceManifestFlag + 1] : undefined;
-const acceptanceManifestValueIndex = acceptanceManifestFlag >= 0 ? acceptanceManifestFlag + 1 : -1;
+const maxBytesFlag = args.indexOf("--max-bytes");
+const maxBytesText = maxBytesFlag >= 0 ? args[maxBytesFlag + 1] : undefined;
+const valueIndexes = new Set(
+  [acceptanceManifestFlag, maxBytesFlag]
+    .filter((index) => index >= 0)
+    .map((index) => index + 1)
+);
 const file = args.find(
-  (arg, index) => !arg.startsWith("--") && index !== acceptanceManifestValueIndex
+  (arg, index) => !arg.startsWith("--") && !valueIndexes.has(index)
 );
 const flags = new Set(args.filter((arg) => arg.startsWith("--")));
 const auditOnly = flags.has("--audit-only");
 const reviewEntry = flags.has("--review-entry");
 
-const usage = `Usage: node .claude/skills/implement/scripts/validate-closeout-body.mjs <body.md> [--audit-only [--review-entry] | --closing] [--principles] [--local-only] [--fixed-child | --fixed-child-pending] [--review-fallback] [--acceptance-manifest <manifest.json>]`;
+const DEFAULT_CLOSEOUT_BODY_MAX_BYTES = 65_536;
+const usage = `Usage: node .claude/skills/implement/scripts/validate-closeout-body.mjs <body.md> [--audit-only [--review-entry] | --closing] [--principles] [--local-only] [--fixed-child | --fixed-child-pending] [--review-fallback] [--acceptance-manifest <manifest.json>] [--max-bytes <positive integer>]`;
 
 if (flags.has("--help")) {
   console.error(usage);
@@ -27,6 +34,19 @@ if (!file) {
 
 if (acceptanceManifestFlag >= 0 && (!acceptanceManifestPath || acceptanceManifestPath.startsWith("--"))) {
   console.error("--acceptance-manifest requires a manifest path");
+  console.error(usage);
+  process.exit(2);
+}
+
+if (maxBytesFlag >= 0 && (!maxBytesText || maxBytesText.startsWith("--"))) {
+  console.error("--max-bytes requires a value");
+  console.error(usage);
+  process.exit(2);
+}
+
+const maxBytes = maxBytesText === undefined ? DEFAULT_CLOSEOUT_BODY_MAX_BYTES : Number(maxBytesText);
+if (!Number.isInteger(maxBytes) || maxBytes <= 0) {
+  console.error("--max-bytes must be a positive integer");
   console.error(usage);
   process.exit(2);
 }
@@ -59,6 +79,15 @@ if (auditOnly && auditOnlyIncompatibleFlags.length) {
 
 const body = readFileSync(file, "utf8");
 const errors = [];
+
+if (flags.has("--closing")) {
+  const bodyBytes = Buffer.byteLength(body, "utf8");
+  if (bodyBytes > maxBytes) {
+    errors.push(
+      `closeout body is ${bodyBytes} bytes; maximum is ${maxBytes} bytes. Shorten concrete evidence or split it into separately validated durable tracker sinks before publication`
+    );
+  }
+}
 
 const requireText = (needle, label = needle) => {
   if (!body.includes(needle)) errors.push(`missing ${label}`);
@@ -136,6 +165,8 @@ if (!auditOnly) {
     /^\s*[-*]?\s*Superseded evidence identities:\s+(.+)$/im
   )?.[1] ?? "";
   const supersededSweep = body.match(/^\s*[-*]?\s*Superseded-token sweep:\s+(.+)$/im)?.[1] ?? "";
+  const withheldFixtureIdentity = /fixture paths\s+withheld\b/i.test(currentIdentities);
+  const completeWithheldFixtureIdentity = /fixture paths\s+withheld because\s+[^;]+;\s*logical fixture\s+[^;]+;\s*content SHA-256\s+[0-9a-f]{64};\s*provenance\s+[^;]+(?=;|$)/i;
   const allSupersededCategoriesNone = [
     /fixture paths\s+none(?:;|$)/i,
     /browser sessions\s+none(?:;|$)/i,
@@ -145,6 +176,14 @@ if (!auditOnly) {
   ].every((pattern) => pattern.test(supersededIdentities));
   if (/\b(?:TODO|TBD|pending|unknown)\b/i.test(`${currentIdentities} ${supersededIdentities} ${supersededSweep}`)) {
     errors.push("evidence identity refresh contains an unresolved value");
+  }
+  if (/fixture paths\s+none published because/i.test(currentIdentities)) {
+    errors.push("withheld fixture paths must use the structured 'fixture paths withheld because ...' identity form");
+  }
+  if (withheldFixtureIdentity && !completeWithheldFixtureIdentity.test(currentIdentities)) {
+    errors.push(
+      "withheld fixture identity must include reason, logical fixture, 64-character content SHA-256, and provenance"
+    );
   }
   if (!allSupersededCategoriesNone && !/\b(?:no hits?|zero matches|0 matches|absent)\b/i.test(supersededSweep)) {
     errors.push("superseded-token sweep must report no hits for listed superseded identities");
@@ -236,6 +275,13 @@ for (const match of body.matchAll(/<[^>\n]{1,120}>/g)) {
 const lines = body.split(/\r?\n/);
 const statusRows = [];
 const auditHeader = "| Issue | Acceptance criterion or conformance check | Evidence | Status |";
+const circularEvidenceReference = /\b(?:exact named (?:items?|atoms?|surfaces?) in (?:this|the) (?:criterion|checkbox|requirement)|(?:criterion|checkbox|requirement) (?:above|as written|itself)|(?:all|every) (?:named|listed) (?:items?|atoms?|surfaces?))\b/i;
+const concreteProofAnchor = /(?:https?:\/\/\S+|#\d+\b|\b(?:pnpm|npm|npx|node|cargo|gh|curl|bash)\s+[^;]+|(?:^|[\s`(])\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]+|\b(?:[A-Za-z0-9_.-]+\/)+[A-Za-z0-9_.-]+\b|\b[A-Za-z0-9_.-]+\.(?:test|spec)\.[cm]?[jt]sx?\b|\b[A-Za-z0-9_.-]+\.(?:md|json|html|sql|sqlite|wasm)\b)/i;
+
+const evidenceField = (evidence, label, nextLabels) => {
+  const next = nextLabels.map((nextLabel) => nextLabel.replace(" ", "\\s+")).join("|");
+  return evidence.match(new RegExp(`${label.replace(" ", "\\s+")}:\\s*(.*?)(?=;\\s*(?:${next}):|$)`, "i"))?.[1].trim() ?? "";
+};
 
 for (let index = 0; index < lines.length; index += 1) {
   if (lines[index].trim() !== auditHeader) continue;
@@ -276,6 +322,14 @@ for (const cells of statusRows) {
     }
     if (/sequence:\s*$/i.test(evidence)) {
       errors.push(`satisfied audit row sequence is empty: | ${cells.join(" | ")} |`);
+    }
+    const atoms = evidenceField(evidence, "atoms", ["proof surfaces", "sequence"]);
+    const proofSurfaces = evidenceField(evidence, "proof surfaces", ["sequence"]);
+    if (circularEvidenceReference.test(atoms) || circularEvidenceReference.test(proofSurfaces)) {
+      errors.push(`satisfied audit row Evidence uses a circular atom or proof-surface reference: | ${cells.join(" | ")} |`);
+    }
+    if (proofSurfaces && !concreteProofAnchor.test(proofSurfaces)) {
+      errors.push(`satisfied audit row proof surfaces must name a concrete test, command, path, route, URL, or tracker reference: | ${cells.join(" | ")} |`);
     }
   }
   if (flags.has("--closing") && status !== "satisfied") {
