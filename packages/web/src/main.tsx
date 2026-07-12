@@ -1,7 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { HealthPayload, LinkTypeDefinition, MethodCard, RecordTypeDefinition, WorkflowMapPayload } from "@worldloom/shared";
-import { PropagationWorkspace, type ConsequenceRevisionInput, type DomainRevisionInput } from "./propagation-workspace.js";
+import {
+  PropagationWorkspace,
+  type ConsequenceRevisionInput,
+  type DomainRevisionInput,
+  type PropagationWorkspaceConsequence,
+  type PropagationWorkspaceDisposition,
+  type PropagationWorkspaceDomain
+} from "./propagation-workspace.js";
 import { WorkflowShell } from "./workflow-shell.js";
 import "./styles.css";
 
@@ -126,52 +133,9 @@ interface PropagationQueueRow extends RecordRow {
   route?: { method: "POST"; href: string; body: { factRecordId: number; debtRecordId?: number } } | null;
 }
 
-interface PropagationLifecycleView {
-  lineageId: string;
-  version: number;
-  lifecycleState: "active" | "superseded" | "retracted";
-  priorVersionId: number | null;
-  revisionReason: string | null;
-  provenance: {
-    created: {
-      actor: { id: number; name: string };
-      timestamp: string;
-      flowStep: string;
-    };
-    retired: {
-      actor: { id: number; name: string };
-      timestamp: string;
-      flowStep: string;
-    } | null;
-  };
-}
-
-interface PropagationConsequence extends PropagationLifecycleView {
-  id: number;
-  orderKey: string;
-  orderLabel: string;
-  domainName: string | null;
-  body: string;
-  pressure: "normal" | "high";
-}
-
-interface PropagationDomain extends PropagationLifecycleView {
-  id: number;
-  domainName: string;
-  triage: "direct" | "dependency" | "reaction" | "negative";
-  declaration: string;
-}
-
-interface PropagationDisposition {
-  id: number;
-  flowId: number;
-  consequenceId: number;
-  disposition: string;
-  note?: string;
-  active: boolean;
-  debtRecordId?: number | null;
-  preservationBoundary?: string | null;
-}
+type PropagationConsequence = PropagationWorkspaceConsequence;
+type PropagationDomain = PropagationWorkspaceDomain;
+type PropagationDisposition = PropagationWorkspaceDisposition;
 
 interface PropagationPlan {
   sourceFact?: RecordRow;

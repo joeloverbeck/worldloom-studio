@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from "react";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PropagationWorkspace, type PropagationWorkspaceProps } from "./propagation-workspace.js";
 
@@ -173,6 +173,61 @@ describe("compact Pre-close Propagation workspace", () => {
     expect((screen.getByRole("textbox", { name: "Replacement consequence #52" }) as HTMLTextAreaElement).value).toBe("Only courthouse markets close.");
   });
 
+  it("recounts refreshed lineage and restores focus after successful replacement and retraction", async () => {
+    const props = workspaceProps();
+    let rerender!: ReturnType<typeof render>["rerender"];
+    props.onReviseConsequence = async (row) => {
+      props.consequences = [
+        {
+          ...row,
+          lifecycleState: "superseded",
+          provenance: {
+            ...row.provenance,
+            retired: { actor: { id: 1, name: "steward" }, timestamp: "2026-07-12T11:00:00.000Z", flowStep: "propagation:consequence-revision" }
+          }
+        },
+        {
+          ...row,
+          id: 53,
+          version: 3,
+          priorVersionId: row.id,
+          body: "Only licensed courthouse markets close.",
+          provenance: provenance("propagation:consequence-revision")
+        }
+      ];
+      rerender(<PropagationWorkspace {...props} />);
+    };
+    props.onRetractDomain = async (row) => {
+      props.domains = props.domains.map((candidate) => candidate.id === row.id ? {
+        ...candidate,
+        lifecycleState: "retracted",
+        revisionReason: "The domain no longer changes.",
+        provenance: {
+          ...candidate.provenance,
+          retired: { actor: { id: 1, name: "steward" }, timestamp: "2026-07-12T11:05:00.000Z", flowStep: "propagation:domain-retraction" }
+        }
+      } : candidate);
+      rerender(<PropagationWorkspace {...props} />);
+    };
+    ({ rerender } = render(<PropagationWorkspace {...props} />));
+
+    expect(screen.getByRole("button", { name: "Retired consequence lineage (0)" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Edit consequence #52" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Steward revision reason for consequence #52" }), { target: { value: "Refresh the active lineage." } });
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Save replacement consequence #52" })));
+
+    expect(screen.getByRole("button", { name: "Retired consequence lineage (1)" })).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Edit consequence #53" }));
+
+    const domainName = domainNames[0];
+    fireEvent.click(screen.getByRole("button", { name: `Retract domain: ${domainName}` }));
+    fireEvent.change(screen.getByRole("textbox", { name: `Steward revision reason for domain ${domainName}` }), { target: { value: "The domain no longer changes." } });
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: `Confirm retraction of domain: ${domainName}` })));
+
+    expect(screen.getByRole("button", { name: "Retired domain lineage (1)" })).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Retired domain lineage (1)" }));
+  });
+
   it("collapses retired consequence and domain lineage behind accurate accessible counts and complete audit detail", () => {
     const props = workspaceProps();
     props.consequences.unshift({
@@ -181,7 +236,7 @@ describe("compact Pre-close Propagation workspace", () => {
       body: "Every market closes.",
       version: 1,
       lifecycleState: "superseded",
-      priorVersionId: null,
+      priorVersionId: 40,
       provenance: {
         created: { actor: { id: 1, name: "steward" }, timestamp: "2026-07-12T09:00:00.000Z", flowStep: "propagation:first" },
         retired: { actor: { id: 1, name: "steward" }, timestamp: "2026-07-12T10:00:00.000Z", flowStep: "propagation:consequence-revision" }
@@ -193,7 +248,7 @@ describe("compact Pre-close Propagation workspace", () => {
       declaration: "Every metaphysical rule changes.",
       version: 1,
       lifecycleState: "retracted",
-      priorVersionId: null,
+      priorVersionId: 149,
       revisionReason: "The broad declaration was unsupported.",
       provenance: {
         created: { actor: { id: 1, name: "steward" }, timestamp: "2026-07-12T09:05:00.000Z", flowStep: "propagation:domain-atlas" },
@@ -220,7 +275,7 @@ describe("compact Pre-close Propagation workspace", () => {
     fireEvent.click(consequenceDisclosure);
     expect(consequenceDisclosure.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("heading", { name: "Superseded consequence #51" })).toBeTruthy();
-    expect(screen.getByText("Superseded · lineage lineage-bell · version 1")).toBeTruthy();
+    expect(screen.getByText("Superseded · lineage lineage-bell · version 1 · prior version 40")).toBeTruthy();
     expect(screen.getByText("Every market closes.")).toBeTruthy();
     expect(screen.getByText("Revision reason: Pressure narrowed the market claim.")).toBeTruthy();
     expect(screen.getByText("Created by steward (#1) · propagation:first · 2026-07-12T09:00:00.000Z")).toBeTruthy();
@@ -233,7 +288,7 @@ describe("compact Pre-close Propagation workspace", () => {
 
     fireEvent.click(domainDisclosure);
     expect(screen.getByRole("heading", { name: `Retracted domain: ${domainNames[0]}` })).toBeTruthy();
-    expect(screen.getByText("Retracted · lineage domain-1 · version 1")).toBeTruthy();
+    expect(screen.getByText("Retracted · lineage domain-1 · version 1 · prior version 149")).toBeTruthy();
     expect(screen.getByText("Every metaphysical rule changes.")).toBeTruthy();
     expect(screen.getByText("Revision reason: The broad declaration was unsupported.")).toBeTruthy();
     expect(screen.getByText("Retired by steward (#1) · propagation:domain-retraction · 2026-07-12T10:05:00.000Z")).toBeTruthy();

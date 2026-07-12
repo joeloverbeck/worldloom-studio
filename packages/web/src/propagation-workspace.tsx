@@ -93,6 +93,9 @@ export function PropagationWorkspace(props: PropagationWorkspaceProps) {
   const [domainLineageOpen, setDomainLineageOpen] = useState(false);
   const editorHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const rowControlRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const workspaceRef = useRef<HTMLElement | null>(null);
+  const consequenceLineageControlRef = useRef<HTMLButtonElement | null>(null);
+  const domainLineageControlRef = useRef<HTMLButtonElement | null>(null);
   const activeConsequences = props.consequences.filter((row) => row.lifecycleState === "active");
   const activeDomains = props.domains.filter((row) => row.lifecycleState === "active");
   const retiredConsequences = props.consequences.filter((row) => row.lifecycleState !== "active");
@@ -116,7 +119,7 @@ export function PropagationWorkspace(props: PropagationWorkspaceProps) {
     declaration: row.declaration
   };
 
-  const cancelEditor = (target: EditorTarget) => {
+  const clearDraft = (target: EditorTarget) => {
     if (target.kind === "consequence") {
       setConsequenceDrafts((current) => {
         const next = { ...current };
@@ -130,6 +133,10 @@ export function PropagationWorkspace(props: PropagationWorkspaceProps) {
         return next;
       });
     }
+  };
+
+  const cancelEditor = (target: EditorTarget) => {
+    clearDraft(target);
     setOpenEditor(null);
     rowControlRefs.current[targetKey(target)]?.focus();
   };
@@ -142,23 +149,13 @@ export function PropagationWorkspace(props: PropagationWorkspaceProps) {
     });
   };
 
-  const finishSuccessfulAction = (target: EditorTarget) => {
+  const finishSuccessfulAction = (target: EditorTarget, lineageId: string) => {
     clearActionError(target);
-    if (target.kind === "consequence") {
-      setConsequenceDrafts((current) => {
-        const next = { ...current };
-        delete next[target.rowId];
-        return next;
-      });
-    } else {
-      setDomainDrafts((current) => {
-        const next = { ...current };
-        delete next[target.rowId];
-        return next;
-      });
-    }
+    clearDraft(target);
     setOpenEditor(null);
-    rowControlRefs.current[targetKey(target)]?.focus();
+    const editorControl = Array.from(workspaceRef.current?.querySelectorAll<HTMLButtonElement>("[data-editor-control]") ?? [])
+      .find((control) => control.dataset.editorControl === `${target.kind}:${lineageId}`);
+    (editorControl ?? (target.kind === "consequence" ? consequenceLineageControlRef.current : domainLineageControlRef.current))?.focus();
   };
 
   const recordActionError = (target: EditorTarget, error: unknown) => {
@@ -172,7 +169,7 @@ export function PropagationWorkspace(props: PropagationWorkspaceProps) {
     try {
       if (action === "revise") await props.onReviseConsequence(row, draft);
       else await props.onRetractConsequence(row, draft.reason);
-      finishSuccessfulAction(target);
+      finishSuccessfulAction(target, row.lineageId);
     } catch (error) {
       recordActionError(target, error);
     }
@@ -184,7 +181,7 @@ export function PropagationWorkspace(props: PropagationWorkspaceProps) {
     try {
       if (action === "revise") await props.onReviseDomain(row, draft);
       else await props.onRetractDomain(row, draft.reason);
-      finishSuccessfulAction(target);
+      finishSuccessfulAction(target, row.lineageId);
     } catch (error) {
       recordActionError(target, error);
     }
@@ -202,7 +199,7 @@ export function PropagationWorkspace(props: PropagationWorkspaceProps) {
   );
 
   return (
-    <section className="propagation-workspace" aria-label="Compact Pre-close Propagation workspace">
+    <section ref={workspaceRef} className="propagation-workspace" aria-label="Compact Pre-close Propagation workspace">
       <header className="subpanel">
         <h3>{props.decisionName} compact workspace</h3>
         <p>Browse the active close set, then deliberately open one consequence or domain editor.</p>
@@ -231,6 +228,7 @@ export function PropagationWorkspace(props: PropagationWorkspaceProps) {
                       type="button"
                       aria-expanded={isOpen}
                       aria-controls={`consequence-editor-${consequence.id}`}
+                      data-editor-control={`consequence:${consequence.lineageId}`}
                       ref={(element) => { rowControlRefs.current[targetKey(target)] = element; }}
                       onClick={() => setOpenEditor(target)}
                     >Edit consequence #{consequence.id}</button>
@@ -288,6 +286,7 @@ export function PropagationWorkspace(props: PropagationWorkspaceProps) {
           aria-label={`Retired consequence lineage (${retiredConsequences.length})`}
           aria-expanded={consequenceLineageOpen}
           aria-controls="retired-consequence-lineage"
+          ref={consequenceLineageControlRef}
           onClick={(event) => {
             setConsequenceLineageOpen((current) => !current);
             event.currentTarget.focus();
@@ -301,7 +300,7 @@ export function PropagationWorkspace(props: PropagationWorkspaceProps) {
               return (
                 <article className={`compact-propagation-row lifecycle-${consequence.lifecycleState}`} key={consequence.id}>
                   <h5>{stateLabel} consequence #{consequence.id}</h5>
-                  <p className="meta">{stateLabel} · lineage {consequence.lineageId} · version {consequence.version}</p>
+                  <p className="meta">{stateLabel} · lineage {consequence.lineageId} · version {consequence.version} · prior version {consequence.priorVersionId ?? "root"}</p>
                   <p>{consequence.body}</p>
                   {consequence.revisionReason && <p>Revision reason: {consequence.revisionReason}</p>}
                   <p className="meta">Created by {consequence.provenance.created.actor.name} (#{consequence.provenance.created.actor.id}) · {consequence.provenance.created.flowStep} · {consequence.provenance.created.timestamp}</p>
@@ -334,6 +333,7 @@ export function PropagationWorkspace(props: PropagationWorkspaceProps) {
                         type="button"
                         aria-expanded={isOpen}
                         aria-controls={`domain-editor-${domain.id}`}
+                        data-editor-control={`domain:${domain.lineageId}`}
                         ref={(element) => { rowControlRefs.current[targetKey(target)] = element; }}
                         onClick={() => setOpenEditor(target)}
                       >Edit domain: {domain.domainName}</button>
@@ -384,6 +384,7 @@ export function PropagationWorkspace(props: PropagationWorkspaceProps) {
           aria-label={`Retired domain lineage (${retiredDomains.length})`}
           aria-expanded={domainLineageOpen}
           aria-controls="retired-domain-lineage"
+          ref={domainLineageControlRef}
           onClick={(event) => {
             setDomainLineageOpen((current) => !current);
             event.currentTarget.focus();
@@ -396,7 +397,7 @@ export function PropagationWorkspace(props: PropagationWorkspaceProps) {
               return (
                 <article className={`compact-propagation-row lifecycle-${domain.lifecycleState}`} key={domain.id}>
                   <h5>{stateLabel} domain: {domain.domainName}</h5>
-                  <p className="meta">{stateLabel} · lineage {domain.lineageId} · version {domain.version}</p>
+                  <p className="meta">{stateLabel} · lineage {domain.lineageId} · version {domain.version} · prior version {domain.priorVersionId ?? "root"}</p>
                   <p>{domain.declaration || "No declaration."}</p>
                   <p className="meta">Historical triage: {domain.triage}</p>
                   {domain.revisionReason && <p>Revision reason: {domain.revisionReason}</p>}
