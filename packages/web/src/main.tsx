@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { HealthPayload, LinkTypeDefinition, MethodCard, RecordTypeDefinition, WorkflowMapPayload } from "@worldloom/shared";
+import { PropagationWorkspace, type ConsequenceRevisionInput, type DomainRevisionInput } from "./propagation-workspace.js";
 import { WorkflowShell } from "./workflow-shell.js";
 import "./styles.css";
 
@@ -232,20 +233,6 @@ interface PropagationRunPayload {
   domainSweeps: PropagationDomain[];
   dispositions: PropagationDisposition[];
   proposals?: unknown[];
-}
-
-interface PropagationConsequenceRevisionDraft {
-  reason: string;
-  orderKey: string;
-  domainName: string;
-  body: string;
-  pressure: "normal" | "high";
-}
-
-interface PropagationDomainRevisionDraft {
-  reason: string;
-  triage: "direct" | "dependency" | "reaction" | "negative";
-  declaration: string;
 }
 
 interface QaTest {
@@ -2314,8 +2301,6 @@ function App({
   const [propagationConsequences, setPropagationConsequences] = useState<PropagationConsequence[]>(initialPropagationRun?.consequences ?? []);
   const [propagationDomains, setPropagationDomains] = useState<PropagationDomain[]>(initialPropagationRun?.domainSweeps ?? []);
   const [propagationDispositions, setPropagationDispositions] = useState<PropagationDisposition[]>(initialPropagationRun?.dispositions ?? []);
-  const [propagationConsequenceRevisionDrafts, setPropagationConsequenceRevisionDrafts] = useState<Record<number, PropagationConsequenceRevisionDraft>>({});
-  const [propagationDomainRevisionDrafts, setPropagationDomainRevisionDrafts] = useState<Record<number, PropagationDomainRevisionDraft>>({});
   const [propagationRevisionErrors, setPropagationRevisionErrors] = useState<Record<string, string>>({});
   const [stage12Run, setStage12Run] = useState<Stage12Run | null>(null);
   const [stage12FlowId, setStage12FlowId] = useState<number | null>(null);
@@ -4857,140 +4842,52 @@ function App({
     await loadPropagationRun(propagationFlowId);
   };
 
-  const consequenceRevisionDraft = (consequence: PropagationConsequence): PropagationConsequenceRevisionDraft =>
-    propagationConsequenceRevisionDrafts[consequence.id] ?? {
-      reason: "",
-      orderKey: consequence.orderKey,
-      domainName: consequence.domainName ?? "",
-      body: consequence.body,
-      pressure: consequence.pressure
-    };
-
-  const updateConsequenceRevisionDraft = (consequence: PropagationConsequence, patch: Partial<PropagationConsequenceRevisionDraft>) => {
-    setPropagationConsequenceRevisionDrafts((current) => ({
-      ...current,
-      [consequence.id]: { ...consequenceRevisionDraft(consequence), ...patch }
-    }));
-  };
-
-  const domainRevisionDraft = (domainRow: PropagationDomain): PropagationDomainRevisionDraft =>
-    propagationDomainRevisionDrafts[domainRow.id] ?? {
-      reason: "",
-      triage: domainRow.triage,
-      declaration: domainRow.declaration
-    };
-
-  const updateDomainRevisionDraft = (domainRow: PropagationDomain, patch: Partial<PropagationDomainRevisionDraft>) => {
-    setPropagationDomainRevisionDrafts((current) => ({
-      ...current,
-      [domainRow.id]: { ...domainRevisionDraft(domainRow), ...patch }
-    }));
-  };
-
-  const clearPropagationRevisionState = (kind: "consequence" | "domain", rowId: number) => {
-    const key = `${kind}:${rowId}`;
-    setPropagationRevisionErrors((current) => {
-      const next = { ...current };
-      delete next[key];
-      return next;
+  const revisePropagationConsequence = async (consequence: PropagationConsequence, draft: ConsequenceRevisionInput) => {
+    if (propagationFlowId == null) return;
+    const payload = await api<PropagationRunPayload>(`/api/propagation/consequences/${consequence.id}/revisions`, {
+      method: "POST",
+      body: JSON.stringify({
+        flowId: propagationFlowId,
+        reason: draft.reason,
+        orderKey: draft.orderKey,
+        domainName: draft.domainName || undefined,
+        body: draft.body,
+        pressure: draft.pressure
+      })
     });
-    if (kind === "consequence") {
-      setPropagationConsequenceRevisionDrafts((current) => {
-        const next = { ...current };
-        delete next[rowId];
-        return next;
-      });
-    } else {
-      setPropagationDomainRevisionDrafts((current) => {
-        const next = { ...current };
-        delete next[rowId];
-        return next;
-      });
-    }
+    await loadPropagationRun(payload.flow.id);
   };
 
-  const revisePropagationConsequence = async (consequence: PropagationConsequence) => {
+  const retractPropagationConsequence = async (consequence: PropagationConsequence, reason: string) => {
     if (propagationFlowId == null) return;
-    const key = `consequence:${consequence.id}`;
-    const draft = consequenceRevisionDraft(consequence);
-    try {
-      const payload = await api<PropagationRunPayload>(`/api/propagation/consequences/${consequence.id}/revisions`, {
-        method: "POST",
-        body: JSON.stringify({
-          flowId: propagationFlowId,
-          reason: draft.reason,
-          orderKey: draft.orderKey,
-          domainName: draft.domainName || undefined,
-          body: draft.body,
-          pressure: draft.pressure
-        })
-      });
-      clearPropagationRevisionState("consequence", consequence.id);
-      await loadPropagationRun(payload.flow.id);
-    } catch (error) {
-      const message = apiErrorMessage(error);
-      setPropagationRevisionErrors((current) => ({ ...current, [key]: message }));
-      setMessage(message);
-    }
+    const payload = await api<PropagationRunPayload>(`/api/propagation/consequences/${consequence.id}/retract`, {
+      method: "POST",
+      body: JSON.stringify({ flowId: propagationFlowId, reason })
+    });
+    await loadPropagationRun(payload.flow.id);
   };
 
-  const retractPropagationConsequence = async (consequence: PropagationConsequence) => {
+  const revisePropagationDomain = async (domainRow: PropagationDomain, draft: DomainRevisionInput) => {
     if (propagationFlowId == null) return;
-    const key = `consequence:${consequence.id}`;
-    const draft = consequenceRevisionDraft(consequence);
-    try {
-      const payload = await api<PropagationRunPayload>(`/api/propagation/consequences/${consequence.id}/retract`, {
-        method: "POST",
-        body: JSON.stringify({ flowId: propagationFlowId, reason: draft.reason })
-      });
-      clearPropagationRevisionState("consequence", consequence.id);
-      await loadPropagationRun(payload.flow.id);
-    } catch (error) {
-      const message = apiErrorMessage(error);
-      setPropagationRevisionErrors((current) => ({ ...current, [key]: message }));
-      setMessage(message);
-    }
+    const payload = await api<PropagationRunPayload>(`/api/propagation/domains/${domainRow.id}/revisions`, {
+      method: "POST",
+      body: JSON.stringify({
+        flowId: propagationFlowId,
+        reason: draft.reason,
+        triage: draft.triage,
+        declaration: draft.declaration
+      })
+    });
+    await loadPropagationRun(payload.flow.id);
   };
 
-  const revisePropagationDomain = async (domainRow: PropagationDomain) => {
+  const retractPropagationDomain = async (domainRow: PropagationDomain, reason: string) => {
     if (propagationFlowId == null) return;
-    const key = `domain:${domainRow.id}`;
-    const draft = domainRevisionDraft(domainRow);
-    try {
-      const payload = await api<PropagationRunPayload>(`/api/propagation/domains/${domainRow.id}/revisions`, {
-        method: "POST",
-        body: JSON.stringify({
-          flowId: propagationFlowId,
-          reason: draft.reason,
-          triage: draft.triage,
-          declaration: draft.declaration
-        })
-      });
-      clearPropagationRevisionState("domain", domainRow.id);
-      await loadPropagationRun(payload.flow.id);
-    } catch (error) {
-      const message = apiErrorMessage(error);
-      setPropagationRevisionErrors((current) => ({ ...current, [key]: message }));
-      setMessage(message);
-    }
-  };
-
-  const retractPropagationDomain = async (domainRow: PropagationDomain) => {
-    if (propagationFlowId == null) return;
-    const key = `domain:${domainRow.id}`;
-    const draft = domainRevisionDraft(domainRow);
-    try {
-      const payload = await api<PropagationRunPayload>(`/api/propagation/domains/${domainRow.id}/retract`, {
-        method: "POST",
-        body: JSON.stringify({ flowId: propagationFlowId, reason: draft.reason })
-      });
-      clearPropagationRevisionState("domain", domainRow.id);
-      await loadPropagationRun(payload.flow.id);
-    } catch (error) {
-      const message = apiErrorMessage(error);
-      setPropagationRevisionErrors((current) => ({ ...current, [key]: message }));
-      setMessage(message);
-    }
+    const payload = await api<PropagationRunPayload>(`/api/propagation/domains/${domainRow.id}/retract`, {
+      method: "POST",
+      body: JSON.stringify({ flowId: propagationFlowId, reason })
+    });
+    await loadPropagationRun(payload.flow.id);
   };
 
   const savePropagationDisposition = async () => {
@@ -6298,6 +6195,23 @@ function App({
         <button onClick={savePropagationConsequence} disabled={propagationFlowId == null || !propagationText.trim()}>Add Consequence</button>
       </section>
 
+      <PropagationWorkspace
+        runState={propagationRun?.flow.state ?? "not_started"}
+        decisionName={propagationRun?.revisionDecision?.name ?? "Pre-close Propagation revision and finalization"}
+        packageSources={propagationRun?.revisionDecision?.packageSources ?? ["docs/worldbuilding-system/07_propagation_engine.md", "docs/worldbuilding-system/20_ai_assisted_workflow.md"]}
+        obligations={displayedPropagationContract?.obligations ?? { required: [], optional: [], skippable: [], severityDependent: [] }}
+        orders={propagationPlan?.orders ?? []}
+        domainNames={propagationPlan?.domains ?? []}
+        consequences={propagationConsequences}
+        domains={propagationDomains}
+        dispositions={propagationDispositions}
+        blockers={propagationRun?.closeReadiness.blockers ?? []}
+        onReviseConsequence={revisePropagationConsequence}
+        onRetractConsequence={retractPropagationConsequence}
+        onReviseDomain={revisePropagationDomain}
+        onRetractDomain={retractPropagationDomain}
+      />
+
       <section className="subpanel">
         <h3>Domain-atlas sweep</h3>
         <div className="grid compact-grid">
@@ -6309,37 +6223,6 @@ function App({
             </article>
           ))}
         </div>
-        <section className="revision-lineage-list">
-          <h4>Staged domain lineage</h4>
-          {propagationDomains.length ? propagationDomains.map((domainRow) => {
-            const draft = domainRevisionDraft(domainRow);
-            const stateLabel = domainRow.lifecycleState === "active" ? "Active" : domainRow.lifecycleState === "superseded" ? "Superseded" : "Retracted";
-            const error = propagationRevisionErrors[`domain:${domainRow.id}`];
-            return (
-              <article key={domainRow.id} className={`subpanel lifecycle-${domainRow.lifecycleState}`}>
-                <h5>{`${stateLabel} · lineage ${domainRow.lineageId} · version ${domainRow.version}`}</h5>
-                <p><strong>{domainRow.domainName}</strong> · {domainRow.triage}</p>
-                <p>{domainRow.declaration || "No declaration."}</p>
-                {domainRow.revisionReason && <p>Revision reason: {domainRow.revisionReason}</p>}
-                <p className="meta">{`Created by ${domainRow.provenance.created.actor.name} (#${domainRow.provenance.created.actor.id}) · ${domainRow.provenance.created.flowStep} · ${domainRow.provenance.created.timestamp}`}</p>
-                {domainRow.provenance.retired && <p className="meta">{`Retired by ${domainRow.provenance.retired.actor.name} (#${domainRow.provenance.retired.actor.id}) · ${domainRow.provenance.retired.flowStep} · ${domainRow.provenance.retired.timestamp}`}</p>}
-                {domainRow.lifecycleState === "active" && propagationRun?.flow.state === "in_progress" && (
-                  <section className="row-local-revision-controls">
-                    <h5>Revise domain #{domainRow.id}</h5>
-                    <label>Steward revision reason<input value={draft.reason} onChange={(event) => updateDomainRevisionDraft(domainRow, { reason: event.target.value })} /></label>
-                    <label>Replacement triage<select value={draft.triage} onChange={(event) => updateDomainRevisionDraft(domainRow, { triage: event.target.value as PropagationDomainRevisionDraft["triage"] })}><option>direct</option><option>dependency</option><option>reaction</option><option>negative</option></select></label>
-                    <label>Replacement declaration<textarea rows={2} value={draft.declaration} onChange={(event) => updateDomainRevisionDraft(domainRow, { declaration: event.target.value })} /></label>
-                    <div className="row">
-                      <button onClick={() => revisePropagationDomain(domainRow)}>{`Revise domain #${domainRow.id}`}</button>
-                      <button onClick={() => retractPropagationDomain(domainRow)}>{`Retract domain #${domainRow.id}`}</button>
-                    </div>
-                    {error && <p className="status error">{error} Entered reason, triage, and declaration were preserved; correct the named row and retry.</p>}
-                  </section>
-                )}
-              </article>
-            );
-          }) : <p>No staged domain versions recorded.</p>}
-        </section>
         <div className="grid">
           <label>Triage<select value={propagationTriage} onChange={(event) => setPropagationTriage(event.target.value as "direct" | "dependency" | "reaction" | "negative")}><option>direct</option><option>dependency</option><option>reaction</option><option>negative</option></select></label>
           <label>Declaration<textarea rows={2} value={propagationText} onChange={(event) => setPropagationText(event.target.value)} /></label>
@@ -6349,53 +6232,13 @@ function App({
 
       <section className="subpanel">
         <h3>Consequences and dispositions</h3>
-        <div className="grid compact-grid">
-          <section>
-            <h4>Disposition effects</h4>
-            <p>answered: governed here with optional rationale.</p>
-            <p>intentionally scoped out: governed by explicit scope note.</p>
-            <p>assigned as canon debt: creates open propagation-scoped debt.</p>
-            <p>protected as a mystery boundary: preserves the boundary for downstream work.</p>
-          </section>
-          <section>
-            <h4>Staged consequence lineage</h4>
-            {propagationConsequences.length ? propagationConsequences.map((consequence) => {
-              const draft = consequenceRevisionDraft(consequence);
-              const stateLabel = consequence.lifecycleState === "active" ? "Active" : consequence.lifecycleState === "superseded" ? "Superseded" : "Retracted";
-              const disposition = propagationDispositions.find((row) => row.consequenceId === consequence.id);
-              const rowBlockers = propagationRun?.closeReadiness.blockers.filter((blocker) => blocker.consequenceId === consequence.id) ?? [];
-              const error = propagationRevisionErrors[`consequence:${consequence.id}`];
-              return (
-                <article key={consequence.id} className={`subpanel lifecycle-${consequence.lifecycleState}`}>
-                  <h5>{`${stateLabel} · lineage ${consequence.lineageId} · version ${consequence.version}`}</h5>
-                  <p>#{consequence.id} {consequence.orderLabel} · {consequence.pressure} · {consequence.domainName ?? "no domain"}</p>
-                  <p>{consequence.body}</p>
-                  {consequence.revisionReason && <p>Revision reason: {consequence.revisionReason}</p>}
-                  <p className="meta">{`Created by ${consequence.provenance.created.actor.name} (#${consequence.provenance.created.actor.id}) · ${consequence.provenance.created.flowStep} · ${consequence.provenance.created.timestamp}`}</p>
-                  {consequence.provenance.retired && <p className="meta">{`Retired by ${consequence.provenance.retired.actor.name} (#${consequence.provenance.retired.actor.id}) · ${consequence.provenance.retired.flowStep} · ${consequence.provenance.retired.timestamp}`}</p>}
-                  {disposition && <p>{`${disposition.active ? "Active disposition" : "Historical disposition"}: ${disposition.disposition}${disposition.note ? ` · ${disposition.note}` : ""}`}</p>}
-                  {consequence.lifecycleState === "active" && !disposition && <p className="status error">Active replacement is undispositioned; choose a stopping-state disposition for consequence #{consequence.id}.</p>}
-                  {rowBlockers.map((blocker) => <p className="status error" key={`${consequence.id}:${blocker.key}`}>{blocker.label ?? blocker.key}: {blocker.message}</p>)}
-                  {consequence.lifecycleState === "active" && propagationRun?.flow.state === "in_progress" && (
-                    <section className="row-local-revision-controls">
-                      <h5>{`Revise consequence #${consequence.id}`}</h5>
-                      <label>Steward revision reason<input value={draft.reason} onChange={(event) => updateConsequenceRevisionDraft(consequence, { reason: event.target.value })} /></label>
-                      <label>Replacement order<select value={draft.orderKey} onChange={(event) => updateConsequenceRevisionDraft(consequence, { orderKey: event.target.value })}>{(propagationPlan?.orders ?? []).map((order) => <option key={order.key} value={order.key}>{order.label}</option>)}</select></label>
-                      <label>Replacement domain<select value={draft.domainName} onChange={(event) => updateConsequenceRevisionDraft(consequence, { domainName: event.target.value })}><option value="">No domain</option>{(propagationPlan?.domains ?? []).map((domainName) => <option key={domainName}>{domainName}</option>)}</select></label>
-                      <label>Replacement pressure<select value={draft.pressure} onChange={(event) => updateConsequenceRevisionDraft(consequence, { pressure: event.target.value as PropagationConsequenceRevisionDraft["pressure"] })}><option>normal</option><option>high</option></select></label>
-                      <label>Replacement consequence<textarea rows={3} value={draft.body} onChange={(event) => updateConsequenceRevisionDraft(consequence, { body: event.target.value })} /></label>
-                      <div className="row">
-                        <button onClick={() => revisePropagationConsequence(consequence)}>{`Revise consequence #${consequence.id}`}</button>
-                        <button onClick={() => retractPropagationConsequence(consequence)}>{`Retract consequence #${consequence.id}`}</button>
-                      </div>
-                      {error && <p className="status error">{error} Entered reason, replacement text, order, domain, and pressure were preserved; correct the named row and retry.</p>}
-                    </section>
-                  )}
-                </article>
-              );
-            }) : <p>No consequences recorded.</p>}
-          </section>
-        </div>
+        <section>
+          <h4>Disposition effects</h4>
+          <p>answered: governed here with optional rationale.</p>
+          <p>intentionally scoped out: governed by explicit scope note.</p>
+          <p>assigned as canon debt: creates open propagation-scoped debt.</p>
+          <p>protected as a mystery boundary: preserves the boundary for downstream work.</p>
+        </section>
         <div className="grid">
           <label>Consequence id<input value={propagationConsequenceId} onChange={(event) => setPropagationConsequenceId(event.target.value)} /></label>
           <label>Disposition<select value={propagationDispositionTerm} onChange={(event) => setPropagationDispositionTerm(event.target.value)}>{consequenceDispositions.length ? consequenceDispositions.map((term) => <option key={term.term}>{term.term}</option>) : ["answered", "intentionally scoped out", "assigned as canon debt", "protected as a mystery boundary"].map((term) => <option key={term}>{term}</option>)}</select></label>
@@ -6419,8 +6262,31 @@ function App({
         )}
       </section>
 
-      <section className="subpanel">
-        <h3>{propagationRun?.packetCurrentness?.status === "stale" ? "Stale Propagation packet" : "Propagation packet currentness"}</h3>
+      <section className="propagation-finalization-landmark" aria-labelledby="propagation-finalization-heading">
+        <header className="subpanel">
+          <h3 id="propagation-finalization-heading">Finalization landmark</h3>
+          <p><strong>Pre-close Propagation revision and finalization</strong> keeps the active close boundary reachable while you browse or edit rows.</p>
+          <p>{propagationRun?.revisionDecision?.doctrine.staging ?? "Open-run material remains editable staging until close."}</p>
+          <p>{propagationRun?.revisionDecision?.doctrine.reportBoundary ?? "Close writes one append-only propagation report."}</p>
+          <p className="meta">Governing package sources: {(propagationRun?.revisionDecision?.packageSources ?? ["docs/worldbuilding-system/07_propagation_engine.md", "docs/worldbuilding-system/20_ai_assisted_workflow.md"]).join(" · ")}</p>
+          <div className="chips">
+            <span>Current step: {displayedPropagationContract?.nextOrResumeState.currentStep ?? propagationRun?.flow.current_step ?? "load the current run"}</span>
+            <span>Next owed judgment: {displayedPropagationContract?.nextOrResumeState.nextStep ?? "restore server-returned close readiness"}</span>
+            <span>Safe exit and resume: {displayedPropagationContract?.nextOrResumeState.safeExit ?? "Return to the workflow map and resume this run later."}</span>
+          </div>
+          <p>Required: {displayedPropagationContract?.obligations.required.join(" · ") || "server-returned active coverage"}</p>
+          <p>Optional: {displayedPropagationContract?.obligations.optional.join(" · ") || "none returned"}</p>
+          <p>Skippable: {displayedPropagationContract?.obligations.skippable.join(" · ") || "Prompt-out remains optional"}</p>
+          <p>Severity-dependent: {displayedPropagationContract?.obligations.severityDependent.join(" · ") || "follow the server-returned severity path"}</p>
+          <div className="row">
+            <button onClick={() => void navigateWorkflow("map")}>Safe Return to Workflow Map</button>
+            <button onClick={() => propagationFlowId != null && loadPropagationRun(propagationFlowId)} disabled={!openWorld || propagationFlowId == null}>Refresh Finalization State</button>
+            <button onClick={closePropagation} disabled={!openWorld || propagationFlowId == null || propagationRun?.flow.state !== "in_progress"}>Review and Close Run</button>
+          </div>
+        </header>
+
+        <section className="subpanel">
+          <h3>{propagationRun?.packetCurrentness?.status === "stale" ? "Stale Propagation packet" : "Propagation packet currentness"}</h3>
         {propagationRun?.packetCurrentness ? (
           <>
             <p>{propagationRun.packetCurrentness.reason}</p>
@@ -6502,6 +6368,7 @@ function App({
         <div className="chips">
           {(propagationRun?.readSideTrail ?? displayedPropagationContract?.readSideTrail ?? []).map((item) => <span key={`${item.label}:${item.href}`}>{item.label} · {item.href}</span>)}
         </div>
+      </section>
       </section>
 
       <section className="subpanel">

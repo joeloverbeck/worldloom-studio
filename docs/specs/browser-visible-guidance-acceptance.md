@@ -68,6 +68,24 @@ When a slice claims the Pre-close Propagation revision and finalization contract
 
 Source-policy checks may support this evidence by proving that the browser consumes returned lifecycle, severity, blocker, currentness, and route shapes, but source checks cannot substitute for the rendered active route. Likewise, server/store tests support invariants but cannot substitute for failure recovery, cognitive walkthrough, console state, or cold-packet relevance.
 
+### Compact Pre-Close workspace evidence
+
+Slices implementing the compact **Pre-close Propagation revision and finalization** workspace additionally owe focused evidence that:
+
+- every active consequence and all fourteen active domains begin as compact summaries carrying stable row or lineage identity, active version, current steward-authored material, lifecycle state, and the applicable server-returned triage, disposition, validation, or blocker state;
+- eligible summaries expose explicit edit or retract controls and exactly one consequence-or-domain editor is expanded across both row families;
+- deliberate cross-family switching preserves each row's unsaved text and selections under stable identity while moving focus into the newly opened editor;
+- cancel discards only the selected draft and restores authoritative values, successful replacement or retraction clears the retired row's draft only after refreshed server state loads, and failure preserves every entered value with an accessible adjacent error and concrete remediation;
+- any transition that cannot preserve entered material stops for an explicit steward choice rather than silently discarding it;
+- editor and lineage controls expose expanded state and stable accessible names, accept keyboard activation, move focus to the opened editor heading or first action, and restore it to a predictable row control when closed;
+- retired consequence and domain lineage is collapsed by default behind accurate counts that update after refreshed replacement or retraction state, and expanded history retains wording or declaration, lifecycle state, version chain, steward reason, creator and retirement provenance, and historical disposition;
+- active, superseded, and retracted material remains visually and semantically distinct, so retired wording is never presented as current decision or canon material;
+- a persistently reachable or locally repeated finalization landmark keeps server-returned row and close blockers, packet currentness, fresh Pressure or governed skip, severity-dependent reason rules, packet preview, source manifest, omissions, output labels, advisory/canon warning, active decision identity, close preview, write intent, read-side trail, and current/next/resume and safe-exit state available without prescribing sticky positioning;
+- app-owned doctrine at the active editor and landmark names the governing `07_propagation_engine.md` and `20_ai_assisted_workflow.md` sources as provenance, explains required, optional, skippable, and severity-dependent work, and distinguishes editable staging from the append-only report boundary; and
+- source-policy guards demonstrate that lifecycle identity, versions, dispositions, coverage, blockers, currentness, Pressure-or-skip recovery, write intent, close readiness, and provenance come from existing server responses rather than browser policy.
+
+Focused React evidence should cover compact/default/open/switch/draft/cancel/success/failure/history/count/keyboard/focus/landmark states. A docs-naive component walkthrough should additionally show that the steward can locate one consequence and one domain, switch without losing either draft, recover from a failed action, inspect lineage, identify blockers and packet-or-skip state, predict the write boundary, and safely exit/resume. These focused proofs support the final foundational-density production-route replay; they do not claim successful close, cold external Pressure relevance, or a clean production console on behalf of issue #368. That final replay remains gated on issue #369's canonical decision-identity repair, issue #370's close-blocker render-identity repair, and the production-route readiness readback. The docs-only contract and focused browser-composition slices do not inherit that replay gate; issue #367's narrower #370 composition prerequisite is already satisfied.
+
 ## Foundational Propagation Packet-Context Evidence Pattern
 
 When a slice claims the PRD #358 packet-context contract, active-route evidence must show:

@@ -342,6 +342,69 @@ label {
   overflow-wrap: anywhere;
 }
 
+.propagation-workspace {
+  display: grid;
+  gap: 16px;
+  max-width: 980px;
+}
+
+.propagation-workspace > section,
+.propagation-finalization-landmark {
+  display: grid;
+  gap: 12px;
+}
+
+.compact-propagation-list,
+.retired-propagation-lineage {
+  display: grid;
+  gap: 8px;
+}
+
+.compact-propagation-row {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #d4cdbc;
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: #fffdfa;
+  padding: 10px 12px;
+}
+
+.compact-propagation-row h5,
+.compact-propagation-row h6,
+.compact-propagation-row p {
+  margin: 0;
+}
+
+.compact-propagation-row.lifecycle-active {
+  border-left-color: #4f6f52;
+}
+
+.compact-propagation-row.lifecycle-superseded {
+  border-left-color: #8b7654;
+  background: #f4f0e7;
+}
+
+.compact-propagation-row.lifecycle-retracted {
+  border-left-color: #8d3b31;
+  background: #f4ece8;
+}
+
+.propagation-row-editor {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #d4cdbc;
+  padding-top: 10px;
+}
+
+.propagation-finalization-landmark {
+  border: 2px solid #6d7f54;
+  border-radius: 10px;
+  background: #f1f4ea;
+  padding: 12px;
+  scroll-margin-top: 12px;
+}
+
 .records {
   display: grid;
   gap: 10px;

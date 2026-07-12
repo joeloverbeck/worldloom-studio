@@ -7,6 +7,7 @@ import { App, PropagationPacketContextPanel } from "./main";
 describe("Propagation web surface", () => {
   it("keeps revision, coverage, packet, and close policy on the server-owned contract", () => {
     const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
+    const workspaceSource = readFileSync(new URL("./propagation-workspace.tsx", import.meta.url), "utf8");
     const skipCurrentPressure = source.slice(
       source.indexOf("const skipCurrentPropagationPressure = async () =>"),
       source.indexOf("const ensurePromptStep = async () =>")
@@ -25,6 +26,11 @@ describe("Propagation web surface", () => {
     expect(source).not.toContain("const propagationCloseReadiness");
     expect(source).not.toContain("const activePropagationConsequences");
     expect(source).not.toContain("requiredDomainStates");
+    expect(workspaceSource).toContain("props.blockers");
+    expect(workspaceSource).toContain("props.dispositions");
+    expect(workspaceSource).not.toContain("requiredCoverage");
+    expect(workspaceSource).not.toContain("closeReadiness");
+    expect(workspaceSource).not.toContain("activeSetRevision");
     const topLevelCloseBlockers = source.slice(
       source.indexOf("<h3>Close blockers</h3>"),
       source.indexOf("<h3>Close/result preview</h3>")
@@ -495,24 +501,30 @@ describe("Propagation web surface", () => {
     expect(html).toContain("Pre-close Propagation revision and finalization");
     expect(html).toContain("Editable staging");
     expect(html).toContain("Append-only report boundary");
-    expect(html).toContain("Active · lineage lineage-bell · version 2");
-    expect(html).toContain("Superseded · lineage lineage-bell · version 1");
-    expect(html).toContain("Pressure narrowed the market claim.");
-    expect(html).toContain("Created by steward (#1) · propagation:first · 2026-07-10T00:00:00.000Z");
-    expect(html).toContain("Retired by steward (#1) · propagation:consequence-revision · 2026-07-10T00:00:30.000Z");
-    expect(html).toContain("Historical disposition: answered");
-    expect(html).toContain("Historical answer");
+    expect(html).toContain("aria-labelledby=\"propagation-finalization-heading\"");
+    expect(html).toContain("Finalization landmark");
+    expect(html).toContain("Current step");
+    expect(html).toContain("Next owed judgment");
+    expect(html).toContain("Safe exit and resume");
+    expect(html).toContain("Active consequence #");
+    expect(html).toContain("lineage-bell");
+    expect(html).toContain("Only courthouse markets close.");
+    expect(html).toContain("aria-label=\"Retired consequence lineage (1)\"");
+    expect(html).toContain("aria-label=\"Retired domain lineage (1)\"");
+    expect(html).not.toContain("Every market closes.");
+    expect(html).not.toContain("Historical disposition: answered");
+    expect(html).not.toContain("Historical answer");
     expect(html).toContain("Disposition rationale");
     expect(html).not.toContain("Debt name (required)");
     expect(html).not.toContain("Preservation boundary (required)");
-    expect(html).toContain("Active replacement is undispositioned");
+    expect(html).toContain("Undispositioned active consequence");
     expect(html).toContain("Active consequence #52 is undispositioned.");
     expect(html).toContain("Active consequence #53 is undispositioned.");
     expect(html).toContain("Active consequence #54 is undispositioned.");
     expect(controlledRerender).toBe(html);
-    expect(html).toContain("Revise consequence #52");
-    expect(html).toContain("Retract consequence #52");
-    expect(html).toContain("Retracted · lineage domain-bell · version 1");
+    expect(html).toContain("Edit consequence #");
+    expect(html).toContain("Retract consequence #");
+    expect(html).not.toContain("All markets react.");
     expect(html).toContain("Stale Propagation packet");
     expect(html).toContain("Consequence revision for row 52 made the prior packet stale.");
     expect(html).toContain("Current prompt packet body");
