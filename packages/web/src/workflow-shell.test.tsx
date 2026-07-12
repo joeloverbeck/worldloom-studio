@@ -123,16 +123,18 @@ const conditionalPassWorkflowMap = {
       passKey,
       passLabel,
       ordinal,
-      disposition: index === 2 ? "deferred" : "outstanding",
+      disposition: index === 1 ? "covered" : index === 2 ? "deferred" : "outstanding",
       rationale: index === 2 ? "Govern after institutional actors are named." : null,
-      coveringEvidence: null,
+      coveringEvidence: index === 1
+        ? { id: 20, shortId: "PAS-1", recordTypeKey: "pass_report", title: "Constraint pass report", body: "Completed evidence.", canonStatus: "accepted" }
+        : null,
       doctrine: "Foundational Propagation owes this specialized pass before further dependency-bearing Admission.",
       blocker: null,
       destination: { destinationKey, label: passLabel, method: "POST", href: `/api/${destinationKey}/runs/start`, body: { sourceType: "fact", recordId: 3 } },
       provenance: { actor: "steward", timestamp: "2026-07-12T10:00:00.000Z", flowStep: "propagation:close:conditional-pass-handoff", sourceFact: { id: 3, shortId: "FAC-3" }, propagationReport: { id: 9, shortId: "PRP-1" } },
       history: [],
       readSideTrail: [],
-      action: index === 2 ? null : { method: "POST", href: `/api/conditional-pass-obligations/${index + 1}/defer`, requiredRationale: true, body: { disposition: "deferred", passKey, sourceFactRecordId: 3, propagationReportRecordId: 9 }, proposedWrite: `Defer ${passLabel} while preserving governed history.`, willLeaveUntouched: ["source fact", "Propagation report", "Admission queue"] }
+      action: index === 0 ? { method: "POST", href: `/api/conditional-pass-obligations/${index + 1}/defer`, requiredRationale: true, body: { disposition: "deferred", passKey, sourceFactRecordId: 3, propagationReportRecordId: 9 }, proposedWrite: `Defer ${passLabel} while preserving governed history.`, willLeaveUntouched: ["source fact", "Propagation report", "Admission queue"] } : null
     }))
   }
 };
@@ -252,7 +254,9 @@ describe("workflow map shell", () => {
     expect(html).toContain("PRP-1");
     expect(html).toContain("Chrononaut shock cone");
     expect(html).toContain("outstanding");
+    expect(html).toContain("covered");
     expect(html).toContain("deferred");
+    expect(html).toContain("PAS-1");
     expect(html).toContain("Govern after institutional actors are named.");
     expect(html).toContain("Follow source-selected pass");
     expect(html).toContain("Deferral rationale");

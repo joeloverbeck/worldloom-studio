@@ -75,4 +75,41 @@ describe("post-Propagation conditional-pass handoff", () => {
     fireEvent.click(screen.getByRole("button", { name: "Follow source-selected pass" }));
     expect(onFollow).toHaveBeenCalledWith(obligation);
   });
+
+  it("renders persisted governed readback after a successful deferral and fresh all-governed payload", async () => {
+    const rationale = "Govern chronology in the next dedicated steward pass.";
+    const onDefer = vi.fn().mockResolvedValue(undefined);
+    const view = render(<WorkflowMapHome
+      workflowMap={workflowMap}
+      onNavigate={() => undefined}
+      onFollowConditionalPass={() => undefined}
+      onDeferConditionalPass={onDefer}
+    />);
+
+    fireEvent.change(screen.getByLabelText("Deferral rationale"), { target: { value: rationale } });
+    fireEvent.click(screen.getByRole("button", { name: "Defer with rationale" }));
+    await waitFor(() => expect(onDefer).toHaveBeenCalledWith(obligation, rationale));
+
+    view.rerender(<WorkflowMapHome
+      workflowMap={{
+        ...workflowMap,
+        nextDecision: { destinationKey: "admission", label: "Work Admission queue", reason: "Proposed facts are waiting for governance.", href: "/api/admission/queue" },
+        conditionalPasses: {
+          ...workflowMap.conditionalPasses,
+          outstandingCount: 0,
+          governedCount: 1,
+          nextOrResumeState: { current: null, next: null, resume: "Return to a fresh map." },
+          obligations: [{ ...obligation, disposition: "deferred", rationale, action: null }]
+        }
+      } as any}
+      onNavigate={() => undefined}
+      onFollowConditionalPass={() => undefined}
+      onDeferConditionalPass={onDefer}
+    />);
+
+    expect(screen.getByText("Work Admission queue")).toBeTruthy();
+    expect(screen.getByText("Current: fully governed")).toBeTruthy();
+    expect(screen.getByText((_, element) => element?.tagName === "P" && element.textContent === `Deferral rationale: ${rationale}`)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Defer with rationale" })).toBeNull();
+  });
 });

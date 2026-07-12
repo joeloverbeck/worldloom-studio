@@ -125,6 +125,14 @@ describe("conditional-pass obligation HTTP contract", () => {
     expect(payload.obligations).toEqual(close.obligations);
 
     for (const obligation of payload.obligations) {
+      expect(obligation.readSideTrail).toEqual([
+        expect.objectContaining({ label: `Source fact ${fact.shortId}`, recordId: fact.id, href: `/api/canon-workbench/records/${fact.id}` }),
+        expect.objectContaining({ label: `Propagation report ${close.report.shortId}`, recordId: close.report.id, href: `/api/canon-workbench/records/${close.report.id}` }),
+        expect.objectContaining({ label: `Obligation ${obligation.record.shortId}`, recordId: obligation.record.id, href: `/api/canon-workbench/records/${obligation.record.id}` })
+      ]);
+      for (const trail of obligation.readSideTrail) {
+        expect((await app.request(trail.href)).status).toBe(200);
+      }
       const links = await json<{ links: Array<{ fromRecordId: number; toRecordId: number; linkTypeKey: string }> }>(
         await app.request(`/api/links?recordId=${obligation.record.id}`)
       );
@@ -178,6 +186,36 @@ describe("conditional-pass obligation HTTP contract", () => {
     expect((await postJson(app, "/api/worlds/open", { path })).status).toBe(200);
     const second = await json<{ obligations: Array<any> }>(await app.request("/api/conditional-pass-obligations"));
     expect(second.obligations).toEqual(first.obligations);
+  });
+
+  it("skips historical reconciliation when structured severity or the typed fact-to-report digest is absent", async () => {
+    const app = createApp();
+    for (const missing of ["severity", "digest"] as const) {
+      const path = tempPath(`historical-missing-${missing}.sqlite`);
+      expect((await postJson(app, "/api/worlds/create", { path })).status).toBe(201);
+      const fact = await createRecord(app, {
+        title: `Historical source missing ${missing}`,
+        body: "Prose alone never establishes a conditional-pass obligation."
+      });
+      const close = await closeFoundationalPropagation(app, fact.id);
+      expect((await postJson(app, "/api/worlds/create", { path: tempPath(`historical-missing-${missing}-dummy.sqlite`) })).status).toBe(201);
+
+      const db = new Database(path);
+      db.pragma("foreign_keys = ON");
+      const obligationRecordIds = (db.prepare("SELECT record_id FROM conditional_pass_obligations").all() as Array<{ record_id: number }>).map((row) => row.record_id);
+      db.prepare("DELETE FROM conditional_pass_obligations").run();
+      for (const recordId of obligationRecordIds) db.prepare("DELETE FROM records WHERE id = ?").run(recordId);
+      if (missing === "severity") {
+        db.prepare("DELETE FROM record_facets WHERE record_id = ? AND vocabulary IN ('admission_level', 'work_scale')").run(fact.id);
+      } else {
+        db.prepare("DELETE FROM record_links WHERE from_record_id = ? AND to_record_id = ? AND link_type_key = 'digest_of'").run(fact.id, close.report.id);
+      }
+      db.close();
+
+      expect((await postJson(app, "/api/worlds/open", { path })).status).toBe(200);
+      const read = await json<{ obligations: Array<any> }>(await app.request("/api/conditional-pass-obligations"));
+      expect(read.obligations).toEqual([]);
+    }
   });
 
   it("rolls back the entire foundational close when an obligation write fails", async () => {
