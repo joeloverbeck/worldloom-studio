@@ -52,6 +52,7 @@ const checklistRows = (slice) => checklistItems
 const options = (overrides = {}) => ({
   blockers: [],
   children: [],
+  externalBlockers: [],
   expectAcCount: null,
   expectChecklistNa: false,
   expectNoBlocker: false,
@@ -153,6 +154,33 @@ test("child output distinguishes an inactive no-blocker expectation", () => {
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("child validation treats an exact non-tracker prerequisite as an external blocker", () => {
+  const externalBlocker = "P-03 conformance repair with a current active-route packet";
+  const report = validateChild(issueBody(`- ${externalBlocker}`), options({
+    externalBlockers: [externalBlocker],
+    expectAcCount: 1,
+    expectStories: true,
+    parent: "PRD #1",
+  }));
+
+  assert.deepEqual(report.actualBlockers, []);
+  assert.deepEqual(report.actualExternalBlockers, [externalBlocker]);
+  assert.deepEqual(report.expectedExternalBlockers, [externalBlocker]);
+  assert.equal(report.checks.hasExpectedExternalBlockers, true);
+  assert.equal(report.checks.hasOnlyExpectedExternalBlockers, true);
+});
+
+test("child validation rejects an undeclared external blocker instead of treating it as no blocker", () => {
+  const report = validateChild(issueBody("- P-03 conformance repair"), options({
+    expectAcCount: 1,
+    expectStories: true,
+    parent: "PRD #1",
+  }));
+
+  assert.deepEqual(report.actualExternalBlockers, ["P-03 conformance repair"]);
+  assert.equal(report.checks.hasOnlyExpectedExternalBlockers, false);
 });
 
 function readFile(path) {

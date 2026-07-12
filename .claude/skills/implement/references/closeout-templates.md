@@ -1,24 +1,35 @@
 # Closeout Templates
 
-Read this before drafting parent rollups, child-family audit bodies, `/tmp`
-body files, closeout preflight scratchpads, or final body-check commands.
+Read this before drafting parent rollups, sibling-issue rollups, child-family
+audit bodies, `/tmp` body files, closeout preflight scratchpads, or final
+body-check commands.
 
 ## Large Tracker Body Workflow
 
 Large tracker body workflow: for long parent rollups or child-family audits, compose the body in a temporary file under `/tmp`, inspect the exact file contents before posting, post with the tracker CLI's `--body-file` option, capture the resulting issue/comment URL or exact reference, and keep the staging path out of the published body. Use an interactive editor when available; when no editor is available or shell writes are constrained, create the `/tmp` body with the environment-approved file-edit mechanism, keep it outside the repo, and still inspect the exact file before posting. For GitHub, `gh issue close` only accepts an inline `--comment`, not `--body-file`; post long evidence first with `gh issue comment --body-file <file>`, capture that comment URL, then close with a short inline pointer to the evidence comment. Use this pattern for parent rollups and any long child comment; reserve inline `--body` for short child comments only.
 
+Published-body sink identity: a private conversation preflight or local scratchpad may name the `/tmp` body path, but the body sent to the tracker must not publish that staging path. Before posting, use a stable description that is true before and after publication, such as `GitHub issue #369 combined closeout comment body inspected before posting`, or a real comment URL that already exists. Apply this rule to `Durable sink/body inspected:`, `Audit sink:`, `Body file(s) inspected:`, and `Closeout gate passed: audit sink ...`. The `--closing` validator rejects absolute local paths in those publishable fields; fixture/database paths in the evidence-identity inventory remain allowed.
+
 For large bodies in constrained editors or Codex sessions, build the `/tmp` file in bounded sections. After construction, verify the file exists and has the expected rough shape with `test -f "$body"`, `wc -l "$body"`, targeted `sed -n` ranges, a placeholder sweep for unresolved angle-token placeholders such as `<context>` or `<parent-rollup-url pending>`, and the applicable validators before any tracker mutation. Run the bounded excerpts, token sweeps, and each validator as separate output-bounded calls; do not aggregate them into one parallel or combined result whose total output can truncate. If creation output, inspection output, or context compaction makes completeness uncertain, treat the body as untrusted: first rerun `test -f`, `wc -l`, targeted excerpts for the header, TDD/review/browser sections, audit table, and closeout gate lines, then rerun the placeholder sweep and every applicable validator before posting or closing. Passing validators do not restore trust in truncated inspection output.
+
+Nested-validator angle-token rule: in compact TDD, review, or audit table cells, avoid HTML-like angle tokens such as a backticked body tag even when the token is intentional. Spell it in prose, for example `document body`, because nested validators may classify the whole cell as an unresolved placeholder. The intentional Markdown/HTML allowance applies only outside those compact cells and only when every applicable validator accepts the token.
+
+## Sibling-Issue Rollup
+
+When two or more in-scope issues are siblings with no parent PRD, choose the combined audit anchor in the scope ledger; default to the lowest issue number when the user or tracker gives no better anchor. Post the inspected combined audit to that anchor, capture and read back the comment URL, then close every sibling with a short inline comment containing the final SHA and that same evidence URL. Keep audit rows and live state verification per issue. Parent/child fields are `N/A because the issues are siblings`, and `--parent-prd`, `--child-family`, `--fixed-child`, and `--fixed-child-pending` do not apply unless a real parent/child relationship is also in scope.
 
 For issue-family closeout, save the exact `gh issue view --json number,title,body` results as one JSON object, an array, or an object with an `issues` array. Build a deterministic acceptance manifest and audit scaffold before drafting the durable body:
 
 ```bash
+node .claude/skills/implement/scripts/capture-github-issues.mjs 369 370 371 --output /tmp/worldloom-issues.json
 node .claude/skills/implement/scripts/build-acceptance-manifest.mjs /tmp/worldloom-issues.json --output /tmp/worldloom-acceptance-manifest.json --audit-output /tmp/worldloom-acceptance-audit.md
+node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body" --audit-only --review-entry --acceptance-manifest /tmp/worldloom-acceptance-manifest.json
 node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body" --closing --acceptance-manifest /tmp/worldloom-acceptance-manifest.json
 ```
 
-The scaffold assigns `AC1`, `AC2`, and so on in source order and adds one `Principles` check when the issue has a `## Principles` section. Preserve each generated ID and exact criterion text in the criterion cell. The manifest validator requires exactly one audit row for each generated check; it supplements, rather than replaces, exact body inspection.
+The capture helper calls exact structured `gh issue view` lookups without shell redirection and preserves issue order. The scaffold assigns `AC1`, `AC2`, and so on in source order and adds one `Principles` check when the issue has a `## Principles` section. Preserve each generated ID and exact criterion text in the criterion cell. The audit-only validator checks the review-entry body without requiring final SHA/review/closeout fields; omit `--review-entry` for a truthful audit that still contains `blocked` or `not done` rows. The final manifest validator requires exactly one audit row for each generated check; it supplements, rather than replaces, exact body inspection.
 
-Long parent rollup or child-family audit bodies must include this table shape, either inline or by linking an already-posted durable audit sink:
+Long parent rollup, sibling-issue rollup, or child-family audit bodies must include this table shape, either inline or by linking an already-posted durable audit sink:
 
 | Issue | Acceptance criterion or conformance check | Evidence | Status |
 |---|---|---|---|
@@ -35,7 +46,7 @@ Verification:
 - `<command>`: <passed/failed/blocked and relevant scope>
 TDD evidence:
 TDD closeout preflight:
-Durable sink/body inspected: <inspected body file path before tracker URL exists / comment URL / N/A because no tdd skill was invoked>
+Durable sink/body inspected: <stable issue reference before tracker URL exists / comment URL / N/A because no tdd skill was invoked>
 Compact table/header: <present after structural check / N/A because no tdd skill was invoked>
 Rows accounted for: <issue numbers / N/A because no tdd skill was invoked>
 Pre-red recovery status: <N/A - pre-red preflight/table was visible before first red / listed with TDD recovery addendum / N/A because no red commands were run / N/A because no tdd skill was invoked / blocked because ...>
@@ -58,10 +69,10 @@ For an existing-test contract-change row, use validator-exact wording:
 
 | #N | <present/absent/N/A> | <present/N/A> | existing contract-change expectation | existing contract-change expectation in `<test file>` because <old expected behavior no longer satisfied the issue/spec contract> | `<green command>` passed | <exact criterion authorizing the rewrite; atoms: authoritative atoms or atomic; proof surfaces: affected surface for each atom; sequence: ordered proof / N/A because criterion is not sequence-sensitive> | N/A |
 
-TDD evidence gate passed: durable sink <inspected body file path before tracker URL exists / comment URL>; compact table/header <present after structural check>; seams accounted for <all listed / exceptions named>; CONTEXT.md status <present/absent/N/A>; ADRs/principles/docs status <present/N/A>; sequence evidence <present/N/A>; evidence identities <present/N/A>; partial-red / red-first skip reasons <none/listed>; evidence-only rows <none/listed>; existing-test contract-change rows <none/listed expectation-rewrite rows>.
+TDD evidence gate passed: durable sink <stable issue reference before tracker URL exists / comment URL>; compact table/header <present after structural check>; seams accounted for <all listed / exceptions named>; CONTEXT.md status <present/absent/N/A>; ADRs/principles/docs status <present/N/A>; sequence evidence <present/N/A>; evidence identities <present/N/A>; partial-red / red-first skip reasons <none/listed>; evidence-only rows <none/listed>; existing-test contract-change rows <none/listed expectation-rewrite rows>.
 Review evidence:
 - Review: code-review against <fixed point>; outcome <no findings / findings fixed / accepted residuals recorded count/source/rationale with unhandled findings none beyond accepted residuals>; verification rerun <commands>.
-- Review subagents: Standards <reviewer ID and terminal status>; Spec <reviewer ID and terminal status>
+- Review subagents: Standards final reviewer <ID> completed; Spec final reviewer <ID> completed
 - Review subagent cleanup: Standards <closed / close operation unavailable after terminal completion / auto-disposed after terminal completion>; Spec <same>
 
 ## Standards
@@ -91,7 +102,7 @@ Evidence identity refresh:
 - Current evidence identities: fixture paths <paths/none>; browser sessions <names/none>; packet paths/hashes <paths and hashes/none>; active revisions <IDs/none>; artifacts <paths/IDs/none>
 - Historical red identities retained: <fixture paths ...; browser sessions ...; packet paths/hashes ...; active revisions ...; artifacts ... / none>
 - Superseded evidence identities: fixture paths <paths/none>; browser sessions <names/none>; packet paths/hashes <paths and hashes/none>; active revisions <IDs/none>; artifacts <paths/IDs/none>
-- Superseded-token sweep: <command and no-hit result / N/A because every superseded category is none>
+- Superseded-token sweep: <`rg`/`grep` command naming every exact superseded value; no hits outside classified identity/history lines and no active-proof hits; historical-red hits classified or none / N/A because every superseded category is none>
 Fixed child inline close comment: <exact final text inspected / stable self-referential parent rollup wording inspected / local pending-parent template inspected and later patched / N/A>
 Fixed child final inline close comment inspected: <exact `Completed by <sha>. Evidence: <parent rollup comment URL>` line after parent URL captured / N/A before parent URL exists or non-fixed-template closeout>
 Child state snapshot before child closeout: <exact issue numbers and states before closing children / N/A>
@@ -102,8 +113,8 @@ Post-child closure verification before parent closeout: <exact issue numbers and
 | #N | AC1 - exact criterion | atoms: authoritative atoms; proof surfaces: surface for each atom; sequence: ordered proof / N/A because criterion is not sequence-sensitive | satisfied / blocked / not done |
 
 Closeout preflight:
-- Audit sink: <conversation/comment URL/issue reference/body file inspected>
-- Body file(s) inspected: <paths or N/A>
+- Audit sink: <conversation/comment URL/stable issue reference before tracker URL exists>
+- Body file(s) inspected: <local body inspected privately; staging path intentionally omitted from published evidence / N/A>
 - Parent rollup URL: <URL / pending because first tracker mutation has not posted it yet / N/A>
 - Fixed child inline close comment: <stable self-referential parent rollup wording inspected / local pending-parent template inspected and later patched / exact final text inspected once after parent URL captured / N/A>
 - Fixed child final inline close comment inspected: <exact `Completed by <sha>. Evidence: <parent rollup comment URL>` line after parent URL captured / N/A before parent URL exists or non-fixed-template closeout>
@@ -119,7 +130,7 @@ Closeout preflight:
 - Final post-commit freshness delta: <files touched since last browser/manual proof after final commit and verification edits; rerun / not affected because changed path <path or group> leaves the evidence route/action/API/fixture <route/action/API/fixture> untouched and targeted proof <command> passed / blocked because ...>
 - Child states verified: <yes/N/A, exact issue numbers>
 
-Closeout gate passed: audit sink <conversation/comment URL/issue reference/inspected body file path before parent URL exists>; review evidence <line/reference>; TDD evidence <present/N/A>; final SHA <sha>; Principles/ADR conformance <present/N/A>; Local-only SHA sentence <full explanatory sentence present/N/A>; child states verified <yes/N/A>; browser evidence <present/N/A/blocked>.
+Closeout gate passed: audit sink <conversation/comment URL/stable issue reference before tracker URL exists>; review evidence <line/reference>; TDD evidence <present/N/A>; final SHA <sha>; Principles/ADR conformance <present/N/A>; Local-only SHA sentence <full explanatory sentence present/N/A>; child states verified <yes/N/A>; browser evidence <present/N/A/blocked>.
 
 Closeout body check passed: audit table columns exact; every acceptance checkbox or conformance check named; every satisfied Evidence cell contains atoms/proof surfaces/sequence; every status literal satisfied/blocked/not done; final SHA present; verification evidence present; TDD evidence present or N/A; review evidence present; evidence identity refresh and superseded-token sweep present; Principles/ADR conformance string present or N/A; full Local-only SHA explanatory sentence present or N/A; browser evidence present/N/A/blocked; browser console state recorded when browser evidence is present or N/A/blocked; final browser/manual freshness delta present/N/A; exact fixed child inline comment inspected <yes/N/A>.
 ```
@@ -227,8 +238,8 @@ Before any `gh issue comment`, `gh issue close`, `glab issue close`, or equivale
 
 ```markdown
 Closeout preflight:
-- Audit sink: <conversation/comment URL/issue reference/body file inspected>
-- Body file(s) inspected: <paths or N/A>
+- Audit sink: <conversation/comment URL/stable issue reference before tracker URL exists>
+- Body file(s) inspected: <local body inspected privately; staging path intentionally omitted from published evidence / N/A>
 - Parent rollup URL: <URL / pending because first tracker mutation has not posted it yet / N/A>
 - Fixed child inline close comment: <stable self-referential parent rollup wording inspected / local pending-parent template inspected and later patched / exact final text inspected once after parent URL captured / N/A>
 - Fixed child final inline close comment inspected: <exact `Completed by <sha>. Evidence: <parent rollup comment URL>` line after parent URL captured / N/A before parent URL exists or non-fixed-template closeout>
@@ -244,5 +255,5 @@ Closeout preflight:
 - Final post-commit freshness delta: <files touched since last browser/manual proof after final commit and verification edits; rerun / not affected because changed path <path or group> leaves the evidence route/action/API/fixture <route/action/API/fixture> untouched and targeted proof <command> passed / blocked because ...>
 - Child states verified: <yes/N/A, exact issue numbers>
 
-Closeout gate passed: audit sink <conversation/comment URL/issue reference/inspected body file path before parent URL exists>; review evidence <line/reference>; TDD evidence <present/N/A>; final SHA <sha>; Principles/ADR conformance <present/N/A>; Local-only SHA sentence <full explanatory sentence present/N/A>; child states verified <yes/N/A>; browser evidence <present/N/A/blocked>.
+Closeout gate passed: audit sink <conversation/comment URL/stable issue reference before tracker URL exists>; review evidence <line/reference>; TDD evidence <present/N/A>; final SHA <sha>; Principles/ADR conformance <present/N/A>; Local-only SHA sentence <full explanatory sentence present/N/A>; child states verified <yes/N/A>; browser evidence <present/N/A/blocked>.
 ```

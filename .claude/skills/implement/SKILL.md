@@ -17,7 +17,7 @@ Read each selected reference independently through EOF before acting on it. If a
 - Read [references/review-evidence.md](references/review-evidence.md) once implementation is ready for review, before pushing or closing issues, and after any review-fix commit or amend.
 - Read [references/tracker-closeout-gates.md](references/tracker-closeout-gates.md) before declaring completion and immediately before the first tracker mutation in a continuous closeout sequence. Re-read it before resuming after interruption or compaction, or after the final SHA, evidence, or closeout body changes; mutation-specific state and inline-comment gates still apply before later commands in the same sequence.
 - Read [references/child-family-closeout.md](references/child-family-closeout.md) whenever scope includes parent PRDs, 2+ child issues, fixed-template child closeout comments, or a parent rollup URL that child issues will cite.
-- Read [references/closeout-templates.md](references/closeout-templates.md) before drafting parent rollups, child-family audit bodies, `/tmp` body files, closeout preflight scratchpads, or final body-check commands.
+- Read [references/closeout-templates.md](references/closeout-templates.md) before drafting parent rollups, sibling-issue rollups, child-family audit bodies, `/tmp` body files, closeout preflight scratchpads, or final body-check commands.
 
 ## 1. Resolve the Real Scope
 
@@ -48,11 +48,15 @@ Required implementation evidence:
 - On resume, compaction, or interruption before closeout, rerun `git status --short`, revalidate any active dev server/browser/session/proof artifact that the next step depends on, prove that any server used for browser evidence loaded the current backend code, and restate the next exact issue/evidence action.
 - Run focused tests/typechecks regularly. Before closeout, read root verification guidance and run the canonical gates required for the work's blast radius.
 
-Before committing, draft the working pre-close audit row-by-row against each in-scope acceptance criterion and Principles/ADR check. Run the pre-review acceptance exactness challenge from [references/implementation-evidence.md](references/implementation-evidence.md) before treating any row as `satisfied`; planned, intended, nearby, or substituted behavior is not proof of the exact criterion. When a parent, child, decision, or glossary defines a composite term, prove every named atom on every required surface rather than citing the umbrella term. Do not enter review with unresolved `blocked` or `not done` rows unless the right outcome is to leave that issue open. Finalize or refresh the durable closeout audit after review fixes, final SHA, final verification, and browser/manual freshness are known. See [references/implementation-evidence.md](references/implementation-evidence.md) for the detailed test, browser, verification, and implementation commit gates.
+Before committing, draft the working pre-close audit row-by-row against each in-scope acceptance criterion and Principles/ADR check. Run the pre-review acceptance exactness challenge from [references/implementation-evidence.md](references/implementation-evidence.md) before treating any row as `satisfied`; planned, intended, nearby, or substituted behavior is not proof of the exact criterion. When a parent, child, decision, or glossary defines a composite term, prove every named atom on every required surface rather than citing the umbrella term. Quantified ranges owe every named value unless the source explicitly permits sampling, and lifecycle terms such as rerender, resume, or transition owe proof from the same active instance rather than independent snapshots. Do not enter review with unresolved `blocked` or `not done` rows unless the right outcome is to leave that issue open. Finalize or refresh the durable closeout audit after review fixes, final SHA, final verification, and browser/manual freshness are known. See [references/implementation-evidence.md](references/implementation-evidence.md) for the detailed test, browser, verification, and implementation staging/commit gates.
 
-Before staging or committing, make this implementation commit gate visible in the conversation or ledger:
+Before staging, make this implementation pre-stage gate visible in the conversation or ledger:
 
-`Implementation commit gate passed: working pre-close audit drafted <sink/reference>; blocked/not done rows <none/listed>; ownership/placement decisions <recorded/N/A>; unrelated dirty files <listed/N/A>; staged files scoped <yes/no>.`
+`Implementation pre-stage gate passed: working pre-close audit drafted <sink/reference>; blocked/not done rows <none/listed>; ownership/placement decisions <recorded/N/A>; unrelated dirty files <listed/N/A>.`
+
+After staging and before committing, inspect the staged file list and make this second gate visible:
+
+`Implementation commit gate passed: staged files scoped yes; staged file list <paths>; working pre-close audit <sink/reference>; blocked/not done rows <none/listed>.`
 
 ## 3. Review Before Closeout
 
@@ -89,4 +93,4 @@ Immediately before the first tracker mutation, make the exact `Closeout prefligh
 
 If browser/manual proof started a dev server, browser session, or long-running proof process, stop it before the final response or explicitly report why it remains running.
 
-Run a final `git status --short`. For untracked verification artifacts, either remove them if safe, stage them if they are intended evidence, or explicitly report them in the final response.
+Run a final `git status --short`. For untracked verification artifacts, either remove them if safe, stage them if they are intended evidence, or explicitly report them in the final response. An artifact named in a published `Current evidence identities:` inventory is not safe to remove until closeout is complete and its retained-or-removed disposition is recorded without implying that a removed local artifact remains inspectable.

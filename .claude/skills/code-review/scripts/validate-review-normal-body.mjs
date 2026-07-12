@@ -8,11 +8,12 @@ import {
   fieldValue,
   unresolvedValue,
   validateReviewEvidenceIdentities,
+  validateReviewFixtureSnapshotCurrentness,
   validateReviewSpecCoverage
 } from "./review-evidence-contract.mjs";
 
 const usage =
-  "Usage: node .claude/skills/code-review/scripts/validate-review-normal-body.mjs <body.md> [--immediate-fix] [--parent-prd] [--child-family] [--acceptance-manifest <path>] [--browser] [--tdd] [--tdd-parent-rollup]";
+  "Usage: node .claude/skills/code-review/scripts/validate-review-normal-body.mjs <body.md> [--immediate-fix] [--parent-prd] [--child-family] [--issue-set] [--acceptance-manifest <path>] [--browser] [--tdd] [--tdd-parent-rollup] [--closing]";
 
 const validateRevisitTrigger = (value) => {
   if (unresolvedValue(value)) return "is empty or unresolved";
@@ -215,6 +216,7 @@ export const validateReviewNormalBody = (body, options = {}) => {
   validateReviewSpecCoverage(body, errors, {
     requireChildFamily: flags.has("--child-family"),
     requireParentPrd: flags.has("--parent-prd"),
+    requireIssueSet: flags.has("--issue-set"),
     acceptanceManifest: options.acceptanceManifest
   });
   validateReviewEvidenceIdentities(body, errors);
@@ -266,13 +268,16 @@ export const validateReviewNormalBody = (body, options = {}) => {
   if (flags.has("--browser") && /^N\/A\b.+\bno browser\/manual evidence was used\b/i.test(backendCurrentnessValue)) {
     errors.push("--browser requires backend currentness or N/A because the browser proof has no backend/API dependency");
   }
+  validateReviewFixtureSnapshotCurrentness(body, errors, { requireBrowser: flags.has("--browser") });
 
   validateRegressionDurability(body, errors);
 
   const shouldRunTddValidator =
     flags.has("--tdd") || flags.has("--tdd-parent-rollup") || body.includes("TDD evidence gate passed:");
   if (shouldRunTddValidator) {
-    const tddFlags = flags.has("--tdd-parent-rollup") ? ["--parent-rollup"] : [];
+    const tddFlags = [];
+    if (flags.has("--tdd-parent-rollup")) tddFlags.push("--parent-rollup");
+    if (flags.has("--closing")) tddFlags.push("--closing");
     const tddErrors = validateTddCloseoutBody(body, { flags: tddFlags });
     if (tddErrors.length) {
       errors.push(`TDD validator failed:\n${tddErrors.map((error) => `- ${error}`).join("\n")}`);

@@ -8,7 +8,7 @@ Publication is complete only when:
 
 - approved slice count equals verified created issue count;
 - every child has the approved title, state, labels, parent, dependencies, story coverage, acceptance criteria, and Principles section;
-- every ready-labelled affected child has a validated final browser-visible guidance mapping;
+- every fully specified affected child has a validated final browser-visible guidance mapping, including a `needs-triage` child held solely by an external sequencing or readiness gate;
 - published bodies and any ledger contain no placeholders or machine-local paths;
 - the parent ledger is posted or its approved fallback is recorded;
 - temporary artifacts are absent; and
@@ -37,9 +37,10 @@ Match fetched house style. This template defines required content, not mandatory
 
 ## Blocked by
 
-- <real backward issue reference>
+- <real backward issue reference, when applicable>
+- <exact external prerequisite text, when no tracker issue owns the prerequisite and it applies>
 
-<!-- Or: None - can start immediately -->
+<!-- Include whichever blocker kinds apply; or: None - can start immediately, only when neither kind exists -->
 
 ## Principles
 
@@ -54,6 +55,8 @@ For every approved slice, select the full house-style label set. Use `ready-for-
 
 For guided-flow, Prompt-out, Canon Workbench provenance, or browser-navigation work, read the repository issue-tracker guidance and map applicable browser-visible guidance items into final acceptance criteria before applying a ready label.
 
+A fully specified affected slice held at `needs-triage` solely by an external sequencing or readiness gate still owes the complete checklist mapping. Reserve checklist N/A for a genuinely unaffected slice; the external gate is recorded separately as a blocker.
+
 Verify every chosen label from fresh same-repository issue metadata or `gh label list`. Exact same-repository metadata is an acceptable fallback when label listing is transiently unavailable.
 
 Run an exact-title duplicate guard for every approved child before staging:
@@ -66,11 +69,15 @@ gh issue list --state all --search "\"$TITLE\" in:title" --json number,title,sta
 
 Zero matches permits creation. One exact match requires a reuse/link/skip decision unless duplicate creation was explicitly approved. Multiple exact matches are ambiguous and block publication. Fuzzy matches are not duplicates. Rerun this guard after interruptions or resumptions.
 
+For read-only tracker commands in this protocol, a connectivity, rate-limit, or other transient API failure is not an empty result. Retry once; if the retry fails, stop unless the protocol names a fresh-context fallback for that exact read.
+
+If a tracker mutation returns an error or no usable URL after the request may have reached the server, do not blindly rerun it. Reconcile first: for issue creation, rerun the exact-title guard and inspect the one exact match's body and labels; for a parent comment, inspect fresh parent comments for the exact staged body. Reuse and verify one exact match, retry only after confirming that no mutation landed, and stop on multiple matches.
+
 ## 2. Stage bodies and the checklist run sheet
 
 Use outside-worktree temporary files when the environment permits safe edit and cleanup. In Codex-style sessions, use `apply_patch` for temporary files too. Otherwise use clearly temporary repo-local paths such as `reports/.tmp-<parent>-issue-<slice>.md`. Never publish a staging path.
 
-For each affected ready-labelled slice, the local run sheet must contain exactly these eleven rows:
+For each fully specified affected slice, the local run sheet must contain exactly these eleven rows, even when the slice remains `needs-triage` solely because of an external sequencing or readiness gate:
 
 | Checklist item | Required mapping |
 |---|---|
@@ -96,11 +103,12 @@ The staged-artifact validator is the canonical check for content, patch markers,
 node .claude/skills/to-issues/scripts/validate-publication.mjs child "$BODY_FILE" \
   --parent "PRD #<parent>" \
   --blocker "#<backward-blocker>" \
+  --external-blocker "<exact external prerequisite text>" \
   --expect-stories \
   --expect-ac-count <count>
 ```
 
-Use `--expect-no-blocker` instead of `--blocker` for a no-blocker child. Repeat `--blocker` for every expected backward reference. Use `--placeholder-re` when the run uses tokens outside the default `#SLICE|PLACEHOLDER` pattern.
+Repeat `--blocker` for every expected backward reference and `--external-blocker` for every exact non-tracker prerequisite. Put each external prerequisite in its own `## Blocked by` bullet. Use `--expect-no-blocker` only when neither tracker nor external blockers exist. Use `--placeholder-re` when the run uses tokens outside the default `#SLICE|PLACEHOLDER` pattern.
 
 For a shared multi-slice run sheet, the default command must configure every slice represented in that file:
 
@@ -162,7 +170,7 @@ After each substitution:
 4. inspect relationship and tense words such as `blocked by`, `depends on`, `sibling`, `consumes`, `closed`, `completed`, `implemented`, `open`, and `ready`; and
 5. only then call `gh issue create --body-file`.
 
-Create issues one at a time and stop on the first failure. Predicted identifiers are a fallback only for strictly backward references with chained creation and immediate prediction verification.
+Create issues one at a time and stop on the first failure. Predicted identifiers are a fallback only for strictly backward references with chained creation and immediate prediction verification. If creation fails ambiguously, apply the mutation-reconciliation rule in Step 1 before deciding whether a retry is safe.
 
 Immediately read each created issue with `gh issue view` and verify title, state, full labels, parent, body sections, story coverage when expected, each blocker individually, and absence of placeholders and machine-local paths. Correct defects with the tracker edit command and re-read before continuing.
 
@@ -178,6 +186,8 @@ Include:
 - compact story coverage when it is not durable in child bodies.
 
 Validate and sweep the staged comment before `gh issue comment`. Relationship wording must describe newly created children truthfully.
+
+If comment publication fails ambiguously, apply the mutation-reconciliation rule in Step 1 against fresh parent comments before retrying.
 
 If the ledger was declined, use the approved fallback. When structural or durability rationale would otherwise exist only in chat and the user did not choose, default to a concise `## Breakdown decisions` section in the first relevant child. If the user explicitly chose no tracker rationale, honor it and report the choice.
 
@@ -210,6 +220,7 @@ Before cleanup, create a local JSON manifest and run the family verifier. Paths 
       "state": "OPEN",
       "labels": ["enhancement", "ready-for-agent"],
       "blockers": [],
+      "externalBlockers": [],
       "noBlockerPhrase": "None - can start immediately",
       "checklistMapped": "yes"
     },
@@ -220,13 +231,24 @@ Before cleanup, create a local JSON manifest and run the family verifier. Paths 
       "slice": "Consumer slice",
       "labels": ["enhancement", "ready-for-agent"],
       "blockers": ["#101"],
+      "externalBlockers": [],
       "checklistMapped": "N/A - server metadata seam only"
     }
   ]
 }
 ```
 
-For a skipped ledger, use `"ledger": {"status": "skipped", "reason": "<approved reason>"}`. `checklistMapped: yes` configures the child as an affected run-sheet slice; an `N/A - ...` value configures it as unaffected.
+An externally gated child omits `noBlockerPhrase` and records its exact bullet text separately:
+
+```json
+{
+  "blockers": [],
+  "externalBlockers": ["P-03 conformance repair with a current active-route packet"],
+  "checklistMapped": "yes"
+}
+```
+
+For a skipped ledger, use `"ledger": {"status": "skipped", "reason": "<approved reason>"}`. List exact non-tracker prerequisite bullets in `externalBlockers`; `noBlockerPhrase` is valid only when both `blockers` and `externalBlockers` are empty. `checklistMapped: yes` configures the child as an affected run-sheet slice regardless of label; an `N/A - ...` value configures it as genuinely unaffected.
 
 Run:
 
@@ -245,7 +267,7 @@ Final Response Blocker: do not report publication complete unless the final answ
 - approved-created count match;
 - one issue URL per approved slice;
 - state and label proof per issue;
-- parent and individual blocker/no-blocker proof per issue;
+- parent and individual tracker-blocker, external-blocker, or no-blocker proof per issue;
 - placeholder/path sweep result per issue;
 - checklist mapped `yes` or specific N/A per issue;
 - parent ledger posted/skipped and reason;

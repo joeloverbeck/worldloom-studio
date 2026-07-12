@@ -17,7 +17,10 @@ Verdict.
 
 | Finding or candidate | Status | Evidence and PRD impact |
 |---|---|---|
-${rows.map((row) => `| ${row} | covered | Covered. |`).join("\n")}
+${rows.map((row) => {
+  const entry = typeof row === "string" ? { label: row, status: "covered", evidence: "Covered." } : row;
+  return `| ${entry.label} | ${entry.status} | ${entry.evidence ?? "Covered."} |`;
+}).join("\n")}
 
 ## Authority Findings
 
@@ -112,4 +115,57 @@ test("recognizes and deduplicates bullet and table regression identities", () =>
 
   assert.deepEqual(result.errors, []);
   assert.equal(result.summary.regressions, 2);
+});
+
+test("accepts coverage follow-up as a classified evidence status", () => {
+  const result = validatePrdPrep({
+    source: "",
+    artifact: artifactWithRows([{ label: "Replay current close frontier", status: "coverage follow-up" }])
+  });
+
+  assert.deepEqual(result.errors, []);
+});
+
+test("rejects an unknown evidence status", () => {
+  const result = validatePrdPrep({
+    source: "",
+    artifact: artifactWithRows([{ label: "Replay current close frontier", status: "coverage-only" }])
+  });
+
+  assert.match(result.errors.join("\n"), /invalid or missing status: coverage-only/);
+});
+
+test("requires one dedicated evidence row for every top-level Frontier item", () => {
+  const source = `
+## Frontier
+
+- Walked to: active-set revision 26.
+- Next run resumes at: final current Pressure.
+`;
+  const result = validatePrdPrep({
+    source,
+    artifact: artifactWithRows([
+      "Frontier: Walked to",
+      { label: "Frontier: Next run resumes at", status: "coverage follow-up" }
+    ])
+  });
+
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.summary.frontierItems, 2);
+});
+
+test("fails when one top-level Frontier item is not classified", () => {
+  const source = `
+## Frontier
+
+- Walked to: active-set revision 26.
+- Next run resumes at: final current Pressure.
+`;
+  const result = validatePrdPrep({
+    source,
+    artifact: artifactWithRows(["Frontier: Walked to"])
+  });
+
+  assert.match(result.errors.join("\n"), /frontier item Next run resumes at must map to exactly one Evidence Checked row; found 0/);
+  assert.equal(result.summary.frontierItems, 2);
 });

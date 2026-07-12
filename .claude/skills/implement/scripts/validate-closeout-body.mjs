@@ -5,12 +5,15 @@ import { readFileSync } from "node:fs";
 const args = process.argv.slice(2);
 const acceptanceManifestFlag = args.indexOf("--acceptance-manifest");
 const acceptanceManifestPath = acceptanceManifestFlag >= 0 ? args[acceptanceManifestFlag + 1] : undefined;
+const acceptanceManifestValueIndex = acceptanceManifestFlag >= 0 ? acceptanceManifestFlag + 1 : -1;
 const file = args.find(
-  (arg, index) => !arg.startsWith("--") && index !== acceptanceManifestFlag + 1
+  (arg, index) => !arg.startsWith("--") && index !== acceptanceManifestValueIndex
 );
 const flags = new Set(args.filter((arg) => arg.startsWith("--")));
+const auditOnly = flags.has("--audit-only");
+const reviewEntry = flags.has("--review-entry");
 
-const usage = `Usage: node .claude/skills/implement/scripts/validate-closeout-body.mjs <body.md> [--closing] [--principles] [--local-only] [--fixed-child | --fixed-child-pending] [--review-fallback] [--acceptance-manifest <manifest.json>]`;
+const usage = `Usage: node .claude/skills/implement/scripts/validate-closeout-body.mjs <body.md> [--audit-only [--review-entry] | --closing] [--principles] [--local-only] [--fixed-child | --fixed-child-pending] [--review-fallback] [--acceptance-manifest <manifest.json>]`;
 
 if (flags.has("--help")) {
   console.error(usage);
@@ -28,6 +31,32 @@ if (acceptanceManifestFlag >= 0 && (!acceptanceManifestPath || acceptanceManifes
   process.exit(2);
 }
 
+if (auditOnly && !acceptanceManifestPath) {
+  console.error("--audit-only requires --acceptance-manifest");
+  console.error(usage);
+  process.exit(2);
+}
+
+if (reviewEntry && !auditOnly) {
+  console.error("--review-entry requires --audit-only");
+  console.error(usage);
+  process.exit(2);
+}
+
+const auditOnlyIncompatibleFlags = [
+  "--closing",
+  "--principles",
+  "--local-only",
+  "--fixed-child",
+  "--fixed-child-pending",
+  "--review-fallback"
+].filter((flag) => flags.has(flag));
+if (auditOnly && auditOnlyIncompatibleFlags.length) {
+  console.error(`--audit-only cannot be combined with ${auditOnlyIncompatibleFlags.join(", ")}`);
+  console.error(usage);
+  process.exit(2);
+}
+
 const body = readFileSync(file, "utf8");
 const errors = [];
 
@@ -41,6 +70,15 @@ const requireMatch = (regex, label) => {
 
 const forbidMatch = (regex, label) => {
   if (regex.test(body)) errors.push(`forbidden ${label}`);
+};
+
+const valuesForField = (label) => {
+  const escaped = label.replace(/[.*+?^{}$()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(
+    `^\\s*[-*]?\\s*(?:\\*\\*)?${escaped}(?:\\*\\*)?:\\s*(.+)$`,
+    "gim"
+  );
+  return [...body.matchAll(pattern)].map((match) => match[1].trim());
 };
 
 const allowedHtmlTags = new Set([
@@ -71,49 +109,52 @@ const isAllowedAngleToken = (token) => {
   return htmlTag ? allowedHtmlTags.has(htmlTag[1].toLowerCase()) : false;
 };
 
-requireText("Final SHA:");
-requireMatch(/(^|\n)(#{1,6}\s*)?Verification\b:?/i, "verification evidence");
-requireMatch(/TDD evidence gate passed:|N\/A because no tdd skill was invoked/i, "TDD evidence or explicit N/A");
-requireMatch(/Review:|Review fallback:/, "review evidence");
-requireMatch(/Browser evidence:|browser evidence|browser smoke/i, "browser evidence or N/A");
-requireMatch(/Console state:|Browser console state:|browser console state recorded/i, "browser console state or N/A");
-requireMatch(/Final freshness delta|Browser\/manual evidence freshness|final browser\/manual freshness/i, "final browser/manual freshness");
-requireText("Evidence identity refresh:");
-requireMatch(
-  /^\s*[-*]?\s*Current evidence identities:\s+.*fixture paths.+browser sessions.+packet paths\/hashes.+active revisions.+artifacts/im,
-  "current evidence identity categories"
-);
-requireMatch(
-  /^\s*[-*]?\s*Superseded evidence identities:\s+.*fixture paths.+browser sessions.+packet paths\/hashes.+active revisions.+artifacts/im,
-  "superseded evidence identity categories"
-);
-requireMatch(/^\s*[-*]?\s*Superseded-token sweep:\s+\S.+$/im, "superseded-token sweep result");
-const currentIdentities = body.match(
-  /^\s*[-*]?\s*Current evidence identities:\s+(.+)$/im
-)?.[1] ?? "";
-const supersededIdentities = body.match(
-  /^\s*[-*]?\s*Superseded evidence identities:\s+(.+)$/im
-)?.[1] ?? "";
-const supersededSweep = body.match(/^\s*[-*]?\s*Superseded-token sweep:\s+(.+)$/im)?.[1] ?? "";
-const allSupersededCategoriesNone = [
-  /fixture paths\s+none(?:;|$)/i,
-  /browser sessions\s+none(?:;|$)/i,
-  /packet paths\/hashes\s+none(?:;|$)/i,
-  /active revisions\s+none(?:;|$)/i,
-  /artifacts\s+none(?:;|$)/i
-].every((pattern) => pattern.test(supersededIdentities));
-if (/\b(?:TODO|TBD|pending|unknown)\b/i.test(`${currentIdentities} ${supersededIdentities} ${supersededSweep}`)) {
-  errors.push("evidence identity refresh contains an unresolved value");
-}
-if (!allSupersededCategoriesNone && !/\b(?:no hits?|zero matches|0 matches|absent)\b/i.test(supersededSweep)) {
-  errors.push("superseded-token sweep must report no hits for listed superseded identities");
-}
-if (allSupersededCategoriesNone && /^N\/A\b/i.test(supersededSweep) && !/because/i.test(supersededSweep)) {
-  errors.push("superseded-token sweep N/A must include 'because'");
-}
 requireText("| Issue | Acceptance criterion or conformance check | Evidence | Status |", "audit table header");
-requireText("Closeout body check passed:", "closeout body check line");
-requireText("Closeout gate passed: audit sink", "closeout gate line");
+
+if (!auditOnly) {
+  requireText("Final SHA:");
+  requireMatch(/(^|\n)(#{1,6}\s*)?Verification\b:?/i, "verification evidence");
+  requireMatch(/TDD evidence gate passed:|N\/A because no tdd skill was invoked/i, "TDD evidence or explicit N/A");
+  requireMatch(/Review:|Review fallback:/, "review evidence");
+  requireMatch(/Browser evidence:|browser evidence|browser smoke/i, "browser evidence or N/A");
+  requireMatch(/Console state:|Browser console state:|browser console state recorded/i, "browser console state or N/A");
+  requireMatch(/Final freshness delta|Browser\/manual evidence freshness|final browser\/manual freshness/i, "final browser/manual freshness");
+  requireText("Evidence identity refresh:");
+  requireMatch(
+    /^\s*[-*]?\s*Current evidence identities:\s+.*fixture paths.+browser sessions.+packet paths\/hashes.+active revisions.+artifacts/im,
+    "current evidence identity categories"
+  );
+  requireMatch(
+    /^\s*[-*]?\s*Superseded evidence identities:\s+.*fixture paths.+browser sessions.+packet paths\/hashes.+active revisions.+artifacts/im,
+    "superseded evidence identity categories"
+  );
+  requireMatch(/^\s*[-*]?\s*Superseded-token sweep:\s+\S.+$/im, "superseded-token sweep result");
+  const currentIdentities = body.match(
+    /^\s*[-*]?\s*Current evidence identities:\s+(.+)$/im
+  )?.[1] ?? "";
+  const supersededIdentities = body.match(
+    /^\s*[-*]?\s*Superseded evidence identities:\s+(.+)$/im
+  )?.[1] ?? "";
+  const supersededSweep = body.match(/^\s*[-*]?\s*Superseded-token sweep:\s+(.+)$/im)?.[1] ?? "";
+  const allSupersededCategoriesNone = [
+    /fixture paths\s+none(?:;|$)/i,
+    /browser sessions\s+none(?:;|$)/i,
+    /packet paths\/hashes\s+none(?:;|$)/i,
+    /active revisions\s+none(?:;|$)/i,
+    /artifacts\s+none(?:;|$)/i
+  ].every((pattern) => pattern.test(supersededIdentities));
+  if (/\b(?:TODO|TBD|pending|unknown)\b/i.test(`${currentIdentities} ${supersededIdentities} ${supersededSweep}`)) {
+    errors.push("evidence identity refresh contains an unresolved value");
+  }
+  if (!allSupersededCategoriesNone && !/\b(?:no hits?|zero matches|0 matches|absent)\b/i.test(supersededSweep)) {
+    errors.push("superseded-token sweep must report no hits for listed superseded identities");
+  }
+  if (allSupersededCategoriesNone && /^N\/A\b/i.test(supersededSweep) && !/because/i.test(supersededSweep)) {
+    errors.push("superseded-token sweep N/A must include 'because'");
+  }
+  requireText("Closeout body check passed:", "closeout body check line");
+  requireText("Closeout gate passed: audit sink", "closeout gate line");
+}
 
 if (flags.has("--principles")) {
   requireText("Principles/ADR conformance:");
@@ -125,6 +166,28 @@ if (flags.has("--local-only")) {
     "copy-ready Local-only SHA sentence"
   );
   forbidMatch(/^Local-only SHA status:/m, "Local-only SHA status paraphrase");
+}
+
+if (flags.has("--closing")) {
+  const localAbsolutePath = /(?:^|[\s\x60("'=])((?:\/(?!\/)|[A-Za-z]:\\)[^\s\x60"'),;]+)/;
+  const publishableSinkValues = [
+    ...["Durable sink/body inspected", "Audit sink", "Body file(s) inspected"]
+      .flatMap((label) => valuesForField(label).map((value) => ({ label, value }))),
+    ...body
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.startsWith("Closeout gate passed: audit sink"))
+      .map((value) => ({ label: "Closeout gate passed", value }))
+  ];
+
+  for (const { label, value } of publishableSinkValues) {
+    const match = value.match(localAbsolutePath);
+    if (match) {
+      errors.push(
+        `published closeout field ${label} contains local staging path ${match[1]}; use a stable issue/comment reference and keep local inspection paths private`
+      );
+    }
+  }
 }
 
 if (flags.has("--fixed-child") && flags.has("--fixed-child-pending")) {
@@ -218,6 +281,9 @@ for (const cells of statusRows) {
   if (flags.has("--closing") && status !== "satisfied") {
     errors.push(`closing gate row is not satisfied: | ${cells.join(" | ")} |`);
   }
+  if (reviewEntry && status !== "satisfied") {
+    errors.push(`review-entry gate row is not satisfied: | ${cells.join(" | ")} |`);
+  }
 }
 
 if (acceptanceManifestPath) {
@@ -293,4 +359,4 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(`Closeout body validation passed: ${file}`);
+console.log(`${auditOnly ? "Acceptance audit" : "Closeout body"} validation passed: ${file}`);

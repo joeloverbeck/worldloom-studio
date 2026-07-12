@@ -7,11 +7,14 @@ Use this skeleton when `grilling` is asked to get a report-cited or determinatio
 Before filling the skeleton:
 
 - Classify the run as determination/recommendation, diagnostic/audit, or report-cited stress-test. If no plan exists yet, survey broadly enough to assemble the candidate set before asking the root candidate/scope question.
+- Inspect the report, the current authorities, the implementation surface, and tracker overlap first. If the cited local artifact path does not resolve exactly, run a narrow case-insensitive filename search under likely artifact roots such as `reports/`, require one unique match before continuing, and record the correction in the intake or freshness notes.
 - Reconcile the cited report's date, commit, and freshness claims against current source plus relevant open and closed tracker work. If live evidence contradicts a reported finding, classify it as covered unless replay disproves it, or as a verification/reopen candidate, rather than fresh product scope.
+- Classify every finding as fixed, fresh product scope, follow-on, coverage-only, or no-op. Package coupled fresh findings into one PRD when they share the same active route, decision point, seam, and acceptance proof; use a multi-PRD program only when the findings are independently implementable product outcomes or a sequenced program.
 - For local source artifacts intended as stable citations, verify they are tracked, clean, and publication-ref-visible before treating them as durable. If that proof is missing, mark repo-local sources as pending local publication or summarize them without stable citation wording.
 - Resolve scope boundary and artifact home. One artifact-home prompt may name both the selected scope and target path; if scope was already confirmed in a prior question, ask only artifact home next. In both cases, the artifact-home confirmation is the terminal downstream-artifact checkpoint unless new user-owned scope appears.
 - Include a "recap only, no file" option in the artifact-home prompt.
 - For prep-only requests that name a later `/to-prd` pass, consult `/to-prd` for house style only. Do not invoke publication, issue creation, or `/to-prd`'s seam checkpoint.
+- Re-check `git status --short` and `git branch --show-current` before the final summary, so the artifact's own durability posture is stated from current worktree state rather than a pre-write snapshot.
 
 When fresh findings are independently implementable and do not belong in one PRD, choose the first candidate by this priority order: blocker severity, guided-flow or methodology-conformance risk, direct field-build frontier, dependency order, and proof readiness. If that still leaves no clear winner, mark the result as a multi-PRD program or ask the user to choose the first publication target.
 

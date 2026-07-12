@@ -5,6 +5,7 @@ import { validateTddCloseoutBody } from "../../tdd/scripts/validate-tdd-closeout
 import { validateAcceptedResiduals } from "./validate-review-normal-body.mjs";
 import {
   validateReviewEvidenceIdentities,
+  validateReviewFixtureSnapshotCurrentness,
   validateReviewSpecCoverage
 } from "./review-evidence-contract.mjs";
 
@@ -15,7 +16,7 @@ const valueIndexes = new Set(manifestIndex < 0 ? [] : [manifestIndex + 1]);
 const file = args.find((arg, index) => !arg.startsWith("--") && !valueIndexes.has(index));
 const flags = new Set(args.filter((arg) => arg.startsWith("--")));
 
-const usage = `Usage: node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs <body.md> [--implement] [--child-family] [--acceptance-manifest <path>] [--immediate-fix] [--browser] [--tdd] [--tdd-parent-rollup]`;
+const usage = `Usage: node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs <body.md> [--implement] [--child-family] [--issue-set] [--acceptance-manifest <path>] [--immediate-fix] [--browser] [--tdd] [--tdd-parent-rollup] [--closing]`;
 
 if (flags.has("--help")) {
   console.error(usage);
@@ -257,7 +258,8 @@ const gateSaysImmediateFix = /\bimmediate-fix block\s+yes\b/i.test(gateLine);
 const gateSaysCloseoutLine = /\bcloseout line\s+yes\b/i.test(gateLine);
 const gateSaysTddYes = /\btdd fielded closeout gate\s+yes\b/i.test(gateLine);
 const shouldRequireImplementLine = flags.has("--implement") || gateSaysCloseoutLine;
-const shouldRequireChildFamily = flags.has("--child-family") || gateSaysChildFamily;
+const shouldRequireIssueSet = flags.has("--issue-set");
+const shouldRequireChildFamily = flags.has("--child-family") || (gateSaysChildFamily && !shouldRequireIssueSet);
 const shouldRequireImmediateFix = flags.has("--immediate-fix") || gateSaysImmediateFix;
 const shouldRunTddValidator = flags.has("--tdd") || flags.has("--tdd-parent-rollup") || gateSaysTddYes;
 
@@ -273,8 +275,10 @@ requireGateValue(gateFields, "Spec", yesOnly, "yes");
 requireGateValue(
   gateFields,
   "child table",
-  flags.has("--child-family") ? yesOnly : yesOrNA,
-  flags.has("--child-family") ? "yes when --child-family is used" : "yes or N/A"
+  flags.has("--child-family") || flags.has("--issue-set") ? yesOnly : yesOrNA,
+  flags.has("--child-family") || flags.has("--issue-set")
+    ? "yes when --child-family or --issue-set is used"
+    : "yes or N/A"
 );
 requireGateValue(gateFields, "smell baseline", yesOnly, "yes");
 requireGateValue(gateFields, "evidence identities", yesOnly, "yes");
@@ -336,6 +340,7 @@ if (flags.has("--browser")) {
     errors.push("--browser requires backend currentness or N/A because the browser proof has no backend/API dependency");
   }
 }
+validateReviewFixtureSnapshotCurrentness(body, errors, { requireBrowser: flags.has("--browser") });
 
 if (shouldRequireImplementLine) {
   requireMatch(/^Review fallback:\s+\S.+$/m, "exact Review fallback closeout-ready line");
@@ -344,6 +349,7 @@ if (shouldRequireImplementLine) {
 
 validateReviewSpecCoverage(body, errors, {
   requireChildFamily: shouldRequireChildFamily,
+  requireIssueSet: shouldRequireIssueSet,
   acceptanceManifest
 });
 
@@ -365,7 +371,9 @@ if (shouldRunTddValidator) {
   requireText("TDD closeout gate");
   requireText("TDD evidence gate passed:");
 
-  const tddFlags = flags.has("--tdd-parent-rollup") ? ["--parent-rollup"] : [];
+  const tddFlags = [];
+  if (flags.has("--tdd-parent-rollup")) tddFlags.push("--parent-rollup");
+  if (flags.has("--closing")) tddFlags.push("--closing");
   const tddErrors = validateTddCloseoutBody(body, { flags: tddFlags });
   if (tddErrors.length) {
     errors.push(`TDD validator failed:\n${tddErrors.map((error) => `- ${error}`).join("\n")}`);

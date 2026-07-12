@@ -40,6 +40,8 @@ An unavoidable type escape hatch must be local, explain why the public type cann
 
 **Schema-valid persisted fixtures**: A fixture written through a repository, temporary database, world/store API, or runtime parser must satisfy that public setup contract before it can support a behavior red. Prefer the public typed builder or parser, include every runtime-required field even when a TypeScript input type marks it optional, and run the smallest setup-only probe when the fixture is complex enough that setup failure could mask the intended assertion. If setup fails, record `partial red - wrong reason: fixture/setup failed because ...`, repair only the fixture, and rerun the behavior assertion red before changing production code.
 
+A copied stateful fixture must also be a consistent snapshot, not merely a byte copy that happens to open. Use the storage engine's snapshot mechanism and probe the expected identity and state before the fixture supports a red, green, or browser/manual proof. For Worldloom SQLite files that may have live WAL state, use SQLite `.backup` or an explicit checkpoint-aware copy rather than raw `cp`; classify a failed, empty, or stale copy as superseded evidence.
+
 ```typescript
 const record = world.createRecord({
   recordTypeKey: "canon_fact",

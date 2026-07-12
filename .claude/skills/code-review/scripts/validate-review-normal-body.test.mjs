@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
+import { unresolvedValue } from "./review-evidence-contract.mjs";
 import { validateReviewNormalBody } from "./validate-review-normal-body.mjs";
 
 const identityBlock = `Evidence identity refresh:
@@ -19,6 +21,26 @@ const acceptanceManifest = {
         { id: "AC1", kind: "acceptance", text: "First behavior" },
         { id: "AC2", kind: "acceptance", text: "Second behavior" }
       ]
+    }
+  ]
+};
+
+const siblingManifest = {
+  version: 1,
+  issues: [
+    {
+      number: 369,
+      title: "First sibling",
+      checks: [
+        { id: "AC1", kind: "acceptance", text: "First sibling behavior" },
+        { id: "AC2", kind: "acceptance", text: "Second first-sibling behavior" },
+        { id: "AC3", kind: "acceptance", text: "Third first-sibling behavior" }
+      ]
+    },
+    {
+      number: 370,
+      title: "Second sibling",
+      checks: [{ id: "AC2", kind: "acceptance", text: "Second sibling behavior" }]
     }
   ]
 };
@@ -188,6 +210,53 @@ test("requires exact sequence-aware child coverage when --child-family is used",
   assert.ok(noSequence.some((error) => error.includes("sequence:")));
 });
 
+test("requires exact per-issue coverage when --issue-set is used", () => {
+  const issueSetBody = noFixBody.replace(
+    "Spec sequence coverage: sequence: N/A because the reviewed acceptance is not sequence-sensitive\n\n- **Review subagents**",
+    `Spec sequence coverage: sequence: N/A because the reviewed acceptance is not sequence-sensitive
+
+| Issue | Acceptance source | Evidence reviewed | Findings/residuals |
+|---|---|---|---|
+| #369 | issue #369 AC1-AC3; sequence: prepare -> validate and observe output | validator test | none |
+| #370 | issue #370 AC2; sequence: N/A because AC2 is not sequence-sensitive | validator test | none |
+
+- **Review subagents**`
+  );
+
+  const missingManifest = validateReviewNormalBody(issueSetBody, { flags: ["--issue-set"] });
+  assert.ok(missingManifest.some((error) => error.includes("acceptance manifest")));
+
+  assert.deepEqual(
+    validateReviewNormalBody(issueSetBody, { flags: ["--issue-set"], acceptanceManifest: siblingManifest }),
+    []
+  );
+
+  const missingSibling = validateReviewNormalBody(
+    issueSetBody.replace(/^\| #370 .*\n/m, ""),
+    { flags: ["--issue-set"], acceptanceManifest: siblingManifest }
+  );
+  assert.ok(missingSibling.some((error) => error.includes("missing issue #370")));
+
+  const unexpectedSibling = validateReviewNormalBody(
+    issueSetBody.replace(
+      "| #370 | issue #370 AC2; sequence: N/A because AC2 is not sequence-sensitive | validator test | none |",
+      `| #370 | issue #370 AC2; sequence: N/A because AC2 is not sequence-sensitive | validator test | none |
+| #371 | issue #371 AC1; sequence: N/A because AC1 is not sequence-sensitive | validator test | none |`
+    ),
+    { flags: ["--issue-set"], acceptanceManifest: siblingManifest }
+  );
+  assert.ok(unexpectedSibling.some((error) => error.includes("unexpected issue #371")));
+
+  const missingCheck = validateReviewNormalBody(
+    issueSetBody.replace(
+      "issue #370 AC2; sequence: N/A because AC2 is not sequence-sensitive",
+      "issue #370 criterion 2; sequence: N/A because criterion 2 is not sequence-sensitive"
+    ),
+    { flags: ["--issue-set"], acceptanceManifest: siblingManifest }
+  );
+  assert.ok(missingCheck.some((error) => error.includes("missing acceptance source AC2")));
+});
+
 test("requires sequence disposition for an ordinary zero-finding Spec review", () => {
   const missing = validateReviewNormalBody(
     noFixBody.replace("Spec sequence coverage: sequence: N/A because the reviewed acceptance is not sequence-sensitive\n", "")
@@ -265,9 +334,30 @@ test("requires review-native evidence identity reconciliation", () => {
     )
     .replace(
       "Superseded-token sweep: N/A because every superseded category is none",
-      "Superseded-token sweep: rg old.json body.md found no active-proof hits; historical-red red.json classified as failing history"
+      "Superseded-token sweep: rg old.json body.md found no hits outside classified identity/history lines and no active-proof hits; historical-red red.json classified as failing history"
     );
   assert.deepEqual(validateReviewNormalBody(strongSweep), []);
+});
+
+test("rejects HTML-like angle tokens and documents shared identity safety", () => {
+  assert.equal(unresolvedValue("document `<body>` response evidence"), true);
+  assert.equal(unresolvedValue("document body response evidence"), false);
+
+  const skill = readFileSync(new URL("../SKILL.md", import.meta.url), "utf8");
+  const identities = readFileSync(new URL("../evidence-identities.md", import.meta.url), "utf8");
+  const fallback = readFileSync(new URL("../fallback-evidence.md", import.meta.url), "utf8");
+  const implementTemplate = readFileSync(
+    new URL("../../implement/references/closeout-templates.md", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(skill, /use validator-safe prose/);
+  assert.match(identities, /Nested-validator angle-token rule/);
+  assert.match(identities, /Evidence-artifact lifecycle rule/);
+  assert.match(fallback, /Use validator-safe prose/);
+  assert.match(identities, /no hits outside classified identity\/history lines and no active-proof hits/);
+  assert.match(implementTemplate, /no hits outside classified identity\/history lines and no active-proof hits/);
+  assert.match(identities, /published current artifact is not safe to remove until closeout is complete/);
 });
 
 test("rejects non-terminal review subagent status", () => {
@@ -326,6 +416,32 @@ test("requires current freshness and console evidence when --browser is used", (
     { flags: ["--browser"] }
   );
   assert.ok(staleBackend.some((error) => error.includes("Backend process currentness")));
+
+  const copiedFixtureBody = browserBody
+    .replace(
+      "Current evidence identities: fixture paths none; browser sessions none",
+      "Current evidence identities: fixture paths /tmp/review.sqlite; browser sessions none"
+    )
+    .replace(
+      "expected API field probe returned created",
+      "expected API field probe returned created; stateful fixture snapshot method sqlite .backup; snapshot source /srv/source.sqlite; expected-state probe GET /api/records returned record 42"
+    );
+  assert.deepEqual(validateReviewNormalBody(copiedFixtureBody, { flags: ["--browser"] }), []);
+
+  const missingSnapshot = validateReviewNormalBody(
+    copiedFixtureBody.replace(
+      "; stateful fixture snapshot method sqlite .backup; snapshot source /srv/source.sqlite; expected-state probe GET /api/records returned record 42",
+      ""
+    ),
+    { flags: ["--browser"] }
+  );
+  assert.ok(missingSnapshot.some((error) => error.includes("stateful fixture snapshot")));
+
+  const noStatefulCopy = copiedFixtureBody.replace(
+    "stateful fixture snapshot method sqlite .backup; snapshot source /srv/source.sqlite; expected-state probe GET /api/records returned record 42",
+    "N/A because no stateful fixture was copied"
+  );
+  assert.deepEqual(validateReviewNormalBody(noStatefulCopy, { flags: ["--browser"] }), []);
 });
 
 test("requires a structured accepted residual with a revisit trigger", () => {
@@ -416,7 +532,7 @@ TDD review-fix addendum:
 - Evidence identity refresh: same-sink identity block inspected
 
 TDD closeout preflight:
-- Durable sink/body inspected: test fixture
+- Durable sink/body inspected: issue #355 closeout comment
 - Compact table/header: present after structural check
 - Rows accounted for: all in-scope issues and seams listed
 - Pre-red recovery status: N/A - pre-red preflight/table was visible before first red
@@ -436,10 +552,29 @@ Evidence identity refresh:
 - Superseded evidence identities: fixture paths none; browser sessions none; packet paths/hashes none; active revisions none; artifacts none
 - Superseded-token sweep: N/A because every superseded category is none
 
-TDD evidence gate passed: durable sink test fixture; compact table/header present after structural check; seams accounted for all listed; CONTEXT.md status present; ADRs/principles/docs status present; sequence evidence N/A; evidence identities present; partial-red / red-first skip reasons listed; evidence-only rows none; existing-test contract-change rows none.
+TDD evidence gate passed: durable sink issue #355 closeout comment; compact table/header present after structural check; seams accounted for all listed; CONTEXT.md status present; ADRs/principles/docs status present; sequence evidence N/A; evidence identities present; partial-red / red-first skip reasons listed; evidence-only rows none; existing-test contract-change rows none.
 `;
 
   assert.deepEqual(validateReviewNormalBody(body, { flags: ["--immediate-fix", "--tdd"] }), []);
+  assert.deepEqual(
+    validateReviewNormalBody(body, { flags: ["--immediate-fix", "--tdd", "--closing"] }),
+    []
+  );
+
+  const localSink = validateReviewNormalBody(
+    body.replace("Durable sink/body inspected: issue #355 closeout comment", "Durable sink/body inspected: /tmp/review-closeout.md"),
+    { flags: ["--immediate-fix", "--tdd", "--closing"] }
+  );
+  assert.ok(localSink.some((error) => error.includes("published TDD closeout field")));
+
+  const localFixture = body.replace(
+    "Current evidence identities: fixture paths none; browser sessions none",
+    "Current evidence identities: fixture paths /tmp/review.sqlite; browser sessions none"
+  );
+  assert.deepEqual(
+    validateReviewNormalBody(localFixture, { flags: ["--immediate-fix", "--tdd", "--closing"] }),
+    []
+  );
 });
 
 test("rejects fallback labeling in a normal body", () => {

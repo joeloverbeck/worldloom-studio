@@ -12,6 +12,7 @@ const ALLOWED_STATUSES = new Set([
   "verification/reopen candidate",
   "fresh product scope",
   "methodology/docs scope",
+  "coverage follow-up",
   "follow-on candidate",
   "no-op/rejected"
 ]);
@@ -142,6 +143,23 @@ const regressionIdentities = (source) => {
   return [...identities.values()];
 };
 
+const frontierIdentities = (source) => {
+  const frontierSection = sectionBody(source, /^## Frontier\s*$/i);
+  const identities = new Map();
+  for (const line of frontierSection.split(/\r?\n/)) {
+    const bullet = line.match(/^(?:[-*+]|\d+\.)\s+(.+)$/);
+    const tableCandidate = line.trim().startsWith("|") ? tableCells(line)[0] ?? "" : "";
+    const candidate = bullet?.[1] ?? tableCandidate;
+    if (!candidate) continue;
+    const label = (candidate.match(/^([^:]+):/)?.[1] ?? candidate).trim();
+    if (!label || /^(?:frontier (?:item|note)|note|-+)$/i.test(label)) continue;
+    identities.set(normalize(label), label);
+  }
+  return [...identities.entries()].map(([prefix, label]) => ({ label, prefix }));
+};
+
+const frontierRowIdentity = (label) => normalize(label).replace(/^frontier\s*:?\s*/, "");
+
 const lineHits = (body, pattern) =>
   body
     .split(/\r?\n/)
@@ -163,14 +181,19 @@ export const validatePrdPrep = ({ source, artifact }) => {
   }
 
   const rows = evidenceRows(artifact, errors);
-  for (const finding of findingIdentities(source)) {
+  const findings = findingIdentities(source);
+  const appSeeds = appSeedIdentities(source);
+  const regressions = regressionIdentities(source);
+  const frontierItems = frontierIdentities(source);
+
+  for (const finding of findings) {
     const prefix = normalize(finding.id);
     requireOneRow(errors, rows, `finding ${finding.id}`, (row) => row.normalizedLabel === prefix || row.normalizedLabel.startsWith(`${prefix} `));
   }
-  for (const seed of appSeedIdentities(source)) {
+  for (const seed of appSeeds) {
     requireOneRow(errors, rows, `app seed ${seed.heading}`, (row) => row.normalizedLabel === seed.prefix || row.normalizedLabel.startsWith(`${seed.prefix} `));
   }
-  for (const regression of regressionIdentities(source)) {
+  for (const regression of regressions) {
     const normalizedIdentity = normalize(regression);
     requireOneRow(errors, rows, `regression ${regression}`, (row) => row.normalizedLabel.includes(normalizedIdentity));
   }
@@ -179,8 +202,13 @@ export const validatePrdPrep = ({ source, artifact }) => {
     requireOneRow(errors, rows, "For the methodology", (row) => row.normalizedLabel.includes("for the methodology"));
   }
   if (/^## Frontier\s*$/im.test(source)) {
-    const frontierRows = rows.filter((row) => row.normalizedLabel.startsWith("frontier"));
-    if (frontierRows.length === 0) errors.push("Frontier must map to at least one Evidence Checked row");
+    if (frontierItems.length === 0) {
+      const frontierRows = rows.filter((row) => row.normalizedLabel.startsWith("frontier"));
+      if (frontierRows.length === 0) errors.push("Frontier must map to at least one Evidence Checked row");
+    }
+    for (const item of frontierItems) {
+      requireOneRow(errors, rows, `frontier item ${item.label}`, (row) => frontierRowIdentity(row.label) === item.prefix);
+    }
   }
 
   const localPathHits = lineHits(artifact, /\/tmp(?:\/|\b)|\/home(?:\/|\b)/);
@@ -199,9 +227,10 @@ export const validatePrdPrep = ({ source, artifact }) => {
     errors,
     warnings,
     summary: {
-      findings: findingIdentities(source).length,
-      appSeeds: appSeedIdentities(source).length,
-      regressions: regressionIdentities(source).length,
+      findings: findings.length,
+      appSeeds: appSeeds.length,
+      regressions: regressions.length,
+      frontierItems: frontierItems.length,
       evidenceRows: rows.length
     }
   };

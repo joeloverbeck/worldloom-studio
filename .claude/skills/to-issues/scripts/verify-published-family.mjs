@@ -40,13 +40,29 @@ const sectionBody = (body, heading) => {
   return nextHeading < 0 ? remainder : remainder.slice(0, nextHeading);
 };
 
-const blockerReferences = (body) => unique(sectionBody(body, "## Blocked by").match(/#\d+/g) ?? []);
+const blockerEntries = (body) => sectionBody(body, "## Blocked by")
+  .split(/\r?\n/)
+  .map((line) => line.trim())
+  .filter((line) => line.startsWith("- "))
+  .map((line) => line.slice(2).trim());
+
+const classifiedBlockers = (body, expectedExternalBlockers = []) => {
+  const entries = blockerEntries(body);
+  const expectedExternalSet = new Set(expectedExternalBlockers);
+  const externalBlockers = unique(entries.filter((entry) =>
+    expectedExternalSet.has(entry) || !/#\d+/.test(entry)));
+  const trackerEntries = entries.filter((entry) => !externalBlockers.includes(entry));
+  return {
+    externalBlockers,
+    trackerBlockers: unique(trackerEntries.flatMap((entry) => entry.match(/#\d+/g) ?? [])),
+  };
+};
 
 const labelNames = (labels) => unique((labels ?? []).map((label) => typeof label === "string" ? label : label.name));
 
 const allTrue = (checks) => Object.values(checks).every(Boolean);
 
-const validateManifest = (manifest) => {
+export const validateManifest = (manifest) => {
   const errors = [];
   if (!Number.isInteger(manifest.approvedCount) || manifest.approvedCount < 1) {
     errors.push("approvedCount must be a positive integer");
@@ -68,11 +84,21 @@ const validateManifest = (manifest) => {
     if (!child.slice) errors.push(`${prefix}.slice is required`);
     if (!Array.isArray(child.labels) || child.labels.length === 0) errors.push(`${prefix}.labels is required`);
     if (!Array.isArray(child.blockers)) errors.push(`${prefix}.blockers must be an array`);
+    if (child.externalBlockers != null && !Array.isArray(child.externalBlockers)) {
+      errors.push(`${prefix}.externalBlockers must be an array when provided`);
+    }
+    if ((child.externalBlockers ?? []).some((blocker) => typeof blocker !== "string" || !blocker.trim())) {
+      errors.push(`${prefix}.externalBlockers must contain non-empty strings`);
+    }
     if (!(child.checklistMapped === "yes" || /^N\/A - .+/.test(child.checklistMapped ?? ""))) {
       errors.push(`${prefix}.checklistMapped must be "yes" or "N/A - <reason>"`);
     }
-    if ((child.blockers ?? []).length === 0 && !child.noBlockerPhrase) {
-      errors.push(`${prefix}.noBlockerPhrase is required when blockers is empty`);
+    const hasAnyBlocker = (child.blockers ?? []).length > 0 || (child.externalBlockers ?? []).length > 0;
+    if (!hasAnyBlocker && !child.noBlockerPhrase) {
+      errors.push(`${prefix}.noBlockerPhrase is required when tracker and external blockers are empty`);
+    }
+    if (hasAnyBlocker && child.noBlockerPhrase) {
+      errors.push(`${prefix}.noBlockerPhrase is valid only when tracker and external blockers are empty`);
     }
   }
   const ledger = manifest.parent?.ledger;
@@ -97,8 +123,12 @@ export const verifyPublishedFamily = ({
   const children = manifest.children.map((expected) => {
     const actual = childPayloads.get(expected.number);
     const body = actual?.body ?? "";
-    const actualBlockers = blockerReferences(body);
     const expectedBlockers = unique(expected.blockers);
+    const expectedExternalBlockers = unique(expected.externalBlockers ?? []);
+    const {
+      externalBlockers: actualExternalBlockers,
+      trackerBlockers: actualBlockers,
+    } = classifiedBlockers(body, expectedExternalBlockers);
     const actualLabels = labelNames(actual?.labels);
     const expectedBody = stagedBodies.get(expected.number) ?? "";
     const checks = {
@@ -115,8 +145,13 @@ export const verifyPublishedFamily = ({
       blockersMatch:
         actualBlockers.length === expectedBlockers.length &&
         expectedBlockers.every((reference) => actualBlockers.includes(reference)),
+      externalBlockersMatch:
+        actualExternalBlockers.length === expectedExternalBlockers.length &&
+        expectedExternalBlockers.every((blocker) => actualExternalBlockers.includes(blocker)),
       noBlockerPhraseMatches:
-        expectedBlockers.length > 0 || body.includes(expected.noBlockerPhrase),
+        expectedBlockers.length > 0 ||
+        expectedExternalBlockers.length > 0 ||
+        body.includes(expected.noBlockerPhrase),
       noPlaceholders: !/#SLICE|PLACEHOLDER/.test(body),
       noHome: !body.includes("/home/"),
       noTmp: !body.includes("/tmp"),
@@ -124,8 +159,10 @@ export const verifyPublishedFamily = ({
     };
     return {
       actualBlockers,
+      actualExternalBlockers,
       checks,
       expectedBlockers,
+      expectedExternalBlockers,
       labels: actualLabels,
       number: expected.number,
       state: actual?.state ?? null,

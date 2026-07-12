@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import { unresolvedValue as reviewUnresolvedValue } from "../../code-review/scripts/review-evidence-contract.mjs";
 import { validateTddCloseoutBody } from "./validate-tdd-closeout-body.mjs";
 
 const bodyWith = ({
@@ -46,6 +48,32 @@ test("accepts sequence evidence and reconciled evidence identities", () => {
   assert.deepEqual(validateTddCloseoutBody(bodyWith()), []);
 });
 
+test("closing rejects local staging paths while interim validation permits them", () => {
+  const body = bodyWith().replaceAll("test fixture", "`/tmp/tdd-closeout.md`");
+
+  assert.deepEqual(validateTddCloseoutBody(body), []);
+  const closingErrors = validateTddCloseoutBody(body, { flags: ["--closing"] });
+  assert.ok(
+    closingErrors.some((error) =>
+      error.includes("published TDD closeout field Durable sink/body inspected contains local staging path")
+    )
+  );
+  assert.ok(
+    closingErrors.some((error) =>
+      error.includes("published TDD closeout field TDD evidence gate contains local staging path")
+    )
+  );
+});
+
+test("closing permits local fixture paths outside publishable sink fields", () => {
+  const body = bodyWith({
+    current:
+      "fixture paths /tmp/worldloom-proof.sqlite; browser sessions issue-1; packet paths/hashes proposal.txt abc123; active revisions run-2; artifacts proof.png"
+  });
+
+  assert.deepEqual(validateTddCloseoutBody(body, { flags: ["--closing"] }), []);
+});
+
 test("rejects a compact row without sequence evidence", () => {
   const body = bodyWith({
     acceptance: "AC1 exact workflow; atoms: proposal + staging + pressure; proof surfaces: production browser"
@@ -81,12 +109,13 @@ test("rejects superseded identities without an active-proof sweep", () => {
   assert.ok(validateTddCloseoutBody(body).some((error) => error.includes("no active-proof hits")));
 });
 
-test("allows historical red identities while current proof uses new identities", () => {
+test("accepts cross-validator-safe sweep wording with classified historical red identities", () => {
   const body = bodyWith({
     historical: "FAC-17 retained only in the red command for row #1",
     superseded:
       "fixture paths old.sqlite; browser sessions old-session; packet paths/hashes old.txt deadbeef; active revisions run-1; artifacts old.png",
-    sweep: "rg returned no active-proof hits; historical FAC-17 occurrence classified in row #1"
+    sweep:
+      "rg checked every exact superseded value; no hits outside classified identity/history lines and no active-proof hits; historical FAC-17 occurrence classified in row #1"
   });
 
   assert.deepEqual(validateTddCloseoutBody(body), []);
@@ -99,4 +128,31 @@ test("rejects unresolved evidence identity placeholders", () => {
   });
 
   assert.ok(validateTddCloseoutBody(body).some((error) => error.includes("identity fields are empty or unresolved")));
+});
+
+test("downstream review validation rejects HTML-like angle tokens in compact values", () => {
+  assert.equal(reviewUnresolvedValue("document `<body>` response evidence"), true);
+  assert.equal(reviewUnresolvedValue("document body response evidence"), false);
+});
+
+test("guidance carries sink, snapshot, exactness, and shared closeout contracts", () => {
+  const skill = readFileSync(new URL("../SKILL.md", import.meta.url), "utf8");
+  const testsGuide = readFileSync(new URL("../tests.md", import.meta.url), "utf8");
+  const closeout = readFileSync(new URL("../closeout-evidence.md", import.meta.url), "utf8");
+
+  assert.match(closeout, /Add `--closing` when the exact body will be posted/);
+  assert.doesNotMatch(closeout, /inspected body file path before tracker URL exists/);
+  assert.match(skill, /two independent snapshots or server renders are not equivalent/);
+  assert.match(skill, /every named value unless the source explicitly permits/);
+  assert.match(skill, /Dependency state is a precondition, not a behavior red/);
+  assert.match(skill, /Published current evidence survives cleanup truthfully/);
+  assert.match(testsGuide, /SQLite `.backup`/);
+  assert.match(closeout, /copied stateful fixture snapshot method\/source and expected-state probe/);
+  assert.match(closeout, /Nested-validator angle-token check/);
+  assert.match(closeout, /no hits outside classified identity\/history lines and no active-proof hits/);
+  assert.match(closeout, /published current artifact is not safe to remove until closeout is complete/);
+  assert.equal(
+    closeout.match(/no hits outside classified identity\/history lines and no active-proof hits/g)?.length,
+    3
+  );
 });

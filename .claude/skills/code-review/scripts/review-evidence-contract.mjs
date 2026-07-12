@@ -51,7 +51,7 @@ const validateSequenceSource = (source) => {
   }
 
   const hasOrder = /(?:→|->|\b(?:before|after|then|followed by|ordered)\b)/i.test(sequence);
-  const hasProof = /\b(?:observed|asserted|verified|proved|test|trace|evidence|artifact|log|browser|report|API)\b/i.test(sequence);
+  const hasProof = /\b(?:observ(?:e|ed|es|ing)|asserted|verified|proved|test|trace|evidence|artifact|log|browser|report|API)\b/i.test(sequence);
   if (!hasOrder || !hasProof) {
     return "must name ordered events and the proof that observes their order";
   }
@@ -73,9 +73,9 @@ const specClaimsZeroFindings = (body) => {
   );
 };
 
-const validateAcceptanceManifest = (manifest, errors) => {
+const validateAcceptanceManifest = (manifest, errors, coverageLabel) => {
   if (!manifest) {
-    errors.push("child-family or parent-PRD coverage requires an acceptance manifest");
+    errors.push(`${coverageLabel} requires an acceptance manifest`);
     return [];
   }
   if (manifest.version !== 1 || !Array.isArray(manifest.issues) || manifest.issues.length === 0) {
@@ -98,11 +98,29 @@ const validateAcceptanceManifest = (manifest, errors) => {
   return manifest.issues;
 };
 
-const sourceNamesCheck = (source, id) =>
-  new RegExp(`(?:^|[^A-Za-z0-9])${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:[^A-Za-z0-9]|$)`, "i").test(source);
+const sourceNamesCheck = (source, id) => {
+  const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (new RegExp(`(?:^|[^A-Za-z0-9])${escapedId}(?:[^A-Za-z0-9]|$)`, "i").test(source)) return true;
+
+  const numericId = id.match(/^([A-Za-z]+)(\d+)$/);
+  if (!numericId) return false;
+
+  const [, prefix, numberText] = numericId;
+  const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const rangePattern = new RegExp(
+    `(?:^|[^A-Za-z0-9])${escapedPrefix}\\s*#?(\\d+)\\s*(?:-|–|—|to|through)\\s*(?:${escapedPrefix}\\s*)?#?(\\d+)(?:[^A-Za-z0-9]|$)`,
+    "gi"
+  );
+  const number = Number(numberText);
+  return [...source.matchAll(rangePattern)].some((match) => {
+    const start = Number(match[1]);
+    const end = Number(match[2]);
+    return number >= Math.min(start, end) && number <= Math.max(start, end);
+  });
+};
 
 export const validateReviewSpecCoverage = (body, errors, options = {}) => {
-  const requiresCoverageTable = options.requireChildFamily || options.requireParentPrd;
+  const requiresCoverageTable = options.requireChildFamily || options.requireParentPrd || options.requireIssueSet;
   if (!requiresCoverageTable) {
     if (specClaimsZeroFindings(body)) {
       const sequenceCoverage = fieldValue(body, "Spec sequence coverage");
@@ -112,14 +130,17 @@ export const validateReviewSpecCoverage = (body, errors, options = {}) => {
     return;
   }
 
-  const manifestIssues = validateAcceptanceManifest(options.acceptanceManifest, errors);
+  const coverageLabel = options.requireIssueSet && !options.requireChildFamily && !options.requireParentPrd
+    ? "issue-set coverage"
+    : "PRD child coverage";
+  const manifestIssues = validateAcceptanceManifest(options.acceptanceManifest, errors, coverageLabel);
 
   if (!body.includes(childTableHeader)) {
-    errors.push("missing PRD child coverage table header");
+    errors.push(`missing ${coverageLabel} table header`);
     return;
   }
   if (!body.includes("|---|---|---|---|")) {
-    errors.push("missing PRD child coverage table separator");
+    errors.push(`missing ${coverageLabel} table separator`);
   }
 
   const childIssueRows = findRowsAfterTableHeader(body).filter((row) => {
@@ -127,17 +148,17 @@ export const validateReviewSpecCoverage = (body, errors, options = {}) => {
     return cells.length >= 4 && /^#\d+\b/.test(cells[0]);
   });
   if (!childIssueRows.length) {
-    errors.push("PRD child coverage table has no issue rows");
+    errors.push(`${coverageLabel} table has no issue rows`);
     return;
   }
 
   const actualIssueNumbers = new Set(childIssueRows.map((row) => Number(splitMarkdownTableRow(row)[0].slice(1))));
   const expectedIssueNumbers = new Set(manifestIssues.map((issue) => issue.number));
   for (const issue of manifestIssues) {
-    if (!actualIssueNumbers.has(issue.number)) errors.push(`PRD child coverage table is missing issue #${issue.number}`);
+    if (!actualIssueNumbers.has(issue.number)) errors.push(`${coverageLabel} table is missing issue #${issue.number}`);
   }
   for (const issueNumber of actualIssueNumbers) {
-    if (!expectedIssueNumbers.has(issueNumber)) errors.push(`PRD child coverage table has unexpected issue #${issueNumber}`);
+    if (!expectedIssueNumbers.has(issueNumber)) errors.push(`${coverageLabel} table has unexpected issue #${issueNumber}`);
   }
 
   for (const row of childIssueRows) {
@@ -149,12 +170,12 @@ export const validateReviewSpecCoverage = (body, errors, options = {}) => {
       !sourceCitesExactAcceptanceRows(acceptanceSource ?? "")
     ) {
       errors.push(
-        `PRD child coverage row ${issue} acceptance source is too broad for zero residual Spec findings; enumerate exact acceptance items or cite adjacent exact acceptance table rows: ${acceptanceSource}`
+        `${coverageLabel} row ${issue} acceptance source is too broad for zero residual Spec findings; enumerate exact acceptance items or cite adjacent exact acceptance table rows: ${acceptanceSource}`
       );
     }
 
     const sequenceError = validateSequenceSource(acceptanceSource ?? "");
-    if (sequenceError) errors.push(`PRD child coverage row ${issue} ${sequenceError}`);
+    if (sequenceError) errors.push(`${coverageLabel} row ${issue} ${sequenceError}`);
   }
 
   for (const issue of manifestIssues) {
@@ -164,7 +185,7 @@ export const validateReviewSpecCoverage = (body, errors, options = {}) => {
       .map(([, source]) => source);
     for (const check of issue.checks) {
       if (!issueSources.some((source) => sourceNamesCheck(source, check.id))) {
-        errors.push(`PRD child coverage issue #${issue.number} is missing acceptance source ${check.id}`);
+        errors.push(`${coverageLabel} issue #${issue.number} is missing acceptance source ${check.id}`);
       }
     }
   }
@@ -186,6 +207,25 @@ const identityInventory = (value) => {
     inventory.set(category, match?.[1]?.trim() ?? "");
   }
   return inventory;
+};
+
+export const validateReviewFixtureSnapshotCurrentness = (body, errors, options = {}) => {
+  if (!options.requireBrowser) return;
+
+  const fixturePaths = identityInventory(fieldValue(body, "Current evidence identities")).get("fixture paths") ?? "";
+  if (!fixturePaths || /^none$/i.test(fixturePaths)) return;
+
+  const backendCurrentness = fieldValue(body, "Backend process currentness");
+  if (/\bN\/A because no stateful fixture was copied\b/i.test(backendCurrentness)) return;
+
+  const hasSnapshotMethod = /\bstateful fixture snapshot method\b/i.test(backendCurrentness);
+  const hasSnapshotSource = /\bsnapshot source\b/i.test(backendCurrentness);
+  const hasExpectedStateProbe = /\bexpected-state probe\b/i.test(backendCurrentness);
+  if (hasSnapshotMethod && hasSnapshotSource && hasExpectedStateProbe) return;
+
+  errors.push(
+    "Backend process currentness with non-none fixture paths must state stateful fixture snapshot method, snapshot source, and expected-state probe, or 'N/A because no stateful fixture was copied'"
+  );
 };
 
 const validateIdentityInventory = (value, label, errors) => {

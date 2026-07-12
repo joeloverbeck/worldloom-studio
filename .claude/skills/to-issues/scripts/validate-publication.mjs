@@ -26,7 +26,8 @@ const usage = `Usage:
 Child options:
   --parent <token>             Require a parent reference.
   --blocker <issue-ref>        Require exactly this blocker; repeat as needed.
-  --expect-no-blocker          Require the house-style no-blocker phrase and zero blocker refs.
+  --external-blocker <text>    Require exactly this non-tracker prerequisite; repeat as needed.
+  --expect-no-blocker          Require the house-style no-blocker phrase and zero tracker or external blockers.
   --expect-stories             Require the user-story coverage section.
   --expect-checklist-na        Require a checklist N/A summary.
   --expect-ac-count <count>    Require an exact acceptance-criterion count.
@@ -74,6 +75,7 @@ function parseArgs(argv) {
   const options = {
     blockers: [],
     children: [],
+    externalBlockers: [],
     expectAcCount: null,
     expectChecklistNa: false,
     expectNoBlocker: false,
@@ -90,10 +92,11 @@ function parseArgs(argv) {
     if (argument === "--expect-no-blocker") options.expectNoBlocker = true;
     else if (argument === "--expect-stories") options.expectStories = true;
     else if (argument === "--expect-checklist-na") options.expectChecklistNa = true;
-    else if (["--parent", "--blocker", "--child", "--expect-ac-count", "--placeholder-re", "--slice-body", "--unaffected-slice", "--only-slice"].includes(argument)) {
+    else if (["--parent", "--blocker", "--external-blocker", "--child", "--expect-ac-count", "--placeholder-re", "--slice-body", "--unaffected-slice", "--only-slice"].includes(argument)) {
       const value = requireValue(args, index, argument);
       if (argument === "--parent") options.parent = value;
       else if (argument === "--blocker") options.blockers.push(value);
+      else if (argument === "--external-blocker") options.externalBlockers.push(value);
       else if (argument === "--child") options.children.push(value);
       else if (argument === "--placeholder-re") options.placeholderRe = value;
       else if (argument === "--slice-body") options.sliceBodies.push(parseSliceBody(value));
@@ -108,8 +111,8 @@ function parseArgs(argv) {
     } else failUsage(`Unknown option: ${argument}`);
   }
 
-  if (mode === "child" && options.expectNoBlocker && options.blockers.length > 0) {
-    failUsage("Use --expect-no-blocker or --blocker, not both.");
+  if (mode === "child" && options.expectNoBlocker && (options.blockers.length > 0 || options.externalBlockers.length > 0)) {
+    failUsage("Use --expect-no-blocker or blocker options, not both.");
   }
   if (mode === "run-sheet" && options.sliceBodies.length === 0 && options.unaffectedSlices.length === 0) {
     failUsage("run-sheet mode requires --slice-body or --unaffected-slice.");
@@ -169,10 +172,23 @@ function acceptanceCount(body) {
   return (body.match(/^- \[ \] /gm) ?? []).length;
 }
 
+function blockerEntries(body) {
+  return sectionBody(body, "## Blocked by")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("- "))
+    .map((line) => line.slice(2).trim());
+}
+
 export function validateChild(body, options) {
-  const blockedBy = sectionBody(body, "## Blocked by");
-  const actualBlockers = unique(blockedBy.match(/#\d+/g) ?? []);
+  const entries = blockerEntries(body);
   const expectedBlockers = unique(options.blockers);
+  const expectedExternalBlockers = unique(options.externalBlockers ?? []);
+  const expectedExternalSet = new Set(expectedExternalBlockers);
+  const actualExternalBlockers = unique(entries.filter((entry) =>
+    expectedExternalSet.has(entry) || !/#\d+/.test(entry)));
+  const trackerEntries = entries.filter((entry) => !actualExternalBlockers.includes(entry));
+  const actualBlockers = unique(trackerEntries.flatMap((entry) => entry.match(/#\d+/g) ?? []));
   const count = acceptanceCount(body);
   const checks = {
     ...commonBodyChecks(body, options.placeholderRe),
@@ -187,19 +203,29 @@ export function validateChild(body, options) {
       !options.expectChecklistNa || /(?:Browser-visible guidance checklist mapped|checklist mapped): N\/A/i.test(body),
     noBlockerExpectationPassed:
       !options.expectNoBlocker ||
-      (body.includes("None - can start immediately") && actualBlockers.length === 0),
+      (body.includes("None - can start immediately") &&
+        actualBlockers.length === 0 &&
+        actualExternalBlockers.length === 0),
     hasExpectedBlockers:
       options.expectNoBlocker || expectedBlockers.every((reference) => actualBlockers.includes(reference)),
     hasOnlyExpectedBlockers:
       options.expectNoBlocker ||
       options.blockers.length === 0 ||
       actualBlockers.every((reference) => expectedBlockers.includes(reference)),
+    hasExpectedExternalBlockers:
+      options.expectNoBlocker ||
+      expectedExternalBlockers.every((blocker) => actualExternalBlockers.includes(blocker)),
+    hasOnlyExpectedExternalBlockers:
+      options.expectNoBlocker ||
+      actualExternalBlockers.every((blocker) => expectedExternalBlockers.includes(blocker)),
     hasExpectedAcceptanceCount: options.expectAcCount == null || count === options.expectAcCount,
   };
   return {
     acceptanceCount: count,
     actualBlockers,
+    actualExternalBlockers,
     expectedBlockers,
+    expectedExternalBlockers,
     expectations: { noBlocker: options.expectNoBlocker },
     checks,
   };

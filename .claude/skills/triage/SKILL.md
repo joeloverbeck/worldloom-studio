@@ -79,15 +79,21 @@ When the maintainer asks what should be addressed next, query all open issues an
 - Keep `needs-triage` as grooming work unless the issue is already specific enough to move after a quick recommendation.
 - Surface label hygiene and dependency cleanup separately from the recommended work item.
 
-**Gate-closure sweep** — whenever triage confirms a blocking issue has closed (here or during a specific-issue triage), search open issues' comments for references to that gate and surface any now-unblocked candidates.
+**Gate-closure sweep** — whenever triage confirms a blocking issue has closed (here or during a specific-issue triage), search open issues' comments for references to that gate and surface any now-unblocked candidates. Keep discovery bounded: request only compact metadata such as number, title, state, state reason, labels, and URL; then read the exact body and comments of plausible candidates. For a literal gate or finding identifier, confirm the exact occurrence and what the surrounding note says. A search hit is not proof that the gate was completed or that the referencing issue is now unblocked.
+
+Read the family the other way too. When the triaged item is a child of a parent PRD or issue family, report the parent's remaining open children and whether this one is the last — closing the last child is what makes the parent closable, and that relationship does not surface from a reference search alone.
 
 ## Triage a specific issue or PR
 
-1. **Gather context.** Read the full issue or PR (body, comments, labels, author, dates; for a PR, the diff too). Parse any prior triage notes so you don't re-ask resolved questions. Explore the codebase using the project's domain glossary, respecting ADRs in the area. Run two checks against the codebase: (a) **redundancy** — search for an existing implementation of the requested behavior by domain concept (not just the request's wording), and report where you looked. If found, it's an already-implemented `wontfix` (step 5). (b) **prior rejection** — read `.out-of-scope/*.md` and surface any that resembles this request; if `.out-of-scope/` is absent or empty, note that and move on.
+1. **Gather context.** Read the full issue or PR (body, comments, labels, author, dates; for a PR, the diff too). Parse any prior triage notes so you don't re-ask resolved questions. When working in a Git worktree, start with `git status --short`; classify relevant changes separately from unrelated pre-existing or concurrent work, and preserve the unrelated paths. Local presence does not prove that a cited prerequisite is committed or available from the implementation starting ref, so verify named artifacts against the relevant commit, branch, or publication ref. Explore the codebase using the project's domain glossary, respecting ADRs in the area. Run two checks against the codebase: (a) **redundancy** — search for an existing implementation of the requested behavior by domain concept (not just the request's wording), and report where you looked. If found, it's an already-implemented `wontfix` (step 5). When the request is not code — evidence, a replay, a closeout, a docs change — there is no implementation to grep for and "already implemented" is not the right disposal; ask instead whether the artifact has already been produced *against the current tree*, answer it from prior closeout comments and the tracker rather than a code search, and still report where you looked. (b) **prior rejection** — read `.out-of-scope/*.md` and surface any that resembles this request; if `.out-of-scope/` is absent or empty, note that and move on.
 
-2. **Recommend.** Tell the maintainer your category and state recommendation with reasoning, plus a brief codebase summary relevant to the request — including whether it's already implemented. Wait for direction. Exception: if context gathering surfaced a standing conditional override (see "Quick state override") whose condition verifiably holds, the recorded comment *is* the direction — skip the pause and proceed to verification and the flip.
+2. **Verify the claim and transition gates.** Before recommending or grilling, check that the claim holds up. For a bug, reproduce it from the reporter's steps. For a PR, confirm the diff does what it claims — check it out, run the relevant tests or commands. For an enhancement or PRD, verify its readiness claims: any dependency gate has closed as *completed* (check the state reason — not-planned doesn't count), prerequisite artifacts the issue's own notes name are actually committed and available from the relevant starting ref, and the integration seam the work mounts onto exists in the codebase. If the issue body or a maintainer comment records a conditional transition, verify its gate event and named prerequisites here. Report what happened: confirmed (with code path), failed, or insufficient detail (a strong `needs-info` signal). A confirmed verification makes the recommendation and any later agent brief much stronger.
 
-3. **Verify the claim.** Before any grilling, check that the claim holds up. For a bug, reproduce it from the reporter's steps. For a PR, confirm the diff does what it claims — check it out, run the relevant tests or commands. For an enhancement or PRD, verify its readiness claims: any dependency gate has closed as *completed* (check the state reason — not-planned doesn't count), prerequisite artifacts the issue's own notes name are actually committed, and the integration seam the work mounts onto exists in the codebase. Report what happened: confirmed (with code path), failed, or insufficient detail (a strong `needs-info` signal). A confirmed verification makes a much stronger agent brief.
+   **Recorded evidence is dated.** A gate proven at an earlier SHA is not proven at HEAD. When the cited proof was captured before later commits touched the surface that proof runs through, or when a sibling's closeout defers the proof to *this* issue, re-run the verification against current HEAD instead of inheriting it.
+
+   **Verification hygiene.** When verification requires running the app or mutating state, work on a throwaway artifact — never the steward's real world file or live data — and tear down any processes you started before reporting.
+
+3. **Recommend.** Tell the maintainer your category and state recommendation with reasoning, plus a brief codebase summary relevant to the request — including whether it's already implemented and what verification established. Wait for direction. Exception: if step 2 confirmed a standing conditional override (see "Quick state override"), the recorded instruction *is* the direction — skip the pause and grilling, then proceed to apply the flip.
 
 4. **Grill (if needed).** If the request needs fleshing out, run the `/grilling` and `/domain-modeling` skills together — grill it into shape one question at a time, sharpening domain terms and updating `CONTEXT.md`/ADRs inline as decisions land.
 
@@ -102,11 +108,13 @@ When the maintainer asks what should be addressed next, query all open issues an
      - **Rejected (enhancement)** — write to `.out-of-scope/`, link to it from a comment, then close ([OUT-OF-SCOPE.md](OUT-OF-SCOPE.md)).
    - `needs-triage` — apply the role. Optional comment if there's partial progress.
 
+6. **Verify the tracker outcome.** Read the exact issue or PR back from the tracker after every mutation. Confirm the expected open or closed state and state reason, exactly one category role and one state role, and the presence and exact body of the outcome comment, agent brief, or decision record. Prove exactness rather than eyeballing it: when you posted the body from a file, diff the fetched body against that source file — an empty diff *is* the proof. Reading back the first few lines confirms presence, not exactness. Treat a partial or mismatched result as incomplete: repair it when that remains safely in scope, otherwise report the mismatch and do not claim success.
+
 ## Quick state override
 
 If the maintainer says "move #42 to ready-for-agent", trust them and apply the role directly. Confirm what you're about to do (role changes, comment, close), then act. Skip grilling, but not the label-mapping doc's per-label preconditions. A `ready-for-agent` flip without a grilling session still gets an agent brief by default: when the maintainer is present, ask whether they want one written; when operating autonomously, write it.
 
-A maintainer comment recorded on the issue that names a conditional transition ("flip to X when #Y closes/lands") counts as a standing override once the condition verifiably holds. Before applying it, verify the gate event's state reason (closed as completed, not not-planned) and any prerequisites the issue's own notes name, then document that verification in the flip comment. The flip then follows "Apply the outcome" — per-label preconditions checked, agent brief included for `ready-for-agent` — without waiting for further direction.
+Maintainer-authored issue text that names a conditional transition ("flip to X when #Y closes/lands") counts as a standing override once the condition verifiably holds. **The body counts, not just a comment** — a published PRD family routinely records its gates in the slice body, and such an issue may carry no comments at all; a body-recorded gate has exactly the same authority as a commented one. Before applying it, verify the gate event's state reason (closed as completed, not not-planned) and any prerequisites the issue's own notes name, then document that verification in the flip comment. The flip then follows "Apply the outcome" — per-label preconditions checked, agent brief included for `ready-for-agent` — without waiting for further direction. That supersedes the "ask whether they want one written" default above, which governs only a flip the maintainer instructed directly: a verified standing override already *is* the direction, so write the brief without asking.
 
 ## Needs-info template
 
@@ -125,6 +133,33 @@ A maintainer comment recorded on the issue that names a conditional transition (
 ```
 
 Capture everything resolved during grilling under "established so far" so the work isn't lost. Questions must be specific and actionable, not "please provide more info".
+
+## Blocked-readiness needs-triage template
+
+Use this when an issue is sufficiently specified but must remain `needs-triage` because a dependency or verification gate is unmet. This is not a substitute for `needs-info`: use the needs-info template when the reporter must answer a question.
+
+```markdown
+> *This was generated by AI during triage.*
+
+## Triage Outcome
+
+**What readiness checks passed:**
+
+- established point 1
+- established point 2
+
+**Unmet gate and evidence:**
+
+- exact dependency, failed verification, or missing committed prerequisite
+
+**Why this remains `needs-triage`:**
+
+- explain why sequencing or verification, rather than reporter information, blocks the transition
+
+**Re-evaluation trigger:**
+
+- exact event and readback required before the next state transition
+```
 
 ## Resuming a previous session
 

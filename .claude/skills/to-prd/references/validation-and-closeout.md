@@ -6,13 +6,17 @@ Read this file in full during Step 3 of [`to-prd`](../SKILL.md) before validatin
 
 For a staged body file, run the skill-local validator before `gh issue create`. Pass every cited durable local path with a repeated `--approved-source`; any extracted local or root authority path omitted from that allowlist fails validation. Pass every summarized, dirty, untracked, temp-only, publication-ref-missing, or publication-ref-content-different source with a repeated `--disallowed-source`. Add `--expect-checklist` whenever the browser-visible guidance checklist gate applies:
 
+Build the validator option set once after source extraction, then reuse the exact array for staged and published validation in the same shell session. If publication or readback resumes in a fresh shell, reconstruct this array from the staged validation record before continuing:
+
 ```sh
 BODY_FILE=path/to/prd-body.md
-node .claude/skills/to-prd/scripts/validate-prd-body.mjs "$BODY_FILE" \
-  --expect-checklist \
-  --approved-source docs/principles/example.md \
-  --approved-source CONTEXT.md \
+VALIDATOR_ARGS=(
+  --expect-checklist
+  --approved-source docs/principles/example.md
+  --approved-source CONTEXT.md
   --disallowed-source reports/example-local-prep.md
+)
+node .claude/skills/to-prd/scripts/validate-prd-body.mjs "$BODY_FILE" "${VALIDATOR_ARGS[@]}"
 ```
 
 If any item fails, edit the body before publishing. Omit `--expect-checklist` only when the gate does not apply; the validator rejects a checklist marker whose expectation was not declared. For a checklist-gated PRD, `checklistMissing` must be empty: every current issue-tracker checklist item must have a row or stable anchor in the PRD body, and each row must identify a covering PRD home or `N/A - <reason>`.
@@ -27,8 +31,16 @@ A compact sweep is useful before create; inspect hits rather than treating them 
 
 ```sh
 BODY_FILE=path/to/prd-body.md
-rg -n "should be checked|must be checked before publication|if the body passes|pending publication|TBD before publication" "$BODY_FILE"
+status_scan=0
+rg -n "should be checked|must be checked before publication|if the body passes|pending publication|TBD before publication" "$BODY_FILE" || status_scan=$?
+if [ "$status_scan" -eq 1 ]; then
+  printf 'status-language scan: no matches\n'
+elif [ "$status_scan" -ne 0 ]; then
+  exit "$status_scan"
+fi
 ```
+
+`rg` exit `1` means the scan found no stale language and is a pass. Exit `0` leaves the matching lines visible for intent review; any other exit is a tool failure and must stop publication.
 
 ## Published-body readback
 
@@ -38,12 +50,9 @@ After creation, verify tracker metadata with `gh issue view`: the exact title, c
 gh issue view <number> --json number,title,labels,state,url \
   --jq '{number,title,state,url,labels:[.labels[].name]}'
 
+test "${VALIDATOR_ARGS+x}" = x || { printf 'VALIDATOR_ARGS must be reconstructed from staged validation\n' >&2; exit 1; }
 gh issue view <number> --json body --jq '.body' \
-  | node .claude/skills/to-prd/scripts/validate-prd-body.mjs --stdin \
-      --expect-checklist \
-      --approved-source docs/principles/example.md \
-      --approved-source CONTEXT.md \
-      --disallowed-source reports/example-local-prep.md
+  | node .claude/skills/to-prd/scripts/validate-prd-body.mjs --stdin "${VALIDATOR_ARGS[@]}"
 ```
 
 Use the published validator output only when it matches the staged validator configuration and returns no failures. Rerun the [source-durability gate](source-durability.md#durability-gate) for every emitted `localSourcePaths` and `resolvedAdrPaths` entry; the helper does not replace Git durability proof.

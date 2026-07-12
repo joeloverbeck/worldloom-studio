@@ -4,10 +4,11 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const usage = `Usage: node .claude/skills/tdd/scripts/validate-tdd-closeout-body.mjs <body.md> [--parent-rollup]`;
+const usage = `Usage: node .claude/skills/tdd/scripts/validate-tdd-closeout-body.mjs <body.md> [--closing] [--parent-rollup]`;
 
 export const validateTddCloseoutBody = (body, options = {}) => {
   const flags = new Set(options.flags ?? []);
+  const closing = flags.has("--closing");
   const errors = [];
 
   const compactHeader =
@@ -365,6 +366,23 @@ export const validateTddCloseoutBody = (body, options = {}) => {
   }
   requireText("Existing-test contract-change rows:", "existing-test contract-change rows field");
   forbidMatch(/\bpending tracker URL\b/i, "pending tracker URL placeholder");
+
+  if (closing) {
+    const localAbsolutePath = /(?:^|[\s\x60("'=])((?:\/(?!\/)|[A-Za-z]:\\)[^\s\x60"'),;]+)/;
+    const publishableSinkValues = [
+      { label: "Durable sink/body inspected", value: extractFieldValue("Durable sink/body inspected") },
+      { label: "TDD evidence gate", value: gateLine }
+    ];
+
+    for (const { label, value } of publishableSinkValues) {
+      const match = value.match(localAbsolutePath);
+      if (match) {
+        errors.push(
+          `published TDD closeout field ${label} contains local staging path ${match[1]}; use a stable issue/comment reference and keep local inspection paths private`
+        );
+      }
+    }
+  }
 
   const evidenceFreshnessValue = extractFieldValue("Evidence-only rows freshness");
   const evidenceFreshnessError = validateFreshnessValue(evidenceFreshnessValue);

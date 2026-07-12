@@ -20,12 +20,13 @@ Complete intake only when the source report path, any existing same-stem prep ar
 
 ### 1. Establish Freshness
 
-1. Run `git status --short` and `git branch --show-current`. Treat pre-existing dirty files as user or prior-session state unless the requested prep explicitly adopts them.
+1. Run `git status --short` and `git branch --show-current`, and retain the exact outputs as the baseline snapshot. Treat pre-existing dirty files as user or prior-session state unless the requested prep explicitly adopts them.
 2. Read the source report carefully. For long reports, start with `wc -l` and a heading search, then read targeted slices around `Findings`, `Regression of prior findings`, `Decision-point log`, `For the app`, `For the methodology`, `Frontier`, and any addenda. Do not carry conclusions from truncated reads.
-3. Check the default same-stem prep path with a proofable readback, such as `if test -e <path>; then echo "exists"; else echo "missing"; fi` or `ls -l <path>`. If `reports/<field-build-report-stem>-prd-prep.md` exists, read it and classify it as current, partially consumed, stale, superseded, or not relevant. Preserve unconsumed candidates rather than treating the prep as wholly current.
-4. Read repo entrypoint guidance if it is not already in context. Follow it to relevant domain vocabulary, methodology, principles, ADRs, specs, issue-tracker docs, and triage-label docs as needed.
-5. Consult `/to-prd` for house style only: use its reference-only expectations for PRD-ready inputs, source durability, publication package, seam input, likely label, and browser-visible checklist mapping. Do not draft, stage, publish, label, or verify a PRD issue.
-6. Before writing the prep artifact, read the output skeleton at [`../grilling/references/prd-ready-determination-artifact.md`](../grilling/references/prd-ready-determination-artifact.md).
+3. If the report names an app commit, resolve it and compare that commit with current `HEAD` plus relevant worktree changes over the product and authority paths discovered from repo guidance. Classify the result as `same product/authority tree`, `relevant committed drift`, `relevant uncommitted drift`, or `unavailable - <reason>`. A different `HEAD` is not itself product drift: use a bounded path diff such as `git diff --name-only <report-commit>..HEAD -- <relevant paths>` and the baseline status, keeping report-only or skill-only changes separate from product/authority changes.
+4. Check the default same-stem prep path with a proofable readback, such as `if test -e <path>; then echo "exists"; else echo "missing"; fi` or `ls -l <path>`. If `reports/<field-build-report-stem>-prd-prep.md` exists, read it and classify it as current, partially consumed, stale, superseded, or not relevant. Preserve unconsumed candidates rather than treating the prep as wholly current.
+5. Read repo entrypoint guidance if it is not already in context. Follow it to relevant domain vocabulary, methodology, principles, ADRs, specs, issue-tracker docs, and triage-label docs as needed.
+6. Consult `/to-prd` for house style only: use its reference-only expectations for PRD-ready inputs, source durability, publication package, seam input, likely label, and browser-visible checklist mapping. Do not draft, stage, publish, label, or verify a PRD issue.
+7. Before writing the prep artifact, read the output skeleton at [`../grilling/references/prd-ready-determination-artifact.md`](../grilling/references/prd-ready-determination-artifact.md).
 
 Complete this step only when the report, relevant authorities, current implementation surface, tracker overlap, prior PRD/issue context, and output skeleton have all been checked or explicitly marked unavailable.
 
@@ -38,16 +39,19 @@ For every `P`, `R`, `F`, `M`, `Q`, and `V` finding, plus every item in `For the 
 - `verification/reopen candidate`: the report conflicts with current source or tracker claims, and replay would be needed before opening new product scope.
 - `fresh product scope`: codebase-wide app behavior should change.
 - `methodology/docs scope`: future work should change doctrine, specs, principles, ADRs, or glossary rather than app behavior.
-- `follow-on candidate`: real but not part of the recommended first PRD.
+- `coverage follow-up`: non-product replay, test, audit, or evidence work; it may justify a later reopen or fresh scope only if the current proof fails.
+- `follow-on candidate`: real product or docs scope, but not part of the recommended first PRD.
 - `no-op/rejected`: not worth carrying forward, with reason.
 
 Check current source and tracker state before preserving a reported blocker. Search narrowly from report terms, app destinations, IDs, and spec names; fetch exact GitHub issues or PRDs when the report or search results name them. If tracker refresh is unavailable, record the limitation and avoid claiming `ready-for-agent` certainty from stale tracker state.
+
+Use a compact tracker-read ladder. First fetch exact number, title, state, labels, close/update time, and URL for named issues or search candidates. Then read full bodies only for likely scope owners, and extract the acceptance clauses or closeout comments needed for comparison one issue or a small related family at a time. Do not batch several full issue bodies and comment histories into one read when compact metadata or targeted acceptance excerpts will answer the question.
 
 When a finding overlaps closed work, compare the report's exact preconditions, active route, action, and resulting state with the closed issue's acceptance scenario and current tests. Classify an exact accepted-scenario contradiction as `verification/reopen candidate`; classify a currently reproducible state combination outside the closed acceptance as `fresh product scope`; classify matching implemented behavior as `covered`. Record one sentence explaining why the adjacent closed work does or does not consume the reported scenario.
 
 Use read-only source and test inspection by default. Run focused tests only when they materially distinguish `covered`, `verification/reopen candidate`, and `fresh product scope`, and when they can run without changing product or tracker state. Root gates are not expected for a report-only prep unless the run also changes product, workflow, package, or build surfaces. Record the focused evidence that ran and the broader gates or app/browser runs that were skipped; do not describe a skill-local helper as a canonical repo gate.
 
-Complete reconciliation only when every finding and report seed has a status, evidence, PRD impact, and no uncategorized blocker remains.
+Complete reconciliation only when every finding, app/methodology item, regression item, and frontier note has a status, evidence, PRD impact, and no uncategorized blocker remains.
 
 ### 3. Determine The Codebase-Wide Change
 
@@ -57,14 +61,16 @@ Package candidates with these rules:
 
 - Bundle findings into one PRD only when they share the same active route, decision point, seam, and acceptance proof.
 - Use a multi-PRD program only when findings are independently implementable product outcomes or a sequenced program.
-- Pick the first PRD by blocker severity, guided-flow or methodology-conformance risk, direct field-build frontier, dependency order, then proof readiness.
+- Treat `verification/reopen candidate` as a tracker/conformance action and `coverage follow-up` as evidence work, not as new-PRD candidates.
+- When a blocking reopen coexists with fresh PRD-scale scope, record the **first operational action** separately from the **recommended first new PRD**. Sequence the new PRD's implementation or acceptance proof behind the reopen only when the dependency is real; that sequence is not a multi-PRD program.
+- Among `fresh product scope` and `methodology/docs scope` candidates, pick the first new PRD by blocker severity, guided-flow or methodology-conformance risk, direct field-build frontier, dependency order, then proof readiness.
 - Preserve follow-ons, coverage-only items, and rejected alternatives explicitly so `/to-prd` does not have to reconstruct them from chat.
 
-If all report findings and seeds are `covered`, `validated/no product scope`, or `no-op/rejected`, select a `no new PRD recommended` verdict instead of forcing a first PRD. Record the closed tracker work or current source that consumed each candidate, the verification/reopen triggers that would justify future scope, the rejected duplicate-publication alternatives, and any coverage follow-up.
+If no report finding or seed remains as `fresh product scope` or `methodology/docs scope`, select a `no new PRD recommended` verdict instead of forcing a first PRD, even when verification/reopen candidates, coverage follow-up, or deferred follow-ons remain. Record the first operational action when applicable, the closed tracker work or current source that consumed each candidate, the verification/reopen triggers that would justify future scope, the rejected duplicate-publication alternatives, and every coverage follow-up.
 
 If multiple first-PRD choices remain user-owned after evidence is exhausted, ask one scope/artifact-home question. Otherwise write the prep artifact at the default same-stem path and mark the recommendation as evidence-driven.
 
-Complete this step only when there is a selected first PRD, explicit multi-PRD program, or no-new-PRD verdict, plus named follow-ons or verification/reopen candidates and rejected/no-op alternatives.
+Complete this step only when there is a selected first new PRD, explicit multi-PRD program, or no-new-PRD verdict, plus a first operational action when applicable, named follow-ons or verification/reopen candidates, coverage follow-up, and rejected/no-op alternatives.
 
 ### 4. Write The PRD-Ready Artifact
 
@@ -73,8 +79,8 @@ Write or update `reports/<field-build-report-stem>-prd-prep.md` unless the user 
 The artifact must include:
 
 - source report path, selected report sections, source durability, authored-artifact durability, live checkout snapshot, tracker freshness, and deliverable status;
-- reassessment verdict, including what is fixed or validated, what remains as product work or why none remains, recommended first PRD or no-new-PRD verdict, follow-ons, coverage-only work, and supporting-skill results when applicable;
-- evidence checked, with one row per finding or candidate when there is more than one;
+- reassessment verdict, including what is fixed or validated, what remains as product work or why none remains, first operational action when applicable, recommended first new PRD or no-new-PRD verdict, follow-ons, coverage-only work, and supporting-skill results when applicable;
+- evidence checked, with one row per finding or candidate when there is more than one. For each top-level Frontier bullet, use a dedicated row label `Frontier: <text before the first colon>` so the validator can map every frontier note exactly;
 - authority findings over methodology, principles, ADRs, specs, domain docs, and tracker conventions;
 - recommended first PRD or no-new-PRD verdict with purpose, sources, problem, product rule or seam, scope, acceptance, likely issue slices if useful, and out of scope;
 - follow-on candidates and coverage follow-up;
@@ -82,7 +88,7 @@ The artifact must include:
 - PRD publication inputs: suggested title, publication package, recommended testing seam, `/to-prd` house-style consultation status, likely label and downgrades, authorities to cite, browser-visible checklist needs, gates, and evidence expectations;
 - completion self-check and freshness/boundaries.
 
-Classify local source artifacts as durable only after tracked, clean, and publication-ref-visible proof. Otherwise write `pending local publication` or `summarized, not cited`. Temp-only evidence and machine-local paths may be summarized for prep provenance, but the later PRD must not cite them as stable sources.
+Classify local source artifacts as durable only after tracked, clean, publication-ref path-visible, and publication-ref content-identical proof. Path visibility is not content durability: run `git diff --quiet <publication-ref> -- <path>` or an equivalent blob comparison and inspect its exit status for every relied-on local source. Otherwise write `pending local publication` or `summarized, not cited`. Temp-only evidence and machine-local paths may be summarized for prep provenance, but the later PRD must not cite them as stable sources.
 
 Complete writing only when a later `/to-prd` pass could draft without re-reading the whole field-build report to recover provenance, scope, seam recommendation, label posture, or deferred work.
 
@@ -93,7 +99,8 @@ Before final reporting:
 1. Run `node .claude/skills/field-build-prd-prep/scripts/validate-prd-prep.mjs <source-report> <prep-artifact>`. Fix structural errors and inspect every warning. The helper checks coverage and output shape only; it does not decide whether a finding's semantic classification or recommended scope is correct.
 2. Re-scan the prep artifact for accidental machine-local source leakage and stale publication phrasing. Inspect `/tmp`, `/home`, `should be checked`, `must be checked before publication`, `if the body passes`, and `TBD before publication` hits; keep only intentional durability warnings or open future decisions. The validator reports these hits, but this manual intent check remains required.
 3. Record the validator summary and the completed manual-scan result in `Completion Self-Check` or `Freshness And Boundaries`. Use completed-state wording; do not leave a future-tense reminder to run either check.
-4. Re-run `git status --short` and `git branch --show-current`.
-5. Verify the `.agents/skills/<skill-name>` mirror exists when the run edited this skill itself; otherwise normal PRD prep does not edit skill files.
+4. Re-run `git status --short` and `git branch --show-current`, compare them with the retained baseline, and classify every remaining path as `intentional prep output`, `pre-existing`, or `concurrent/unowned`. Never adopt or clean concurrent/unowned paths.
+5. If the final delta changes the artifact's live-checkout or boundary wording, update the artifact, rerun steps 1-4 of this preflight, and take one last status/branch snapshot after the final artifact edit. Do not report an earlier status snapshot as final.
+6. Verify the `.agents/skills/<skill-name>` mirror exists when the run edited this skill itself; otherwise normal PRD prep does not edit skill files.
 
-Final reporting must state the source report, prep artifact path or recap-only result, selected first PRD, program, or no-new-PRD verdict, follow-ons, tracker freshness limitation if any, source/artifact durability posture, and files intentionally changed. Also state that no code, tracker, PRD publication, or `/to-prd` seam checkpoint happened unless the user explicitly requested and the run actually did it.
+Final reporting must state the source report, prep artifact path or recap-only result, first operational action when applicable, selected first new PRD, program, or no-new-PRD verdict, follow-ons, tracker freshness limitation if any, source/artifact durability posture, files intentionally changed, and every remaining dirty path with its classification. Also state that no code, tracker, PRD publication, or `/to-prd` seam checkpoint happened unless the user explicitly requested and the run actually did it.

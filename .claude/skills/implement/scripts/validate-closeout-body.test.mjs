@@ -58,7 +58,12 @@ Closeout body check passed: exact fields inspected.
 Closeout gate passed: audit sink local test body.
 `;
 
-const runValidator = (body, manifest) => {
+const auditBody = (rows) => `| Issue | Acceptance criterion or conformance check | Evidence | Status |
+|---|---|---|---|
+${rows.join("\n")}
+`;
+
+const runValidator = (body, manifest, modeFlags = ["--closing"]) => {
   const directory = mkdtempSync(join(tmpdir(), "implement-closeout-test-"));
   const bodyPath = join(directory, "body.md");
   const manifestPath = join(directory, "manifest.json");
@@ -66,7 +71,7 @@ const runValidator = (body, manifest) => {
   writeFileSync(manifestPath, JSON.stringify(manifest));
   const result = spawnSync(
     process.execPath,
-    [validator, bodyPath, "--closing", "--acceptance-manifest", manifestPath],
+    [validator, bodyPath, ...modeFlags, "--acceptance-manifest", manifestPath],
     { encoding: "utf8" }
   );
   rmSync(directory, { recursive: true, force: true });
@@ -124,6 +129,62 @@ test("closeout validator accepts exact one-to-one manifest coverage", () => {
   );
 
   assert.equal(result.status, 0, result.stderr);
+});
+
+test("audit-only validator accepts a review-ready audit without closeout fields", () => {
+  const manifest = buildAcceptanceManifest(issueInput);
+  const result = runValidator(
+    auditBody([
+      `| #359 | AC1 - First exact behavior | ${evidence} | satisfied |`,
+      `| #359 | AC2 - Second exact behavior with a continuation | ${evidence} | satisfied |`,
+      `| #359 | Principles - Principles/ADR conformance for #359 | ${evidence} | satisfied |`
+    ]),
+    manifest,
+    ["--audit-only", "--review-entry"]
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Acceptance audit validation passed/);
+});
+
+test("audit-only validator permits truthful blocked rows until review entry", () => {
+  const manifest = buildAcceptanceManifest(issueInput);
+  const body = auditBody([
+    `| #359 | AC1 - First exact behavior | atoms: behavior; proof surfaces: pending browser; sequence: N/A because criterion is not sequence-sensitive | blocked |`,
+    `| #359 | AC2 - Second exact behavior with a continuation | ${evidence} | satisfied |`,
+    `| #359 | Principles - Principles/ADR conformance for #359 | ${evidence} | satisfied |`
+  ]);
+  const working = runValidator(body, manifest, ["--audit-only"]);
+  const reviewEntry = runValidator(body, manifest, ["--audit-only", "--review-entry"]);
+
+  assert.equal(working.status, 0, working.stderr);
+  assert.equal(reviewEntry.status, 1);
+  assert.match(reviewEntry.stderr, /review-entry gate row is not satisfied/);
+});
+
+test("audit-only mode requires a manifest and rejects closeout flags", () => {
+  const directory = mkdtempSync(join(tmpdir(), "implement-audit-flags-test-"));
+  const bodyPath = join(directory, "audit.md");
+  const manifestPath = join(directory, "manifest.json");
+  writeFileSync(bodyPath, auditBody([
+    `| #359 | AC1 - First exact behavior | ${evidence} | satisfied |`
+  ]));
+  writeFileSync(manifestPath, JSON.stringify(buildAcceptanceManifest(issueInput)));
+
+  const missingManifest = spawnSync(process.execPath, [validator, bodyPath, "--audit-only"], {
+    encoding: "utf8"
+  });
+  const incompatible = spawnSync(
+    process.execPath,
+    [validator, bodyPath, "--audit-only", "--closing", "--acceptance-manifest", manifestPath],
+    { encoding: "utf8" }
+  );
+  rmSync(directory, { recursive: true, force: true });
+
+  assert.equal(missingManifest.status, 2);
+  assert.match(missingManifest.stderr, /--audit-only requires --acceptance-manifest/);
+  assert.equal(incompatible.status, 2);
+  assert.match(incompatible.stderr, /--audit-only cannot be combined with --closing/);
 });
 
 test("closeout validator rejects missing manifest coverage", () => {
@@ -223,6 +284,38 @@ test("closeout validator rejects unresolved current evidence identities", () => 
   assert.match(result.stderr, /evidence identity refresh contains an unresolved value/);
 });
 
+test("closing validator rejects a local staging path in publishable sink fields", () => {
+  const manifest = buildAcceptanceManifest(issueInput);
+  const body = closeoutBody([
+    `| #359 | AC1 - First exact behavior | ${evidence} | satisfied |`,
+    `| #359 | AC2 - Second exact behavior with a continuation | ${evidence} | satisfied |`,
+    `| #359 | Principles - Principles/ADR conformance for #359 | ${evidence} | satisfied |`
+  ]).replace(
+    "Closeout gate passed: audit sink local test body.",
+    "Durable sink/body inspected: `/tmp/worldloom-closeout-359.md`\nCloseout gate passed: audit sink local test body."
+  );
+  const result = runValidator(body, manifest);
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /published closeout field Durable sink\/body inspected contains local staging path/);
+  assert.match(result.stderr, /use a stable issue\/comment reference/);
+});
+
+test("closing validator permits local fixture paths outside publishable sink fields", () => {
+  const manifest = buildAcceptanceManifest(issueInput);
+  const body = closeoutBody([
+    `| #359 | AC1 - First exact behavior | ${evidence} | satisfied |`,
+    `| #359 | AC2 - Second exact behavior with a continuation | ${evidence} | satisfied |`,
+    `| #359 | Principles - Principles/ADR conformance for #359 | ${evidence} | satisfied |`
+  ]).replace(
+    "Current evidence identities: fixture paths none",
+    "Current evidence identities: fixture paths /tmp/worldloom-proof.sqlite"
+  );
+  const result = runValidator(body, manifest);
+
+  assert.equal(result.status, 0, result.stderr);
+});
+
 test("normal-review template and validator matrix use the normal contract", () => {
   const template = readFileSync(resolve(skillRoot, "references/closeout-templates.md"), "utf8");
   const gates = readFileSync(resolve(skillRoot, "references/tracker-closeout-gates.md"), "utf8");
@@ -242,6 +335,34 @@ test("normal-review template and validator matrix use the normal contract", () =
   }
 });
 
+test("implementation guidance carries the audited staging, exactness, and sibling contracts", () => {
+  const skill = readFileSync(resolve(skillRoot, "SKILL.md"), "utf8");
+  const evidenceGuide = readFileSync(resolve(skillRoot, "references/implementation-evidence.md"), "utf8");
+  const reviewGuide = readFileSync(resolve(skillRoot, "references/review-evidence.md"), "utf8");
+  const template = readFileSync(resolve(skillRoot, "references/closeout-templates.md"), "utf8");
+  const gates = readFileSync(resolve(skillRoot, "references/tracker-closeout-gates.md"), "utf8");
+
+  assert.match(skill, /Implementation pre-stage gate passed:/);
+  assert.match(skill, /Implementation commit gate passed: staged files scoped yes/);
+  assert.match(evidenceGuide, /two independent snapshots or server renders are not equivalent/);
+  assert.match(evidenceGuide, /SQLite `.backup`/);
+  assert.match(evidenceGuide, /package manifest or lockfile changes/);
+  assert.match(evidenceGuide, /published current artifact is not safe to remove until closeout is complete/);
+  assert.match(template, /## Sibling-Issue Rollup/);
+  assert.match(template, /capture-github-issues\.mjs 369 370 371/);
+  assert.match(template, /stable issue reference before tracker URL exists/);
+  assert.match(template, /Review subagents: Standards final reviewer <ID> completed; Spec final reviewer <ID> completed/);
+  assert.match(template, /no hits outside classified identity\/history lines and no active-proof hits/);
+  assert.match(template, /Nested-validator angle-token rule/);
+  assert.match(reviewGuide, /no hits outside classified identity\/history lines and no active-proof hits/);
+  assert.doesNotMatch(template, /Durable sink\/body inspected: <inspected body file path/);
+  assert.match(gates, /Working pre-review audit/);
+  assert.match(gates, /--audit-only --acceptance-manifest/);
+  assert.match(gates, /two or more sibling issues with no parent PRD/);
+  assert.match(gates, /nested validator may classify the entire cell as unresolved/);
+  assert.match(skill, /published `Current evidence identities:` inventory is not safe to remove/);
+});
+
 test("documented normal-review fields satisfy the normal-review validator", () => {
   const directory = mkdtempSync(join(tmpdir(), "implement-normal-review-test-"));
   const bodyPath = join(directory, "normal-review.md");
@@ -250,7 +371,7 @@ test("documented normal-review fields satisfy the normal-review validator", () =
   writeFileSync(
     bodyPath,
     `Review: code-review against abcdef0; outcome no findings; verification rerun node --test.
-Review subagents: Standards reviewer-1 completed; Spec reviewer-2 completed
+Review subagents: Standards final reviewer reviewer-1 completed; Spec final reviewer reviewer-2 completed
 Review subagent cleanup: Standards closed; Spec closed
 
 ## Standards
