@@ -29,6 +29,14 @@ export interface TemporalRevisionStateView {
   lifecycleState: "open" | "finalized";
   active: TemporalRevisionView | null;
   lineage: TemporalRevisionView[];
+  draftState?: {
+    status: "current" | "failed";
+    dirty: boolean;
+    failed: boolean;
+    attemptedInput: (Partial<TemporalCoverageDraft> & { reason?: string }) | null;
+    error: string | null;
+    remediation: string | null;
+  };
   activeSet: {
     revision: number;
     identity: string;
@@ -44,6 +52,7 @@ export interface TemporalFinalizationPreview {
   decisionContract: { name: string; packageSources: string[]; stagingDoctrine: string };
   activeRevision: TemporalRevisionView | null;
   revisionAudit: TemporalRevisionView[];
+  outcomes: Array<{ kind: string; recordId: number; shortId: string; title: string; linkTypeKey: string; note: string }>;
   reportRelationship: { type: "final" | "correction"; retainedPriorReportRecordId: number | null };
   writeIntent: { willWrite: string[]; willLink: string[]; willLeaveUntouched: string[] };
   closeReadiness: { status: string; blockers: Array<{ key: string; label: string; message: string }> };
@@ -65,11 +74,12 @@ const labels: Array<[keyof TemporalCoverageDraft, string]> = [
 
 const errorDetail = (error: unknown) => {
   const payload = typeof error === "object" && error !== null && "payload" in error
-    ? (error as { payload?: { error?: string; remediation?: string } }).payload
+    ? (error as { payload?: { error?: string; remediation?: string; authoritativeState?: { closeReadiness?: { blockers?: Array<{ key: string; label: string; message: string }> } } } }).payload
     : undefined;
   return {
     message: payload?.error ?? (error instanceof Error ? error.message : String(error)),
-    remediation: payload?.remediation ?? "Keep the entered values, resolve the named blocker, and save again or discard to authoritative state."
+    remediation: payload?.remediation ?? "Keep the entered values, resolve the named blocker, and save again or discard to authoritative state.",
+    blockers: payload?.authoritativeState?.closeReadiness?.blockers ?? []
   };
 };
 
@@ -99,7 +109,7 @@ export function TemporalRevisionWorkspace({
   onClose: () => Promise<void>;
 }) {
   const [reason, setReason] = useState("");
-  const [failure, setFailure] = useState<{ message: string; remediation: string } | null>(null);
+  const [failure, setFailure] = useState<{ message: string; remediation: string; blockers: Array<{ key: string; label: string; message: string }> } | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const failureRef = useRef<HTMLDivElement>(null);
   const statusRef = useRef<HTMLParagraphElement>(null);
@@ -108,10 +118,26 @@ export function TemporalRevisionWorkspace({
     ? Object.values(coverage).some((value) => value.trim().length > 0)
     : JSON.stringify(coverage) !== JSON.stringify(active.values), [active, coverage]);
   const finalized = revisionState?.lifecycleState === "finalized";
+  const displayedBlockers = failure?.blockers.length ? failure.blockers : blockers;
 
   useEffect(() => {
-    if (active) onCoverageChange(active.values);
-  }, [active?.id]);
+    if (active && !revisionState?.draftState?.failed) onCoverageChange(active.values);
+  }, [active?.id, revisionState?.draftState?.failed]);
+
+  useEffect(() => {
+    const draft = revisionState?.draftState;
+    if (!draft?.failed || !draft.attemptedInput) return;
+    const attempted = draft.attemptedInput;
+    if (labels.every(([key]) => typeof attempted[key] === "string")) {
+      onCoverageChange(Object.fromEntries(labels.map(([key]) => [key, attempted[key]])) as unknown as TemporalCoverageDraft);
+    }
+    setReason(attempted.reason ?? "");
+    setFailure({
+      message: draft.error ?? "Temporal revision save failed.",
+      remediation: draft.remediation ?? "Save again or discard to the authoritative active revision.",
+      blockers
+    });
+  }, [revisionState?.draftState?.failed, active?.id]);
 
   useEffect(() => {
     if (failure) failureRef.current?.focus();
@@ -173,7 +199,7 @@ export function TemporalRevisionWorkspace({
 
       <section className="subpanel">
         <h4>Server close blockers</h4>
-        {blockers.length ? <ul>{blockers.map((blocker) => <li key={blocker.key}>{blocker.label}: {blocker.message}</li>)}</ul> : <p>No server-returned blockers.</p>}
+        {displayedBlockers.length ? <ul>{displayedBlockers.map((blocker) => <li key={blocker.key}>{blocker.label}: {blocker.message}</li>)}</ul> : <p>No server-returned blockers.</p>}
       </section>
 
       <details className="subpanel">
@@ -185,9 +211,11 @@ export function TemporalRevisionWorkspace({
         <h4>Finalization preview</h4>
         <button onClick={() => void onPreview()} disabled={runId == null}>Preview Finalization</button>
         <p>{preview?.reportRelationship.type === "correction" ? `Correction report supersedes retained report ${preview.reportRelationship.retainedPriorReportRecordId}.` : "Close will create the single final report."}</p>
+        <h5>Staged outcomes</h5>
+        {preview?.outcomes.length ? <ul>{preview.outcomes.map((outcome) => <li key={`${outcome.recordId}:${outcome.linkTypeKey}`}>{outcome.kind}: {outcome.shortId} {outcome.title} · {outcome.linkTypeKey} · {outcome.note}</li>)}</ul> : <p>No staged outcomes returned.</p>}
         <div className="grid compact-grid"><section><h5>Will write</h5><ul>{(preview?.writeIntent.willWrite ?? ["Load server preview"]).map((item) => <li key={item}>{item}</li>)}</ul></section><section><h5>Will link</h5><ul>{(preview?.writeIntent.willLink ?? ["Load server preview"]).map((item) => <li key={item}>{item}</li>)}</ul></section><section><h5>Will leave untouched</h5><ul>{(preview?.writeIntent.willLeaveUntouched ?? ["Load server preview"]).map((item) => <li key={item}>{item}</li>)}</ul></section></div>
         <p>Current: {preview?.orientation.current ?? "load the active revision"}</p><p>Next: {preview?.orientation.next ?? "resolve blockers or finalize"}</p><p>Resume: {preview?.orientation.resume ?? "return safely to this Temporal run"}</p>
-        <button onClick={() => void onClose()} disabled={runId == null || finalized || dirty || blockers.length > 0}>Finalize Active Temporal Revision</button>
+        <button onClick={() => void onClose()} disabled={runId == null || finalized || dirty || displayedBlockers.length > 0}>Finalize Active Temporal Revision</button>
       </section>
     </section>
   );

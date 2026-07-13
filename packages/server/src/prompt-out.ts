@@ -744,7 +744,8 @@ export const temporalPacketRevision = (world: WorldFile, flowId: number): number
   const staged = TemporalStore.findRun(world, flowId);
   if (staged) {
     const reportIds = [staged.retained_prior_report_record_id, staged.final_report_record_id].filter((id): id is number => id != null);
-    const outcomeIds = (world.db.prepare("SELECT record_id FROM temporal_run_outcomes WHERE flow_id = ? ORDER BY record_id").all(flowId) as Array<{ record_id: number }>).map((row) => row.record_id);
+    const outcomes = TemporalStore.listOutcomes(world, flowId);
+    const outcomeIds = outcomes.map((outcome) => outcome.record_id);
     const advisoryRecordIds = world.listRecords().filter((record) => outcomeIds.includes(record.id) && record.recordTypeKey === "advisory_artifact").map((record) => record.id);
     const contextRecordIds = new Set<number>([
       ...(staged.source_record_id == null ? [] : [staged.source_record_id]),
@@ -759,7 +760,7 @@ export const temporalPacketRevision = (world: WorldFile, flowId: number): number
       records,
       reportSections: reportIds.flatMap((reportId) => world.listSections(reportId)),
       links: reportIds.flatMap((reportId) => world.listLinks(reportId)),
-      outcomes: world.db.prepare("SELECT * FROM temporal_run_outcomes WHERE flow_id = ? ORDER BY record_id, link_type_key").all(flowId),
+      outcomes,
       advisoryDispositions: advisoryRecordIds.flatMap((recordId) => world.db.prepare("SELECT * FROM advisory_dispositions WHERE advisory_record_id = ? ORDER BY id").all(recordId)),
       standingRulings: standingRulingRows(world),
       promptTemplate: promptTemplateRow(world, "temporal_spatial_analyst")

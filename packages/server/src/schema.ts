@@ -1739,6 +1739,10 @@ CREATE TABLE IF NOT EXISTS temporal_runs (
   pressure_used_revision INTEGER,
   pressure_owed_revision INTEGER,
   pressure_skip_revision INTEGER,
+  draft_state TEXT NOT NULL DEFAULT 'current' CHECK (draft_state IN ('current', 'failed')),
+  attempted_revision_json TEXT,
+  attempt_error TEXT,
+  attempt_remediation TEXT,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   finalized_at TEXT,
   CHECK (

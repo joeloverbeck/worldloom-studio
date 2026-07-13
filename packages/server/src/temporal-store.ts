@@ -17,6 +17,10 @@ export interface TemporalRunStoreRow {
   pressure_used_revision: number | null;
   pressure_owed_revision: number | null;
   pressure_skip_revision: number | null;
+  draft_state: "current" | "failed";
+  attempted_revision_json: string | null;
+  attempt_error: string | null;
+  attempt_remediation: string | null;
   created_at: string;
   finalized_at: string | null;
 }
@@ -263,7 +267,11 @@ export const replaceActiveRevision = (world: WorldFile, input: {
     SET active_set_revision = ?,
         active_set_changed_revision_id = ?,
         active_set_changed_reason = ?,
-        pressure_owed_revision = ?
+        pressure_owed_revision = ?,
+        draft_state = 'current',
+        attempted_revision_json = NULL,
+        attempt_error = NULL,
+        attempt_remediation = NULL
     WHERE flow_id = ?
   `).run(activeSetRevision, replacementId, reason, pressureOwedRevision, input.flowId);
   return activeRevision(world, input.flowId)!;
@@ -294,6 +302,47 @@ export const markPressureSkipped = (world: WorldFile, flowId: number): TemporalR
   return getRun(world, flowId);
 };
 
+export const recordFailedAttempt = (
+  world: WorldFile,
+  flowId: number,
+  input: { attemptedInput: unknown; error: string; remediation: string }
+): TemporalRunStoreRow => {
+  const run = getRun(world, flowId);
+  if (run.finalized_at != null) return run;
+  world.db.prepare(`
+    UPDATE temporal_runs
+    SET draft_state = 'failed',
+        attempted_revision_json = ?,
+        attempt_error = ?,
+        attempt_remediation = ?
+    WHERE flow_id = ?
+  `).run(JSON.stringify(input.attemptedInput), input.error, input.remediation, flowId);
+  return getRun(world, flowId);
+};
+
+export const clearFailedAttempt = (world: WorldFile, flowId: number): TemporalRunStoreRow => {
+  const run = getRun(world, flowId);
+  if (run.finalized_at != null) throw new Error(`Temporal run ${flowId} is closed; recovery actions are refused`);
+  world.db.prepare(`
+    UPDATE temporal_runs
+    SET draft_state = 'current',
+        attempted_revision_json = NULL,
+        attempt_error = NULL,
+        attempt_remediation = NULL
+    WHERE flow_id = ?
+  `).run(flowId);
+  return getRun(world, flowId);
+};
+
+const attemptedInput = (run: TemporalRunStoreRow): unknown => {
+  if (run.attempted_revision_json == null) return null;
+  try {
+    return JSON.parse(run.attempted_revision_json);
+  } catch {
+    return null;
+  }
+};
+
 export const revisionState = (world: WorldFile, flowId: number) => {
   const run = getRun(world, flowId);
   const active = activeRevision(world, flowId);
@@ -301,6 +350,14 @@ export const revisionState = (world: WorldFile, flowId: number) => {
     lifecycleState: run.finalized_at == null ? "open" as const : "finalized" as const,
     active,
     lineage: listRevisions(world, flowId),
+    draftState: {
+      status: run.draft_state,
+      dirty: run.draft_state === "failed",
+      failed: run.draft_state === "failed",
+      attemptedInput: attemptedInput(run),
+      error: run.attempt_error,
+      remediation: run.attempt_remediation
+    },
     activeSet: {
       revision: run.active_set_revision,
       identity: `temporal:${flowId}:${run.active_set_revision}:${active?.id ?? "none"}`,

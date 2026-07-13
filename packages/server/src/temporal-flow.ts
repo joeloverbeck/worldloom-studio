@@ -282,6 +282,15 @@ const closeReadiness = (world: WorldFile, flowId: number) => {
   if (!coverage || !hasSubstance(coverage.temporalMysteryBoundaries)) push("temporal_mystery_boundaries", "Temporal mystery boundaries", "Record observable boundaries for mysteries or branches, or why none are in scope.");
   if (!coverage || !hasSubstance(coverage.outcomeDecision)) push("outcome_decision", "Outcome decision", "Record card, proposal, debt, no-card close, or explicit non-mutation.");
   const staged = TemporalStore.findRun(world, flowId);
+  if (staged?.draft_state === "failed") {
+    blockers.push({
+      kind: "failed_revision_attempt",
+      key: "failed_revision_attempt",
+      label: "Failed revision attempt",
+      message: "A failed revision attempt remains unsaved; save again or discard to the authoritative active revision before close.",
+      classification: "unsaved_failed_revision"
+    });
+  }
   if (staged?.pressure_owed_revision != null) {
     blockers.push({
       kind: "pressure_currentness",
@@ -312,9 +321,8 @@ const revisionDecisionContract = (world: WorldFile, flowId: number) => {
     ],
     stagingDoctrine: "Open-run coverage is editable audit-safe staging; only successful close creates an append-only final or correction report.",
     draftState: {
-      status: state.active == null ? "incomplete" : "current",
-      dirty: false,
-      failed: false,
+      ...state.draftState,
+      status: state.active == null && !state.draftState.failed ? "incomplete" : state.draftState.status,
       authoritativeRevisionId: state.active?.id ?? null,
       discardAction: { method: "POST", href: `/api/temporal/runs/${flowId}/recover` }
     },
@@ -332,6 +340,10 @@ export const previewTemporalClose = (world: WorldFile, flowId: number) => {
     activeRevision: state.active,
     revisionAudit: state.lineage,
     activeSet: state.activeSet,
+    outcomes: TemporalStore.listOutcomes(world, flowId).map((outcome) => {
+      const record = world.getRecord(outcome.record_id);
+      return { kind: outcome.kind, recordId: record.id, shortId: record.shortId, title: record.title, linkTypeKey: outcome.link_type_key, note: outcome.note };
+    }),
     reportRelationship: reportRelationship(world, flowId),
     closeReadiness: closeReadiness(world, flowId),
     writeIntent: {
@@ -348,6 +360,7 @@ export const previewTemporalClose = (world: WorldFile, flowId: number) => {
 };
 
 export const recoverTemporalRun = (world: WorldFile, flowId: number) => {
+  TemporalStore.clearFailedAttempt(world, flowId);
   const current = getTemporalRun(world, flowId);
   const active = TemporalStore.activeRevision(world, flowId);
   return {
@@ -606,40 +619,33 @@ export const startTemporalRun = (world: WorldFile, input: StartTemporalRunInput)
   });
 };
 
+const coverageFromInput = (input: SaveTemporalCoverageInput | ReviseTemporalCoverageInput): TemporalCoverage => ({
+  temporalQuestions: input.temporalQuestions,
+  firstTrueOrRelativeSequence: input.firstTrueOrRelativeSequence,
+  firstKnownOrReason: input.firstKnownOrReason,
+  dateTypesAndGranularity: input.dateTypesAndGranularity,
+  latency: input.latency,
+  residueByTimescale: input.residueByTimescale,
+  sequenceIntegrity: input.sequenceIntegrity,
+  retrospectiveInsertion: input.retrospectiveInsertion,
+  temporalMysteryBoundaries: input.temporalMysteryBoundaries,
+  outcomeDecision: input.outcomeDecision
+});
+
 export const saveTemporalCoverage = (world: WorldFile, input: SaveTemporalCoverageInput) => {
   const flow = readFlow(world, input.flowId);
-  const coverage: TemporalCoverage = {
-    temporalQuestions: input.temporalQuestions,
-    firstTrueOrRelativeSequence: input.firstTrueOrRelativeSequence,
-    firstKnownOrReason: input.firstKnownOrReason,
-    dateTypesAndGranularity: input.dateTypesAndGranularity,
-    latency: input.latency,
-    residueByTimescale: input.residueByTimescale,
-    sequenceIntegrity: input.sequenceIntegrity,
-    retrospectiveInsertion: input.retrospectiveInsertion,
-    temporalMysteryBoundaries: input.temporalMysteryBoundaries,
-    outcomeDecision: input.outcomeDecision
-  };
+  const coverage = coverageFromInput(input);
   assertCoverageSubstance(coverage);
   if (TemporalStore.activeRevision(world, input.flowId)) throw new Error("Temporal material replacement requires the explicit revision action and a steward reason");
-  TemporalStore.insertFirstRevision(world, input.flowId, coverage);
-  world.updateFlowInstance(Number(flow.id), { currentStep: "temporal:coverage" });
-  return { coverage, revisionState: TemporalStore.revisionState(world, input.flowId), closeReadiness: closeReadiness(world, input.flowId), promptOut: promptOutState(world, input.flowId), decisionPoint: temporalDecisionPoint(world, input.flowId) };
+  return world.atomicWrite(() => {
+    TemporalStore.insertFirstRevision(world, input.flowId, coverage);
+    world.updateFlowInstance(Number(flow.id), { currentStep: "temporal:coverage" });
+    return { coverage, revisionState: TemporalStore.revisionState(world, input.flowId), closeReadiness: closeReadiness(world, input.flowId), promptOut: promptOutState(world, input.flowId), decisionPoint: temporalDecisionPoint(world, input.flowId) };
+  });
 };
 
 export const reviseTemporalCoverage = (world: WorldFile, input: ReviseTemporalCoverageInput) => {
-  const values: TemporalCoverage = {
-    temporalQuestions: input.temporalQuestions,
-    firstTrueOrRelativeSequence: input.firstTrueOrRelativeSequence,
-    firstKnownOrReason: input.firstKnownOrReason,
-    dateTypesAndGranularity: input.dateTypesAndGranularity,
-    latency: input.latency,
-    residueByTimescale: input.residueByTimescale,
-    sequenceIntegrity: input.sequenceIntegrity,
-    retrospectiveInsertion: input.retrospectiveInsertion,
-    temporalMysteryBoundaries: input.temporalMysteryBoundaries,
-    outcomeDecision: input.outcomeDecision
-  };
+  const values = coverageFromInput(input);
   const attemptedInput = { ...values, expectedRevisionId: input.expectedRevisionId, reason: input.reason };
   try {
     assertCoverageSubstance(values);
@@ -661,9 +667,11 @@ export const reviseTemporalCoverage = (world: WorldFile, input: ReviseTemporalCo
   } catch (cause) {
     const error = cause instanceof Error ? cause : new Error(String(cause));
     const enriched = error as Error & { attemptedInput: unknown; authoritativeState: unknown; remediation: string };
+    const remediation = "Preserve the attempted lenses, provide a steward-authored reason, then save again or discard to the authoritative active revision.";
+    TemporalStore.recordFailedAttempt(world, input.flowId, { attemptedInput, error: error.message, remediation });
     enriched.attemptedInput = attemptedInput;
-    enriched.authoritativeState = TemporalStore.revisionState(world, input.flowId);
-    enriched.remediation = "Preserve the attempted lenses, provide a steward-authored reason, then save again or discard to the authoritative active revision.";
+    enriched.authoritativeState = { ...TemporalStore.revisionState(world, input.flowId), closeReadiness: closeReadiness(world, input.flowId) };
+    enriched.remediation = remediation;
     throw enriched;
   }
 };

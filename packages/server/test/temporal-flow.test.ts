@@ -75,6 +75,15 @@ describe("Temporal/Timeline flow HTTP API", () => {
     expect(saved.revisionState.lineage).toHaveLength(1);
     expect(saved.revisionState.activeSet).toMatchObject({ revision: 1 });
 
+    const card = (await json<{ record: { id: number; shortId: string } }>(await postJson(app, "/api/records", {
+      recordTypeKey: "temporal_timeline",
+      title: "Salt bell hearing chronology",
+      body: "Public proof precedes a failed hearing and later ordinance.",
+      truthLayer: "Objective canon",
+      canonStatus: "proposed"
+    }))).record;
+    expect((await postJson(app, "/api/temporal/cards", { flowId: started.flow.id, existingRecordId: card.id, relation: "Previewed current Temporal outcome" })).status).toBe(201);
+
     const reloaded = await json<typeof saved & { report: null }>(await app.request(`/api/temporal/runs/${started.flow.id}`));
     expect(reloaded.report).toBeNull();
     expect(reloaded.revisionState.active).toEqual(saved.revisionState.active);
@@ -86,6 +95,7 @@ describe("Temporal/Timeline flow HTTP API", () => {
       revisionAudit: Array<{ id: number }>;
       reportRelationship: { type: "final"; retainedPriorReportRecordId: null };
       writeIntent: { willWrite: string[]; willLink: string[]; willLeaveUntouched: string[] };
+      outcomes: Array<{ kind: string; recordId: number; shortId: string; title: string; linkTypeKey: string; note: string }>;
       closeReadiness: { status: "ready" };
       orientation: { current: string; next: string; resume: string };
     }>(await postJson(app, `/api/temporal/runs/${started.flow.id}/preview`));
@@ -104,6 +114,9 @@ describe("Temporal/Timeline flow HTTP API", () => {
       reportRelationship: { type: "final", retainedPriorReportRecordId: null },
       closeReadiness: { status: "ready" }
     });
+    expect(preview.outcomes).toEqual([
+      expect.objectContaining({ kind: "temporal_timeline", recordId: card.id, shortId: card.shortId, title: "Salt bell hearing chronology", linkTypeKey: "covers" })
+    ]);
     expect(preview.writeIntent.willLeaveUntouched).toEqual(expect.arrayContaining(["source fact text and standing", "sibling conditional-pass obligations", "Admission contents"]));
     const recovered = await json<{ revisionState: typeof saved.revisionState; recovery: { discardedAttemptedDraft: true; authoritativeRevisionId: number } }>(await postJson(app, `/api/temporal/runs/${started.flow.id}/recover`));
     expect(recovered.revisionState).toEqual(saved.revisionState);
@@ -162,6 +175,22 @@ describe("Temporal/Timeline flow HTTP API", () => {
       remediation: expect.stringContaining("reason"),
       authoritativeState: { active: { id: first.revisionState.active.id, values: firstValues } }
     });
+    const persistedFailure = await json<{
+      revisionContract: { draftState: { status: string; dirty: boolean; failed: boolean; attemptedInput: typeof revisedValues; error: string; remediation: string } };
+      closeReadiness: { status: string; blockers: Array<{ key: string }> };
+    }>(await app.request(`/api/temporal/runs/${run.flow.id}`));
+    expect(persistedFailure.revisionContract.draftState).toMatchObject({
+      status: "failed",
+      dirty: true,
+      failed: true,
+      attemptedInput: expect.objectContaining({ latency: revisedValues.latency }),
+      error: expect.stringContaining("steward-authored reason"),
+      remediation: expect.stringContaining("discard")
+    });
+    expect(persistedFailure.closeReadiness).toMatchObject({ status: "blocked", blockers: [expect.objectContaining({ key: "failed_revision_attempt" })] });
+    const closeWhileFailed = await postJson(app, `/api/temporal/runs/${run.flow.id}/close`);
+    expect(closeWhileFailed.status).toBe(400);
+    expect(await json(closeWhileFailed)).toMatchObject({ error: expect.stringContaining("Failed revision attempt") });
 
     const replaced = await json<{
       revisionState: {

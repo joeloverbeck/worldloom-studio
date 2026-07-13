@@ -70,6 +70,16 @@ describe("Temporal/Timeline web surface", () => {
     expect(html).toContain("Load Current Proposal Packet");
     expect(html).toContain("Load Current Pressure Packet");
     expect(html).toContain("Pressure skip reason (required for major-or-higher Temporal work)");
+    const constraintSkipSource = source.slice(source.indexOf("const recordConstraintSkip"), source.indexOf("const closeConstraintRun"));
+    const temporalSkipSource = source.slice(source.indexOf("const recordTemporalSkip"), source.indexOf("const closeTemporalRun"));
+    expect(constraintSkipSource).toContain("gateNotApplicable");
+    expect(constraintSkipSource).not.toContain("temporalSkipReason");
+    expect(temporalSkipSource).toContain("temporalSkipReason");
+    expect(temporalSkipSource).not.toContain("gateNotApplicable");
+    expect(html).toContain("Staged outcomes");
+    const reviseSource = source.slice(source.indexOf("const reviseTemporalCoverage"), source.indexOf("const recoverTemporalCoverage"));
+    expect(reviseSource).toContain("catch (error)");
+    expect(reviseSource).toContain("await refreshTemporalRun(temporalFlowId)");
     expect(html).toContain("Temporal packet identity");
     expect(html).toContain("Temporal source documents");
     expect(html).toContain("Temporal source manifest");

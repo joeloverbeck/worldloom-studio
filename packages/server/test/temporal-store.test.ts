@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { saveTemporalCoverage, startTemporalRun } from "../src/temporal-flow.js";
 import * as TemporalStore from "../src/temporal-store.js";
 import { WorldFile } from "../src/world-file.js";
 
@@ -32,6 +33,18 @@ const values: TemporalStore.TemporalCoverageValues = {
 };
 
 describe("Temporal flow-owned store", () => {
+  it("rolls back the first revision when the owning flow-step update fails", () => {
+    const world = createWorld();
+    const source = world.createRecord({ recordTypeKey: "canon_fact", title: "Bell", body: "The bell rings.", truthLayer: "Objective canon", canonStatus: "accepted" });
+    const run = startTemporalRun(world, { sourceType: "fact", recordId: source.id });
+    const originalUpdate = world.updateFlowInstance.bind(world);
+    world.updateFlowInstance = (() => { throw new Error("simulated flow-step failure"); }) as typeof world.updateFlowInstance;
+    expect(() => saveTemporalCoverage(world, { flowId: Number(run.flow.id), ...values })).toThrow("simulated flow-step failure");
+    expect(TemporalStore.activeRevision(world, Number(run.flow.id))).toBeNull();
+    world.updateFlowInstance = originalUpdate;
+    world.close();
+  });
+
   it("enforces lineage, rollback, one-active uniqueness, retired immutability, and finalization freeze in SQLite", () => {
     const world = createWorld();
     const source = world.createRecord({

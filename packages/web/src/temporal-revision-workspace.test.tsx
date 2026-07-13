@@ -101,4 +101,38 @@ describe("TemporalRevisionWorkspace", () => {
     fireEvent.click(screen.getByText(/Revision lineage/));
     expect(screen.getByText(/temporal:coverage:first-save/)).toBeTruthy();
   });
+
+  it("restores a server-persisted failed draft and its close blocker after remount", async () => {
+    const attempted = { ...authoritative, latency: "short", sequenceIntegrity: "Proof, failed hearing, ordinance." };
+    const failedState: TemporalRevisionStateView = {
+      ...revisionState,
+      draftState: {
+        status: "failed",
+        dirty: true,
+        failed: true,
+        attemptedInput: { ...attempted, reason: "Persist this failed attempt." },
+        error: "Latency requires steward-authored substance.",
+        remediation: "Save again or discard to the authoritative active revision."
+      }
+    };
+    render(<TemporalRevisionWorkspace
+      runId={7}
+      revisionState={failedState}
+      coverage={attempted}
+      blockers={[{ key: "failed_revision_attempt", label: "Failed revision attempt", message: "Save again or discard before close." }]}
+      preview={null}
+      onCoverageChange={vi.fn()}
+      onSave={vi.fn()}
+      onRevise={vi.fn()}
+      onRecover={async () => authoritative}
+      onPreview={async () => undefined}
+      onClose={vi.fn()}
+    />);
+
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Latency requires steward-authored substance."));
+    expect((screen.getByRole("textbox", { name: "Latency and Residue" }) as HTMLTextAreaElement).value).toBe("short");
+    expect((screen.getByRole("textbox", { name: "Revision reason" }) as HTMLInputElement).value).toBe("Persist this failed attempt.");
+    expect(screen.getByText(/Failed revision attempt: Save again or discard before close/)).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Finalize Active Temporal Revision" }) as HTMLButtonElement).disabled).toBe(true);
+  });
 });

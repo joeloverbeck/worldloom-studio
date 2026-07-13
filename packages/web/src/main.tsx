@@ -466,7 +466,15 @@ interface TemporalRun {
     name: string;
     packageSources: string[];
     stagingDoctrine: string;
-    draftState: { status: string; dirty: boolean; failed: boolean; authoritativeRevisionId: number | null };
+    draftState: {
+      status: string;
+      dirty: boolean;
+      failed: boolean;
+      authoritativeRevisionId: number | null;
+      attemptedInput: (Partial<TemporalCoverage> & { reason?: string }) | null;
+      error: string | null;
+      remediation: string | null;
+    };
     reportRelationship: { type: "final" | "correction"; retainedPriorReportRecordId: number | null };
   };
   sections: SectionRow[];
@@ -5285,7 +5293,7 @@ function App({
     await api(payload.step.actions.skip.href, {
       method: payload.step.actions.skip.method,
       body: JSON.stringify({
-        reason: temporalSkipReason || undefined,
+        reason: gateNotApplicable || undefined,
         unresolved: constraintSkipUnresolved,
         debtName: constraintSkipUnresolved ? (canonDebtName || "Constraint Composition skipped-work debt") : undefined,
         workScale: workScale || undefined
@@ -5309,7 +5317,13 @@ function App({
     setTemporalFlowId(payload.flow.id);
     if (payload.source.sourceRecordId != null) setTemporalSourceRecordId(String(payload.source.sourceRecordId));
     setTemporalSubject(payload.source.auditedSubject);
-    if (payload.coverage) setTemporalCoverage(payload.coverage);
+    const attempted = payload.revisionContract.draftState.attemptedInput;
+    if (payload.revisionContract.draftState.failed && attempted && [
+      "temporalQuestions", "firstTrueOrRelativeSequence", "firstKnownOrReason", "dateTypesAndGranularity", "latency",
+      "residueByTimescale", "sequenceIntegrity", "retrospectiveInsertion", "temporalMysteryBoundaries", "outcomeDecision"
+    ].every((key) => typeof attempted[key as keyof TemporalCoverage] === "string")) {
+      setTemporalCoverage(attempted as TemporalCoverage);
+    } else if (payload.coverage) setTemporalCoverage(payload.coverage);
     setTemporalFinalizationPreview(payload.closePreview);
   };
 
@@ -5411,11 +5425,16 @@ function App({
 
   const reviseTemporalCoverage = async (input: { expectedRevisionId: number; reason: string; coverage: TemporalCoverage }) => {
     if (temporalFlowId == null) return;
-    await api(`/api/temporal/runs/${temporalFlowId}/revisions`, {
-      method: "POST",
-      body: JSON.stringify({ expectedRevisionId: input.expectedRevisionId, reason: input.reason, ...input.coverage })
-    });
-    await refreshTemporalRun(temporalFlowId);
+    try {
+      await api(`/api/temporal/runs/${temporalFlowId}/revisions`, {
+        method: "POST",
+        body: JSON.stringify({ expectedRevisionId: input.expectedRevisionId, reason: input.reason, ...input.coverage })
+      });
+      await refreshTemporalRun(temporalFlowId);
+    } catch (error) {
+      await refreshTemporalRun(temporalFlowId);
+      throw error;
+    }
   };
 
   const recoverTemporalCoverage = async (): Promise<TemporalCoverage | null> => {
@@ -5500,7 +5519,7 @@ function App({
     await api(payload.step.actions.skip.href, {
       method: payload.step.actions.skip.method,
       body: JSON.stringify({
-        reason: gateNotApplicable || undefined,
+        reason: temporalSkipReason || undefined,
         unresolved: temporalSkipUnresolved,
         debtName: temporalSkipUnresolved ? (canonDebtName || "Temporal/Timeline skipped-work debt") : undefined,
         workScale: workScale || undefined
