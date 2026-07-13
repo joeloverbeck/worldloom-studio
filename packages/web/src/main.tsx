@@ -17,6 +17,7 @@ import {
   type TemporalPromptModeOffer
 } from "./temporal-prompt-out-panel.js";
 import {
+  TEMPORAL_COVERAGE_KEYS,
   TemporalRevisionWorkspace,
   type TemporalCoverageDraft,
   type TemporalFinalizationPreview,
@@ -5318,10 +5319,9 @@ function App({
     if (payload.source.sourceRecordId != null) setTemporalSourceRecordId(String(payload.source.sourceRecordId));
     setTemporalSubject(payload.source.auditedSubject);
     const attempted = payload.revisionContract.draftState.attemptedInput;
-    if (payload.revisionContract.draftState.failed && attempted && [
-      "temporalQuestions", "firstTrueOrRelativeSequence", "firstKnownOrReason", "dateTypesAndGranularity", "latency",
-      "residueByTimescale", "sequenceIntegrity", "retrospectiveInsertion", "temporalMysteryBoundaries", "outcomeDecision"
-    ].every((key) => typeof attempted[key as keyof TemporalCoverage] === "string")) {
+    if (payload.revisionContract.draftState.failed && attempted && TEMPORAL_COVERAGE_KEYS.every(
+      (key) => typeof attempted[key] === "string"
+    )) {
       setTemporalCoverage(attempted as TemporalCoverage);
     } else if (payload.coverage) setTemporalCoverage(payload.coverage);
     setTemporalFinalizationPreview(payload.closePreview);

@@ -80,6 +80,8 @@ describe("Temporal/Timeline web surface", () => {
     const reviseSource = source.slice(source.indexOf("const reviseTemporalCoverage"), source.indexOf("const recoverTemporalCoverage"));
     expect(reviseSource).toContain("catch (error)");
     expect(reviseSource).toContain("await refreshTemporalRun(temporalFlowId)");
+    expect(source).toContain("TEMPORAL_COVERAGE_KEYS.every");
+    expect(source).not.toContain('[\n      "temporalQuestions", "firstTrueOrRelativeSequence"');
     expect(html).toContain("Temporal packet identity");
     expect(html).toContain("Temporal source documents");
     expect(html).toContain("Temporal source manifest");

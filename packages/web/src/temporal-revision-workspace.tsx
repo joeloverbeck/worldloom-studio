@@ -59,7 +59,7 @@ export interface TemporalFinalizationPreview {
   orientation: { current: string; next: string; resume: string };
 }
 
-const labels: Array<[keyof TemporalCoverageDraft, string]> = [
+export const TEMPORAL_COVERAGE_FIELDS: Array<[keyof TemporalCoverageDraft, string]> = [
   ["temporalQuestions", "Temporal Questions"],
   ["firstTrueOrRelativeSequence", "First True or Relative Sequence"],
   ["firstKnownOrReason", "First Known Date or Reason"],
@@ -71,6 +71,8 @@ const labels: Array<[keyof TemporalCoverageDraft, string]> = [
   ["temporalMysteryBoundaries", "Temporal Mystery Boundaries"],
   ["outcomeDecision", "Outcome Decision"]
 ];
+
+export const TEMPORAL_COVERAGE_KEYS = TEMPORAL_COVERAGE_FIELDS.map(([key]) => key);
 
 const errorDetail = (error: unknown) => {
   const payload = typeof error === "object" && error !== null && "payload" in error
@@ -128,8 +130,8 @@ export function TemporalRevisionWorkspace({
     const draft = revisionState?.draftState;
     if (!draft?.failed || !draft.attemptedInput) return;
     const attempted = draft.attemptedInput;
-    if (labels.every(([key]) => typeof attempted[key] === "string")) {
-      onCoverageChange(Object.fromEntries(labels.map(([key]) => [key, attempted[key]])) as unknown as TemporalCoverageDraft);
+    if (TEMPORAL_COVERAGE_FIELDS.every(([key]) => typeof attempted[key] === "string")) {
+      onCoverageChange(Object.fromEntries(TEMPORAL_COVERAGE_FIELDS.map(([key]) => [key, attempted[key]])) as unknown as TemporalCoverageDraft);
     }
     setReason(attempted.reason ?? "");
     setFailure({
@@ -186,7 +188,7 @@ export function TemporalRevisionWorkspace({
       <p className="status" role="status" tabIndex={-1} ref={statusRef}>{announcement || "Current, dirty, failed, superseded, blocked, and finalized state is announced here."}</p>
 
       <div className="grid two">
-        {labels.map(([key, label]) => (
+        {TEMPORAL_COVERAGE_FIELDS.map(([key, label]) => (
           <label key={key}>{label}<textarea aria-label={label} rows={2} value={coverage[key]} disabled={finalized} onChange={(event) => onCoverageChange({ ...coverage, [key]: event.target.value })} /></label>
         ))}
       </div>
