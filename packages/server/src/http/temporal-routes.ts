@@ -14,6 +14,21 @@ export const registerTemporalRoutes = (app: RouteApp, dependencies: RouteDepende
     c.json(TemporalFlow.saveTemporalCoverage(world, await readJson<TemporalFlow.SaveTemporalCoverageInput>(c)), 201)
   )));
 
+  app.post("/api/temporal/runs/:id/revisions", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () =>
+    c.json(TemporalFlow.reviseTemporalCoverage(world, {
+      ...(await readJson<Omit<TemporalFlow.ReviseTemporalCoverageInput, "flowId">>(c)),
+      flowId: Number(c.req.param("id"))
+    }), 201)
+  )));
+
+  app.post("/api/temporal/runs/:id/preview", (c) => withWorld(c, dependencies, (world) => tryRoute(c, () =>
+    c.json(TemporalFlow.previewTemporalClose(world, Number(c.req.param("id"))))
+  )));
+
+  app.post("/api/temporal/runs/:id/recover", (c) => withWorld(c, dependencies, (world) => tryRoute(c, () =>
+    c.json(TemporalFlow.recoverTemporalRun(world, Number(c.req.param("id"))))
+  )));
+
   app.post("/api/temporal/cards", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () =>
     c.json(TemporalFlow.createOrLinkTemporalCard(world, await readJson<{
       flowId: number;

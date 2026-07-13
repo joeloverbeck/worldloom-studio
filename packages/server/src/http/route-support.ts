@@ -37,6 +37,11 @@ export const badRequest = (c: Context, error: unknown): Response =>
         : {}
     ),
     ...(
+      typeof error === "object" && error !== null && "authoritativeState" in error
+        ? { authoritativeState: (error as { authoritativeState: unknown }).authoritativeState }
+        : {}
+    ),
+    ...(
       typeof error === "object" && error !== null && "remediation" in error
         ? { remediation: (error as { remediation: unknown }).remediation }
         : {}

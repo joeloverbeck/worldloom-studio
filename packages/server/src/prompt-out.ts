@@ -4,6 +4,7 @@ import { resolveCreationDecompositionHandoff } from "./creation-handoff.js";
 import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest, maybeMethodCard } from "./method-cards.js";
 import { PROMPT_TEMPLATE_SEEDS } from "./prompt-out-defaults.js";
 import * as PropagationStore from "./propagation-store.js";
+import * as TemporalStore from "./temporal-store.js";
 import { foundationalProposalDoctrine, foundationalProposalManifest, foundationalProposalOmissions, propagationPacketCompleteness, propagationRelatedWorldContext, PROPAGATION_ATLAS_DOMAINS, PROPAGATION_RELATED_WORLD_BUDGET, type PropagationPacketCompleteness, type PropagationRelatedWorldContext, type PropagationRelatedWorldRecord } from "./propagation-prompt-context.js";
 import type { PromptMode } from "./decision-point-contract.js";
 import type { MethodCard } from "@worldloom/shared";
@@ -716,18 +717,55 @@ type TemporalContextLink = ReturnType<WorldFile["listLinks"]>[number];
 const uniqueTemporalLinks = (links: TemporalContextLink[]): TemporalContextLink[] =>
   links.filter((link, index) => links.findIndex((candidate) => candidate.id === link.id) === index);
 
-const temporalContextGraph = (world: WorldFile, reportId: number, sourceRecordId: number | null) => {
+const temporalContextGraph = (world: WorldFile, reportId: number, sourceRecordId: number | null, flowId?: number) => {
   const directLinks = sourceRecordId == null ? [] : world.listLinks(sourceRecordId);
   const directIds = new Set(directLinks.flatMap((link) => [link.fromRecordId, link.toRecordId]));
   if (sourceRecordId != null) directIds.delete(sourceRecordId);
   directIds.delete(reportId);
   const secondHopLinks = [...directIds].flatMap((recordId) => world.listLinks(recordId));
-  const reportLinks = world.listLinks(reportId);
+  const staged = flowId == null ? null : TemporalStore.findRun(world, flowId);
+  const reportLinks = [
+    ...(reportId > 0 ? world.listLinks(reportId) : []),
+    ...(staged?.retained_prior_report_record_id == null ? [] : world.listLinks(staged.retained_prior_report_record_id)),
+    ...(flowId == null ? [] : TemporalStore.listOutcomes(world, flowId).map((outcome, index) => ({
+      id: -(index + 1),
+      fromRecordId: reportId,
+      toRecordId: outcome.record_id,
+      linkTypeKey: outcome.link_type_key,
+      note: outcome.note,
+      createdAt: staged?.created_at ?? ""
+    })))
+  ];
   const revisionLinks = uniqueTemporalLinks([...directLinks, ...secondHopLinks, ...reportLinks]);
   return { directLinks, directIds, secondHopLinks, reportLinks, revisionLinks };
 };
 
 export const temporalPacketRevision = (world: WorldFile, flowId: number): number => {
+  const staged = TemporalStore.findRun(world, flowId);
+  if (staged) {
+    const reportIds = [staged.retained_prior_report_record_id, staged.final_report_record_id].filter((id): id is number => id != null);
+    const outcomeIds = (world.db.prepare("SELECT record_id FROM temporal_run_outcomes WHERE flow_id = ? ORDER BY record_id").all(flowId) as Array<{ record_id: number }>).map((row) => row.record_id);
+    const advisoryRecordIds = world.listRecords().filter((record) => outcomeIds.includes(record.id) && record.recordTypeKey === "advisory_artifact").map((record) => record.id);
+    const contextRecordIds = new Set<number>([
+      ...(staged.source_record_id == null ? [] : [staged.source_record_id]),
+      ...reportIds,
+      ...outcomeIds,
+      ...world.listRecords().filter((record) => record.recordTypeKey === "world_kernel").map((record) => record.id)
+    ]);
+    const records = world.listRecords().filter((record) => contextRecordIds.has(record.id));
+    const digest = createHash("sha256").update(stableJson({
+      run: staged,
+      revisions: TemporalStore.listRevisions(world, flowId),
+      records,
+      reportSections: reportIds.flatMap((reportId) => world.listSections(reportId)),
+      links: reportIds.flatMap((reportId) => world.listLinks(reportId)),
+      outcomes: world.db.prepare("SELECT * FROM temporal_run_outcomes WHERE flow_id = ? ORDER BY record_id, link_type_key").all(flowId),
+      advisoryDispositions: advisoryRecordIds.flatMap((recordId) => world.db.prepare("SELECT * FROM advisory_dispositions WHERE advisory_record_id = ? ORDER BY id").all(recordId)),
+      standingRulings: standingRulingRows(world),
+      promptTemplate: promptTemplateRow(world, "temporal_spatial_analyst")
+    })).digest();
+    return digest.readUInt32BE(0);
+  }
   const flow = world.getFlowInstance(flowId, "temporal_timeline");
   const reportId = temporalReportIdFromStep(String(flow.current_step));
   if (reportId == null) throw new Error("Temporal packet identity requires a pass report bound to the current flow");
@@ -783,12 +821,41 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
   }
   if (input.mode == null) throw new Error("Temporal Prompt-out requires an explicit Proposal or Pressure mode; omitted mode is never an implicit Pressure request");
   const flow = world.getFlowInstance(input.flowId, "temporal_timeline");
-  const reportId = temporalReportIdFromStep(String(flow.current_step));
-  if (reportId == null) {
+  const staged = TemporalStore.findRun(world, input.flowId);
+  const legacyReportId = temporalReportIdFromStep(String(flow.current_step));
+  if (!staged && legacyReportId == null) {
     throw temporalIncompleteContextError("the current flow does not identify its pass report");
   }
-  const report = world.getRecord(reportId);
-  const sections = world.listSections(report.id);
+  const activeRevision = staged ? TemporalStore.activeRevision(world, input.flowId) : null;
+  const report: RecordRow = staged
+    ? {
+        id: -input.flowId,
+        shortId: `TEMPORAL-RUN-${input.flowId}`,
+        recordTypeKey: "pass_report",
+        title: `Open Temporal staging: ${staged.source_summary}`,
+        body: [
+          "Flow key: temporal_timeline",
+          `Flow id: ${input.flowId}`,
+          `Source type: ${staged.source_type}`,
+          `Source record id: ${staged.source_record_id ?? ""}`,
+          `Material title: ${staged.material_title}`,
+          `Material body: ${staged.material_body}`,
+          `Audited subject: ${staged.audited_subject}`,
+          `Source summary: ${staged.source_summary}`,
+          `Active revision id: ${activeRevision?.id ?? "none"}`,
+          `Active-set identity: temporal:${input.flowId}:${staged.active_set_revision}:${activeRevision?.id ?? "none"}`
+        ].join("\n"),
+        truthLayer: "Objective canon",
+        canonStatus: "under review",
+        createdAt: staged.created_at,
+        updatedAt: staged.created_at
+      }
+    : world.getRecord(legacyReportId!);
+  const sections = staged
+    ? activeRevision == null
+      ? []
+      : [{ heading: "Coverage lenses", body: TEMPORAL_COVERAGE_FIELDS.map(([key, label]) => `${label}: ${activeRevision.values[key]}`).join("\n") }]
+    : world.listSections(report.id);
   const coverageSection = sections.find((section) => section.heading === "Coverage lenses") ?? null;
   const coverage = TEMPORAL_COVERAGE_FIELDS.map(([key, label]) => ({
     key,
@@ -796,9 +863,9 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
     value: coverageSection ? temporalLineValue(coverageSection.body, label) : ""
   }));
   const sourceRecordIdText = temporalLineValue(report.body, "Source record id");
-  const sourceRecordId = sourceRecordIdText ? Number(sourceRecordIdText) : null;
-  const materialTitle = temporalLineValue(report.body, "Material title");
-  const materialBody = temporalLineValue(report.body, "Material body");
+  const sourceRecordId = staged?.source_record_id ?? (sourceRecordIdText ? Number(sourceRecordIdText) : null);
+  const materialTitle = staged?.material_title ?? temporalLineValue(report.body, "Material title");
+  const materialBody = staged?.material_body ?? temporalLineValue(report.body, "Material body");
   const blockers: string[] = [];
   if (input.recordId != null && sourceRecordId != null && input.recordId !== sourceRecordId) {
     blockers.push(`selected record ${input.recordId} does not match Temporal source record ${sourceRecordId}`);
@@ -830,7 +897,7 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
         direction: "selected",
         note: "Source identity persisted by the Temporal pass report"
       }, "The selected source is the material whose timing, latency, residue, and sequence are under decision.");
-  const graph = temporalContextGraph(world, report.id, selectedRecord?.id ?? null);
+  const graph = temporalContextGraph(world, report.id, selectedRecord?.id ?? null, input.flowId);
   const sourcePropagation: TemporalPacketContextRecord[] = [];
   const relatedCanon: TemporalPacketContextRecord[] = [];
   const openDebt: TemporalPacketContextRecord[] = [];
@@ -840,11 +907,16 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
   const skips: TemporalPacketContextRecord[] = [];
   const advisoryDispositions: Array<{ advisory: TemporalPacketContextRecord; dispositions: AdvisoryDispositionRow[] }> = [];
   const omissions: string[] = [];
+  const stagedOutcomeIds = new Set(TemporalStore.findRun(world, input.flowId) ? TemporalStore.listOutcomes(world, input.flowId).map((outcome) => outcome.record_id) : []);
+  const seenDirectRecordIds = new Set<number>();
 
   for (const link of graph.directLinks) {
     const otherId = link.fromRecordId === selectedRecord?.id ? link.toRecordId : link.fromRecordId;
     const candidate = world.getRecord(otherId);
     if (candidate.id === report.id) continue;
+    if (stagedOutcomeIds.has(candidate.id)) continue;
+    if (seenDirectRecordIds.has(candidate.id)) continue;
+    seenDirectRecordIds.add(candidate.id);
     if (inactiveTemporalStatuses.has(candidate.canonStatus ?? "")) {
       omissions.push(`${candidate.shortId} omitted as inactive ${candidate.canonStatus} context; it is historical rather than current support.`);
       continue;

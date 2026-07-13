@@ -16,6 +16,12 @@ import {
   type TemporalPromptError,
   type TemporalPromptModeOffer
 } from "./temporal-prompt-out-panel.js";
+import {
+  TemporalRevisionWorkspace,
+  type TemporalCoverageDraft,
+  type TemporalFinalizationPreview,
+  type TemporalRevisionStateView
+} from "./temporal-revision-workspace.js";
 import "./styles.css";
 
 interface RecordRow {
@@ -428,22 +434,12 @@ interface TemporalCloseBlocker {
   message: string;
 }
 
-interface TemporalCoverage {
-  temporalQuestions: string;
-  firstTrueOrRelativeSequence: string;
-  firstKnownOrReason: string;
-  dateTypesAndGranularity: string;
-  latency: string;
-  residueByTimescale: string;
-  sequenceIntegrity: string;
-  retrospectiveInsertion: string;
-  temporalMysteryBoundaries: string;
-  outcomeDecision: string;
-}
+type TemporalCoverage = TemporalCoverageDraft;
 
 interface TemporalRun {
   flow: { id: number; state: string; current_step: string };
-  report: RecordRow;
+  report: RecordRow | null;
+  priorReport: RecordRow | null;
   source: {
     sourceType: string;
     sourceRecordId: number | null;
@@ -465,6 +461,14 @@ interface TemporalRun {
   };
   methodCards?: MethodCard[];
   coverage: TemporalCoverage | null;
+  revisionState: TemporalRevisionStateView;
+  revisionContract: {
+    name: string;
+    packageSources: string[];
+    stagingDoctrine: string;
+    draftState: { status: string; dirty: boolean; failed: boolean; authoritativeRevisionId: number | null };
+    reportRelationship: { type: "final" | "correction"; retainedPriorReportRecordId: number | null };
+  };
   sections: SectionRow[];
   cards: Array<{ card: RecordRow }>;
   proposals: Array<{ record: RecordRow }>;
@@ -472,7 +476,8 @@ interface TemporalRun {
   advisories: Array<{ record: RecordRow }>;
   skips: Array<{ record: RecordRow }>;
   closeReadiness: { status: string; blockers: TemporalCloseBlocker[] };
-  closePreview: { status: string; blockers: TemporalCloseBlocker[] };
+  closePreview: TemporalFinalizationPreview;
+  reportRelationship: { type: "final" | "correction"; retainedPriorReportRecordId: number | null };
   promptOut: { available: boolean; templateKey: string; stepKey: string; coldUseEvidence: string; sourceRecordId: number | null };
   readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
   decisionPoint?: DecisionPointEnvelope;
@@ -2191,19 +2196,6 @@ const emptyTemporalCoverage: TemporalCoverage = {
   outcomeDecision: ""
 };
 
-const temporalCoverageLabels: Array<[keyof TemporalCoverage, string]> = [
-  ["temporalQuestions", "Temporal Questions"],
-  ["firstTrueOrRelativeSequence", "First True or Relative Sequence"],
-  ["firstKnownOrReason", "First Known Date or Reason"],
-  ["dateTypesAndGranularity", "Date Types and Granularity"],
-  ["latency", "Latency and Residue"],
-  ["residueByTimescale", "Residue by Timescale"],
-  ["sequenceIntegrity", "Sequence Integrity"],
-  ["retrospectiveInsertion", "Retrospective Insertion"],
-  ["temporalMysteryBoundaries", "Temporal Mystery Boundaries"],
-  ["outcomeDecision", "Outcome Decision"]
-];
-
 const parseNumberList = (value: string): number[] =>
   value
     .split(/[\s,]+/)
@@ -2331,11 +2323,13 @@ function App({
   const [temporalMaterialBody, setTemporalMaterialBody] = useState("");
   const [temporalSubject, setTemporalSubject] = useState(initialTemporalRun?.source.auditedSubject ?? "");
   const [temporalCoverage, setTemporalCoverage] = useState<TemporalCoverage>(initialTemporalRun?.coverage ?? emptyTemporalCoverage);
+  const [temporalFinalizationPreview, setTemporalFinalizationPreview] = useState<TemporalFinalizationPreview | null>(initialTemporalRun?.closePreview ?? null);
   const [temporalExistingCardId, setTemporalExistingCardId] = useState("");
   const [temporalCardRelation, setTemporalCardRelation] = useState("");
   const [temporalSourceStep, setTemporalSourceStep] = useState("temporal:outcome");
   const [temporalAdvisoryRecordId, setTemporalAdvisoryRecordId] = useState("");
   const [temporalSkipStep, setTemporalSkipStep] = useState("temporal:spatial-temporal-analysis");
+  const [temporalSkipReason, setTemporalSkipReason] = useState("");
   const [temporalSkipUnresolved, setTemporalSkipUnresolved] = useState(false);
   const [temporalPromptMode, setTemporalPromptMode] = useState<"proposal" | "pressure">("proposal");
   const [temporalPacketContext, setTemporalPacketContext] = useState<TemporalPacketContextView | null>(null);
@@ -5291,7 +5285,7 @@ function App({
     await api(payload.step.actions.skip.href, {
       method: payload.step.actions.skip.method,
       body: JSON.stringify({
-        reason: gateNotApplicable || undefined,
+        reason: temporalSkipReason || undefined,
         unresolved: constraintSkipUnresolved,
         debtName: constraintSkipUnresolved ? (canonDebtName || "Constraint Composition skipped-work debt") : undefined,
         workScale: workScale || undefined
@@ -5316,6 +5310,7 @@ function App({
     if (payload.source.sourceRecordId != null) setTemporalSourceRecordId(String(payload.source.sourceRecordId));
     setTemporalSubject(payload.source.auditedSubject);
     if (payload.coverage) setTemporalCoverage(payload.coverage);
+    setTemporalFinalizationPreview(payload.closePreview);
   };
 
   const refreshTemporalRun = async (flowId = temporalFlowId) => {
@@ -5414,6 +5409,27 @@ function App({
     await refreshTemporalRun(temporalFlowId);
   };
 
+  const reviseTemporalCoverage = async (input: { expectedRevisionId: number; reason: string; coverage: TemporalCoverage }) => {
+    if (temporalFlowId == null) return;
+    await api(`/api/temporal/runs/${temporalFlowId}/revisions`, {
+      method: "POST",
+      body: JSON.stringify({ expectedRevisionId: input.expectedRevisionId, reason: input.reason, ...input.coverage })
+    });
+    await refreshTemporalRun(temporalFlowId);
+  };
+
+  const recoverTemporalCoverage = async (): Promise<TemporalCoverage | null> => {
+    if (temporalFlowId == null) return null;
+    const payload = await api<TemporalRun & { recovery: { authoritativeRevisionId: number | null } }>(`/api/temporal/runs/${temporalFlowId}/recover`, { method: "POST" });
+    applyTemporalRun(payload);
+    return payload.revisionState.active?.values ?? null;
+  };
+
+  const previewTemporalFinalization = async () => {
+    if (temporalFlowId == null) return;
+    setTemporalFinalizationPreview(await api<TemporalFinalizationPreview>(`/api/temporal/runs/${temporalFlowId}/preview`, { method: "POST" }));
+  };
+
   const createOrLinkTemporalCard = async () => {
     if (temporalFlowId == null) return;
     await api("/api/temporal/cards", {
@@ -5499,7 +5515,7 @@ function App({
     if (temporalFlowId == null) return;
     const payload = await api<TemporalRun>(`/api/temporal/runs/${temporalFlowId}/close`, { method: "POST" });
     applyTemporalRun(payload);
-    setMessage(`Closed Temporal/Timeline run with ${payload.report.shortId}`);
+    setMessage(`Closed Temporal/Timeline run with ${payload.report?.shortId ?? "the final report"}`);
     await loadWorldData();
   };
 
@@ -6095,13 +6111,12 @@ function App({
         <div className="row">
           <button onClick={startTemporalRun} disabled={!openWorld || (temporalSourceType !== "material" && !temporalSourceRecordId) || (temporalSourceType === "material" && (!temporalMaterialTitle.trim() || !temporalMaterialBody.trim()))}>Start or Resume Temporal</button>
           <button onClick={() => void refreshTemporalRun()} disabled={!openWorld || temporalFlowId == null}>Refresh Temporal</button>
-          <button onClick={closeTemporalRun} disabled={!openWorld || temporalFlowId == null}>Close Temporal Run</button>
         </div>
       </section>
 
       <section className="subpanel">
         <h3>Current decision</h3>
-        <p className="status">{temporalRun ? `${temporalRun.report.shortId} · ${temporalRun.source.sourceSummary} · ${temporalRun.flow.current_step}` : "No Temporal/Timeline run loaded."}</p>
+        <p className="status">{temporalRun ? `${temporalRun.report?.shortId ?? `Open staging ${temporalRun.flow.id}`} · ${temporalRun.source.sourceSummary} · ${temporalRun.flow.current_step}` : "No Temporal/Timeline run loaded."}</p>
         <p className="meta">{temporalRun?.doctrine.browserPolicy ?? "Browser controls surface server policy, blockers, write intent, Prompt-out state, and read-side trail."}</p>
         <ol>
           {(temporalRun?.doctrine.stepMap ?? [
@@ -6129,15 +6144,19 @@ function App({
         )}
       </section>
 
-      <section className="subpanel">
-        <h3>Temporal coverage</h3>
-        <div className="grid two">
-          {temporalCoverageLabels.map(([key, label]) => (
-            <label key={key}>{label}<textarea rows={2} value={temporalCoverage[key]} onChange={(event) => setTemporalCoverage((current) => ({ ...current, [key]: event.target.value }))} /></label>
-          ))}
-        </div>
-        <button onClick={saveTemporalCoverage} disabled={temporalFlowId == null}>Save Temporal Coverage</button>
-      </section>
+      <TemporalRevisionWorkspace
+        runId={temporalFlowId}
+        revisionState={temporalRun?.revisionState ?? null}
+        coverage={temporalCoverage}
+        blockers={temporalRun?.closeReadiness.blockers ?? []}
+        preview={temporalFinalizationPreview}
+        onCoverageChange={setTemporalCoverage}
+        onSave={saveTemporalCoverage}
+        onRevise={reviseTemporalCoverage}
+        onRecover={recoverTemporalCoverage}
+        onPreview={previewTemporalFinalization}
+        onClose={closeTemporalRun}
+      />
 
       <div className="grid two">
         <section className="subpanel">
@@ -6172,6 +6191,7 @@ function App({
           <h3>Record Governed Skip</h3>
           <div className="grid">
             <label>Skip step<input value={temporalSkipStep} onChange={(event) => setTemporalSkipStep(event.target.value)} /></label>
+            <label>Pressure skip reason (required for major-or-higher Temporal work)<textarea rows={2} value={temporalSkipReason} onChange={(event) => setTemporalSkipReason(event.target.value)} /></label>
             <label className="inline-check"><input type="checkbox" checked={temporalSkipUnresolved} onChange={(event) => setTemporalSkipUnresolved(event.target.checked)} />Unresolved follow-up</label>
           </div>
           <button onClick={recordTemporalSkip} disabled={temporalFlowId == null || !temporalSkipStep.trim()}>Record Governed Skip</button>
@@ -6192,6 +6212,13 @@ function App({
         packetState={promptPacketView?.state}
         packetStateReason={promptPacketView?.reason}
         copyDownloadControls={promptPacketExportControls}
+        advisoryControls={(
+          <div className="subpanel">
+            <label>Temporal advisory response<textarea rows={5} value={responseText} onChange={(event) => setResponseText(event.target.value)} /></label>
+            <label>Temporal advisory disposition<select value={disposition} onChange={(event) => setDisposition(event.target.value)}>{advisoryDispositions.map((term) => <option key={term.term}>{term.term}</option>)}</select></label>
+            <button onClick={() => { void storeAdvisory(); }} disabled={!canUseCurrentPromptPacket || !responseText}>Store Current Temporal Advisory</button>
+          </div>
+        )}
         onLoadMode={(mode) => { void loadTemporalPromptStep(mode); }}
         onRecover={() => { void recoverTemporalPromptPacket(); }}
       />

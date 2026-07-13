@@ -3,6 +3,7 @@ import { ADVISORY_OUTPUT_LABELS, promptMode, withPromptModeSummaries, type Decis
 import { methodCard, methodCardDoctrineSlots, methodCardsForFlow, methodCardSourceManifest } from "./method-cards.js";
 import { coverMatchingConditionalPassObligation } from "./conditional-pass-obligations.js";
 import * as PromptOut from "./prompt-out.js";
+import * as TemporalStore from "./temporal-store.js";
 import type { AdmissionQueueRow, RecordRow, SectionRow, WorldFile } from "./world-file.js";
 
 export const FLOW_KEY = "temporal_timeline";
@@ -100,6 +101,18 @@ const sourceFromReport = (report: RecordRow) => ({
   triggerRecommendation: DOCTRINE.triggerRecommendation
 });
 
+const sourceFromRun = (run: TemporalStore.TemporalRunStoreRow) => ({
+  flowId: run.flow_id,
+  passReportRecordId: run.final_report_record_id ?? run.retained_prior_report_record_id,
+  sourceType: run.source_type,
+  sourceRecordId: run.source_record_id,
+  materialTitle: run.material_title,
+  materialBody: run.material_body,
+  auditedSubject: run.audited_subject,
+  sourceSummary: run.source_summary,
+  triggerRecommendation: DOCTRINE.triggerRecommendation
+});
+
 const coverageBody = (coverage: TemporalCoverage): string =>
   (Object.entries(COVERAGE_LABELS) as Array<[keyof TemporalCoverage, string]>)
     .map(([key, label]) => `${label}: ${coverage[key]}`)
@@ -132,14 +145,63 @@ const readReport = (world: WorldFile, flowId: number): RecordRow => {
   return report;
 };
 
-const sourceRecordIds = (source: ReturnType<typeof sourceFromReport>): number[] =>
+const reportForRun = (world: WorldFile, flowId: number): RecordRow | null => {
+  const staged = TemporalStore.findRun(world, flowId);
+  const reportId = staged?.final_report_record_id ?? null;
+  return reportId == null ? null : world.getRecord(reportId);
+};
+
+const priorReportForRun = (world: WorldFile, flowId: number): RecordRow | null => {
+  const reportId = TemporalStore.findRun(world, flowId)?.retained_prior_report_record_id ?? null;
+  return reportId == null ? null : world.getRecord(reportId);
+};
+
+const ensureStagedRun = (world: WorldFile, flowId: number): void => {
+  if (TemporalStore.findRun(world, flowId)) return;
+  const flow = readFlow(world, flowId);
+  const reportId = reportIdFromStep(String(flow.current_step));
+  if (reportId == null) throw new Error(`Temporal run ${flowId} has neither staged state nor a legacy pass report`);
+  const report = world.getRecord(reportId);
+  if (report.recordTypeKey !== "pass_report") throw new Error("legacy Temporal migration requires a pass_report");
+  const source = sourceFromReport(report);
+  const coverage = coverageFromSections(world.listSections(report.id));
+  world.atomicWrite(() => {
+    TemporalStore.createRun(world, {
+      flowId,
+      sourceType: source.sourceType,
+      sourceRecordId: source.sourceRecordId,
+      materialTitle: source.materialTitle,
+      materialBody: source.materialBody,
+      auditedSubject: source.auditedSubject,
+      sourceSummary: source.sourceSummary,
+      retainedPriorReportRecordId: report.id
+    });
+    if (coverage) TemporalStore.insertFirstRevision(world, flowId, coverage, "temporal:migration:legacy-report");
+    world.updateFlowInstance(flowId, { currentStep: "temporal:migrated-open-report" });
+  });
+};
+
+const sourceForRun = (world: WorldFile, flowId: number) => {
+  const staged = TemporalStore.findRun(world, flowId);
+  return staged ? sourceFromRun(staged) : sourceFromReport(readReport(world, flowId));
+};
+
+const coverageForRun = (world: WorldFile, flowId: number): TemporalCoverage | null => {
+  const staged = TemporalStore.findRun(world, flowId);
+  if (staged) return TemporalStore.activeRevision(world, flowId)?.values ?? null;
+  return coverageFromSections(world.listSections(readReport(world, flowId).id));
+};
+
+const sourceRecordIds = (source: { sourceRecordId: number | null }): number[] =>
   source.sourceRecordId == null ? [] : [source.sourceRecordId];
 
 const inProgressTemporalFlows = (world: WorldFile) =>
   world.db.prepare("SELECT * FROM flow_instances WHERE flow_key = ? AND state = 'in_progress' ORDER BY id DESC").all(FLOW_KEY) as Array<{ id: number; current_step: string }>;
 
 const findRunForReport = (world: WorldFile, reportRecordId: number) =>
-  inProgressTemporalFlows(world).find((flow) => reportIdFromStep(String(flow.current_step)) === reportRecordId)?.id ?? null;
+  TemporalStore.listOpenRuns(world).find((run) => run.retained_prior_report_record_id === reportRecordId || run.final_report_record_id === reportRecordId)?.flow_id
+  ?? inProgressTemporalFlows(world).find((flow) => reportIdFromStep(String(flow.current_step)) === reportRecordId)?.id
+  ?? null;
 
 const temporalMethodCardForStep = (stepKey: string) => {
   if (stepKey.includes("questions")) return methodCard("temporal.questions");
@@ -182,7 +244,16 @@ const sourceSummaryFor = (world: WorldFile, input: Exclude<StartTemporalRunInput
 };
 
 const findExistingRun = (world: WorldFile, source: ReturnType<typeof sourceSummaryFor>): number | null => {
+  for (const run of TemporalStore.listOpenRuns(world)) {
+    if (
+      run.source_type === source.sourceType
+      && run.source_record_id === source.sourceRecordId
+      && run.material_title === source.materialTitle
+      && run.material_body === source.materialBody
+    ) return run.flow_id;
+  }
   for (const flow of inProgressTemporalFlows(world)) {
+    if (TemporalStore.findRun(world, Number(flow.id))) continue;
     const reportId = reportIdFromStep(String(flow.current_step));
     if (reportId == null) continue;
     const current = sourceFromReport(world.getRecord(reportId));
@@ -199,7 +270,7 @@ const findExistingRun = (world: WorldFile, source: ReturnType<typeof sourceSumma
 const closeReadiness = (world: WorldFile, flowId: number) => {
   const flow = readFlow(world, flowId);
   if (String(flow.state) === "complete") return { status: "closed", blockers: [] };
-  const coverage = coverageFromSections(world.listSections(readReport(world, flowId).id));
+  const coverage = coverageForRun(world, flowId);
   const blockers: Array<{ kind: string; key: string; label: string; message: string; classification: string }> = [];
   const push = (key: string, label: string, message: string) => blockers.push({ kind: key, key, label, message, classification: "missing_required_coverage" });
   if (!coverage || !hasSubstance(coverage.firstTrueOrRelativeSequence)) push("first_true_sequence", "First true or relative sequence", "Record when the fact first became true or its relative causal sequence.");
@@ -210,12 +281,84 @@ const closeReadiness = (world: WorldFile, flowId: number) => {
   if (!coverage || !hasSubstance(coverage.sequenceIntegrity)) push("sequence_integrity", "Sequence integrity", "Check that causes precede effects or explain the exception.");
   if (!coverage || !hasSubstance(coverage.temporalMysteryBoundaries)) push("temporal_mystery_boundaries", "Temporal mystery boundaries", "Record observable boundaries for mysteries or branches, or why none are in scope.");
   if (!coverage || !hasSubstance(coverage.outcomeDecision)) push("outcome_decision", "Outcome decision", "Record card, proposal, debt, no-card close, or explicit non-mutation.");
+  const staged = TemporalStore.findRun(world, flowId);
+  if (staged?.pressure_owed_revision != null) {
+    blockers.push({
+      kind: "pressure_currentness",
+      key: "pressure_currentness",
+      label: "Current Pressure or governed skip",
+      message: "A material revision followed used Pressure; load current Pressure or record the governed Prompt-out skip before close.",
+      classification: "stale_prompt_support"
+    });
+  }
   return { status: blockers.length ? "blocked" : "ready", blockers };
 };
 
+const reportRelationship = (world: WorldFile, flowId: number) => {
+  const run = TemporalStore.getRun(world, flowId);
+  return run.retained_prior_report_record_id == null
+    ? { type: "final" as const, retainedPriorReportRecordId: null }
+    : { type: "correction" as const, retainedPriorReportRecordId: run.retained_prior_report_record_id };
+};
+
+const revisionDecisionContract = (world: WorldFile, flowId: number) => {
+  const state = TemporalStore.revisionState(world, flowId);
+  return {
+    name: "Temporal coverage revision and finalization",
+    packageSources: [
+      "docs/worldbuilding-system/03_truth_layers_and_canon_governance.md",
+      "docs/worldbuilding-system/09_temporal_and_timeline_protocol.md",
+      "docs/worldbuilding-system/20_ai_assisted_workflow.md"
+    ],
+    stagingDoctrine: "Open-run coverage is editable audit-safe staging; only successful close creates an append-only final or correction report.",
+    draftState: {
+      status: state.active == null ? "incomplete" : "current",
+      dirty: false,
+      failed: false,
+      authoritativeRevisionId: state.active?.id ?? null,
+      discardAction: { method: "POST", href: `/api/temporal/runs/${flowId}/recover` }
+    },
+    reviseAction: state.active == null ? null : { method: "POST", href: `/api/temporal/runs/${flowId}/revisions`, expectedRevisionId: state.active.id },
+    reportRelationship: reportRelationship(world, flowId)
+  };
+};
+
+export const previewTemporalClose = (world: WorldFile, flowId: number) => {
+  ensureStagedRun(world, flowId);
+  const source = sourceForRun(world, flowId);
+  const state = TemporalStore.revisionState(world, flowId);
+  return {
+    decisionContract: revisionDecisionContract(world, flowId),
+    activeRevision: state.active,
+    revisionAudit: state.lineage,
+    activeSet: state.activeSet,
+    reportRelationship: reportRelationship(world, flowId),
+    closeReadiness: closeReadiness(world, flowId),
+    writeIntent: {
+      willWrite: ["one append-only final or correction pass_report", "only the active ten-lens revision", "the retained revision audit"],
+      willLink: ["derived_from source", "explicit Temporal outcomes", "supersedes retained prior report when migrated"],
+      willLeaveUntouched: ["source fact text and standing", "source Propagation report", "sibling conditional-pass obligations", "Admission contents", "existing canon debt", "advisory artifacts", "unrelated records, links, and flows"]
+    },
+    orientation: {
+      current: `Temporal run ${flowId} active revision ${state.active?.id ?? "none"}`,
+      next: closeReadiness(world, flowId).status === "ready" ? "Finalize the active revision" : "Resolve the returned blockers",
+      resume: `Resume Temporal run ${flowId} for ${source.sourceSummary}`
+    }
+  };
+};
+
+export const recoverTemporalRun = (world: WorldFile, flowId: number) => {
+  const current = getTemporalRun(world, flowId);
+  const active = TemporalStore.activeRevision(world, flowId);
+  return {
+    ...current,
+    recovery: { discardedAttemptedDraft: true, authoritativeRevisionId: active?.id ?? null }
+  };
+};
+
 const promptOutState = (world: WorldFile, flowId: number) => {
-  const source = sourceFromReport(readReport(world, flowId));
-  const coverage = coverageFromSections(world.listSections(source.passReportRecordId));
+  const source = sourceForRun(world, flowId);
+  const coverage = coverageForRun(world, flowId);
   const available = coverage != null;
   return {
     available,
@@ -230,7 +373,7 @@ const promptOutState = (world: WorldFile, flowId: number) => {
 
 const temporalPromptModes = (world: WorldFile, flowId: number): DecisionPointPromptMode[] => {
   const promptOut = promptOutState(world, flowId);
-  const source = sourceFromReport(readReport(world, flowId));
+  const source = sourceForRun(world, flowId);
   const activeSetRevision = PromptOut.temporalPacketRevision(world, flowId);
   const commonBody = {
     flowKey: FLOW_KEY,
@@ -269,34 +412,47 @@ const temporalPromptModes = (world: WorldFile, flowId: number): DecisionPointPro
 };
 
 const readSideTrail = (world: WorldFile, flowId: number) => {
-  const source = sourceFromReport(readReport(world, flowId));
+  const source = sourceForRun(world, flowId);
+  const report = reportForRun(world, flowId);
+  const priorReport = priorReportForRun(world, flowId);
   const trail: Array<{ label: string; href: string; recordId?: number }> = [
-    { label: "Temporal pass report", recordId: source.passReportRecordId, href: `/api/canon-workbench/records/${source.passReportRecordId}` },
+    ...(report == null ? [] : [{ label: priorReport == null ? "Final current Temporal report" : "Corrected current Temporal report", recordId: report.id, href: `/api/canon-workbench/records/${report.id}` }]),
+    ...(priorReport == null ? [] : [{ label: "Retained prior Temporal report", recordId: priorReport.id, href: `/api/canon-workbench/records/${priorReport.id}` }]),
     ...sourceRecordIds(source).map((recordId) => ({ label: "Source record", recordId, href: `/api/canon-workbench/records/${recordId}` })),
     { label: "Audit Trail", href: "/api/canon-workbench/audit" },
     { label: "Current Canon", href: "/api/canon-workbench/current" }
   ];
-  for (const link of world.listLinks(source.passReportRecordId)) {
-    if (link.fromRecordId !== source.passReportRecordId) continue;
-    const target = world.getRecord(link.toRecordId);
+  for (const outcome of TemporalStore.listOutcomes(world, flowId)) {
+    const target = world.getRecord(outcome.record_id);
     if (target.recordTypeKey === "temporal_timeline") trail.push({ label: "Temporal timeline card", recordId: target.id, href: `/api/canon-workbench/records/${target.id}` });
     if (target.recordTypeKey === "canon_fact") trail.push({ label: "Admission proposal", recordId: target.id, href: `/api/canon-workbench/records/${target.id}` });
     if (target.recordTypeKey === "canon_debt") trail.push({ label: "Canon debt", recordId: target.id, href: `/api/canon-workbench/records/${target.id}` });
     if (target.recordTypeKey === "skip_record") trail.push({ label: "Skip record", recordId: target.id, href: `/api/canon-workbench/records/${target.id}` });
     if (target.recordTypeKey === "advisory_artifact") trail.push({ label: "Advisory artifact", recordId: target.id, href: `/api/canon-workbench/records/${target.id}` });
   }
-  return trail;
+  const uniqueTrail = () => [...new Map(trail.map((item) => [`${item.label}:${item.href}`, item])).values()];
+  if (report == null) return uniqueTrail();
+  for (const link of world.listLinks(report.id)) {
+    if (link.fromRecordId !== report.id) continue;
+    const target = world.getRecord(link.toRecordId);
+    if (target.recordTypeKey === "temporal_timeline") trail.push({ label: "Temporal timeline card", recordId: target.id, href: `/api/canon-workbench/records/${target.id}` });
+    if (target.recordTypeKey === "canon_fact" && link.linkTypeKey === "covers") trail.push({ label: "Admission proposal", recordId: target.id, href: `/api/canon-workbench/records/${target.id}` });
+    if (target.recordTypeKey === "canon_debt") trail.push({ label: "Canon debt", recordId: target.id, href: `/api/canon-workbench/records/${target.id}` });
+    if (target.recordTypeKey === "skip_record") trail.push({ label: "Skip record", recordId: target.id, href: `/api/canon-workbench/records/${target.id}` });
+    if (target.recordTypeKey === "advisory_artifact") trail.push({ label: "Advisory artifact", recordId: target.id, href: `/api/canon-workbench/records/${target.id}` });
+  }
+  return uniqueTrail();
 };
 
 const temporalDecisionPoint = (world: WorldFile, flowId: number): { sharedContract: DecisionPointSharedContract } => {
   const flow = readFlow(world, flowId);
-  const report = readReport(world, flowId);
-  const source = sourceFromReport(report);
+  const report = reportForRun(world, flowId);
+  const source = sourceForRun(world, flowId);
   const stepKey = String(flow.current_step).replace(/^temporal:report:\d+:/, "temporal:");
   const cardValue = temporalMethodCardForStep(stepKey);
   const readiness = closeReadiness(world, flowId);
   const promptOut = promptOutState(world, flowId);
-  const coverage = coverageFromSections(world.listSections(report.id));
+  const coverage = coverageForRun(world, flowId);
   const displayed = [
     `Source: ${source.sourceSummary}`,
     `Audited subject: ${source.auditedSubject}`,
@@ -330,7 +486,7 @@ const temporalDecisionPoint = (world: WorldFile, flowId: number): { sharedContra
       bearingContext: {
         displayed,
         sourceManifest: [
-          `Pass report: ${source.passReportRecordId}`,
+          ...(report == null ? ["Pass report: not created until successful close"] : [`Pass report: ${report.id}`]),
           ...(source.sourceRecordId == null ? [] : [`Source record id: ${source.sourceRecordId}`]),
           ...methodCardSourceManifest(cardValue)
         ],
@@ -365,6 +521,12 @@ const linkedRecords = (world: WorldFile, reportId: number, recordType: string, l
     .map((link) => world.getRecord(link.toRecordId))
     .filter((record) => record.recordTypeKey === recordType);
 
+const stagedRecords = (world: WorldFile, flowId: number, recordType: string, linkType?: string) =>
+  TemporalStore.listOutcomes(world, flowId)
+    .filter((outcome) => linkType == null || outcome.link_type_key === linkType)
+    .map((outcome) => world.getRecord(outcome.record_id))
+    .filter((record) => record.recordTypeKey === recordType);
+
 const sections = (world: WorldFile, flowId: number) => world.listSections(readReport(world, flowId).id);
 
 export type StartTemporalRunInput =
@@ -376,27 +538,40 @@ export interface SaveTemporalCoverageInput extends TemporalCoverage {
   flowId: number;
 }
 
+export interface ReviseTemporalCoverageInput extends TemporalCoverage {
+  flowId: number;
+  expectedRevisionId: number;
+  reason: string;
+}
+
 export const getTemporalRun = (world: WorldFile, flowId: number) => {
+  ensureStagedRun(world, flowId);
   const flow = readFlow(world, flowId);
-  const report = readReport(world, flowId);
-  const source = sourceFromReport(report);
-  const currentSections = world.listSections(report.id);
-  const coverage = coverageFromSections(currentSections);
+  const report = reportForRun(world, flowId);
+  const priorReport = priorReportForRun(world, flowId);
+  const source = sourceForRun(world, flowId);
+  const currentSections = report == null ? [] : world.listSections(report.id);
+  const coverage = coverageForRun(world, flowId);
+  const revisionState = TemporalStore.findRun(world, flowId) ? TemporalStore.revisionState(world, flowId) : null;
   return {
     flow,
     report,
+    priorReport,
     source,
     doctrine: DOCTRINE,
     methodCards: methodCardsForFlow(FLOW_KEY),
     coverage,
     sections: currentSections,
-    cards: linkedRecords(world, report.id, "temporal_timeline", "covers").map((card) => ({ card })),
-    proposals: linkedRecords(world, report.id, "canon_fact", "covers").map((record) => ({ record })),
-    debt: linkedRecords(world, report.id, "canon_debt", "requires_follow_up").map((record) => ({ record })),
-    advisories: linkedRecords(world, report.id, "advisory_artifact", "cites_advisory_artifact").map((record) => ({ record })),
-    skips: linkedRecords(world, report.id, "skip_record", "covers").map((record) => ({ record })),
+    revisionState,
+    cards: stagedRecords(world, flowId, "temporal_timeline", "covers").map((card) => ({ card })),
+    proposals: stagedRecords(world, flowId, "canon_fact", "covers").map((record) => ({ record })),
+    debt: stagedRecords(world, flowId, "canon_debt", "requires_follow_up").map((record) => ({ record })),
+    advisories: stagedRecords(world, flowId, "advisory_artifact", "cites_advisory_artifact").map((record) => ({ record })),
+    skips: stagedRecords(world, flowId, "skip_record", "covers").map((record) => ({ record })),
     closeReadiness: closeReadiness(world, flowId),
-    closePreview: closeReadiness(world, flowId),
+    closePreview: previewTemporalClose(world, flowId),
+    revisionContract: revisionDecisionContract(world, flowId),
+    reportRelationship: reportRelationship(world, flowId),
     promptOut: promptOutState(world, flowId),
     readSideTrail: readSideTrail(world, flowId),
     decisionPoint: temporalDecisionPoint(world, flowId)
@@ -417,37 +592,22 @@ export const startTemporalRun = (world: WorldFile, input: StartTemporalRunInput)
   if (existingFlowId != null) return getTemporalRun(world, existingFlowId);
 
   return world.atomicWrite(() => {
-    const report = world.createRecord({
-      recordTypeKey: "pass_report",
-      title: `Temporal/Timeline pass: ${source.sourceSummary}`,
-      body: [
-        `Flow key: ${FLOW_KEY}`,
-        "Flow id: pending",
-        "Status: in progress",
-        `Source type: ${source.sourceType}`,
-        `Source record id: ${source.sourceRecordId ?? ""}`,
-        `Material title: ${source.materialTitle}`,
-        `Material body: ${source.materialBody}`,
-        `Audited subject: ${source.auditedSubject}`,
-        `Source summary: ${source.sourceSummary}`,
-        `Trigger recommendation: ${DOCTRINE.triggerRecommendation}`,
-        "Close sections are inserted as append-only pass-report sections when steward-authored coverage and outcomes exist."
-      ].join("\n"),
-      truthLayer: "Objective canon",
-      canonStatus: "accepted"
+    const flow = world.createFlowInstance({ flowKey: FLOW_KEY, currentStep: "temporal:entry" });
+    TemporalStore.createRun(world, {
+      flowId: Number(flow.id),
+      sourceType: source.sourceType,
+      sourceRecordId: source.sourceRecordId,
+      materialTitle: source.materialTitle,
+      materialBody: source.materialBody,
+      auditedSubject: source.auditedSubject,
+      sourceSummary: source.sourceSummary
     });
-    const flow = world.createFlowInstance({ flowKey: FLOW_KEY, currentStep: stepWithReport(report.id, "entry") });
-    if (source.sourceRecordId != null) {
-      world.createLinkIfMissing(report.id, source.sourceRecordId, "derived_from", "Temporal/Timeline pass audits this source");
-    }
     return getTemporalRun(world, Number(flow.id));
   });
 };
 
 export const saveTemporalCoverage = (world: WorldFile, input: SaveTemporalCoverageInput) => {
   const flow = readFlow(world, input.flowId);
-  const report = readReport(world, input.flowId);
-  if (coverageFromSections(world.listSections(report.id))) throw new Error("Temporal coverage is append-only for this run; start a new pass for corrected coverage");
   const coverage: TemporalCoverage = {
     temporalQuestions: input.temporalQuestions,
     firstTrueOrRelativeSequence: input.firstTrueOrRelativeSequence,
@@ -461,13 +621,55 @@ export const saveTemporalCoverage = (world: WorldFile, input: SaveTemporalCovera
     outcomeDecision: input.outcomeDecision
   };
   assertCoverageSubstance(coverage);
-  world.replaceSections(report.id, [{ heading: "Coverage lenses", body: coverageBody(coverage), position: 2 }]);
-  world.updateFlowInstance(Number(flow.id), { currentStep: stepWithReport(report.id, "coverage") });
-  return { coverage, closeReadiness: closeReadiness(world, input.flowId), promptOut: promptOutState(world, input.flowId), decisionPoint: temporalDecisionPoint(world, input.flowId) };
+  if (TemporalStore.activeRevision(world, input.flowId)) throw new Error("Temporal material replacement requires the explicit revision action and a steward reason");
+  TemporalStore.insertFirstRevision(world, input.flowId, coverage);
+  world.updateFlowInstance(Number(flow.id), { currentStep: "temporal:coverage" });
+  return { coverage, revisionState: TemporalStore.revisionState(world, input.flowId), closeReadiness: closeReadiness(world, input.flowId), promptOut: promptOutState(world, input.flowId), decisionPoint: temporalDecisionPoint(world, input.flowId) };
+};
+
+export const reviseTemporalCoverage = (world: WorldFile, input: ReviseTemporalCoverageInput) => {
+  const values: TemporalCoverage = {
+    temporalQuestions: input.temporalQuestions,
+    firstTrueOrRelativeSequence: input.firstTrueOrRelativeSequence,
+    firstKnownOrReason: input.firstKnownOrReason,
+    dateTypesAndGranularity: input.dateTypesAndGranularity,
+    latency: input.latency,
+    residueByTimescale: input.residueByTimescale,
+    sequenceIntegrity: input.sequenceIntegrity,
+    retrospectiveInsertion: input.retrospectiveInsertion,
+    temporalMysteryBoundaries: input.temporalMysteryBoundaries,
+    outcomeDecision: input.outcomeDecision
+  };
+  const attemptedInput = { ...values, expectedRevisionId: input.expectedRevisionId, reason: input.reason };
+  try {
+    assertCoverageSubstance(values);
+    return world.atomicWrite(() => {
+      TemporalStore.replaceActiveRevision(world, {
+        flowId: input.flowId,
+        expectedRevisionId: input.expectedRevisionId,
+        reason: input.reason,
+        values
+      });
+      world.updateFlowInstance(input.flowId, { currentStep: "temporal:coverage:revision" });
+      return {
+        revisionState: TemporalStore.revisionState(world, input.flowId),
+        closeReadiness: closeReadiness(world, input.flowId),
+        promptOut: promptOutState(world, input.flowId),
+        decisionPoint: temporalDecisionPoint(world, input.flowId)
+      };
+    });
+  } catch (cause) {
+    const error = cause instanceof Error ? cause : new Error(String(cause));
+    const enriched = error as Error & { attemptedInput: unknown; authoritativeState: unknown; remediation: string };
+    enriched.attemptedInput = attemptedInput;
+    enriched.authoritativeState = TemporalStore.revisionState(world, input.flowId);
+    enriched.remediation = "Preserve the attempted lenses, provide a steward-authored reason, then save again or discard to the authoritative active revision.";
+    throw enriched;
+  }
 };
 
 const requireCoverage = (world: WorldFile, flowId: number): TemporalCoverage => {
-  const coverage = coverageFromSections(world.listSections(readReport(world, flowId).id));
+  const coverage = coverageForRun(world, flowId);
   if (!coverage) throw new Error("Temporal outcome requires steward-authored Temporal coverage first");
   return coverage;
 };
@@ -516,8 +718,7 @@ export const createOrLinkTemporalCard = (
   world: WorldFile,
   input: { flowId: number; existingRecordId?: number; title?: string; body?: string; truthLayer?: string; canonStatus?: string; relation?: string; advisoryRecordId?: number }
 ) => {
-  const report = readReport(world, input.flowId);
-  const source = sourceFromReport(report);
+  const source = sourceForRun(world, input.flowId);
   const coverage = requireCoverage(world, input.flowId);
   if (input.advisoryRecordId != null) assertAdvisoryDisposed(world, input.advisoryRecordId);
   return world.atomicWrite(() => {
@@ -536,8 +737,7 @@ export const createOrLinkTemporalCard = (
         })
       : world.getRecord(input.existingRecordId);
     if (card.recordTypeKey !== "temporal_timeline") throw new Error("linked card must be a temporal_timeline record");
-    world.createLinkIfMissing(report.id, card.id, "covers", input.relation || "Temporal/Timeline pass records this timeline card");
-    world.createLinkIfMissing(card.id, report.id, "derived_from", "Temporal timeline card created or linked from Temporal/Timeline pass");
+    TemporalStore.addOutcome(world, { flowId: input.flowId, recordId: card.id, linkTypeKey: "covers", note: input.relation || "Temporal/Timeline pass records this timeline card", kind: "temporal_timeline" });
     for (const recordId of sourceRecordIds(source)) {
       world.createLinkIfMissing(card.id, recordId, "temporal_depends_on", "Temporal card preserves source timing provenance");
     }
@@ -547,7 +747,7 @@ export const createOrLinkTemporalCard = (
         citationNote: "Disposed Temporal advisory artifact consulted"
       });
     }
-    world.updateFlowInstance(input.flowId, { currentStep: stepWithReport(report.id, "card") });
+    world.updateFlowInstance(input.flowId, { currentStep: "temporal:card" });
     return { card, closeReadiness: closeReadiness(world, input.flowId), readSideTrail: readSideTrail(world, input.flowId) };
   });
 };
@@ -556,8 +756,7 @@ export const proposeFactFromTemporalRun = (
   world: WorldFile,
   input: { flowId: number; sourceStep: string; title: string; body: string; truthLayer?: string; advisoryRecordId?: number }
 ): { record: RecordRow; queue: AdmissionQueueRow[] } => {
-  const report = readReport(world, input.flowId);
-  const source = sourceFromReport(report);
+  const source = sourceForRun(world, input.flowId);
   requireCoverage(world, input.flowId);
   if (!input.title.trim() || !input.body.trim()) throw new Error("Temporal proposals require steward-authored title and body");
   const truthLayer = input.truthLayer?.trim() ?? "";
@@ -573,20 +772,19 @@ export const proposeFactFromTemporalRun = (
         canonStatus: "proposed"
       },
       sourceLinks: [
-        { recordId: report.id, note: "Fact surfaced by Temporal/Timeline pass report" },
         ...sourceRecordIds(source).map((recordId) => ({ recordId, note: "Temporal/Timeline source material" }))
       ],
       recordSweepJurisdiction: true,
       provenanceFlowStep: `temporal:proposal:${input.sourceStep}`
     });
-    world.createLinkIfMissing(report.id, intake.record.id, "covers", "Temporal/Timeline pass surfaced this Admission proposal");
+    TemporalStore.addOutcome(world, { flowId: input.flowId, recordId: intake.record.id, linkTypeKey: "covers", note: "Temporal/Timeline pass surfaced this Admission proposal", kind: "canon_fact" });
     if (input.advisoryRecordId != null) {
       PromptOut.linkExplicitAdvisoryUse(world, intake.record.id, input.advisoryRecordId, {
         derivedFromNote: "Temporal proposal used disposed advisory material",
         citationNote: "Disposed Temporal advisory artifact consulted"
       });
     }
-    world.updateFlowInstance(input.flowId, { currentStep: stepWithReport(report.id, `proposal:${input.sourceStep}`) });
+    world.updateFlowInstance(input.flowId, { currentStep: `temporal:proposal:${input.sourceStep}` });
     return intake;
   });
 };
@@ -595,8 +793,7 @@ export const mintTemporalDebt = (
   world: WorldFile,
   input: { flowId: number; sourceStep: string; name: string; reason: string; advisoryRecordId?: number }
 ) => {
-  const report = readReport(world, input.flowId);
-  const source = sourceFromReport(report);
+  const source = sourceForRun(world, input.flowId);
   requireCoverage(world, input.flowId);
   if (!input.name.trim()) throw new Error("Temporal canon debt requires a name");
   assertSubstance(input.reason, "Temporal canon debt");
@@ -606,9 +803,9 @@ export const mintTemporalDebt = (
       name: input.name,
       scope: `temporal-timeline:${input.sourceStep}`,
       assignee: "steward",
-      body: [`Source step: ${input.sourceStep}`, `Reason: ${input.reason}`, `Source report: ${report.id}`].join("\n")
-    });
-    world.createLinkIfMissing(report.id, debt.id, "requires_follow_up", "Temporal/Timeline pass minted follow-up canon debt");
+          body: [`Source step: ${input.sourceStep}`, `Reason: ${input.reason}`, `Source Temporal run: ${input.flowId}`].join("\n")
+        });
+    TemporalStore.addOutcome(world, { flowId: input.flowId, recordId: debt.id, linkTypeKey: "requires_follow_up", note: "Temporal/Timeline pass minted follow-up canon debt", kind: "canon_debt" });
     for (const recordId of sourceRecordIds(source)) {
       world.createLinkIfMissing(debt.id, recordId, "derived_from", "Temporal debt preserves source provenance");
     }
@@ -618,7 +815,7 @@ export const mintTemporalDebt = (
         citationNote: "Disposed Temporal advisory artifact consulted"
       });
     }
-    world.updateFlowInstance(input.flowId, { currentStep: stepWithReport(report.id, `debt:${input.sourceStep}`) });
+    world.updateFlowInstance(input.flowId, { currentStep: `temporal:debt:${input.sourceStep}` });
     return { debt, closeReadiness: closeReadiness(world, input.flowId), readSideTrail: readSideTrail(world, input.flowId) };
   });
 };
@@ -627,21 +824,19 @@ export const storeTemporalAdvisory = (
   world: WorldFile,
   input: { flowId: number; stepKey: string; mode?: "proposal" | "pressure"; activeSetRevision?: number | null; promptText: string; responseText: string }
 ) => {
-  const report = readReport(world, input.flowId);
   return world.atomicWrite(() => {
     const record = PromptOut.storeAdvisoryResponse(world, { flowKey: FLOW_KEY, flowId: input.flowId, stepKey: input.stepKey, mode: input.mode, activeSetRevision: input.activeSetRevision, promptText: input.promptText, responseText: input.responseText });
-    world.createLinkIfMissing(report.id, record.id, "cites_advisory_artifact", "Temporal/Timeline pass stores this advisory artifact");
-    world.createLinkIfMissing(record.id, report.id, "derived_from", "Temporal advisory artifact belongs to this pass report");
-    world.updateFlowInstance(input.flowId, { currentStep: stepWithReport(report.id, `advisory:${input.stepKey}`) });
+    TemporalStore.addOutcome(world, { flowId: input.flowId, recordId: record.id, linkTypeKey: "cites_advisory_artifact", note: "Temporal/Timeline pass stores this advisory artifact", kind: "advisory_artifact" });
+    if (input.mode === "pressure") TemporalStore.markPressureUsed(world, input.flowId);
+    world.updateFlowInstance(input.flowId, { currentStep: `temporal:advisory:${input.stepKey}` });
     return { record, closeReadiness: closeReadiness(world, input.flowId), readSideTrail: readSideTrail(world, input.flowId) };
   });
 };
 
 export const skipTemporalStep = (
   world: WorldFile,
-  input: { flowId: number; stepKey: string; admissionLevel?: string; workScale?: string; reason?: string; unresolved?: boolean; debtName?: string; existingDebtRecordId?: number }
+  input: { flowId: number; stepKey: string; mode?: "proposal" | "pressure"; admissionLevel?: string; workScale?: string; reason?: string; unresolved?: boolean; debtName?: string; existingDebtRecordId?: number }
 ) => {
-  const report = readReport(world, input.flowId);
   return world.atomicWrite(() => {
     const record = PromptOut.recordPromptOutSkip(world, {
       flowKey: FLOW_KEY,
@@ -665,12 +860,12 @@ export const skipTemporalStep = (
           body: input.reason ?? `Skipped Temporal step ${input.stepKey}`
         });
       }
-      world.createLinkIfMissing(report.id, debt.id, "requires_follow_up", "Temporal skip left unresolved work");
+      TemporalStore.addOutcome(world, { flowId: input.flowId, recordId: debt.id, linkTypeKey: "requires_follow_up", note: "Temporal skip left unresolved work", kind: "canon_debt" });
     }
-    world.createLinkIfMissing(report.id, record.id, "covers", "Temporal/Timeline pass records this governed skip");
-    world.createLinkIfMissing(record.id, report.id, "derived_from", "Temporal skip belongs to this pass report");
-    world.updateFlowInstance(input.flowId, { currentStep: stepWithReport(report.id, `skip:${input.stepKey}`) });
-    return { record, debt, closeReadiness: closeReadiness(world, input.flowId), readSideTrail: readSideTrail(world, input.flowId) };
+    TemporalStore.addOutcome(world, { flowId: input.flowId, recordId: record.id, linkTypeKey: "covers", note: "Temporal/Timeline pass records this governed skip", kind: "skip_record" });
+    if (input.mode === "pressure") TemporalStore.markPressureSkipped(world, input.flowId);
+    world.updateFlowInstance(input.flowId, { currentStep: `temporal:skip:${input.stepKey}` });
+    return { record, debt, revisionState: TemporalStore.revisionState(world, input.flowId), closeReadiness: closeReadiness(world, input.flowId), readSideTrail: readSideTrail(world, input.flowId) };
   });
 };
 
@@ -685,53 +880,66 @@ export const closeTemporalRun = (world: WorldFile, flowId: number) => {
     throw new Error(`Temporal close blocked: ${readiness.blockers.map((blocker) => blocker.label).join(", ")}`);
   }
   return world.atomicWrite(() => {
-    const report = readReport(world, flowId);
-    const source = sourceFromReport(report);
+    const source = sourceForRun(world, flowId);
     const coverage = requireCoverage(world, flowId);
-    const existingHeadings = new Set(world.listSections(report.id).map((section) => section.heading));
-    const inserts = [
-      {
-        heading: "Source and run",
-        body: [`Flow key: ${FLOW_KEY}`, `Flow id: ${flowId}`, `Source: ${source.sourceSummary}`, `Source type: ${source.sourceType}`, `Audited subject: ${source.auditedSubject}`, `Trigger recommendation: ${DOCTRINE.triggerRecommendation}`].join("\n"),
-        position: 1
-      },
-      {
-        heading: "Linked cards",
-        body: recordList(world, report.id, "temporal_timeline", "covers"),
-        position: 3
-      },
-      {
-        heading: "Admission proposals",
-        body: recordList(world, report.id, "canon_fact", "covers"),
-        position: 4
-      },
-      {
-        heading: "Canon debt",
-        body: recordList(world, report.id, "canon_debt", "requires_follow_up"),
-        position: 5
-      },
-      {
-        heading: "Prompt-out and skips",
-        body: [
-          recordList(world, report.id, "advisory_artifact", "cites_advisory_artifact"),
-          recordList(world, report.id, "skip_record", "covers"),
-          `Follow-up debt:\n${recordList(world, report.id, "canon_debt", "requires_follow_up")}`
-        ].join("\n\n"),
-        position: 6
-      },
-      {
-        heading: "Close readiness",
-        body: [
-          "Temporal close blockers satisfied with steward-authored coverage.",
-          `First true: ${coverage.firstTrueOrRelativeSequence}`,
-          `Latency: ${coverage.latency}`,
-          `Residue: ${coverage.residueByTimescale}`,
-          "Temporal never admitted facts in-pass; generated facts remain proposed through Admission."
-        ].join("\n"),
-        position: 7
-      }
-    ].filter((section) => !existingHeadings.has(section.heading));
-    if (inserts.length) world.replaceSections(report.id, inserts);
+    const staged = TemporalStore.getRun(world, flowId);
+    const lineage = TemporalStore.listRevisions(world, flowId);
+    const active = TemporalStore.activeRevision(world, flowId)!;
+    const priorReport = priorReportForRun(world, flowId);
+    const revisionAudit = lineage.map((revision) => [
+      `Revision ${revision.id} lineage ${revision.lineageId} v${revision.version} ${revision.lifecycleState}`,
+      `Reason: ${revision.revisionReason ?? "none - restored or first staged revision"}`,
+      `Created by ${revision.provenance.actor} at ${revision.provenance.timestamp} in ${revision.provenance.flowStep}`,
+      revision.retirementProvenance == null
+        ? "Retirement: active at finalization"
+        : `Retired by ${revision.retirementProvenance.actor} at ${revision.retirementProvenance.timestamp} in ${revision.retirementProvenance.flowStep}`,
+      coverageBody(revision.values)
+    ].join("\n")).join("\n\n");
+    const report = world.createRecord({
+      recordTypeKey: "pass_report",
+      title: `${priorReport == null ? "Temporal/Timeline pass" : "Temporal/Timeline correction"}: ${source.sourceSummary}`,
+      body: [
+        `Flow key: ${FLOW_KEY}`,
+        `Flow id: ${flowId}`,
+        "Status: complete",
+        `Decision contract: Temporal coverage revision and finalization`,
+        `Source type: ${source.sourceType}`,
+        `Source record id: ${source.sourceRecordId ?? ""}`,
+        `Material title: ${source.materialTitle}`,
+        `Material body: ${source.materialBody}`,
+        `Audited subject: ${source.auditedSubject}`,
+        `Source summary: ${source.sourceSummary}`,
+        `Active revision id: ${active.id}`,
+        `Active-set identity: temporal:${flowId}:${staged.active_set_revision}:${active.id}`,
+        `Report relationship: ${priorReport == null ? "final report" : `correction supersedes report ${priorReport.id}`}`,
+        "",
+        "Active coverage",
+        coverageBody(coverage),
+        "",
+        "Revision audit",
+        revisionAudit,
+        "",
+        "Untouched state",
+        "Source fact text and standing, source Propagation report, sibling obligations, Admission contents, existing canon debt, advisory artifacts, unrelated records, links, and flows remain unchanged except for explicit Temporal outcomes and approved report links."
+      ].join("\n"),
+      truthLayer: "Objective canon",
+      canonStatus: "accepted"
+    });
+    if (source.sourceRecordId != null) world.createLinkIfMissing(report.id, source.sourceRecordId, "derived_from", "Temporal/Timeline final report audits this source");
+    if (priorReport != null) world.createLinkIfMissing(report.id, priorReport.id, "supersedes", "Temporal correction report supersedes the retained immutable prior report");
+    for (const outcome of TemporalStore.listOutcomes(world, flowId)) {
+      world.createLinkIfMissing(report.id, outcome.record_id, outcome.link_type_key, outcome.note);
+    }
+    world.replaceSections(report.id, [
+      { heading: "Source and run", body: [`Flow key: ${FLOW_KEY}`, `Flow id: ${flowId}`, `Source: ${source.sourceSummary}`, `Source type: ${source.sourceType}`, `Audited subject: ${source.auditedSubject}`].join("\n"), position: 1 },
+      { heading: "Coverage lenses", body: coverageBody(coverage), position: 2 },
+      { heading: "Linked cards", body: recordList(world, report.id, "temporal_timeline", "covers"), position: 3 },
+      { heading: "Admission proposals", body: recordList(world, report.id, "canon_fact", "covers"), position: 4 },
+      { heading: "Canon debt", body: recordList(world, report.id, "canon_debt", "requires_follow_up"), position: 5 },
+      { heading: "Prompt-out and skips", body: [recordList(world, report.id, "advisory_artifact", "cites_advisory_artifact"), recordList(world, report.id, "skip_record", "covers"), `Follow-up debt:\n${recordList(world, report.id, "canon_debt", "requires_follow_up")}`].join("\n\n"), position: 6 },
+      { heading: "Close readiness", body: ["Temporal close blockers satisfied with steward-authored active coverage.", `Active revision: ${active.id}`, `First true: ${coverage.firstTrueOrRelativeSequence}`, `Latency: ${coverage.latency}`, `Residue: ${coverage.residueByTimescale}`].join("\n"), position: 7 }
+    ]);
+    TemporalStore.finalizeRun(world, flowId, report.id);
     const complete = world.updateFlowInstance(flowId, { state: "complete", currentStep: stepWithReport(report.id, "complete") });
     if (source.sourceRecordId != null) {
       coverMatchingConditionalPassObligation(world, {
@@ -741,6 +949,14 @@ export const closeTemporalRun = (world: WorldFile, flowId: number) => {
         flowStep: "temporal:complete"
       });
     }
-    return { ...getTemporalRun(world, flowId), flow: complete, report: world.getRecord(report.id) };
+    return {
+      ...getTemporalRun(world, flowId),
+      flow: complete,
+      report: world.getRecord(report.id),
+      priorReport,
+      reportRelationship: priorReport == null
+        ? { type: "final" as const, supersedesReportRecordId: null }
+        : { type: "correction" as const, supersedesReportRecordId: priorReport.id }
+    };
   });
 };

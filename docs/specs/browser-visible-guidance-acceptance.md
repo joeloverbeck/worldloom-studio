@@ -88,6 +88,26 @@ When a slice claims the Pre-close Propagation revision and finalization contract
 
 Source-policy checks may support this evidence by proving that the browser consumes returned lifecycle, severity, blocker, currentness, and route shapes, but source checks cannot substitute for the rendered active route. Likewise, server/store tests support invariants but cannot substitute for failure recovery, cognitive walkthrough, console state, or cold-packet relevance.
 
+## Temporal Pre-Close Revision Evidence Pattern
+
+When a slice claims **Temporal coverage revision and finalization**, active-route evidence must show:
+
+- the governing `03`, `09`, and `20` package sources and app-owned doctrine beside save and close explaining editable open-run staging versus append-only final or correction reports;
+- all ten restored and editable Temporal lenses, the required material-revision reason, the exact active revision, and active, dirty, superseded, failed, blocked, and finalized states with stable accessible names;
+- lineage disclosure preserving all retired values, stable revision/prior identities, reason, creator and retirement actor/timestamp/flow-step provenance, while retired or rejected prose is never presented as persisted current material;
+- one refused material correction of at least four named lenses in which all values and selections remain in the same active surface, the exact server error and remediation are announced beside save, focus/context remain predictable, close is blocked, and save-again plus discard-to-authoritative recovery are available;
+- one successful four-or-more-lens replacement with non-empty reason, refreshed active revision, active-set identity, lineage, blockers, and readiness consumed from the server rather than selected locally;
+- an earlier packet made visibly stale by the changed revision, packet-bound actions refused, Proposal/Pressure selection and Temporal orientation preserved, and server-provided current-packet recovery offered;
+- fresh current Pressure or the governed Prompt-out skip after previously used Pressure, including the existing reason threshold and explicit wording that external LLM use is optional;
+- current packet body, source documents, manifest, omissions, output labels, advisory/canon warning, flow/step/mode/revision/packet identity, and exact preview/copy/download parity over the active revision;
+- close preview naming active revision, retained lineage audit, outcomes, final or correction report, `supersedes` relationship, records/links to write, and source, Propagation, Admission, sibling obligations, debt, advisory material, and unrelated World-file state left untouched;
+- an existing frozen-report run migrated without changing prior bytes, with all ten values restored and no fabricated reason/history; correction close/readback distinguishes restored staging, lineage, retained prior report, and corrected current result;
+- successful close freezing staging, one refused post-close revision without partial mutation, and later correction described as a new governed run/report rather than reopening either report;
+- safe exit, direct resume, current/next/resume readback, keyboard activation, focus movement/restoration, screen-reader announcements, screenshots or equivalent durable artifacts, and separate final console error and warning classification; and
+- one exact current revised Pressure packet exercised in a fresh cold external session, with packet identity and relevant help recorded. If production-route or cold-session proof is unavailable, its row remains blocked rather than inferred from HTTP, SQL, component, or source-policy tests.
+
+Before/after API and World-file fingerprints must prove that navigation, failed actions, migration, revision, Prompt-out recovery, and readback leave source fact standing/text, the source Propagation report, sibling obligations, Admission contents, existing debt, advisory artifacts, unrelated records/links, and unrelated flows unchanged except for approved Temporal staging, explicit outcomes, the final/correction report, and their governed links. Source-policy guards support this proof by showing the browser consumes returned revision, lineage, migration, blocker, currentness, report-relationship, close, and orientation shapes; they never replace the rendered active route.
+
 ### Compact Pre-Close workspace evidence
 
 Slices implementing the compact **Pre-close Propagation revision and finalization** workspace additionally owe focused evidence that:

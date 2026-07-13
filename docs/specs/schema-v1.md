@@ -110,6 +110,23 @@ Migration treats every consequence and domain row from an older open run as the 
 
 Closing a Propagation run does not mutate staged history into canon. It writes one append-only `propagation_report` containing only the final active shock cone and domain set plus the relevant lineage/reason audit. Post-close corrections create a new report under the report regime; they never reopen staged rows or update/delete the closed report.
 
+## Temporal Open-Run Staging Lifecycle
+
+Temporal coverage is flow-owned staging while a `temporal_timeline` run is open. It is not a living canon record and not a report-regime record. The minimal persistence contract is:
+
+- one stable revision id and lineage id, plus a monotonically ordered version and optional prior-version link;
+- all ten Temporal lens values stored on every revision;
+- lifecycle state `active` or `superseded`, with exactly one active revision per open run lineage;
+- a required steward reason on material replacement, with actor, timestamp, creator flow step, retirement actor, retirement timestamp, and retirement flow step;
+- a server-owned active-set revision/identity on the run, changed-revision recovery data, and Pressure-used/owed/skipped revision state;
+- an optional retained prior `pass_report` identity for migrated open runs and a final/correction report identity only after close.
+
+Temporal-specific tables, reads, writes, and migration interpretation belong to the Temporal flow under ADR 0008. They compose `WorldFile.atomicWrite`, shared record/link operations, stable identifiers, actor provenance, report immutability, and migration/backup behavior. Constraints enforce one active revision, same-run and same-lineage prior links, monotonic versions, immutable retired content, and no staging mutation after close. Prose is never an identity key.
+
+A new run creates no report before close. Its first accepted save inserts the active first revision. A material replacement retires that row as superseded and inserts a new active revision in one transaction. Close creates one append-only `pass_report` from only the active revision plus sufficient revision audit, links explicit Temporal outcomes, freezes staging, and records that report as the current result.
+
+Migration of an existing open run whose coverage already lives in a `pass_report` preserves the report and its sections byte-for-byte, restores the ten values into an active first revision, records the retained report identity, and fabricates no reason or retired version. It does not complete the flow or mutate source standing/text, the source Propagation report, sibling conditional-pass obligations, Admission contents, canon debt, advisory artifacts, records, links, or unrelated flow state. Final close creates a new correction `pass_report`, links correction to retained prior report through `supersedes`, and selects the correction for current-result reads while audit reads retain both reports and staged lineage.
+
 ## Controlled Vocabulary Seeds
 
 Vocabulary rows store:

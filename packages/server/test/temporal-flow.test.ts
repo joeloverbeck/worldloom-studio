@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
+import { WorldFile } from "../src/world-file.js";
 
 let tempDirs: string[] = [];
 
@@ -27,6 +28,354 @@ afterEach(() => {
 });
 
 describe("Temporal/Timeline flow HTTP API", () => {
+  it("keeps a new run report-free while the first ten-lens revision is active staging", async () => {
+    const app = createApp();
+    expect((await postJson(app, "/api/worlds/create", { path: tempPath("temporal-staging.sqlite") })).status).toBe(201);
+    const fact = (await json<{ record: { id: number } }>(await postJson(app, "/api/records", {
+      recordTypeKey: "canon_fact",
+      title: "The third bell establishes a ward curfew",
+      body: "Three matched warning bells cause the ward to impose a seasonal curfew.",
+      truthLayer: "Objective canon",
+      canonStatus: "accepted"
+    }))).record;
+
+    const started = await json<{
+      flow: { id: number };
+      report: null;
+      revisionState: { active: null; lineage: []; activeSet: { revision: 0; identity: string }; lifecycleState: "open" };
+    }>(await postJson(app, "/api/temporal/runs/start", { sourceType: "fact", recordId: fact.id }));
+    expect(started.report).toBeNull();
+    expect(started.revisionState).toMatchObject({
+      active: null,
+      lineage: [],
+      activeSet: { revision: 0 },
+      lifecycleState: "open"
+    });
+
+    const values = {
+      temporalQuestions: "The bell becomes true after the foundry accident and becomes teachable after the third matched death.",
+      firstTrueOrRelativeSequence: "The foundry accident precedes the first bell, which precedes three deaths and then the curfew.",
+      firstKnownOrReason: "Ward archivists recognize the pattern only after the third matched death.",
+      dateTypesAndGranularity: "Event, discovery, public, institutional, ordinary-life, mythic, and authorial revision dates remain separate at season granularity.",
+      latency: "Three deaths establish proof; one additional season passes before the ward court regulates the bell.",
+      residueByTimescale: "Days bring panic, years bring licenses, and generations preserve bell-law offices and funeral calendars.",
+      sequenceIntegrity: "The curfew follows proof of the third death and cannot appear in records from the earlier foundry season.",
+      retrospectiveInsertion: "Earlier scenes retain rumors and price shocks but no settled bell law.",
+      temporalMysteryBoundaries: "The recurrence is observable while the cause remains author-secret and forbidden to solve.",
+      outcomeDecision: "Keep the coverage staged until close and route no new fact from this first revision."
+    };
+    const saved = await json<{
+      revisionState: {
+        active: { id: number; lineageId: string; version: 1; lifecycleState: "active"; values: typeof values };
+        lineage: Array<{ id: number }>;
+        activeSet: { revision: 1; identity: string };
+      };
+    }>(await postJson(app, "/api/temporal/coverage", { flowId: started.flow.id, ...values }));
+    expect(saved.revisionState.active).toMatchObject({ version: 1, lifecycleState: "active", values });
+    expect(saved.revisionState.lineage).toHaveLength(1);
+    expect(saved.revisionState.activeSet).toMatchObject({ revision: 1 });
+
+    const reloaded = await json<typeof saved & { report: null }>(await app.request(`/api/temporal/runs/${started.flow.id}`));
+    expect(reloaded.report).toBeNull();
+    expect(reloaded.revisionState.active).toEqual(saved.revisionState.active);
+    expect(reloaded.revisionState.activeSet).toEqual(saved.revisionState.activeSet);
+
+    const preview = await json<{
+      decisionContract: { name: string; packageSources: string[]; stagingDoctrine: string };
+      activeRevision: { id: number };
+      revisionAudit: Array<{ id: number }>;
+      reportRelationship: { type: "final"; retainedPriorReportRecordId: null };
+      writeIntent: { willWrite: string[]; willLink: string[]; willLeaveUntouched: string[] };
+      closeReadiness: { status: "ready" };
+      orientation: { current: string; next: string; resume: string };
+    }>(await postJson(app, `/api/temporal/runs/${started.flow.id}/preview`));
+    expect(preview).toMatchObject({
+      decisionContract: {
+        name: "Temporal coverage revision and finalization",
+        packageSources: expect.arrayContaining([
+          "docs/worldbuilding-system/03_truth_layers_and_canon_governance.md",
+          "docs/worldbuilding-system/09_temporal_and_timeline_protocol.md",
+          "docs/worldbuilding-system/20_ai_assisted_workflow.md"
+        ]),
+        stagingDoctrine: expect.stringContaining("append-only")
+      },
+      activeRevision: { id: saved.revisionState.active.id },
+      revisionAudit: [{ id: saved.revisionState.active.id }],
+      reportRelationship: { type: "final", retainedPriorReportRecordId: null },
+      closeReadiness: { status: "ready" }
+    });
+    expect(preview.writeIntent.willLeaveUntouched).toEqual(expect.arrayContaining(["source fact text and standing", "sibling conditional-pass obligations", "Admission contents"]));
+    const recovered = await json<{ revisionState: typeof saved.revisionState; recovery: { discardedAttemptedDraft: true; authoritativeRevisionId: number } }>(await postJson(app, `/api/temporal/runs/${started.flow.id}/recover`));
+    expect(recovered.revisionState).toEqual(saved.revisionState);
+    expect(recovered.recovery).toEqual({ discardedAttemptedDraft: true, authoritativeRevisionId: saved.revisionState.active.id });
+  });
+
+  it("atomically replaces active coverage with reasoned lineage and stales the earlier packet", async () => {
+    const app = createApp();
+    expect((await postJson(app, "/api/worlds/create", { path: tempPath("temporal-revision.sqlite") })).status).toBe(201);
+    const fact = (await json<{ record: { id: number } }>(await postJson(app, "/api/records", {
+      recordTypeKey: "canon_fact",
+      title: "The salt bell predicts a named death",
+      body: "A salt bell rings before a named citizen dies.",
+      truthLayer: "Objective canon",
+      canonStatus: "accepted"
+    }))).record;
+    const run = await json<{ flow: { id: number } }>(await postJson(app, "/api/temporal/runs/start", { sourceType: "fact", recordId: fact.id }));
+    const firstValues = {
+      temporalQuestions: "The bell became true after the foundry accident and was understood after the third death.",
+      firstTrueOrRelativeSequence: "The accident precedes the bell, three deaths, public proof, and the first ordinance.",
+      firstKnownOrReason: "Archivists identify the recurrence after three deaths and publish it one season later.",
+      dateTypesAndGranularity: "Event, discovery, public, institutional, ordinary-life, mythic, and authorial dates stay separate by season.",
+      latency: "Proof takes three deaths and regulation takes one further season.",
+      residueByTimescale: "Panic appears in days, licensing in years, and inherited bell offices in generations.",
+      sequenceIntegrity: "No ordinance predates public proof of the third death.",
+      retrospectiveInsertion: "Earlier scenes gain rumors and price movement but no settled regulation.",
+      temporalMysteryBoundaries: "False positives remain observable while the bell's cause stays author-secret.",
+      outcomeDecision: "Close only after current Pressure or a governed skip."
+    };
+    const first = await json<{ revisionState: { active: { id: number }; activeSet: { revision: number } } }>(await postJson(app, "/api/temporal/coverage", { flowId: run.flow.id, ...firstValues }));
+    const step = await json<{ step: { actions: { generate: { href: string }; storeAdvisory: { href: string } } } }>(await postJson(app, "/api/prompt-out/steps", {
+      flowKey: "temporal_timeline",
+      flowId: run.flow.id,
+      recordId: fact.id,
+      templateKey: "temporal_spatial_analyst",
+      stepKey: "temporal:spatial-temporal-analysis",
+      mode: "pressure",
+      label: "Spatial-temporal analyst"
+    }));
+    const revisedValues = {
+      ...firstValues,
+      firstTrueOrRelativeSequence: "The accident precedes the bell, three deaths, public proof, a failed hearing, and only then the ordinance.",
+      latency: "Proof takes three deaths; a failed hearing adds a second season before regulation.",
+      residueByTimescale: "Panic appears in days, hearing transcripts and licensing in years, and inherited bell offices in generations.",
+      sequenceIntegrity: "The failed hearing occurs after public proof and before the ordinance; no effect precedes its cause."
+    };
+    const refused = await postJson(app, `/api/temporal/runs/${run.flow.id}/revisions`, {
+      expectedRevisionId: first.revisionState.active.id,
+      reason: "",
+      ...revisedValues
+    });
+    expect(refused.status).toBe(400);
+    expect(await json(refused)).toMatchObject({
+      error: expect.stringContaining("steward-authored reason"),
+      attemptedInput: expect.objectContaining({ latency: revisedValues.latency }),
+      remediation: expect.stringContaining("reason"),
+      authoritativeState: { active: { id: first.revisionState.active.id, values: firstValues } }
+    });
+
+    const replaced = await json<{
+      revisionState: {
+        active: { id: number; version: 2; priorVersionId: number; revisionReason: string; values: typeof revisedValues };
+        lineage: Array<{ id: number; lifecycleState: string; retirementProvenance: { actor: string; timestamp: string; flowStep: string } | null }>;
+        activeSet: { revision: 2; changedRevisionId: number; pressureOwedRevision: null };
+      };
+    }>(await postJson(app, `/api/temporal/runs/${run.flow.id}/revisions`, {
+      expectedRevisionId: first.revisionState.active.id,
+      reason: "Pressure exposed a missing failed hearing and longer legal delay.",
+      ...revisedValues
+    }));
+    expect(replaced.revisionState.active).toMatchObject({
+      version: 2,
+      priorVersionId: first.revisionState.active.id,
+      revisionReason: "Pressure exposed a missing failed hearing and longer legal delay.",
+      values: revisedValues
+    });
+    expect(replaced.revisionState.lineage).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: first.revisionState.active.id, lifecycleState: "superseded", retirementProvenance: expect.objectContaining({ actor: "steward", flowStep: "temporal:coverage:revision" }) })
+    ]));
+    expect(replaced.revisionState.activeSet).toMatchObject({ revision: 2, changedRevisionId: replaced.revisionState.active.id, pressureOwedRevision: null });
+
+    const stale = await postJson(app, step.step.actions.generate.href);
+    expect(stale.status).toBe(400);
+    expect(await json(stale)).toMatchObject({
+      error: expect.stringContaining("stale Temporal packet identity"),
+      remediation: expect.stringContaining("current-packet recovery")
+    });
+  });
+
+  it("migrates frozen open coverage without rewriting it and closes through a linked correction report", async () => {
+    const path = tempPath("temporal-legacy-correction.sqlite");
+    const legacy = WorldFile.create(path);
+    const source = legacy.createRecord({
+      recordTypeKey: "canon_fact",
+      title: "The salt bell predicts a death",
+      body: "A salt bell rings before a named citizen dies.",
+      truthLayer: "Objective canon",
+      canonStatus: "accepted"
+    });
+    const prior = legacy.createRecord({
+      recordTypeKey: "pass_report",
+      title: `Temporal/Timeline pass: ${source.shortId} ${source.title}`,
+      body: [
+        "Flow key: temporal_timeline",
+        "Flow id: pending",
+        "Status: in progress",
+        "Source type: fact",
+        `Source record id: ${source.id}`,
+        "Material title: ",
+        `Material body: ${source.body}`,
+        `Audited subject: ${source.shortId} ${source.title}`,
+        `Source summary: ${source.shortId} ${source.title}`
+      ].join("\n"),
+      truthLayer: "Objective canon",
+      canonStatus: "accepted"
+    });
+    const legacyValues = {
+      temporalQuestions: "The bell became true after the foundry accident and was understood after the third death.",
+      firstTrueOrRelativeSequence: "The accident precedes the bell, three deaths, public proof, and the first ordinance.",
+      firstKnownOrReason: "Archivists identify the recurrence after three deaths and publish it one season later.",
+      dateTypesAndGranularity: "Event, discovery, public, institutional, ordinary-life, mythic, and authorial dates stay separate by season.",
+      latency: "Proof takes three deaths and regulation takes one further season.",
+      residueByTimescale: "Panic appears in days, licensing in years, and inherited bell offices in generations.",
+      sequenceIntegrity: "No ordinance predates public proof of the third death.",
+      retrospectiveInsertion: "Earlier scenes gain rumors and price movement but no settled regulation.",
+      temporalMysteryBoundaries: "False positives remain observable while the bell's cause stays author-secret.",
+      outcomeDecision: "Correct the legal delay before final close."
+    };
+    const priorCoverageBody = [
+      `Temporal questions: ${legacyValues.temporalQuestions}`,
+      `First true or relative sequence: ${legacyValues.firstTrueOrRelativeSequence}`,
+      `First known date or reason: ${legacyValues.firstKnownOrReason}`,
+      `Date types and granularity: ${legacyValues.dateTypesAndGranularity}`,
+      `Latency: ${legacyValues.latency}`,
+      `Residue by timescale: ${legacyValues.residueByTimescale}`,
+      `Sequence integrity: ${legacyValues.sequenceIntegrity}`,
+      `Retrospective insertion: ${legacyValues.retrospectiveInsertion}`,
+      `Temporal mystery boundaries: ${legacyValues.temporalMysteryBoundaries}`,
+      `Outcome decision: ${legacyValues.outcomeDecision}`
+    ].join("\n");
+    legacy.replaceSections(prior.id, [{ heading: "Coverage lenses", body: priorCoverageBody, position: 2 }]);
+    const legacyFlow = legacy.createFlowInstance({ flowKey: "temporal_timeline", currentStep: `temporal:report:${prior.id}:coverage` });
+    legacy.createLinkIfMissing(prior.id, source.id, "derived_from", "Temporal/Timeline pass audits this source");
+    const frozenBody = legacy.getRecord(prior.id).body;
+    const frozenSections = legacy.listSections(prior.id);
+    legacy.close();
+
+    const app = createApp();
+    expect((await postJson(app, "/api/worlds/open", { path })).status).toBe(200);
+    const migrated = await json<{
+      flow: { id: number };
+      report: null;
+      priorReport: { id: number; body: string };
+      revisionState: { active: { version: 1; revisionReason: null; values: typeof legacyValues }; lineage: Array<unknown> };
+    }>(await postJson(app, "/api/temporal/runs/start", { sourceType: "pass_report", reportRecordId: prior.id }));
+    expect(migrated.flow.id).toBe(legacyFlow.id);
+    expect(migrated.report).toBeNull();
+    expect(migrated.priorReport).toMatchObject({ id: prior.id, body: frozenBody });
+    expect(migrated.revisionState.active).toMatchObject({ version: 1, revisionReason: null, values: legacyValues });
+    expect(migrated.revisionState.lineage).toHaveLength(1);
+
+    const revisedValues = {
+      ...legacyValues,
+      firstTrueOrRelativeSequence: "The accident precedes the bell, three deaths, public proof, a failed hearing, and the later ordinance.",
+      latency: "Proof takes three deaths; a failed hearing adds a second season before regulation.",
+      residueByTimescale: "Panic appears in days, hearing transcripts and licenses in years, and inherited bell offices in generations.",
+      sequenceIntegrity: "The failed hearing follows public proof and precedes the ordinance."
+    };
+    const replacement = await json<{ revisionState: { active: { id: number } } }>(await postJson(app, `/api/temporal/runs/${legacyFlow.id}/revisions`, {
+      expectedRevisionId: (migrated.revisionState.active as unknown as { id: number }).id,
+      reason: "Pressure exposed the missing failed hearing.",
+      ...revisedValues
+    }));
+    const closed = await json<{
+      flow: { state: "complete" };
+      report: { id: number; body: string };
+      priorReport: { id: number; body: string };
+      revisionState: { lifecycleState: "finalized"; active: { id: number } };
+      reportRelationship: { type: "correction"; supersedesReportRecordId: number };
+      readSideTrail: Array<{ label: string; recordId?: number }>;
+    }>(await postJson(app, `/api/temporal/runs/${legacyFlow.id}/close`));
+    expect(closed.flow.state).toBe("complete");
+    expect(closed.report.id).not.toBe(prior.id);
+    expect(closed.report.body).toContain(revisedValues.latency);
+    expect(closed.report.body).toContain("Revision audit");
+    expect(closed.priorReport).toMatchObject({ id: prior.id, body: frozenBody });
+    expect(closed.reportRelationship).toEqual({ type: "correction", supersedesReportRecordId: prior.id });
+    expect(closed.revisionState).toMatchObject({ lifecycleState: "finalized", active: { id: replacement.revisionState.active.id } });
+    expect(closed.readSideTrail).toEqual(expect.arrayContaining([
+      expect.objectContaining({ label: "Corrected current Temporal report", recordId: closed.report.id }),
+      expect.objectContaining({ label: "Retained prior Temporal report", recordId: prior.id })
+    ]));
+    expect(closed.readSideTrail).not.toContainEqual(expect.objectContaining({ label: "Admission proposal", recordId: source.id }));
+
+    const postClose = await postJson(app, `/api/temporal/runs/${legacyFlow.id}/revisions`, {
+      expectedRevisionId: replacement.revisionState.active.id,
+      reason: "Attempt to reopen closed staging.",
+      ...revisedValues,
+      latency: `${revisedValues.latency} Another season.`
+    });
+    expect(postClose.status).toBe(400);
+    expect(await json(postClose)).toMatchObject({ error: expect.stringContaining("closed"), authoritativeState: { lifecycleState: "finalized" } });
+
+    const reopened = WorldFile.open(path);
+    expect(reopened.getRecord(prior.id).body).toBe(frozenBody);
+    expect(reopened.listSections(prior.id)).toEqual(frozenSections);
+    expect(reopened.listLinks(closed.report.id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ fromRecordId: closed.report.id, toRecordId: prior.id, linkTypeKey: "supersedes" })
+    ]));
+    reopened.close();
+  });
+
+  it("owes current Pressure or governed skip after revision of Pressure-used coverage", async () => {
+    const app = createApp();
+    expect((await postJson(app, "/api/worlds/create", { path: tempPath("temporal-pressure-owed.sqlite") })).status).toBe(201);
+    const fact = (await json<{ record: { id: number } }>(await postJson(app, "/api/records", {
+      recordTypeKey: "canon_fact",
+      title: "The salt bell predicts a death",
+      body: "A salt bell rings before a named citizen dies.",
+      truthLayer: "Objective canon",
+      canonStatus: "accepted"
+    }))).record;
+    const run = await json<{ flow: { id: number } }>(await postJson(app, "/api/temporal/runs/start", { sourceType: "fact", recordId: fact.id }));
+    const firstValues = {
+      temporalQuestions: "The bell became true after the foundry accident and was understood after the third death.",
+      firstTrueOrRelativeSequence: "The accident precedes the bell, three deaths, public proof, and the first ordinance.",
+      firstKnownOrReason: "Archivists identify the recurrence after three deaths and publish it one season later.",
+      dateTypesAndGranularity: "Event, discovery, public, institutional, ordinary-life, mythic, and authorial dates stay separate by season.",
+      latency: "Proof takes three deaths and regulation takes one further season.",
+      residueByTimescale: "Panic appears in days, licensing in years, and inherited bell offices in generations.",
+      sequenceIntegrity: "No ordinance predates public proof of the third death.",
+      retrospectiveInsertion: "Earlier scenes gain rumors and price movement but no settled regulation.",
+      temporalMysteryBoundaries: "False positives remain observable while the bell's cause stays author-secret.",
+      outcomeDecision: "Close only after current support or a governed skip."
+    };
+    const first = await json<{ revisionState: { active: { id: number } } }>(await postJson(app, "/api/temporal/coverage", { flowId: run.flow.id, ...firstValues }));
+    const pressure = await json<{ step: { actions: { generate: { href: string }; storeAdvisory: { href: string } } } }>(await postJson(app, "/api/prompt-out/steps", {
+      flowKey: "temporal_timeline",
+      flowId: run.flow.id,
+      recordId: fact.id,
+      templateKey: "temporal_spatial_analyst",
+      stepKey: "temporal:spatial-temporal-analysis",
+      mode: "pressure",
+      label: "Spatial-temporal analyst"
+    }));
+    const packet = await json<{ prompt: string }>(await postJson(app, pressure.step.actions.generate.href));
+    expect((await postJson(app, pressure.step.actions.storeAdvisory.href, { promptText: packet.prompt, responseText: "The legal delay is too short." })).status).toBe(201);
+
+    const revised = await json<{ revisionState: { active: { id: number }; activeSet: { pressureUsedRevision: 1; pressureOwedRevision: 2 } }; closeReadiness: { status: string; blockers: Array<{ key: string }> } }>(await postJson(app, `/api/temporal/runs/${run.flow.id}/revisions`, {
+      expectedRevisionId: first.revisionState.active.id,
+      reason: "Pressure exposed a missing failed hearing.",
+      ...firstValues,
+      latency: "Proof takes three deaths; a failed hearing adds a second season before regulation.",
+      sequenceIntegrity: "Public proof precedes a failed hearing, which precedes the ordinance."
+    }));
+    expect(revised.revisionState.activeSet).toMatchObject({ pressureUsedRevision: 1, pressureOwedRevision: 2 });
+    expect(revised.closeReadiness).toMatchObject({ status: "blocked", blockers: expect.arrayContaining([expect.objectContaining({ key: "pressure_currentness" })]) });
+    expect((await postJson(app, `/api/temporal/runs/${run.flow.id}/close`)).status).toBe(400);
+
+    const current = await json<{ decisionPoint: { sharedContract: { promptOut: { modes: Array<{ mode: string; stepRequest: { href: string; body: unknown } | null }> } } } }>(await app.request(`/api/temporal/runs/${run.flow.id}`));
+    const currentPressure = current.decisionPoint.sharedContract.promptOut.modes.find((mode) => mode.mode === "pressure")!.stepRequest!;
+    const skipStep = await json<{ step: { actions: { skip: { href: string } } } }>(await postJson(app, currentPressure.href, currentPressure.body));
+    const tooShort = await postJson(app, skipStep.step.actions.skip.href, { workScale: "major", reason: "" });
+    expect(tooShort.status).toBe(400);
+    const skipped = await json<{ revisionState: { activeSet: { pressureOwedRevision: null; pressureSkipRevision: 2 } }; closeReadiness: { status: "ready" } }>(await postJson(app, skipStep.step.actions.skip.href, {
+      workScale: "major",
+      reason: "The steward incorporated the useful Pressure and records this governed external-LLM skip."
+    }));
+    expect(skipped.revisionState.activeSet).toMatchObject({ pressureOwedRevision: null, pressureSkipRevision: 2 });
+    expect(skipped.closeReadiness.status).toBe("ready");
+  });
+
   it("assembles an explicit-mode, decision-complete, read-only Temporal packet from server-owned context", async () => {
     const app = createApp();
     expect((await postJson(app, "/api/worlds/create", { path: tempPath("temporal-packet.sqlite") })).status).toBe(201);
@@ -89,53 +438,20 @@ describe("Temporal/Timeline flow HTTP API", () => {
       body: "This is outside the bounded direct relationship set."
     });
     expect((await link(propagationReport.id, fact.id, "derived_from", "Final Propagation report for the Temporal source fact")).status).toBe(201);
+    expect((await link(propagationReport.id, fact.id, "covers", "The same report also records explicit coverage")).status).toBe(201);
     expect((await link(fact.id, relatedCanon.id, "depends_on", "Direct canon dependency for the Temporal decision")).status).toBe(201);
     expect((await link(fact.id, debt.id, "requires_follow_up", "Open Temporal debt")).status).toBe(201);
     expect((await link(fact.id, boundary.id, "preserves_boundary_for", "Protected Temporal mystery boundary")).status).toBe(201);
     expect((await link(fact.id, inactive.id, "depends_on", "Inactive historical support")).status).toBe(201);
     expect((await link(relatedCanon.id, secondHop.id, "depends_on", "Bounded second-hop candidate")).status).toBe(201);
 
-    const run = await json<{ flow: { id: number }; report: { id: number } }>(await postJson(app, "/api/temporal/runs/start", { sourceType: "fact", recordId: fact.id }));
+    const run = await json<{ flow: { id: number }; report: null }>(await postJson(app, "/api/temporal/runs/start", { sourceType: "fact", recordId: fact.id }));
     const timelineCard = await createRecord({
       recordTypeKey: "temporal_timeline",
       title: "Existing salt bell chronology",
       body: "The existing card separates event, discovery, public, and institutional dates.",
       canonStatus: "proposed"
     });
-    const routedProposal = await createRecord({
-      recordTypeKey: "canon_fact",
-      title: "Proposed ward archive",
-      body: "Candidate fact routed to Admission rather than admitted in Temporal.",
-      canonStatus: "proposed"
-    });
-    const reportDebt = await createRecord({
-      recordTypeKey: "canon_debt",
-      title: "Resolve unmatched toll jurisdiction",
-      body: "State: open. This Temporal outcome remains unresolved.",
-      canonStatus: "under review"
-    });
-    const governedSkip = await createRecord({
-      recordTypeKey: "skip_record",
-      title: "Skipped branch chronology instrument",
-      body: "Reason: branch chronology is not yet earned.",
-      canonStatus: "proposed"
-    });
-    const advisory = await createRecord({
-      recordTypeKey: "advisory_artifact",
-      title: "Earlier Temporal pressure",
-      body: "Advisory response: test the ward archive against false positives.",
-      truthLayer: "disputed claim",
-      canonStatus: "proposed"
-    });
-    expect((await link(run.report.id, timelineCard.id, "covers", "Existing Temporal timeline card")).status).toBe(201);
-    expect((await link(run.report.id, routedProposal.id, "covers", "Temporal proposal routed to Admission")).status).toBe(201);
-    expect((await link(run.report.id, reportDebt.id, "requires_follow_up", "Open Temporal outcome debt")).status).toBe(201);
-    expect((await link(run.report.id, governedSkip.id, "covers", "Governed Temporal skip")).status).toBe(201);
-    expect((await link(run.report.id, advisory.id, "cites_advisory_artifact", "Disposed Temporal advisory")).status).toBe(201);
-    expect((await postJson(app, `/api/advisory-artifacts/${advisory.id}/dispositions`, {
-      disposition: "selected",
-      note: "Use only the false-positive archive pressure."
-    })).status).toBe(201);
     const omittedMode = await postJson(app, "/api/prompt-out/steps", {
       flowKey: "temporal_timeline",
       flowId: run.flow.id,
@@ -160,6 +476,52 @@ describe("Temporal/Timeline flow HTTP API", () => {
       outcomeDecision: "Keep the report advisory, create no canon in this step, and route any new archive fact through Admission."
     };
     expect((await postJson(app, "/api/temporal/coverage", coverageInput)).status).toBe(201);
+
+    expect((await postJson(app, "/api/temporal/cards", { flowId: run.flow.id, existingRecordId: timelineCard.id, relation: "Existing Temporal timeline card" })).status).toBe(201);
+    const routedProposal = (await json<{ record: { id: number; shortId: string } }>(await postJson(app, "/api/temporal/proposals", {
+      flowId: run.flow.id,
+      sourceStep: "temporal:outcomes",
+      title: "Proposed ward archive",
+      body: "Candidate fact routed to Admission rather than admitted in Temporal.",
+      truthLayer: "Objective canon"
+    }))).record;
+    const reportDebt = (await json<{ debt: { id: number; shortId: string } }>(await postJson(app, "/api/temporal/debt", {
+      flowId: run.flow.id,
+      sourceStep: "temporal:outcomes",
+      name: "Resolve unmatched toll jurisdiction",
+      reason: "This Temporal outcome remains unresolved after the current coverage decision."
+    }))).debt;
+    const setupStep = await json<{ step: { actions: { generate: { href: string }; storeAdvisory: { href: string } } } }>(await postJson(app, "/api/prompt-out/steps", {
+      flowKey: "temporal_timeline",
+      flowId: run.flow.id,
+      templateKey: "temporal_spatial_analyst",
+      recordId: fact.id,
+      stepKey: "temporal:spatial-temporal-analysis",
+      mode: "proposal",
+      label: "Temporal Proposal"
+    }));
+    const setupPrompt = await json<{ prompt: string }>(await postJson(app, setupStep.step.actions.generate.href));
+    const advisory = (await json<{ record: { id: number; shortId: string } }>(await postJson(app, setupStep.step.actions.storeAdvisory.href, {
+      promptText: setupPrompt.prompt,
+      responseText: "Test the ward archive against false positives."
+    }))).record;
+    expect((await postJson(app, `/api/advisory-artifacts/${advisory.id}/dispositions`, {
+      disposition: "selected",
+      note: "Use only the false-positive archive pressure."
+    })).status).toBe(201);
+    const skipStep = await json<{ step: { actions: { skip: { href: string } } } }>(await postJson(app, "/api/prompt-out/steps", {
+      flowKey: "temporal_timeline",
+      flowId: run.flow.id,
+      templateKey: "temporal_spatial_analyst",
+      recordId: fact.id,
+      stepKey: "temporal:branch-chronology",
+      mode: "proposal",
+      label: "Temporal Proposal"
+    }));
+    const governedSkip = (await json<{ record: { id: number; shortId: string } }>(await postJson(app, skipStep.step.actions.skip.href, {
+      workScale: "minor",
+      reason: "branch chronology is not yet earned"
+    }))).record;
 
     const before = {
       records: await json(await app.request("/api/records")),
@@ -281,6 +643,8 @@ describe("Temporal/Timeline flow HTTP API", () => {
       expect.stringContaining(governedSkip.shortId),
       expect.stringContaining(advisory.shortId)
     ]));
+    expect(new Set(generated.promptOut.temporalContext.sourceDocuments.map((item) => item.source)).size)
+      .toBe(generated.promptOut.temporalContext.sourceDocuments.length);
     expect(generated.promptOut.temporalContext.sourceDocuments.find((document) => document.source.includes(advisory.shortId))?.content)
       .toContain("selected: Use only the false-positive archive pressure.");
     expect(generated.promptOut.temporalContext.outputLabels).toContain("adopted with steward revision");
@@ -324,13 +688,16 @@ describe("Temporal/Timeline flow HTTP API", () => {
     const revisionAfterDisposition = await currentProposalRevision();
     expect(revisionAfterDisposition).not.toBe(revisionBeforeDisposition);
 
-    const laterSkip = await createRecord({
-      recordTypeKey: "skip_record",
-      title: "Later skipped Temporal instrument",
-      body: "Reason: later branch work remains unearned.",
-      canonStatus: "proposed"
-    });
-    expect((await link(run.report.id, laterSkip.id, "covers", "Later governed Temporal skip")).status).toBe(201);
+    const laterSkipStep = await json<{ step: { actions: { skip: { href: string } } } }>(await postJson(app, "/api/prompt-out/steps", {
+      flowKey: "temporal_timeline",
+      flowId: run.flow.id,
+      templateKey: "temporal_spatial_analyst",
+      recordId: fact.id,
+      stepKey: "temporal:later-branch-work",
+      mode: "proposal",
+      label: "Temporal Proposal"
+    }));
+    expect((await postJson(app, laterSkipStep.step.actions.skip.href, { workScale: "minor", reason: "later branch work remains unearned" })).status).toBe(201);
     expect(await currentProposalRevision()).not.toBe(revisionAfterDisposition);
     const staleGeneration = await postJson(app, step.step.actions.generate.href);
     expect(staleGeneration.status).toBe(400);
@@ -511,7 +878,8 @@ describe("Temporal/Timeline flow HTTP API", () => {
 
     const run = await json<{
       flow: { id: number; state: string; current_step: string };
-      report: { id: number; recordTypeKey: string; title: string };
+      report: null;
+      revisionState: { lifecycleState: "open"; active: null; lineage: [] };
       source: { sourceType: string; sourceRecordId: number | null; sourceSummary: string; triggerRecommendation: string };
       doctrine: { flowKey: string; protocol: string; checklist: string; template: string; stepMap: Array<{ key: string }>; handoffs: string[] };
       closeReadiness: { status: string; blockers: Array<{ key: string; classification: string }> };
@@ -531,7 +899,8 @@ describe("Temporal/Timeline flow HTTP API", () => {
     }>(await postJson(app, "/api/temporal/runs/start", { sourceType: "fact", recordId: fact.id }));
 
     expect(run.source).toMatchObject({ sourceType: "fact", sourceRecordId: fact.id });
-    expect(run.report).toMatchObject({ recordTypeKey: "pass_report", title: expect.stringContaining("Temporal/Timeline pass") });
+    expect(run.report).toBeNull();
+    expect(run.revisionState).toMatchObject({ lifecycleState: "open", active: null, lineage: [] });
     expect(run.doctrine).toMatchObject({
       flowKey: "temporal_timeline",
       protocol: "docs/worldbuilding-system/09_temporal_and_timeline_protocol.md",
@@ -597,15 +966,14 @@ describe("Temporal/Timeline flow HTTP API", () => {
     });
     expect(run.decisionPoint.sharedContract.bearingContext.displayed.join("\n")).toContain("trigger recommendation");
 
-    const resumed = await json<{ flow: { id: number }; report: { id: number } }>(await postJson(app, "/api/temporal/runs/start", { sourceType: "fact", recordId: fact.id }));
+    const resumed = await json<{ flow: { id: number }; report: null }>(await postJson(app, "/api/temporal/runs/start", { sourceType: "fact", recordId: fact.id }));
     expect(resumed.flow.id).toBe(run.flow.id);
-    expect(resumed.report.id).toBe(run.report.id);
+    expect(resumed.report).toBeNull();
 
     for (const startPayload of [
       { sourceType: "capability", recordId: capability.id },
       { sourceType: "canon_debt", recordId: debt.id },
-      { sourceType: "material", materialTitle: "Bell ordinance", materialBody: "The first death-bell law arrives after three false positives." },
-      { sourceType: "pass_report", reportRecordId: run.report.id }
+      { sourceType: "material", materialTitle: "Bell ordinance", materialBody: "The first death-bell law arrives after three false positives." }
     ]) {
       const response = await postJson(app, "/api/temporal/runs/start", startPayload);
       expect(response.status, JSON.stringify(startPayload)).toBe(201);
@@ -789,8 +1157,10 @@ describe("Temporal/Timeline flow HTTP API", () => {
       expect.objectContaining({ heading: "Close readiness", body: expect.stringContaining("Temporal close blockers satisfied") })
     ]));
     expect(closed.readSideTrail).toEqual(expect.arrayContaining([
-      expect.objectContaining({ label: "Temporal pass report", recordId: run.report.id }),
+      expect.objectContaining({ label: "Final current Temporal report", recordId: closed.report.id }),
       expect.objectContaining({ label: "Temporal timeline card", recordId: card.card.id })
     ]));
+    expect(new Set(closed.readSideTrail.map((item) => `${item.label}:${item.recordId ?? "none"}`)).size)
+      .toBe(closed.readSideTrail.length);
   });
 });

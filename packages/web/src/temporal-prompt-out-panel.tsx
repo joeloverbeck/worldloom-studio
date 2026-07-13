@@ -58,6 +58,7 @@ export function TemporalPromptOutPanel({
   packetState,
   packetStateReason,
   copyDownloadControls,
+  advisoryControls,
   onLoadMode,
   onRecover
 }: {
@@ -68,6 +69,7 @@ export function TemporalPromptOutPanel({
   packetState?: "current" | "stale" | "unbound" | "incomplete" | "inconsistent";
   packetStateReason?: string;
   copyDownloadControls: React.ReactNode;
+  advisoryControls?: React.ReactNode;
   onLoadMode: (mode: "proposal" | "pressure") => void;
   onRecover: () => void;
 }) {
@@ -111,6 +113,7 @@ export function TemporalPromptOutPanel({
         <h4>Current Temporal packet body</h4>
         <pre className="prompt-preview" data-temporal-packet-body="true">{packet?.promptText ?? "No current Temporal packet loaded."}</pre>
         <div className="row">{copyDownloadControls}</div>
+        {advisoryControls}
       </section>
       <section className="subpanel">
         <h4>Temporal packet doctrine and saved coverage</h4>

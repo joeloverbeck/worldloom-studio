@@ -170,7 +170,8 @@ describe("conditional-pass obligation HTTP contract", () => {
     expect(db.pragma("user_version", { simple: true })).toBe(11);
     db.close();
 
-    expect((await postJson(app, "/api/worlds/open", { path })).status).toBe(200);
+    const historicalOpen = await postJson(app, "/api/worlds/open", { path });
+    expect(historicalOpen.status, await historicalOpen.clone().text()).toBe(200);
     const first = await json<{ obligations: Array<any> }>(await app.request("/api/conditional-pass-obligations"));
     expect(first.obligations).toHaveLength(3);
     expect(first.obligations.every((item) => item.history[0]?.action === "reconciled")).toBe(true);

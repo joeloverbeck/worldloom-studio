@@ -21,6 +21,12 @@ describe("Temporal/Timeline web surface", () => {
     expect(html).toContain("Sequence Integrity");
     expect(html).toContain("Retrospective Insertion");
     expect(html).toContain("Temporal Mystery Boundaries");
+    expect(html).toContain("Temporal coverage revision and finalization");
+    expect(html).toContain("Editable staging");
+    expect(html).toContain("Revision reason");
+    expect(html).toContain("Active revision");
+    expect(html).toContain("Discard unsaved changes");
+    expect(html).toContain("Preview Finalization");
     expect(html).toContain("Create or Link Temporal Timeline Card");
     expect(html).toContain("Route Admission Proposal");
     expect(html).toContain("Mint Temporal Debt");
@@ -30,6 +36,9 @@ describe("Temporal/Timeline web surface", () => {
     expect(html).toContain("Naive steward walkthrough");
     expect(source).toContain("/api/temporal/runs/start");
     expect(source).toContain("/api/temporal/coverage");
+    expect(source).toContain("/api/temporal/runs/${temporalFlowId}/revisions");
+    expect(source).toContain("/api/temporal/runs/${temporalFlowId}/recover");
+    expect(source).toContain("/api/temporal/runs/${temporalFlowId}/preview");
     expect(source).toContain("/api/temporal/cards");
     expect(source).toContain("/api/temporal/proposals");
     expect(source).toContain("/api/temporal/debt");
@@ -60,6 +69,7 @@ describe("Temporal/Timeline web surface", () => {
     expect(source).not.toContain("/api/temporal/advisory-artifacts");
     expect(html).toContain("Load Current Proposal Packet");
     expect(html).toContain("Load Current Pressure Packet");
+    expect(html).toContain("Pressure skip reason (required for major-or-higher Temporal work)");
     expect(html).toContain("Temporal packet identity");
     expect(html).toContain("Temporal source documents");
     expect(html).toContain("Temporal source manifest");

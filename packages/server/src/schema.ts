@@ -12,7 +12,7 @@ import {
 import { QA_RED_TEAM_PROMPT_TEXT, QA_TEST_CATALOG } from "./qa-catalog.js";
 
 export const APPLICATION_ID = 0x574c4f4d;
-export const CURRENT_SCHEMA_VERSION = 12;
+export const CURRENT_SCHEMA_VERSION = 13;
 
 const sqlString = (value: string): string => `'${value.replaceAll("'", "''")}'`;
 
@@ -1720,4 +1720,134 @@ CREATE TABLE IF NOT EXISTS conditional_pass_obligation_events (
 ) STRICT;
 
 PRAGMA user_version = 12;
+`;
+
+export const migration013 = `
+CREATE TABLE IF NOT EXISTS temporal_runs (
+  flow_id INTEGER PRIMARY KEY REFERENCES flow_instances(id) ON DELETE CASCADE,
+  source_type TEXT NOT NULL CHECK (source_type IN ('fact', 'capability', 'canon_debt', 'material')),
+  source_record_id INTEGER REFERENCES records(id) ON DELETE RESTRICT,
+  material_title TEXT NOT NULL DEFAULT '',
+  material_body TEXT NOT NULL DEFAULT '',
+  audited_subject TEXT NOT NULL,
+  source_summary TEXT NOT NULL,
+  retained_prior_report_record_id INTEGER REFERENCES records(id) ON DELETE RESTRICT,
+  final_report_record_id INTEGER REFERENCES records(id) ON DELETE RESTRICT,
+  active_set_revision INTEGER NOT NULL DEFAULT 0 CHECK (active_set_revision >= 0),
+  active_set_changed_revision_id INTEGER,
+  active_set_changed_reason TEXT,
+  pressure_used_revision INTEGER,
+  pressure_owed_revision INTEGER,
+  pressure_skip_revision INTEGER,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  finalized_at TEXT,
+  CHECK (
+    (source_type = 'material' AND source_record_id IS NULL AND length(trim(material_title)) > 0 AND length(trim(material_body)) > 0)
+    OR (source_type != 'material' AND source_record_id IS NOT NULL)
+  )
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS temporal_coverage_revisions (
+  id INTEGER PRIMARY KEY,
+  flow_id INTEGER NOT NULL REFERENCES temporal_runs(flow_id) ON DELETE CASCADE,
+  lineage_id TEXT NOT NULL,
+  version INTEGER NOT NULL CHECK (version > 0),
+  lifecycle_state TEXT NOT NULL CHECK (lifecycle_state IN ('active', 'superseded')),
+  prior_version_id INTEGER REFERENCES temporal_coverage_revisions(id),
+  revision_reason TEXT,
+  temporal_questions TEXT NOT NULL,
+  first_true_or_relative_sequence TEXT NOT NULL,
+  first_known_or_reason TEXT NOT NULL,
+  date_types_and_granularity TEXT NOT NULL,
+  latency TEXT NOT NULL,
+  residue_by_timescale TEXT NOT NULL,
+  sequence_integrity TEXT NOT NULL,
+  retrospective_insertion TEXT NOT NULL,
+  temporal_mystery_boundaries TEXT NOT NULL,
+  outcome_decision TEXT NOT NULL,
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  retired_at TEXT,
+  retired_actor_id INTEGER REFERENCES actors(id),
+  retired_flow_step TEXT,
+  CHECK ((version = 1 AND prior_version_id IS NULL) OR (version > 1 AND prior_version_id IS NOT NULL)),
+  CHECK ((version = 1 AND revision_reason IS NULL) OR (version > 1 AND length(trim(COALESCE(revision_reason, ''))) > 0)),
+  UNIQUE (flow_id, lineage_id, version)
+) STRICT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS temporal_coverage_one_active_revision
+ON temporal_coverage_revisions (flow_id)
+WHERE lifecycle_state = 'active';
+
+CREATE TRIGGER IF NOT EXISTS temporal_coverage_prior_version_valid
+BEFORE INSERT ON temporal_coverage_revisions
+WHEN new.prior_version_id IS NOT NULL AND NOT EXISTS (
+  SELECT 1 FROM temporal_coverage_revisions prior
+  WHERE prior.id = new.prior_version_id
+    AND prior.flow_id = new.flow_id
+    AND prior.lineage_id = new.lineage_id
+    AND prior.version + 1 = new.version
+    AND prior.lifecycle_state = 'superseded'
+)
+BEGIN
+  SELECT RAISE(ABORT, 'Temporal prior revision must be the superseded prior version in the same run and lineage');
+END;
+
+CREATE TRIGGER IF NOT EXISTS temporal_coverage_retired_immutable
+BEFORE UPDATE ON temporal_coverage_revisions
+WHEN old.lifecycle_state != 'active'
+BEGIN
+  SELECT RAISE(ABORT, 'superseded Temporal coverage is immutable revision audit');
+END;
+
+CREATE TRIGGER IF NOT EXISTS temporal_coverage_revision_preserves_content
+BEFORE UPDATE ON temporal_coverage_revisions
+WHEN old.temporal_questions != new.temporal_questions
+  OR old.first_true_or_relative_sequence != new.first_true_or_relative_sequence
+  OR old.first_known_or_reason != new.first_known_or_reason
+  OR old.date_types_and_granularity != new.date_types_and_granularity
+  OR old.latency != new.latency
+  OR old.residue_by_timescale != new.residue_by_timescale
+  OR old.sequence_integrity != new.sequence_integrity
+  OR old.retrospective_insertion != new.retrospective_insertion
+  OR old.temporal_mystery_boundaries != new.temporal_mystery_boundaries
+  OR old.outcome_decision != new.outcome_decision
+  OR old.lineage_id != new.lineage_id
+  OR old.version != new.version
+  OR COALESCE(old.prior_version_id, 0) != COALESCE(new.prior_version_id, 0)
+BEGIN
+  SELECT RAISE(ABORT, 'Temporal revision must preserve retired lens content and identity');
+END;
+
+CREATE TRIGGER IF NOT EXISTS temporal_coverage_no_delete
+BEFORE DELETE ON temporal_coverage_revisions
+BEGIN
+  SELECT RAISE(ABORT, 'Temporal coverage revisions are immutable audit history');
+END;
+
+CREATE TRIGGER IF NOT EXISTS temporal_coverage_open_insert
+BEFORE INSERT ON temporal_coverage_revisions
+WHEN EXISTS (SELECT 1 FROM temporal_runs run WHERE run.flow_id = new.flow_id AND run.finalized_at IS NOT NULL)
+BEGIN
+  SELECT RAISE(ABORT, 'closed Temporal staging cannot be revised');
+END;
+
+CREATE TRIGGER IF NOT EXISTS temporal_coverage_open_update
+BEFORE UPDATE ON temporal_coverage_revisions
+WHEN EXISTS (SELECT 1 FROM temporal_runs run WHERE run.flow_id = old.flow_id AND run.finalized_at IS NOT NULL)
+BEGIN
+  SELECT RAISE(ABORT, 'closed Temporal staging cannot be revised');
+END;
+
+CREATE TABLE IF NOT EXISTS temporal_run_outcomes (
+  flow_id INTEGER NOT NULL REFERENCES temporal_runs(flow_id) ON DELETE CASCADE,
+  record_id INTEGER NOT NULL REFERENCES records(id) ON DELETE RESTRICT,
+  link_type_key TEXT NOT NULL REFERENCES link_types(key),
+  note TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  PRIMARY KEY (flow_id, record_id, link_type_key)
+) STRICT;
+
+PRAGMA user_version = 13;
 `;

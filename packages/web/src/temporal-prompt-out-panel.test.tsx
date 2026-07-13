@@ -43,6 +43,7 @@ describe("Temporal Prompt-out in-flow review", () => {
       }}
       error={null}
       copyDownloadControls={<><button onClick={() => onCopy(packetBody)}>Copy Current Packet</button><button onClick={() => onDownload(packetBody)}>Download Current Packet</button></>}
+      advisoryControls={<button>Store Current Temporal Advisory</button>}
       onLoadMode={onLoadMode}
       onRecover={() => undefined}
     />);
@@ -61,6 +62,7 @@ describe("Temporal Prompt-out in-flow review", () => {
     fireEvent.click(screen.getByRole("button", { name: "Download Current Packet" }));
     expect(onCopy).toHaveBeenCalledWith(packetBody);
     expect(onDownload).toHaveBeenCalledWith(packetBody);
+    expect(screen.getByRole("button", { name: "Store Current Temporal Advisory" })).toBeTruthy();
   });
 
   it("announces the exact server failure beside preserved Pressure mode and invokes current recovery", () => {
