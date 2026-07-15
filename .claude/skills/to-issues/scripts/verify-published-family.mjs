@@ -9,10 +9,12 @@ const usage = `Usage:
   node .claude/skills/to-issues/scripts/verify-published-family.mjs <manifest.json>
   node .claude/skills/to-issues/scripts/verify-published-family.mjs child <issue-number> <body-file> [options]
 
-The manifest records the approved count, parent/ledger posture, shared run sheet,
-and one entry per published child. Single-child options:
+The manifest records the approved count, tracker relationship, shared run sheet,
+and one entry per published issue. Single-issue options:
   --title <title>              Require the exact title.
   --parent <token>             Require the parent reference.
+  --source <token>             Require the standalone source reference.
+  --source-relationship <text> Require the exact standalone source relationship.
   --state <state>              Require the state; defaults to OPEN.
   --label <label>              Require the exact label set; repeat as needed.
   --blocker <issue-ref>        Require exactly this blocker; repeat as needed.
@@ -20,6 +22,7 @@ and one entry per published child. Single-child options:
   --expect-no-blocker          Require the house-style no-blocker phrase and no blockers.
   --expect-stories             Require the user-story coverage section.
   --placeholder-re <pattern>   Placeholder regex; defaults to #SLICE|PLACEHOLDER.
+  --forbid-pattern <pattern>   Reject a run-specific regex; repeat as needed.
 
 See references/publication-protocol.md.`;
 
@@ -90,10 +93,39 @@ export const validateManifest = (manifest) => {
   if (!Number.isInteger(manifest.approvedCount) || manifest.approvedCount < 1) {
     errors.push("approvedCount must be a positive integer");
   }
-  if (!manifest.parent || !Number.isInteger(manifest.parent.number) || !manifest.parent.token) {
+  const hasParent = manifest.parent != null;
+  const hasSource = manifest.source != null;
+  if (hasParent === hasSource) {
+    errors.push("exactly one of parent or source is required");
+  } else if (hasParent && (!Number.isInteger(manifest.parent.number) || !manifest.parent.token)) {
     errors.push("parent.number and parent.token are required");
+  } else if (hasSource && (
+    !Number.isInteger(manifest.source.number) ||
+    !manifest.source.token ||
+    !manifest.source.relationship
+  )) {
+    errors.push("source.number, source.token, and source.relationship are required");
+  }
+  if (hasSource && manifest.source.ledger != null) {
+    errors.push("source.ledger is not allowed in standalone-source mode");
   }
   if (!manifest.runSheet) errors.push("runSheet is required");
+  if (!manifest.workingLedger) errors.push("workingLedger is required");
+  if (!Array.isArray(manifest.forbidPatterns)) {
+    errors.push("forbidPatterns must be an array");
+  } else {
+    for (const [index, pattern] of manifest.forbidPatterns.entries()) {
+      if (typeof pattern !== "string" || !pattern.trim()) {
+        errors.push(`forbidPatterns[${index}] must be a non-empty string`);
+      } else {
+        try {
+          new RegExp(pattern);
+        } catch (error) {
+          errors.push(`forbidPatterns[${index}] is invalid: ${error.message}`);
+        }
+      }
+    }
+  }
   if (!Array.isArray(manifest.children) || manifest.children.length === 0) {
     errors.push("children must be a non-empty array");
   }
@@ -103,6 +135,7 @@ export const validateManifest = (manifest) => {
     const prefix = `children[${index}]`;
     if (!Number.isInteger(child.number)) errors.push(`${prefix}.number must be an integer`);
     if (!child.title) errors.push(`${prefix}.title is required`);
+    if (!child.url) errors.push(`${prefix}.url is required`);
     if (!child.bodyFile) errors.push(`${prefix}.bodyFile is required`);
     if (!child.slice) errors.push(`${prefix}.slice is required`);
     if (!Array.isArray(child.labels) || child.labels.length === 0) errors.push(`${prefix}.labels is required`);
@@ -124,13 +157,15 @@ export const validateManifest = (manifest) => {
       errors.push(`${prefix}.noBlockerPhrase is valid only when tracker and external blockers are empty`);
     }
   }
-  const ledger = manifest.parent?.ledger;
-  if (!ledger || !["posted", "skipped"].includes(ledger.status)) {
-    errors.push("parent.ledger.status must be posted or skipped");
-  } else if (ledger.status === "posted" && (!ledger.commentUrl || !ledger.bodyFile)) {
-    errors.push("a posted parent ledger requires commentUrl and bodyFile");
-  } else if (ledger.status === "skipped" && !ledger.reason) {
-    errors.push("a skipped parent ledger requires a reason");
+  if (hasParent) {
+    const ledger = manifest.parent.ledger;
+    if (!ledger || !["posted", "skipped"].includes(ledger.status)) {
+      errors.push("parent.ledger.status must be posted or skipped");
+    } else if (ledger.status === "posted" && (!ledger.commentUrl || !ledger.bodyFile)) {
+      errors.push("a posted parent ledger requires commentUrl and bodyFile");
+    } else if (ledger.status === "skipped" && !ledger.reason) {
+      errors.push("a skipped parent ledger requires a reason");
+    }
   }
   return errors;
 };
@@ -139,8 +174,11 @@ export const verifyPublishedChild = ({
   expected,
   actual,
   expectedBody,
-  parentToken,
+  parentToken = null,
+  sourceToken = null,
+  sourceRelationship = null,
   checklistVerified = null,
+  forbiddenPatterns = [],
   placeholderRe = "#SLICE|PLACEHOLDER",
 }) => {
   const body = actual?.body ?? "";
@@ -153,12 +191,19 @@ export const verifyPublishedChild = ({
   const actualLabels = labelNames(actual?.labels);
   const expectedLabels = unique(expected.labels);
   const placeholderPattern = compilePattern(placeholderRe, "--placeholder-re");
+  const compiledForbiddenPatterns = forbiddenPatterns
+    .map((pattern) => compilePattern(pattern, "--forbid-pattern"));
+  const sourceSection = sectionBody(body, "## Source and coordination");
   const checks = {
     fetched: actual != null,
     titleMatches: actual?.title === expected.title,
     stateMatches: actual?.state === (expected.state ?? "OPEN"),
     labelsMatch: exactValues(actualLabels, expectedLabels),
-    parentPresent: body.includes(parentToken),
+    parentPresent: parentToken == null || body.includes(parentToken),
+    sourceHeadingPresent: sourceToken == null || body.includes("## Source and coordination"),
+    sourcePresent: sourceToken == null || sourceSection.includes(sourceToken),
+    sourceRelationshipPresent:
+      sourceRelationship == null || sourceSection.includes(sourceRelationship),
     stagedBodyMatches: normalizeMarkdown(body) === normalizeMarkdown(expectedBody),
     hasWhat: body.includes("## What to build"),
     hasAcceptance: body.includes("## Acceptance criteria"),
@@ -171,6 +216,7 @@ export const verifyPublishedChild = ({
       expectedExternalBlockers.length > 0 ||
       body.includes(expected.noBlockerPhrase),
     noPlaceholders: !placeholderPattern.test(body),
+    noForbiddenPatterns: compiledForbiddenPatterns.every((pattern) => !pattern.test(body)),
     noHome: !body.includes("/home/"),
     noTmp: !body.includes("/tmp"),
   };
@@ -184,6 +230,7 @@ export const verifyPublishedChild = ({
     checks,
     expectedBlockers,
     expectedExternalBlockers,
+    forbiddenPatterns: unique(forbiddenPatterns),
     labels: actualLabels,
     number: expected.number,
     state: actual?.state ?? null,
@@ -192,43 +239,109 @@ export const verifyPublishedChild = ({
   };
 };
 
+export const verifyWorkingPublicationLedger = ({ manifest, workingLedger, children }) => {
+  const entries = Array.isArray(workingLedger?.entries) ? workingLedger.entries : [];
+  const entryReports = manifest.children.map((expected, index) => {
+    const entry = entries[index];
+    const child = children[index];
+    const checks = {
+      present: entry != null,
+      sliceMatches: entry?.slice === expected.slice,
+      titleMatches: entry?.title === expected.title,
+      numberMatches: entry?.number === expected.number,
+      urlMatchesManifest: entry?.url === expected.url,
+      urlMatchesLiveIssue: entry?.url === child?.url,
+      blockersMatch: exactValues(unique(entry?.blockers ?? []), unique(expected.blockers)),
+      externalBlockersMatch:
+        exactValues(unique(entry?.externalBlockers ?? []), unique(expected.externalBlockers ?? [])),
+      verifierPassed: entry?.verifierStatus === "verified",
+    };
+    return { checks, index, number: expected.number, slice: expected.slice };
+  });
+  const checks = {
+    approvedCountMatches: workingLedger?.approvedCount === manifest.approvedCount,
+    entryCountMatches: entries.length === manifest.children.length,
+    entriesPass: entryReports.every((entry) => allTrue(entry.checks)),
+  };
+  return { checks, entries: entryReports };
+};
+
 export const verifyPublishedFamily = ({
   manifest,
   childPayloads,
   stagedBodies,
-  parentPayload,
+  parentPayload = null,
+  sourcePayload = null,
   ledgerBody = null,
   checklistVerified,
+  workingLedger = null,
 }) => {
+  const usesSource = manifest.source != null;
   const children = manifest.children.map((expected) => verifyPublishedChild({
     actual: childPayloads.get(expected.number),
     checklistVerified,
     expected,
     expectedBody: stagedBodies.get(expected.number) ?? "",
-    parentToken: manifest.parent.token,
+    forbiddenPatterns: manifest.forbidPatterns,
+    parentToken: usesSource ? null : manifest.parent.token,
+    sourceRelationship: usesSource ? manifest.source.relationship : null,
+    sourceToken: usesSource ? manifest.source.token : null,
   }));
 
-  const ledger = manifest.parent.ledger;
-  const comment = ledger.status === "posted"
-    ? (parentPayload?.comments ?? []).find((candidate) => candidate.url === ledger.commentUrl)
-    : null;
-  const parentChecks = {
-    fetched: parentPayload != null,
-    numberMatches: parentPayload?.number === manifest.parent.number,
-    stateMatches: parentPayload?.state === (manifest.parent.state ?? "OPEN"),
-    ledgerPostureValid:
-      ledger.status === "skipped"
-        ? ledger.reason.trim().length > 0
-        : comment != null && normalizeMarkdown(comment.body) === normalizeMarkdown(ledgerBody ?? ""),
-    ledgerChildrenPresent:
-      ledger.status === "skipped"
-        ? true
-        : manifest.children.every((child) => comment?.body.includes(`#${child.number}`)),
-    ledgerNoPlaceholders:
-      ledger.status === "skipped" || !/#SLICE|PLACEHOLDER/.test(comment?.body ?? ""),
-    ledgerNoHome: ledger.status === "skipped" || !(comment?.body ?? "").includes("/home/"),
-    ledgerNoTmp: ledger.status === "skipped" || !(comment?.body ?? "").includes("/tmp"),
-  };
+  const workingPublication = verifyWorkingPublicationLedger({ manifest, workingLedger, children });
+
+  let relationshipChecks;
+  let relationshipReport;
+  if (usesSource) {
+    relationshipChecks = {
+      fetched: sourcePayload != null,
+      numberMatches: sourcePayload?.number === manifest.source.number,
+      stateMatches: sourcePayload?.state === (manifest.source.state ?? "OPEN"),
+      sourcePresentInChildren: children.every((child) => child.checks.sourcePresent),
+      relationshipPresentInChildren:
+        children.every((child) => child.checks.sourceRelationshipPresent),
+    };
+    relationshipReport = {
+      checks: relationshipChecks,
+      number: manifest.source.number,
+      relationship: manifest.source.relationship,
+      state: sourcePayload?.state ?? null,
+      url: sourcePayload?.url ?? null,
+    };
+  } else {
+    const ledger = manifest.parent.ledger;
+    const comment = ledger.status === "posted"
+      ? (parentPayload?.comments ?? []).find((candidate) => candidate.url === ledger.commentUrl)
+      : null;
+    relationshipChecks = {
+      fetched: parentPayload != null,
+      numberMatches: parentPayload?.number === manifest.parent.number,
+      stateMatches: parentPayload?.state === (manifest.parent.state ?? "OPEN"),
+      ledgerPostureValid:
+        ledger.status === "skipped"
+          ? ledger.reason.trim().length > 0
+          : comment != null && normalizeMarkdown(comment.body) === normalizeMarkdown(ledgerBody ?? ""),
+      ledgerChildrenPresent:
+        ledger.status === "skipped"
+          ? true
+          : manifest.children.every((child) => comment?.body.includes(`#${child.number}`)),
+      ledgerNoPlaceholders:
+        ledger.status === "skipped" || !/#SLICE|PLACEHOLDER/.test(comment?.body ?? ""),
+      ledgerNoForbiddenPatterns:
+        ledger.status === "skipped" || manifest.forbidPatterns
+          .map((pattern) => compilePattern(pattern, "forbidPatterns"))
+          .every((pattern) => !pattern.test(comment?.body ?? "")),
+      ledgerNoHome: ledger.status === "skipped" || !(comment?.body ?? "").includes("/home/"),
+      ledgerNoTmp: ledger.status === "skipped" || !(comment?.body ?? "").includes("/tmp"),
+    };
+    relationshipReport = {
+      checks: relationshipChecks,
+      ledgerStatus: ledger.status,
+      number: manifest.parent.number,
+      state: parentPayload?.state ?? null,
+      url: parentPayload?.url ?? null,
+    };
+  }
 
   const checks = {
     approvedCreatedCount:
@@ -236,7 +349,8 @@ export const verifyPublishedFamily = ({
       children.filter((child) => child.checks.fetched).length === manifest.approvedCount,
     checklistVerified,
     childrenPass: children.every((child) => allTrue(child.checks)),
-    parentPass: allTrue(parentChecks),
+    workingPublicationLedgerPass: allTrue(workingPublication.checks),
+    [usesSource ? "sourcePass" : "parentPass"]: allTrue(relationshipChecks),
   };
   return {
     approvedCount: manifest.approvedCount,
@@ -244,13 +358,9 @@ export const verifyPublishedFamily = ({
     children,
     failedChecks: Object.entries(checks).filter(([, passed]) => !passed).map(([name]) => name),
     mode: "published-family",
-    parent: {
-      checks: parentChecks,
-      ledgerStatus: ledger.status,
-      number: manifest.parent.number,
-      state: parentPayload?.state ?? null,
-      url: parentPayload?.url ?? null,
-    },
+    forbiddenPatterns: unique(manifest.forbidPatterns),
+    workingPublicationLedger: workingPublication,
+    [usesSource ? "source" : "parent"]: relationshipReport,
   };
 };
 
@@ -282,8 +392,11 @@ const parsePublishedChildArgs = (argv) => {
     expectNoBlocker: false,
     expectStories: false,
     externalBlockers: [],
+    forbidPatterns: [],
     labels: [],
     parentToken: null,
+    sourceRelationship: null,
+    sourceToken: null,
     placeholderRe: "#SLICE|PLACEHOLDER",
     state: "OPEN",
     title: null,
@@ -292,22 +405,42 @@ const parsePublishedChildArgs = (argv) => {
     const argument = args[index];
     if (argument === "--expect-no-blocker") options.expectNoBlocker = true;
     else if (argument === "--expect-stories") options.expectStories = true;
-    else if (["--title", "--parent", "--state", "--label", "--blocker", "--external-blocker", "--placeholder-re"].includes(argument)) {
+    else if ([
+      "--title",
+      "--parent",
+      "--source",
+      "--source-relationship",
+      "--state",
+      "--label",
+      "--blocker",
+      "--external-blocker",
+      "--placeholder-re",
+      "--forbid-pattern",
+    ].includes(argument)) {
       const value = requireChildValue(args, index, argument);
       if (argument === "--title") options.title = value;
       else if (argument === "--parent") options.parentToken = value;
+      else if (argument === "--source") options.sourceToken = value;
+      else if (argument === "--source-relationship") options.sourceRelationship = value;
       else if (argument === "--state") options.state = value;
       else if (argument === "--label") options.labels.push(value);
       else if (argument === "--blocker") options.blockers.push(value);
       else if (argument === "--external-blocker") options.externalBlockers.push(value);
+      else if (argument === "--forbid-pattern") options.forbidPatterns.push(value);
       else options.placeholderRe = value;
       index += 1;
     } else {
       throw new Error(`Unknown child option: ${argument}`);
     }
   }
-  if (!options.title || !options.parentToken || options.labels.length === 0) {
-    throw new Error("child mode requires --title, --parent, and at least one --label.");
+  if (!options.title || options.labels.length === 0) {
+    throw new Error("child mode requires --title and at least one --label.");
+  }
+  if ((options.parentToken == null) === (options.sourceToken == null)) {
+    throw new Error("child mode requires exactly one of --parent or --source.");
+  }
+  if ((options.sourceToken == null) !== (options.sourceRelationship == null)) {
+    throw new Error("--source and --source-relationship must be used together.");
   }
   const hasBlockers = options.blockers.length > 0 || options.externalBlockers.length > 0;
   if (options.expectNoBlocker && hasBlockers) {
@@ -330,11 +463,14 @@ const parsePublishedChildArgs = (argv) => {
     },
     number,
     parentToken: options.parentToken,
+    forbidPatterns: options.forbidPatterns,
     placeholderRe: options.placeholderRe,
+    sourceRelationship: options.sourceRelationship,
+    sourceToken: options.sourceToken,
   };
 };
 
-const runChecklistValidation = (manifest) => {
+export const checklistValidationArgs = (manifest) => {
   const validator = fileURLToPath(new URL("./validate-publication.mjs", import.meta.url));
   const args = [validator, "run-sheet", resolve(manifest.runSheet)];
   for (const child of manifest.children) {
@@ -344,6 +480,14 @@ const runChecklistValidation = (manifest) => {
       args.push("--unaffected-slice", child.slice);
     }
   }
+  for (const pattern of manifest.forbidPatterns) {
+    args.push("--forbid-pattern", pattern);
+  }
+  return args;
+};
+
+const runChecklistValidation = (manifest) => {
+  const args = checklistValidationArgs(manifest);
   const result = spawnSync(process.execPath, args, { encoding: "utf8" });
   let report = null;
   try {
@@ -368,8 +512,11 @@ const main = () => {
         actual: fetchIssue(child.number),
         expected: child.expected,
         expectedBody: readText(child.bodyFile),
+        forbiddenPatterns: child.forbidPatterns,
         parentToken: child.parentToken,
         placeholderRe: child.placeholderRe,
+        sourceRelationship: child.sourceRelationship,
+        sourceToken: child.sourceToken,
       });
       const failedChecks = Object.entries(report.checks)
         .filter(([, passed]) => !passed)
@@ -389,10 +536,12 @@ const main = () => {
     }
 
     const checklist = runChecklistValidation(manifest);
+    const workingLedger = readJson(manifest.workingLedger);
     const stagedBodies = new Map(manifest.children.map((child) => [child.number, readText(child.bodyFile)]));
     const childPayloads = new Map(manifest.children.map((child) => [child.number, fetchIssue(child.number)]));
-    const parentPayload = fetchIssue(manifest.parent.number, true);
-    const ledgerBody = manifest.parent.ledger.status === "posted"
+    const parentPayload = manifest.parent == null ? null : fetchIssue(manifest.parent.number, true);
+    const sourcePayload = manifest.source == null ? null : fetchIssue(manifest.source.number);
+    const ledgerBody = manifest.parent?.ledger.status === "posted"
       ? readText(manifest.parent.ledger.bodyFile)
       : null;
     const report = verifyPublishedFamily({
@@ -400,8 +549,10 @@ const main = () => {
       childPayloads,
       stagedBodies,
       parentPayload,
+      sourcePayload,
       ledgerBody,
       checklistVerified: checklist.passed,
+      workingLedger,
     });
     report.checklistReport = checklist.report;
     console.log(JSON.stringify(report, null, 2));

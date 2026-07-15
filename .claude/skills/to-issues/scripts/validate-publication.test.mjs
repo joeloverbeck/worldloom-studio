@@ -45,8 +45,13 @@ ${blocker}
 No exception.
 `;
 
+const checklistIssueBody = () => issueBody().replace(
+  "- [ ] Observable behavior.",
+  checklistItems.map((item) => `- [ ] ${item}.`).join("\n"),
+);
+
 const checklistRows = (slice) => checklistItems
-  .map((item) => `| ${slice} | ${item} | AC 1 | - |`)
+  .map((item, index) => `| ${slice} | ${item} | AC ${index + 1} - "${item}." | - |`)
   .join("\n");
 
 const options = (overrides = {}) => ({
@@ -62,6 +67,8 @@ const options = (overrides = {}) => ({
   parent: null,
   placeholderRe: "#SLICE|PLACEHOLDER",
   sliceBodies: [],
+  source: null,
+  sourceRelationship: null,
   unaffectedSlices: [],
   ...overrides,
 });
@@ -71,9 +78,9 @@ test("run-sheet mode requires every represented slice by default", () => {
   try {
     const bodyA = join(directory, "a.md");
     const runSheet = join(directory, "run-sheet.md");
-    writeFileSync(bodyA, issueBody());
+    writeFileSync(bodyA, checklistIssueBody());
     writeFileSync(runSheet, `
-| Slice | Checklist item | Covered by final AC ordinal/excerpt | N/A reason |
+| Slice | Checklist item | Covered by final AC mapping | N/A reason |
 |---|---|---|---|
 ${checklistRows("Slice A")}
 ${checklistRows("Slice B")}
@@ -94,9 +101,9 @@ test("--only-slice supports a serial check against a shared run sheet", () => {
   try {
     const bodyA = join(directory, "a.md");
     const runSheet = join(directory, "run-sheet.md");
-    writeFileSync(bodyA, issueBody());
+    writeFileSync(bodyA, checklistIssueBody());
     writeFileSync(runSheet, `
-| Slice | Checklist item | Covered by final AC ordinal/excerpt | N/A reason |
+| Slice | Checklist item | Covered by final AC mapping | N/A reason |
 |---|---|---|---|
 ${checklistRows("Slice A")}
 ${checklistRows("Slice B")}
@@ -119,9 +126,9 @@ test("run-sheet mode rejects placeholders in a configured affected child body", 
   try {
     const bodyA = join(directory, "a.md");
     const runSheet = join(directory, "run-sheet.md");
-    writeFileSync(bodyA, issueBody().replace("Build the slice.", "Build #SLICE."));
+    writeFileSync(bodyA, checklistIssueBody().replace("Build the slice.", "Build #SLICE."));
     writeFileSync(runSheet, `
-| Slice | Checklist item | Covered by final AC ordinal/excerpt | N/A reason |
+| Slice | Checklist item | Covered by final AC mapping | N/A reason |
 |---|---|---|---|
 ${checklistRows("Slice A")}
 `);
@@ -141,9 +148,9 @@ test("run-sheet mode rejects a run-specific forbidden pattern in a configured bo
   try {
     const bodyA = join(directory, "a.md");
     const runSheet = join(directory, "run-sheet.md");
-    writeFileSync(bodyA, issueBody().replace("Build the slice.", "Build reports/.tmp-private.md."));
+    writeFileSync(bodyA, checklistIssueBody().replace("Build the slice.", "Build reports/.tmp-private.md."));
     writeFileSync(runSheet, `
-| Slice | Checklist item | Covered by final AC ordinal/excerpt | N/A reason |
+| Slice | Checklist item | Covered by final AC mapping | N/A reason |
 |---|---|---|---|
 ${checklistRows("Slice A")}
 `);
@@ -153,6 +160,89 @@ ${checklistRows("Slice A")}
       sliceBodies: [{ slice: "Slice A", path: bodyA }],
     }));
     assert.equal(report.affected[0].checks.noForbiddenPatterns, false);
+    assert.equal(report.checks.affectedSlicesPass, false);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("run-sheet mode resolves each verbatim excerpt against its exact acceptance criterion", () => {
+  const directory = mkdtempSync(join(tmpdir(), "to-issues-validator-"));
+  try {
+    const bodyA = join(directory, "a.md");
+    writeFileSync(bodyA, checklistIssueBody());
+    const rows = checklistRows("Slice A").replace(
+      'AC 1 - "package source cited."',
+      'AC 2 - "package source cited."',
+    );
+
+    const report = validateRunSheet(`
+| Slice | Checklist item | Covered by final AC mapping | N/A reason |
+|---|---|---|---|
+${rows}
+`, options({ sliceBodies: [{ slice: "Slice A", path: bodyA }] }));
+
+    assert.equal(report.affected[0].checks.hasMatchingAcceptanceExcerpts, false);
+    assert.deepEqual(report.affected[0].invalidExcerpts, [{
+      acceptanceText: "decision-point contract named.",
+      excerpt: "package source cited.",
+      item: "package source cited",
+      ordinal: 2,
+    }]);
+    assert.equal(report.affected[0].resolvedCoverage[0].acceptanceText, "decision-point contract named.");
+    assert.equal(report.checks.affectedSlicesPass, false);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("run-sheet mode rejects a bare AC ordinal without a verbatim excerpt", () => {
+  const directory = mkdtempSync(join(tmpdir(), "to-issues-validator-"));
+  try {
+    const bodyA = join(directory, "a.md");
+    writeFileSync(bodyA, checklistIssueBody());
+    const rows = checklistRows("Slice A").replace(
+      'AC 1 - "package source cited."',
+      "AC 1",
+    );
+
+    const report = validateRunSheet(`
+| Slice | Checklist item | Covered by final AC mapping | N/A reason |
+|---|---|---|---|
+${rows}
+`, options({ sliceBodies: [{ slice: "Slice A", path: bodyA }] }));
+
+    assert.deepEqual(report.affected[0].invalidCoverage, ["package source cited"]);
+    assert.equal(report.checks.affectedSlicesPass, false);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("run-sheet mode requires every component named by a composite checklist item", () => {
+  const directory = mkdtempSync(join(tmpdir(), "to-issues-validator-"));
+  try {
+    const bodyA = join(directory, "a.md");
+    writeFileSync(bodyA, checklistIssueBody().replace(
+      "prompt packet preview, source manifest, and cold external LLM test.",
+      "prompt packet preview and source manifest.",
+    ));
+    const rows = checklistRows("Slice A").replace(
+      'AC 5 - "prompt packet preview, source manifest, and cold external LLM test."',
+      'AC 5 - "prompt packet preview and source manifest."',
+    );
+
+    const report = validateRunSheet(`
+| Slice | Checklist item | Covered by final AC mapping | N/A reason |
+|---|---|---|---|
+${rows}
+`, options({ sliceBodies: [{ slice: "Slice A", path: bodyA }] }));
+
+    assert.deepEqual(report.affected[0].missingCompositeComponents, [{
+      item: "prompt packet preview, source manifest, and cold external LLM test",
+      missing: ["cold external LLM test"],
+    }]);
+    assert.equal(report.affected[0].checks.hasCompleteCompositeCoverage, false);
     assert.equal(report.checks.affectedSlicesPass, false);
   } finally {
     rmSync(directory, { recursive: true, force: true });
@@ -218,6 +308,39 @@ test("child validation rejects each configured run-specific forbidden pattern", 
 
   assert.deepEqual(report.forbiddenPatterns, ["field-build-18-.*\\.md", "reports/\\.tmp"]);
   assert.equal(report.checks.noForbiddenPatterns, false);
+});
+
+test("child validation accepts an exact standalone source relationship", () => {
+  const sourceBody = issueBody().replace(
+    "## Parent\n\nPRD #1",
+    "## Source and coordination\n\nPRD #379\n\nBlocks PRD #379",
+  );
+  const report = validateChild(sourceBody, options({
+    expectAcCount: 1,
+    expectNoBlocker: true,
+    expectStories: true,
+    source: "PRD #379",
+    sourceRelationship: "Blocks PRD #379",
+  }));
+
+  assert.equal(report.checks.hasSourceHeading, true);
+  assert.equal(report.checks.hasSource, true);
+  assert.equal(report.checks.hasSourceRelationship, true);
+  assert.equal(Object.values(report.checks).every(Boolean), true);
+});
+
+test("child validation rejects a mismatched standalone source relationship", () => {
+  const sourceBody = issueBody().replace(
+    "## Parent\n\nPRD #1",
+    "## Source and coordination\n\nPRD #379\n\nCoordinates with PRD #379",
+  );
+  const report = validateChild(sourceBody, options({
+    expectNoBlocker: true,
+    source: "PRD #379",
+    sourceRelationship: "Blocks PRD #379",
+  }));
+
+  assert.equal(report.checks.hasSourceRelationship, false);
 });
 
 function readFile(path) {

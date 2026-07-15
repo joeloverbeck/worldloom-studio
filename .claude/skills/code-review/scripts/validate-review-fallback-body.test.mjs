@@ -94,9 +94,16 @@ const currentTddEvidence = `TDD closeout gate: canonical TDD evidence below pass
 
 TDD evidence
 
+Final SHA: def5678
+
 | Issue | CONTEXT.md status | ADRs/principles/docs status | Seam | Red command/failure | Green command or evidence | Acceptance covered | Review fix / red-first skip reason |
 |---|---|---|---|---|---|---|---|
 | #355 | read | ADR 0008 read | red-first public workflow | \`pnpm test -- workflow-order\` failed because Pressure appeared before staging | \`pnpm test -- workflow-order\` passed and observed Proposal then staging then Pressure | AC1 exact workflow; atoms: proposal + staging + pressure; proof surfaces: production test; sequence: Proposal -> staging -> Pressure observed by the test | N/A |
+
+Verification command ledger:
+| Exact command | Observed result/counts | Run count | Represented SHA/tree |
+|---|---|---|---|
+| \`pnpm test -- workflow-order\` | passed: 1 file and 3 tests; exit 0 | 1 | def5678 |
 
 Existing-test contract-change rows: none
 
@@ -307,7 +314,12 @@ Residual findings`
 });
 
 test("accepts current nested TDD evidence and rejects missing proof-server fields", () => {
-  const complete = runValidator(fallbackWithCurrentTdd, ["--tdd", "--closing"]);
+  const complete = runValidator(fallbackWithCurrentTdd, [
+    "--tdd",
+    "--closing",
+    "--expected-final-sha",
+    "def5678"
+  ]);
   assert.equal(complete.status, 0, complete.stderr);
 
   const missingPreflight = runValidator(
@@ -333,7 +345,12 @@ test("forwards --closing to nested TDD validation", () => {
   const withoutClosing = runValidator(localSinkBody, ["--tdd"]);
   assert.equal(withoutClosing.status, 0, withoutClosing.stderr);
 
-  const withClosing = runValidator(localSinkBody, ["--tdd", "--closing"]);
+  const withClosing = runValidator(localSinkBody, [
+    "--tdd",
+    "--closing",
+    "--expected-final-sha",
+    "def5678"
+  ]);
   assert.notEqual(withClosing.status, 0);
   assert.match(withClosing.stderr, /published TDD closeout field/);
 });

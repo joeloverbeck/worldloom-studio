@@ -15,14 +15,17 @@ const manifestIndex = args.indexOf("--acceptance-manifest");
 const manifestPath = manifestIndex < 0 ? undefined : args[manifestIndex + 1];
 const maxBytesIndex = args.indexOf("--max-bytes");
 const maxBytesValue = maxBytesIndex < 0 ? undefined : args[maxBytesIndex + 1];
+const expectedFinalShaIndex = args.indexOf("--expected-final-sha");
+const expectedFinalSha = expectedFinalShaIndex < 0 ? undefined : args[expectedFinalShaIndex + 1];
 const valueIndexes = new Set([
   ...(manifestIndex < 0 ? [] : [manifestIndex + 1]),
-  ...(maxBytesIndex < 0 ? [] : [maxBytesIndex + 1])
+  ...(maxBytesIndex < 0 ? [] : [maxBytesIndex + 1]),
+  ...(expectedFinalShaIndex < 0 ? [] : [expectedFinalShaIndex + 1])
 ]);
 const file = args.find((arg, index) => !arg.startsWith("--") && !valueIndexes.has(index));
 const flags = new Set(args.filter((arg) => arg.startsWith("--")));
 
-const usage = `Usage: node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs <body.md> [--implement] [--child-family] [--issue-set] [--acceptance-manifest <path>] [--immediate-fix] [--browser] [--tdd] [--tdd-parent-rollup] [--closing] [--max-bytes <positive integer>]`;
+const usage = `Usage: node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs <body.md> [--implement] [--child-family] [--issue-set] [--acceptance-manifest <path>] [--immediate-fix] [--browser] [--tdd] [--tdd-parent-rollup] [--closing --expected-final-sha <sha>] [--max-bytes <positive integer>]`;
 
 if (flags.has("--help")) {
   console.error(usage);
@@ -41,6 +44,14 @@ if (maxBytesIndex >= 0 && (!maxBytesValue || maxBytesValue.startsWith("--"))) {
 const maxBytes = maxBytesValue === undefined ? undefined : Number(maxBytesValue);
 if (maxBytes !== undefined && (!Number.isInteger(maxBytes) || maxBytes <= 0)) {
   console.error("--max-bytes must be a positive integer");
+  process.exit(2);
+}
+if (expectedFinalShaIndex >= 0 && (!expectedFinalSha || expectedFinalSha.startsWith("--"))) {
+  console.error("--expected-final-sha requires a commit SHA");
+  process.exit(2);
+}
+if (expectedFinalSha && !/^[0-9a-f]{7,40}$/i.test(expectedFinalSha)) {
+  console.error("--expected-final-sha must be a 7-40 character hexadecimal commit SHA");
   process.exit(2);
 }
 
@@ -395,7 +406,7 @@ if (shouldRunTddValidator) {
   const tddFlags = [];
   if (flags.has("--tdd-parent-rollup")) tddFlags.push("--parent-rollup");
   if (flags.has("--closing")) tddFlags.push("--closing");
-  const tddErrors = validateTddCloseoutBody(body, { flags: tddFlags, maxBytes });
+  const tddErrors = validateTddCloseoutBody(body, { flags: tddFlags, maxBytes, expectedFinalSha });
   if (tddErrors.length) {
     errors.push(`TDD validator failed:\n${tddErrors.map((error) => `- ${error}`).join("\n")}`);
   }

@@ -7,21 +7,28 @@ Read this file completely only after the Step 4 breakdown is approved or publica
 Publication is complete only when:
 
 - approved slice count equals verified created issue count;
-- every child has the approved title, state, labels, parent, dependencies, story coverage, acceptance criteria, and Principles section;
+- every issue has the approved title, state, labels, tracker relationship, dependencies, story coverage, acceptance criteria, and Principles section;
 - every fully specified affected child has a validated final browser-visible guidance mapping, including a `needs-triage` child held solely by an external sequencing or readiness gate;
 - published bodies and any ledger contain no placeholders or machine-local paths;
-- the parent ledger is posted or its approved fallback is recorded;
+- child mode has a posted parent ledger or its approved fallback; standalone-source mode has the exact source relationship in every published body;
 - temporary artifacts are absent; and
 - final `git status --short` names only pre-existing or intentional changes.
 
 ## Issue body
 
-Match fetched house style. This template defines required content, not mandatory section order:
+Match fetched house style. This template defines required content, not mandatory section order. Choose exactly one tracker-relationship header:
 
 ```markdown
 ## Parent
 
-<parent tracker reference; omit only when the source was not a tracker issue>
+<parent tracker reference for child mode>
+
+<!-- Or, for standalone-source mode: -->
+
+## Source and coordination
+
+<source tracker reference>
+<exact relationship, such as Blocks PRD #379>
 
 ## What to build
 
@@ -51,6 +58,8 @@ Avoid volatile code paths and snippets in issue prose. Stable principle, ADR, sp
 
 ## 1. Freeze publication posture
 
+Freeze one tracker relationship for the run before staging. **Child mode** requires a parent token and the approved parent-ledger posture. **Standalone-source mode** requires a source token and exact relationship text in `## Source and coordination`; it has no parent ledger. Do not describe a predecessor, follow-on, or coordination issue as a child merely because its source is a tracker item.
+
 For every approved slice, select the full house-style label set. Use `ready-for-agent` only when dependencies are explicit, all provisional or open decisions were resolved at approval, and repository implementability checks pass. Otherwise use `needs-triage` and record why.
 
 For guided-flow, Prompt-out, Canon Workbench provenance, or browser-navigation work, read the repository issue-tracker guidance and map applicable browser-visible guidance items into final acceptance criteria before applying a ready label.
@@ -69,7 +78,7 @@ gh issue list --state all --search "\"$TITLE\" in:title" --json number,title,sta
 
 Zero matches permits creation. One exact match requires a reuse/link/skip decision unless duplicate creation was explicitly approved. Multiple exact matches are ambiguous and block publication. Fuzzy matches are not duplicates. Rerun this guard after interruptions or resumptions.
 
-For read-only tracker commands in this protocol, a connectivity, rate-limit, or other transient API failure is not an empty result. Retry once; if the retry fails, stop unless the protocol names a fresh-context fallback for that exact read.
+For read-only tracker commands in this protocol, a connectivity, rate-limit, or other transient API failure is not an empty result. First classify sandbox- or permission-shaped failures: when the environment provides an approved network-escalation mechanism, rerun the exact read-only command through that mechanism before counting the attempt as an API retry. Only failures after the permitted escalation use the retry-once-then-stop rule. If the escalated attempt and one API retry both fail, stop unless the protocol names a fresh-context fallback for that exact read.
 
 If a tracker mutation returns an error or no usable URL after the request may have reached the server, do not blindly rerun it. Reconcile first: for issue creation, rerun the exact-title guard and inspect the one exact match's body and labels; for a parent comment, inspect fresh parent comments for the exact staged body. Reuse and verify one exact match, retry only after confirming that no mutation landed, and stop on multiple matches.
 
@@ -77,27 +86,48 @@ If a tracker mutation returns an error or no usable URL after the request may ha
 
 Use outside-worktree temporary files when the environment permits safe edit and cleanup. In Codex-style sessions, use `apply_patch` for temporary files too. Otherwise use clearly temporary repo-local paths such as `reports/.tmp-<parent>-issue-<slice>.md`. Never publish a staging path.
 
+Create a temporary JSON working publication ledger beside the staged artifacts before the first create call. Record the approved slice count and one entry per approved slice in dependency order. An unpublished entry has its approved `slice`, `title`, `blockers`, and `externalBlockers`, with `number`, `url`, and `verifierStatus` set to `null`. This ledger is the resumable source of publication state; do not rely on issue numbers held only in chat.
+
+```json
+{
+  "approvedCount": 1,
+  "entries": [
+    {
+      "slice": "Contract slice",
+      "title": "Contract slice",
+      "number": null,
+      "url": null,
+      "blockers": [],
+      "externalBlockers": [],
+      "verifierStatus": null
+    }
+  ]
+}
+```
+
 For each fully specified affected slice, the local run sheet must contain exactly these eleven rows, even when the slice remains `needs-triage` solely because of an external sequencing or readiness gate:
 
 | Checklist item | Required mapping |
 |---|---|
-| package source cited | final AC ordinal/excerpt or specific N/A |
-| decision-point contract named | final AC ordinal/excerpt or specific N/A |
-| required, optional, skippable, and severity-dependent fields visible where relevant | final AC ordinal/excerpt or specific N/A |
-| doctrine at the actual decision point | final AC ordinal/excerpt or specific N/A |
-| prompt packet preview, source manifest, and cold external LLM test | final AC ordinal/excerpt or specific N/A |
-| advisory/canon separation visible | final AC ordinal/excerpt or specific N/A |
-| skip path and reason storage | final AC ordinal/excerpt or specific N/A |
-| blockers/substance validation | final AC ordinal/excerpt or specific N/A |
-| current, next, and resume state | final AC ordinal/excerpt or specific N/A |
-| read-side audit or provenance link | final AC ordinal/excerpt or specific N/A |
-| cognitive walkthrough scenario | final AC ordinal/excerpt or specific N/A |
+| package source cited | `AC N - "verbatim excerpt"` or specific N/A |
+| decision-point contract named | `AC N - "verbatim excerpt"` or specific N/A |
+| required, optional, skippable, and severity-dependent fields visible where relevant | `AC N - "verbatim excerpt"` or specific N/A |
+| doctrine at the actual decision point | `AC N - "verbatim excerpt"` or specific N/A |
+| prompt packet preview, source manifest, and cold external LLM test | `AC N - "verbatim excerpt"` or specific N/A |
+| advisory/canon separation visible | `AC N - "verbatim excerpt"` or specific N/A |
+| skip path and reason storage | `AC N - "verbatim excerpt"` or specific N/A |
+| blockers/substance validation | `AC N - "verbatim excerpt"` or specific N/A |
+| current, next, and resume state | `AC N - "verbatim excerpt"` or specific N/A |
+| read-side audit or provenance link | `AC N - "verbatim excerpt"` or specific N/A |
+| cognitive walkthrough scenario | `AC N - "verbatim excerpt"` or specific N/A |
 
-Use columns `Slice | Checklist item | Covered by final AC ordinal/excerpt | N/A reason`. Every applicable row cites `AC <n>` or a short quoted excerpt whose criterion exists in the final staged body. Every inapplicable row uses `N/A - <specific reason>`. An unaffected slice gets one `browser-visible guidance checklist` row with a specific N/A reason. A generic body criterion or final-ledger `yes` never substitutes for this run sheet.
+Use columns `Slice | Checklist item | Covered by final AC mapping | N/A reason`. Every applicable row uses one or more exact mappings in the form `AC <n> - "<verbatim excerpt from that AC>"`; separate multiple mappings with semicolons. The validator resolves the cited ordinal, proves each excerpt belongs to that exact acceptance criterion, and prints the resolved AC text in its report. A bare ordinal, an excerpt without its ordinal, or an excerpt copied from a different AC fails validation.
+
+For a composite checklist item, the resolved AC text must cover every named component. One AC may cover multiple components, multiple exact mappings may divide them, or an AC may encode an explicit cross-slice handoff that names the component and the slice that closes it. Do not map a row such as `prompt packet preview, source manifest, and cold external LLM test` to criteria that cover only preview and manifest. Every inapplicable row uses `N/A - <specific reason>`. An unaffected slice gets one `browser-visible guidance checklist` row with a specific N/A reason. A generic body criterion or final-ledger `yes` never substitutes for this run sheet.
 
 ## 3. Validate staged artifacts
 
-The staged-artifact validator is the canonical check for content, patch markers, default placeholders, `/home/`, `/tmp`, sections, blockers, story coverage, AC count, and checklist ordinals:
+The staged-artifact validator is the canonical check for content, patch markers, default placeholders, `/home/`, `/tmp`, sections, blockers, story coverage, AC count, and exact checklist-to-AC mappings:
 
 ```sh
 node .claude/skills/to-issues/scripts/validate-publication.mjs child "$BODY_FILE" \
@@ -105,6 +135,17 @@ node .claude/skills/to-issues/scripts/validate-publication.mjs child "$BODY_FILE
   --blocker "#<backward-blocker>" \
   --external-blocker "<exact external prerequisite text>" \
   --forbid-pattern '<run-specific-token-or-path-pattern>' \
+  --expect-stories \
+  --expect-ac-count <count>
+```
+
+For standalone-source mode, replace `--parent` with both relationship arguments:
+
+```sh
+node .claude/skills/to-issues/scripts/validate-publication.mjs child "$BODY_FILE" \
+  --source "PRD #<source>" \
+  --source-relationship "Blocks PRD #<source>" \
+  --expect-no-blocker \
   --expect-stories \
   --expect-ac-count <count>
 ```
@@ -189,15 +230,24 @@ node .claude/skills/to-issues/scripts/verify-published-family.mjs child "$ISSUE_
   --label ready-for-agent \
   --blocker "#<backward-blocker>" \
   --external-blocker "<exact external prerequisite text>" \
+  --forbid-pattern '<run-specific-token-or-path-pattern>' \
   --expect-stories \
-  --placeholder-re '#SLICE|PLACEHOLDER|<run-specific-token-or-path-pattern>'
+  --placeholder-re '#SLICE|PLACEHOLDER'
 ```
+
+For standalone-source mode, replace `--parent` with `--source` and `--source-relationship` using the exact approved strings.
 
 Repeat label and blocker options exactly as approved. Use `--expect-no-blocker` instead of blocker options only when neither tracker nor external blockers exists. The verifier fetches the issue once, normalizes Markdown before comparing the full staged body, requires the exact label set and state, and checks the parent, required sections, story posture, blockers, placeholders, and machine-local paths. Correct defects with the tracker edit command and rerun this verifier before continuing.
 
-## 6. Parent ledger
+After the single-child verifier passes, immediately update that slice's working-publication-ledger entry with the actual issue number, returned URL, exact resolved tracker and external blockers, and `"verifierStatus": "verified"`. Update no other entry speculatively. If the create or verification fails, leave the entry unpublished or record `"verifierStatus": "failed"`, then stop.
 
-When approved, post a child-map ledger after all children exist. Match the fetched parent-ledger heading/table style and any stable repository disclaimer; do not invent a disclaimer when tracker docs and precedent are silent.
+On resume, read the working publication ledger before any duplicate guard or create call. Re-fetch each entry marked `verified`, rerun its single-child verifier against the staged body, and retain it only if number, URL, blockers, labels, and body still pass. Reconcile any entry with a number or URL but no verified status using the ambiguous-mutation rule in Step 1. Resume at the first unpublished slice in dependency order; never recreate an already verified slice.
+
+## 6. Parent ledger or standalone source
+
+This section branches on the frozen tracker relationship. Standalone-source mode has no parent ledger: the staged and published `## Source and coordination` section is the durable relationship record, and its exact source token and relationship text are verified in Steps 5 and 7.
+
+In child mode, when approved, post a child-map ledger after all children exist. Match the fetched parent-ledger heading/table style and any stable repository disclaimer; do not invent a disclaimer when tracker docs and precedent are silent.
 
 Include:
 
@@ -210,7 +260,7 @@ Validate and sweep the staged comment before `gh issue comment`. Relationship wo
 
 If comment publication fails ambiguously, apply the mutation-reconciliation rule in Step 1 against fresh parent comments before retrying.
 
-If the ledger was declined, use the approved fallback. When structural or durability rationale would otherwise exist only in chat and the user did not choose, default to a concise `## Breakdown decisions` section in the first relevant child. If the user explicitly chose no tracker rationale, honor it and report the choice.
+If the ledger was declined, use the approved fallback. For a single child whose issue body carries the complete relationship rationale, the approved default reason is `relationship rationale is complete in the issue body`. When structural or durability rationale would otherwise exist only in chat and the user did not choose, default to a concise `## Breakdown decisions` section in the first relevant child. If the user explicitly chose no tracker rationale, honor it and report the choice.
 
 Never close or modify the parent body, labels, or state. A permitted ledger comment is additive and is the only parent mutation this skill performs.
 
@@ -221,7 +271,9 @@ Before cleanup, create a local JSON manifest and run the family verifier. Paths 
 ```json
 {
   "approvedCount": 2,
+  "forbidPatterns": ["reports/\\.tmp-private"],
   "runSheet": "reports/.tmp-parent-run-sheet.md",
+  "workingLedger": "reports/.tmp-parent-working-publication.json",
   "parent": {
     "number": 100,
     "token": "PRD #100",
@@ -235,6 +287,7 @@ Before cleanup, create a local JSON manifest and run the family verifier. Paths 
   "children": [
     {
       "number": 101,
+      "url": "https://github.com/owner/repo/issues/101",
       "title": "Contract slice",
       "bodyFile": "reports/.tmp-parent-issue-1.md",
       "slice": "Contract slice",
@@ -247,6 +300,7 @@ Before cleanup, create a local JSON manifest and run the family verifier. Paths 
     },
     {
       "number": 102,
+      "url": "https://github.com/owner/repo/issues/102",
       "title": "Consumer slice",
       "bodyFile": "reports/.tmp-parent-issue-2.md",
       "slice": "Consumer slice",
@@ -271,27 +325,43 @@ An externally gated child omits `noBlockerPhrase` and records its exact bullet t
 
 For a skipped ledger, use `"ledger": {"status": "skipped", "reason": "<approved reason>"}`. List exact non-tracker prerequisite bullets in `externalBlockers`; `noBlockerPhrase` is valid only when both `blockers` and `externalBlockers` are empty. `checklistMapped: yes` configures the child as an affected run-sheet slice regardless of label; an `N/A - ...` value configures it as genuinely unaffected.
 
+`forbidPatterns` is required even when empty. Copy every run-specific `--forbid-pattern` regex into it; do not fold those patterns only into `placeholder-re`. Build the final manifest's child numbers, URLs, and blocker arrays from the working publication ledger, then point `workingLedger` at that file. The family verifier requires every approved entry to be verified and match the manifest plus live issue URL before it reruns the same forbidden patterns across the run sheet, every published child, and any posted parent ledger.
+
+For standalone-source mode, replace the top-level `parent` object with `source` and omit `ledger`:
+
+```json
+{
+  "source": {
+    "number": 379,
+    "token": "PRD #379",
+    "relationship": "Blocks PRD #379",
+    "state": "OPEN"
+  }
+}
+```
+
 Run:
 
 ```sh
 node .claude/skills/to-issues/scripts/verify-published-family.mjs "$FAMILY_MANIFEST"
 ```
 
-The verifier reruns the complete checklist sheet, fetches the parent and every child live through `gh`, compares published bodies with staged bodies, verifies exact blockers and the exact label set/state/title/parent, verifies the posted ledger body or skipped-ledger reason, and prints one JSON report. A nonzero exit blocks final reporting.
+The verifier validates the working publication ledger, reruns the complete checklist sheet, and fetches every published issue live through `gh`. In child mode it also fetches the parent and verifies the parent token plus posted ledger or skipped-ledger reason. In standalone-source mode it fetches the source and verifies the exact source token and relationship in every staged and published body. It also verifies exact blockers, labels, state, title, body equality, live URL, and every custom forbidden pattern. A nonzero exit blocks final reporting.
 
 ## 8. Cleanup and final response
 
-Delete all staged bodies, run sheets, manifests, and ledger files with the environment-approved edit/removal mechanism. Prove every temporary path is absent, then run `git status --short` from the repository root. Do not path-scope Git status to an outside-worktree temp path.
+Delete all staged bodies, run sheets, manifests, parent-ledger files, and working-publication-ledger files with the environment-approved edit/removal mechanism. Prove every temporary path is absent, then run `git status --short` from the repository root. Do not path-scope Git status to an outside-worktree temp path.
 
 Final Response Blocker: do not report publication complete unless the final answer includes:
 
 - approved-created count match;
 - one issue URL per approved slice;
 - state and label proof per issue;
-- parent and individual tracker-blocker, external-blocker, or no-blocker proof per issue;
+- parent or standalone-source relationship plus individual tracker-blocker, external-blocker, or no-blocker proof per issue;
 - placeholder/path sweep result per issue;
 - checklist mapped `yes` or specific N/A per issue;
-- parent ledger posted/skipped and reason;
+- child-mode parent ledger posted/skipped and reason, or standalone-source relationship verified;
+- working publication ledger consumed by final verification and removed;
 - temporary-file cleanup result; and
 - final worktree status with unrelated or intentional dirty files called out.
 

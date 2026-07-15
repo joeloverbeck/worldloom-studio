@@ -63,15 +63,15 @@ Complete.
 Current.
 `;
 
-test("recognizes qualified finding headings", () => {
+test("recognizes supported finding heading separators", () => {
   const source = `
 ## Findings
 
 ### V-01 - Validation
 
-### P-01 (proposal) - Proposal context
+### P-01 (proposal) — Proposal context
 
-### P-02 (pressure) - Pressure context
+### P-02 (pressure) – Pressure context
 `;
   const result = validatePrdPrep({
     source,

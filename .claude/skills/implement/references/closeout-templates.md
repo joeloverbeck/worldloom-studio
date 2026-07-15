@@ -6,7 +6,7 @@ body-check commands.
 
 ## Large Tracker Body Workflow
 
-Large tracker body workflow: for long parent rollups or child-family audits, compose the body in a temporary file under `/tmp`, inspect the exact file contents before posting, post with the tracker CLI's `--body-file` option, capture the resulting issue/comment URL or exact reference, and keep the staging path out of the published body. Use an interactive editor when available; when no editor is available or shell writes are constrained, create the `/tmp` body with the environment-approved file-edit mechanism, keep it outside the repo, and still inspect the exact file before posting. For GitHub, `gh issue close` only accepts an inline `--comment`, not `--body-file`; post long evidence first with `gh issue comment --body-file <file>`, capture that comment URL, then close with a short inline pointer to the evidence comment. Use this pattern for parent rollups and any long child comment; reserve inline `--body` for short child comments only.
+Large tracker body workflow: for long parent rollups or child-family audits, compose the body in a temporary file under `/tmp`, inspect the exact file contents before posting, post with the tracker CLI's `--body-file` option, capture the resulting issue/comment URL or exact reference, and keep the staging path out of the published body. Use an interactive editor when available; when no editor is available or shell writes are constrained, create the `/tmp` body with the environment-approved file-edit mechanism, keep it outside the repo, and still inspect the exact file before posting. For GitHub, `gh issue close` only accepts an inline `--comment`, not `--body-file`; post long evidence first with `gh issue comment --body-file <file>`, capture that comment URL, verify the stored body with `verify-github-comment-body.mjs`, then close with a short inline pointer to the evidence comment. Use this pattern for parent rollups and any long child comment; reserve inline `--body` for short child comments only.
 
 Two-sink boundary: a tracked implementation report is an evidence source, not the place for its own final SHA, reviewed HEAD SHA, or terminal review result. Keep that tracked source SHA-independent. Build the final self-referential fields in the uncommitted `/tmp` body or tracker comment after the final tree and review are stable; do not amend the tracked report solely to add them. When an acceptance manifest is available, prefer the deterministic scaffold helper below over retyping the fielded body from scratch.
 
@@ -20,19 +20,19 @@ Nested-validator angle-token rule: in compact TDD, review, or audit table cells,
 
 ## Sibling-Issue Rollup
 
-When two or more in-scope issues are siblings with no parent PRD, choose the combined audit anchor in the scope ledger; default to the lowest issue number when the user or tracker gives no better anchor. Post the inspected combined audit to that anchor, capture and read back the comment URL, then close every sibling with a short inline comment containing the final SHA and that same evidence URL. Keep audit rows and live state verification per issue. Parent/child fields are `N/A because the issues are siblings`, and `--parent-prd`, `--child-family`, `--fixed-child`, and `--fixed-child-pending` do not apply unless a real parent/child relationship is also in scope.
+When two or more in-scope issues are siblings with no parent PRD, choose the combined audit anchor in the scope ledger; default to the lowest issue number when the user or tracker gives no better anchor. Post the inspected combined audit to that anchor, capture its comment URL, verify the exact stored body, then close every sibling with a short inline comment containing the final SHA and that same evidence URL. Keep audit rows and live state verification per issue. Parent/child fields are `N/A because the issues are siblings`, and `--parent-prd`, `--child-family`, `--fixed-child`, and `--fixed-child-pending` do not apply unless a real parent/child relationship is also in scope.
 
 For issue-family closeout, save the exact `gh issue view --json number,title,body` results as one JSON object, an array, or an object with an `issues` array. Build a deterministic acceptance manifest and audit scaffold before drafting the durable body:
 
 ```bash
 node .claude/skills/implement/scripts/capture-github-issues.mjs 369 370 371 --output /tmp/worldloom-issues.json
 node .claude/skills/implement/scripts/build-acceptance-manifest.mjs /tmp/worldloom-issues.json --output /tmp/worldloom-acceptance-manifest.json --audit-output /tmp/worldloom-acceptance-audit.md
-node .claude/skills/implement/scripts/build-closeout-body.mjs /tmp/worldloom-acceptance-manifest.json --audit-input /tmp/worldloom-acceptance-audit.md --output /tmp/worldloom-closeout-369.md --parent 369 --review normal --tdd-parent-rollup --browser --principles --local-only --fixed-child pending
+node .claude/skills/implement/scripts/build-closeout-body.mjs /tmp/worldloom-acceptance-manifest.json --audit-input /tmp/worldloom-acceptance-audit.md --output /tmp/worldloom-closeout-369.md --parent 369 --review normal --immediate-fix --tdd-parent-rollup --browser --principles --local-only --fixed-child pending
 node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body" --audit-only --review-entry --acceptance-manifest /tmp/worldloom-acceptance-manifest.json
-node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body" --closing --acceptance-manifest /tmp/worldloom-acceptance-manifest.json
+node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body" --closing --expected-final-sha "$(git rev-parse HEAD)" --emit-preflight --acceptance-manifest /tmp/worldloom-acceptance-manifest.json
 ```
 
-The capture helper calls exact structured `gh issue view` lookups without shell redirection and preserves issue order. The manifest scaffold assigns `AC1`, `AC2`, and so on in source order and adds one `Principles` check when the issue has a `## Principles` section. The closeout scaffold preserves those exact audit rows and emits the selected TDD/review/browser/identity/preflight field skeleton; it deliberately leaves angle-bracket placeholders, never changes `not done` to `satisfied`, and refuses output larger than 65,536 bytes by default, so it is not publishable until every field and row is completed and all applicable validators pass. `--review` accepts `normal` or `fallback`; `--fixed-child` accepts `none`, `pending`, or `final`. Preserve each generated ID and exact criterion text in the criterion cell. The audit-only validator checks the review-entry body without requiring final SHA/review/closeout fields; omit `--review-entry` for a truthful audit that still contains `blocked` or `not done` rows. The final manifest validator requires exactly one audit row for each generated check; it supplements, rather than replaces, exact body inspection.
+The capture helper calls exact structured `gh issue view` lookups without shell redirection and preserves issue order. The manifest scaffold assigns `AC1`, `AC2`, and so on in source order and adds one `Principles` check when the issue has a `## Principles` section. The closeout scaffold preserves those exact audit rows and emits the selected TDD/review/browser/identity/preflight field skeleton; it deliberately leaves angle-bracket placeholders, never changes `not done` to `satisfied`, and refuses output larger than 65,536 bytes by default, so it is not publishable until every field and row is completed and all applicable validators pass. `--review` accepts `normal` or `fallback`; add `--immediate-fix` only with `--review normal` when review findings were fixed so the scaffold emits the full normal-review immediate-fix block and final-reviewer statuses. `--fixed-child` accepts `none`, `pending`, or `final`. Preserve each generated ID and exact criterion text in the criterion cell. The audit-only validator checks the review-entry body without requiring final SHA/review/closeout fields; omit `--review-entry` for a truthful audit that still contains `blocked` or `not done` rows. The final manifest validator requires exactly one audit row for each generated check; it supplements, rather than replaces, exact body inspection. A closing validation requires `--expected-final-sha "$(git rev-parse HEAD)"`; on the last run before mutation, `--emit-preflight` prints the exact visible gate block to copy verbatim into the conversation.
 
 Long parent rollup, sibling-issue rollup, or child-family audit bodies must include this table shape, either inline or by linking an already-posted durable audit sink:
 
@@ -50,7 +50,12 @@ Implementation closeout for #<parent>
 Final SHA: <sha>
 Local-only SHA: <sha> is not remote-reachable because <reason>; local-only closeout is acceptable because <user request/repo policy>. / N/A because <remote branch contains sha>
 Verification:
-- `<command>`: <passed/failed/blocked and relevant scope>
+
+| Exact command | Observed result/counts | Run count | Represented SHA/tree |
+|---|---|---:|---|
+| `<exact command>` | <passed/failed/blocked plus output-derived counts or result> | <positive integer> | `<final SHA>` |
+
+Copy these published claims from the final-tree rows in the durable verification-command ledger; do not retype counts from memory.
 TDD evidence:
 TDD closeout preflight:
 Durable sink/body inspected: <stable issue reference before tracker URL exists / comment URL / N/A because no tdd skill was invoked>
@@ -171,18 +176,21 @@ sed -n '1,80p' "$body"
 sed -n '81,160p' "$body"
 sed -n '161,240p' "$body"
 # Run the applicable validator commands before posting; omit commands whose evidence type is N/A and drop only flags whose conditions do not apply.
-node .claude/skills/tdd/scripts/validate-tdd-closeout-body.mjs "$body" --parent-rollup
+node .claude/skills/tdd/scripts/validate-tdd-closeout-body.mjs "$body" --parent-rollup --closing --expected-final-sha "$(git rev-parse HEAD)"
 # Normal child-family review path; drop only inapplicable --immediate-fix/--parent-prd/--child-family/--browser/--tdd-parent-rollup flags.
-node .claude/skills/code-review/scripts/validate-review-normal-body.mjs "$body" --parent-prd --child-family --acceptance-manifest /tmp/worldloom-acceptance-manifest.json --browser --tdd-parent-rollup
+node .claude/skills/code-review/scripts/validate-review-normal-body.mjs "$body" --parent-prd --child-family --acceptance-manifest /tmp/worldloom-acceptance-manifest.json --browser --tdd-parent-rollup --closing --expected-final-sha "$(git rev-parse HEAD)"
 # Local fallback path; run this commented command instead of the normal-review validator, then add --review-fallback to the implement validator.
-# node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs "$body" --implement --child-family --acceptance-manifest /tmp/worldloom-acceptance-manifest.json --browser --tdd-parent-rollup
-node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body" --closing --principles --local-only --fixed-child-pending --acceptance-manifest /tmp/worldloom-acceptance-manifest.json
+# node .claude/skills/code-review/scripts/validate-review-fallback-body.mjs "$body" --implement --child-family --acceptance-manifest /tmp/worldloom-acceptance-manifest.json --browser --tdd-parent-rollup --closing --expected-final-sha "$(git rev-parse HEAD)"
+node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body" --closing --expected-final-sha "$(git rev-parse HEAD)" --principles --local-only --fixed-child-pending --acceptance-manifest /tmp/worldloom-acceptance-manifest.json
 rg -n "<[^>\n]{1,120}>" "$body"
 rg -n "Closeout gate passed: audit sink|Closeout body check passed|Final SHA:|Verification:|Review:|Review fallback:|TDD evidence gate passed|Principles/ADR conformance:|Local-only SHA:|Evidence identity refresh|Current evidence identities|Superseded evidence identities|Superseded-token sweep" "$body"
 rg -n "Acceptance criterion or conformance check|Status|satisfied|blocked|not done|atoms:|proof surfaces:|sequence:" "$body"
 rg -n "browser smoke|browser evidence|Console state|Browser console state|Final freshness delta|Fixed child inline close comment|Fixed child final inline close comment inspected" "$body"
 # If any inspection output is truncated, treat it as not inspected. Split the check into bounded token sweeps and short table/status excerpts before posting or closing.
+node .claude/skills/implement/scripts/validate-closeout-body.mjs "$body" --closing --expected-final-sha "$(git rev-parse HEAD)" --emit-preflight --principles --local-only --fixed-child-pending --acceptance-manifest /tmp/worldloom-acceptance-manifest.json
+# Copy the emitted Closeout preflight block and Closeout gate passed line verbatim into the conversation immediately before mutation.
 comment_url="$(gh issue comment <issue> --body-file "$body")"
+node .claude/skills/implement/scripts/verify-github-comment-body.mjs "$comment_url" "$body"
 gh issue close <issue> --reason completed --comment "Completed; evidence: $comment_url"
 ```
 
@@ -244,7 +252,7 @@ Do not use this template as a substitute for successful closeout. Any row with s
 
 ## Closeout Preflight Scratchpad
 
-Before any `gh issue comment`, `gh issue close`, `glab issue close`, or equivalent closeout command, fill this in the conversation or durable audit sink and make the `Closeout gate passed:` line visible:
+Before any `gh issue comment`, `gh issue close`, `glab issue close`, or equivalent closeout command, fill this in the inspected body. Run the implement closing validator with `--expected-final-sha "$(git rev-parse HEAD)" --emit-preflight`, then copy its emitted block verbatim into the conversation or durable audit sink. Do not hand-transcribe the visible gate:
 
 ```markdown
 Closeout preflight:

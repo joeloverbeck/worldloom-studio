@@ -33,13 +33,19 @@ const issueInput = [
 
 const evidence =
   "atoms: atomic; proof surfaces: .claude/skills/implement/scripts/validate-closeout-body.test.mjs; sequence: N/A because criterion is not sequence-sensitive";
+const expectedFinalSha = "abcdef0123456789";
 
 const closeoutBody = (rows) => `Implementation closeout
 
-Final SHA: abcdef0123456789
+Final SHA: ${expectedFinalSha}
 Verification:
-- node --test: passed
+
+| Exact command | Observed result/counts | Run count | Represented SHA/tree |
+|---|---|---:|---|
+| \`node --test\` | passed - 3 tests | 1 | \`${expectedFinalSha}\` |
+
 N/A because no tdd skill was invoked
+Review frame: fixed point input HEAD~1; fixed point resolved SHA 1234567890abcdef; reviewed HEAD SHA ${expectedFinalSha}; diff command git diff HEAD~1...HEAD; commits one; worktree scope test; excluded dirty files none; spec source fixture.
 Review: code-review against abcdef0; outcome no findings; verification rerun node --test.
 Browser evidence: N/A because process-only work changed no browser-consumed surface
 Console state: N/A because browser evidence is N/A
@@ -55,6 +61,10 @@ Evidence identity refresh:
 ${rows.join("\n")}
 
 Closeout body check passed: exact fields inspected.
+Closeout preflight:
+- Audit sink: local test body
+- Final SHA: ${expectedFinalSha}
+
 Closeout gate passed: audit sink local test body.
 `;
 
@@ -63,15 +73,18 @@ const auditBody = (rows) => `| Issue | Acceptance criterion or conformance check
 ${rows.join("\n")}
 `;
 
-const runValidator = (body, manifest, modeFlags = ["--closing"]) => {
+const runValidator = (body, manifest, modeFlags = ["--closing"], expectedSha = expectedFinalSha) => {
   const directory = mkdtempSync(join(tmpdir(), "implement-closeout-test-"));
   const bodyPath = join(directory, "body.md");
   const manifestPath = join(directory, "manifest.json");
   writeFileSync(bodyPath, body);
   writeFileSync(manifestPath, JSON.stringify(manifest));
+  const closingFlags = modeFlags.includes("--closing") && expectedSha && !modeFlags.includes("--expected-final-sha")
+    ? [...modeFlags, "--expected-final-sha", expectedSha]
+    : modeFlags;
   const result = spawnSync(
     process.execPath,
-    [validator, bodyPath, ...modeFlags, "--acceptance-manifest", manifestPath],
+    [validator, bodyPath, ...closingFlags, "--acceptance-manifest", manifestPath],
     { encoding: "utf8" }
   );
   rmSync(directory, { recursive: true, force: true });
@@ -129,6 +142,87 @@ test("closeout validator accepts exact one-to-one manifest coverage", () => {
   );
 
   assert.equal(result.status, 0, result.stderr);
+});
+
+test("closing validator requires a live expected final SHA", () => {
+  const manifest = buildAcceptanceManifest(issueInput);
+  const result = runValidator(
+    closeoutBody([
+      `| #359 | AC1 - First exact behavior | ${evidence} | satisfied |`,
+      `| #359 | AC2 - Second exact behavior with a continuation | ${evidence} | satisfied |`,
+      `| #359 | Principles - Principles/ADR conformance for #359 | ${evidence} | satisfied |`
+    ]),
+    manifest,
+    ["--closing"],
+    null
+  );
+
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /--closing requires --expected-final-sha/);
+});
+
+test("closing validator compares every Final SHA and reviewed HEAD SHA with live HEAD", () => {
+  const manifest = buildAcceptanceManifest(issueInput);
+  const body = closeoutBody([
+    `| #359 | AC1 - First exact behavior | ${evidence} | satisfied |`,
+    `| #359 | AC2 - Second exact behavior with a continuation | ${evidence} | satisfied |`,
+    `| #359 | Principles - Principles/ADR conformance for #359 | ${evidence} | satisfied |`
+  ]);
+  const staleFinal = runValidator(
+    body.replace(`Final SHA: ${expectedFinalSha}`, "Final SHA: 1111111222222222"),
+    manifest
+  );
+  const staleReview = runValidator(
+    body.replace(`reviewed HEAD SHA ${expectedFinalSha}`, "reviewed HEAD SHA 3333333444444444"),
+    manifest
+  );
+
+  assert.equal(staleFinal.status, 1);
+  assert.match(staleFinal.stderr, /Final SHA 1111111222222222 does not match expected final SHA/);
+  assert.equal(staleReview.status, 1);
+  assert.match(staleReview.stderr, /reviewed HEAD SHA 3333333444444444 does not match expected final SHA/);
+});
+
+test("closing validator requires final-tree verification ledger rows", () => {
+  const manifest = buildAcceptanceManifest(issueInput);
+  const body = closeoutBody([
+    `| #359 | AC1 - First exact behavior | ${evidence} | satisfied |`,
+    `| #359 | AC2 - Second exact behavior with a continuation | ${evidence} | satisfied |`,
+    `| #359 | Principles - Principles/ADR conformance for #359 | ${evidence} | satisfied |`
+  ]);
+  const missing = runValidator(
+    body.replace(
+      /\| Exact command \| Observed result\/counts \| Run count \| Represented SHA\/tree \|\n\|---\|---\|---:\|---\|\n\| `node --test` \| passed - 3 tests \| 1 \| `abcdef0123456789` \|/,
+      "- node --test: passed"
+    ),
+    manifest
+  );
+  const staleTree = runValidator(
+    body.replace(`\`${expectedFinalSha}\` |`, "`5555555666666666` |"),
+    manifest
+  );
+  const badCount = runValidator(body.replace("| passed - 3 tests | 1 |", "| passed - 3 tests | many |"), manifest);
+
+  assert.equal(missing.status, 1);
+  assert.match(missing.stderr, /missing verification command ledger header/);
+  assert.equal(staleTree.status, 1);
+  assert.match(staleTree.stderr, /represents 5555555666666666, not expected final SHA/);
+  assert.equal(badCount.status, 1);
+  assert.match(badCount.stderr, /run count must be a positive integer/);
+});
+
+test("emit-preflight prints the exact validated preflight block and gate line", () => {
+  const manifest = buildAcceptanceManifest(issueInput);
+  const body = closeoutBody([
+    `| #359 | AC1 - First exact behavior | ${evidence} | satisfied |`,
+    `| #359 | AC2 - Second exact behavior with a continuation | ${evidence} | satisfied |`,
+    `| #359 | Principles - Principles/ADR conformance for #359 | ${evidence} | satisfied |`
+  ]);
+  const result = runValidator(body, manifest, ["--closing", "--emit-preflight"]);
+  const expected = `Closeout preflight:\n- Audit sink: local test body\n- Final SHA: ${expectedFinalSha}\n\nCloseout gate passed: audit sink local test body.\n`;
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, expected);
 });
 
 test("audit-only validator accepts a review-ready audit without closeout fields", () => {
@@ -319,7 +413,58 @@ test("closeout validator rejects a superseded inventory without a no-hit sweep",
   const result = runValidator(body, manifest);
 
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /superseded-token sweep must report no hits/);
+  assert.match(result.stderr, /no hits outside classified identity\/history lines and no active-proof hits/);
+});
+
+test("closeout validator requires the cross-validator-safe superseded sweep", () => {
+  const manifest = buildAcceptanceManifest(issueInput);
+  const body = closeoutBody([
+    `| #359 | AC1 - First exact behavior | ${evidence} | satisfied |`,
+    `| #359 | AC2 - Second exact behavior with a continuation | ${evidence} | satisfied |`,
+    `| #359 | Principles - Principles/ADR conformance for #359 | ${evidence} | satisfied |`
+  ]).replace(
+    "Superseded evidence identities: fixture paths none; browser sessions none; packet paths/hashes none; active revisions none; artifacts none\n- Superseded-token sweep: N/A because every superseded category is none",
+    "Superseded evidence identities: fixture paths old.json; browser sessions old-session; packet paths/hashes none; active revisions none; artifacts none\n- Superseded-token sweep: rg old.json old-session body.md; no hits outside classified identity/history lines and no active-proof hits; historical-red hits classified as none"
+  );
+
+  assert.equal(runValidator(body, manifest).status, 0);
+  for (const oneSided of [
+    "rg old.json old-session body.md; no active-proof hits; historical-red hits classified as none",
+    "rg old.json old-session body.md; no hits outside classified identity/history lines; historical-red hits classified as none"
+  ]) {
+    const result = runValidator(
+      body.replace(
+        "rg old.json old-session body.md; no hits outside classified identity/history lines and no active-proof hits; historical-red hits classified as none",
+        oneSided
+      ),
+      manifest
+    );
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /no hits outside classified identity\/history lines and no active-proof hits/);
+  }
+});
+
+test("closeout validator compares backend currentness commits with Final SHA", () => {
+  const manifest = buildAcceptanceManifest(issueInput);
+  const base = closeoutBody([
+    `| #359 | AC1 - First exact behavior | ${evidence} | satisfied |`,
+    `| #359 | AC2 - Second exact behavior with a continuation | ${evidence} | satisfied |`,
+    `| #359 | Principles - Principles/ADR conformance for #359 | ${evidence} | satisfied |`
+  ]).replace(
+    "Console state: N/A because browser evidence is N/A",
+    "Console state: N/A because browser evidence is N/A\nBackend process currentness: server command pnpm dev; restart/reload proof clean start from final committed SHA abcdef0\nEvidence-only backend process currentness: server command pnpm dev; restart/reload proof clean start from final commit abcdef0"
+  );
+
+  assert.equal(runValidator(base, manifest).status, 0);
+  const stale = runValidator(base.replace("committed SHA abcdef0", "committed SHA 1234567"), manifest);
+  assert.equal(stale.status, 1);
+  assert.match(stale.stderr, /Backend process currentness names commit 1234567, which does not match Final SHA abcdef0123456789/);
+  const staleEvidenceOnly = runValidator(
+    base.replace("final commit abcdef0", "final commit 7654321"),
+    manifest
+  );
+  assert.equal(staleEvidenceOnly.status, 1);
+  assert.match(staleEvidenceOnly.stderr, /Evidence-only backend process currentness names commit 7654321/);
 });
 
 test("closeout validator rejects unresolved current evidence identities", () => {
@@ -425,6 +570,7 @@ test("implementation guidance carries the audited staging, exactness, and siblin
   const reviewGuide = readFileSync(resolve(skillRoot, "references/review-evidence.md"), "utf8");
   const template = readFileSync(resolve(skillRoot, "references/closeout-templates.md"), "utf8");
   const gates = readFileSync(resolve(skillRoot, "references/tracker-closeout-gates.md"), "utf8");
+  const childGuide = readFileSync(resolve(skillRoot, "references/child-family-closeout.md"), "utf8");
 
   assert.match(skill, /Implementation pre-stage gate passed:/);
   assert.match(skill, /Implementation commit gate passed: staged files scoped yes/);
@@ -432,6 +578,9 @@ test("implementation guidance carries the audited staging, exactness, and siblin
   assert.match(evidenceGuide, /two independent snapshots or server renders are not equivalent/);
   assert.match(evidenceGuide, /SQLite `.backup`/);
   assert.match(evidenceGuide, /package manifest or lockfile changes/);
+  assert.match(evidenceGuide, /## Verification Command Ledger/);
+  assert.match(evidenceGuide, /\| Exact command \| Observed result\/counts \| Run count \| Represented SHA\/tree \|/);
+  assert.match(evidenceGuide, /publish only rows whose represented\s+SHA\/tree is the final SHA/);
   assert.match(evidenceGuide, /published current artifact is not safe to remove until closeout is complete/);
   assert.match(evidenceGuide, /Before starting or attaching to any proof server, inspect the configured API\/UI ports/);
   assert.match(evidenceGuide, /fixture paths withheld because <authority and reason>/);
@@ -440,11 +589,14 @@ test("implementation guidance carries the audited staging, exactness, and siblin
   assert.match(template, /## Sibling-Issue Rollup/);
   assert.match(template, /capture-github-issues\.mjs 369 370 371/);
   assert.match(template, /build-closeout-body\.mjs/);
+  assert.match(template, /--review normal --immediate-fix/);
+  assert.match(template, /--expected-final-sha "\$\(git rev-parse HEAD\)" --emit-preflight/);
   assert.match(reviewGuide, /Two-sink boundary/);
   assert.match(reviewGuide, /Do not amend a tracked evidence report solely to append/);
   assert.match(template, /stable issue reference before tracker URL exists/);
   assert.match(template, /Review subagents: Standards final reviewer <ID> completed; Spec final reviewer <ID> completed/);
   assert.match(template, /no hits outside classified identity\/history lines and no active-proof hits/);
+  assert.match(template, /verify-github-comment-body\.mjs "\$comment_url" "\$body"/);
   assert.match(template, /Nested-validator angle-token rule/);
   assert.match(template, /65,536-byte maximum/);
   assert.match(template, /wc -c "\$body"/);
@@ -454,10 +606,15 @@ test("implementation guidance carries the audited staging, exactness, and siblin
   assert.doesNotMatch(template, /Durable sink\/body inspected: <inspected body file path/);
   assert.match(gates, /Working pre-review audit/);
   assert.match(gates, /--audit-only --acceptance-manifest/);
+  assert.match(gates, /Never drop `--expected-final-sha` from a closing validation/);
+  assert.match(gates, /copy the emitted `Closeout preflight:` block plus `Closeout gate passed:` line verbatim/);
   assert.match(gates, /two or more sibling issues with no parent PRD/);
   assert.match(gates, /nested validator may classify the entire cell as unresolved/);
   assert.match(gates, /default hard stop is 65,536 bytes/);
   assert.match(gates, /atoms or surfaces point circularly/);
+  assert.match(gates, /exact stored-body verification with `verify-github-comment-body\.mjs`/);
+  assert.match(childGuide, /verify-github-comment-body\.mjs <parent-comment-url> <parent-body>/);
+  assert.match(childGuide, /verify-github-comment-body\.mjs <child-comment-url> <child-body>/);
   assert.match(skill, /published `Current evidence identities:` inventory is not safe to remove/);
 });
 

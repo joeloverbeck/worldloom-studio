@@ -104,7 +104,7 @@ const requireOneRow = (errors, rows, identity, predicate) => {
   if (count !== 1) errors.push(`${identity} must map to exactly one Evidence Checked row; found ${count}`);
 };
 
-const FINDING_HEADING_PATTERN = /^###\s+([PRFMQV]-\d+)(?:\s+\([^)\r\n]+\))?\s+-\s+(.+)$/i;
+const FINDING_HEADING_PATTERN = /^###\s+([PRFMQV]-\d+)(?:\s+\([^)\r\n]+\))?\s+[-—–]\s+(.+)$/i;
 const FINDING_LIKE_HEADING_PATTERN = /^###\s+[PRFMQV]-\d+\b/i;
 
 const findingIdentities = (source) =>

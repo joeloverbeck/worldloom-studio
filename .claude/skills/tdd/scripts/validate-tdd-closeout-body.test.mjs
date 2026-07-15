@@ -13,6 +13,8 @@ import {
 } from "./validate-tdd-closeout-body.mjs";
 
 const validator = fileURLToPath(new URL("./validate-tdd-closeout-body.mjs", import.meta.url));
+const expectedFinalSha = "abcdef0123456789";
+const closingOptions = { flags: ["--closing"], expectedFinalSha };
 
 const bodyWith = ({
   acceptance =
@@ -24,9 +26,16 @@ const bodyWith = ({
   sweep = "N/A because every superseded category is none"
 } = {}) => `TDD evidence
 
+Final SHA: ${expectedFinalSha}
+
 | Issue | CONTEXT.md status | ADRs/principles/docs status | Seam | Red command/failure | Green command or evidence | Acceptance covered | Review fix / red-first skip reason |
 |---|---|---|---|---|---|---|---|
 | #1 | read | ADR 0001 read | red-first public workflow | \`pnpm test -- workflow-order\` failed because Pressure appeared before staging | ${green} | ${acceptance} | N/A |
+
+Verification command ledger:
+| Exact command | Observed result/counts | Run count | Represented SHA/tree |
+|---|---|---|---|
+| \`pnpm test -- workflow-order\` | passed: 1 file and 3 tests; exit 0 | 1 | ${expectedFinalSha} |
 
 Existing-test contract-change rows: none
 
@@ -91,7 +100,7 @@ test("closing rejects local staging paths while interim validation permits them"
   const body = bodyWith().replaceAll("test fixture", "`/tmp/tdd-closeout.md`");
 
   assert.deepEqual(validateTddCloseoutBody(body), []);
-  const closingErrors = validateTddCloseoutBody(body, { flags: ["--closing"] });
+  const closingErrors = validateTddCloseoutBody(body, closingOptions);
   assert.ok(
     closingErrors.some((error) =>
       error.includes("published TDD closeout field Durable sink/body inspected contains local staging path")
@@ -110,11 +119,11 @@ test("closing permits local fixture paths outside publishable sink fields", () =
       "fixture paths /tmp/worldloom-proof.sqlite; browser sessions issue-1; packet paths/hashes proposal.txt abc123; active revisions run-2; artifacts proof.png"
   });
 
-  assert.deepEqual(validateTddCloseoutBody(body, { flags: ["--closing"] }), []);
+  assert.deepEqual(validateTddCloseoutBody(body, closingOptions), []);
 });
 
 test("closing rejects a body above the configured UTF-8 byte ceiling", () => {
-  const errors = validateTddCloseoutBody(bodyWith(), { flags: ["--closing"], maxBytes: 100 });
+  const errors = validateTddCloseoutBody(bodyWith(), { ...closingOptions, maxBytes: 100 });
 
   assert.ok(errors.some((error) => error.includes("maximum is 100 bytes")));
   assert.equal(DEFAULT_TDD_CLOSEOUT_BODY_MAX_BYTES, 65_536);
@@ -127,13 +136,107 @@ test("CLI enforces the configured byte ceiling", () => {
 
   const result = spawnSync(
     process.execPath,
-    [validator, bodyPath, "--closing", "--max-bytes", "100"],
+    [validator, bodyPath, "--closing", "--expected-final-sha", expectedFinalSha, "--max-bytes", "100"],
     { encoding: "utf8" }
   );
   rmSync(directory, { recursive: true, force: true });
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /maximum is 100 bytes/);
+});
+
+test("rejects backticked identifiers masquerading as red commands", () => {
+  const body = bodyWith().replace(
+    "`pnpm test -- workflow-order` failed because Pressure appeared before staging",
+    "focused tests failed for `preview.outcomes` and `temporalSkipReason`"
+  );
+
+  assert.ok(
+    validateTddCloseoutBody(body).some((error) => error.includes("red command/failure is not concrete"))
+  );
+});
+
+test("accepts an exact executable red command with its failure signal", () => {
+  const body = bodyWith().replace(
+    "`pnpm test -- workflow-order` failed because Pressure appeared before staging",
+    "`node --test test/workflow-order.test.mjs` failed with assertion Pressure appeared before staging"
+  );
+
+  assert.deepEqual(validateTddCloseoutBody(body), []);
+});
+
+test("closing requires and validates the live expected final SHA", () => {
+  assert.ok(
+    validateTddCloseoutBody(bodyWith(), { flags: ["--closing"] }).some((error) =>
+      error.includes("closing validation requires expected final SHA")
+    )
+  );
+
+  const staleFinal = validateTddCloseoutBody(
+    bodyWith().replace(`Final SHA: ${expectedFinalSha}`, "Final SHA: 1111111222222222"),
+    closingOptions
+  );
+  assert.ok(staleFinal.some((error) => error.includes("does not match expected final SHA")));
+
+  const staleReview = validateTddCloseoutBody(
+    `${bodyWith()}\nReview frame: reviewed HEAD SHA 3333333444444444\n`,
+    closingOptions
+  );
+  assert.ok(
+    staleReview.some((error) =>
+      error.includes("reviewed HEAD SHA 3333333444444444 does not match expected final SHA")
+    )
+  );
+});
+
+test("CLI closing mode requires the expected final SHA", () => {
+  const directory = mkdtempSync(join(tmpdir(), "tdd-closeout-sha-test-"));
+  const bodyPath = join(directory, "body.md");
+  writeFileSync(bodyPath, bodyWith());
+
+  const result = spawnSync(process.execPath, [validator, bodyPath, "--closing"], { encoding: "utf8" });
+  rmSync(directory, { recursive: true, force: true });
+
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /--closing requires --expected-final-sha/);
+});
+
+test("closing requires a durable final-tree verification command ledger", () => {
+  const withoutLedger = bodyWith().replace(
+    /Verification command ledger:\n\| Exact command \| Observed result\/counts \| Run count \| Represented SHA\/tree \|\n\|---\|---\|---\|---\|\n\| `pnpm test -- workflow-order` \| passed: 1 file and 3 tests; exit 0 \| 1 \| abcdef0123456789 \|\n\n/,
+    ""
+  );
+  assert.ok(
+    validateTddCloseoutBody(withoutLedger, closingOptions).some((error) =>
+      error.includes("missing verification command ledger header")
+    )
+  );
+
+  const cases = [
+    [
+      "verification claimed",
+      bodyWith().replace("passed: 1 file and 3 tests; exit 0", "verification claimed"),
+      "must contain an output-derived result or count"
+    ],
+    ["zero run count", bodyWith().replace("| 1 | abcdef0123456789 |", "| 0 | abcdef0123456789 |"), "run count must be a positive integer"],
+    [
+      "stale represented tree",
+      bodyWith().replace("| 1 | abcdef0123456789 |", "| 1 | 5555555666666666 |"),
+      "does not match Final SHA"
+    ],
+    [
+      "identifier command",
+      bodyWith().replace("`pnpm test -- workflow-order` | passed: 1 file", "`preview.outcomes` | passed: 1 file"),
+      "must contain an exact executable command"
+    ]
+  ];
+
+  for (const [name, body, expectedError] of cases) {
+    assert.ok(
+      validateTddCloseoutBody(body, closingOptions).some((error) => error.includes(expectedError)),
+      name
+    );
+  }
 });
 
 test("rejects a compact row without sequence evidence", () => {
@@ -206,6 +309,23 @@ test("accepts cross-validator-safe sweep wording with classified historical red 
   assert.deepEqual(validateTddCloseoutBody(body), []);
 });
 
+test("rejects one-sided superseded-token sweep wording", () => {
+  const superseded =
+    "fixture paths old.sqlite; browser sessions old-session; packet paths/hashes old.txt deadbeef; active revisions run-1; artifacts old.png";
+
+  for (const sweep of [
+    "rg checked every exact superseded value; no active-proof hits; historical-red hits classified as none",
+    "rg checked every exact superseded value; no hits outside classified identity/history lines; historical-red hits classified as none"
+  ]) {
+    const errors = validateTddCloseoutBody(bodyWith({ superseded, sweep }));
+    assert.ok(
+      errors.some((error) =>
+        error.includes("no hits outside classified identity/history lines and no active-proof hits")
+      )
+    );
+  }
+});
+
 test("accepts slash ownership and a domain-qualified expected API field probe", () => {
   const body = browserEvidenceBodyWith(
     "server command pnpm dev; watch/reload mode active; process/port ownership PID 23056 on ports 5173 and 4173; restart/reload proof server restarted; expected Propagation API field probe returned blockers"
@@ -221,6 +341,41 @@ test("still rejects backend currentness without an expected API probe", () => {
 
   assert.ok(
     validateTddCloseoutBody(body).some((error) => error.includes("expected API field/behavior probe"))
+  );
+});
+
+test("rejects stale currentness commits in every repeated field", () => {
+  const currentness =
+    "server command pnpm dev; watch/reload mode active; process/port ownership PID 23056 on ports 5173 and 4173; restart/reload proof clean start from final committed SHA abcdef0; expected Propagation API field probe returned blockers";
+  const base = `Final SHA: abcdef0123456789\n${reviewFixBodyWith("Browser/manual evidence freshness")}`
+    .replace(
+      "Evidence-only backend process currentness: N/A because no browser/manual evidence-only rows",
+      `Evidence-only backend process currentness: ${currentness}`
+    )
+    .replace(
+      "Backend process currentness: N/A because no browser/manual proof was used",
+      `Backend process currentness: ${currentness}`
+    );
+
+  const duplicateErrors = validateTddCloseoutBody(
+    `${base}\nBackend process currentness: ${currentness.replace("abcdef0", "1234567")}\n`
+  );
+  assert.ok(
+    duplicateErrors.some((error) =>
+      error.includes("Backend process currentness names commit 1234567, which does not match Final SHA abcdef0123456789")
+    )
+  );
+
+  const evidenceOnlyErrors = validateTddCloseoutBody(
+    base.replace(
+      `Evidence-only backend process currentness: ${currentness}`,
+      `Evidence-only backend process currentness: ${currentness.replace("abcdef0", "7654321")}`
+    )
+  );
+  assert.ok(
+    evidenceOnlyErrors.some((error) =>
+      error.includes("Evidence-only backend process currentness names commit 7654321")
+    )
   );
 });
 
@@ -256,6 +411,38 @@ test("accepts the shared browser/manual evidence freshness review-fix label", ()
 
 test("continues to accept the legacy browser/manual freshness review-fix label", () => {
   assert.deepEqual(validateTddCloseoutBody(reviewFixBodyWith("Browser/manual freshness")), []);
+});
+
+test("rejects a prose-only review-fix addendum heading", () => {
+  const body = `${bodyWith()}\nTDD review-fix addendum: Review findings were fixed and focused tests passed.\n`;
+  const errors = validateTddCloseoutBody(body);
+
+  for (const label of [
+    "Finding:",
+    "Intended red command/failure:",
+    "Green command/evidence:",
+    "Updated TDD table row:",
+    "Browser/manual evidence freshness:",
+    "Backend process currentness:",
+    "Evidence identity refresh:"
+  ]) {
+    assert.ok(errors.some((error) => error.includes(`review-fix addendum missing ${label}`)), label);
+  }
+});
+
+test("review-fix addendum requires regression durability for transient browser red evidence", () => {
+  const body = reviewFixBodyWith("Browser/manual evidence freshness")
+    .replace(
+      "red-first skipped because Standards-only/conformance-only fix did not change behavior",
+      "`node browser-red.mjs` failed during Playwright page assertion"
+    )
+    .replace(/- Regression durability: .+\n/, "");
+
+  assert.ok(
+    validateTddCloseoutBody(body).some((error) =>
+      error.includes("review-fix addendum Regression durability is empty")
+    )
+  );
 });
 
 test("rejects unresolved evidence identity placeholders", () => {
@@ -309,7 +496,7 @@ test("guidance carries sink, snapshot, exactness, and shared closeout contracts"
   const testsGuide = readFileSync(new URL("../tests.md", import.meta.url), "utf8");
   const closeout = readFileSync(new URL("../closeout-evidence.md", import.meta.url), "utf8");
 
-  assert.match(closeout, /Add `--closing` when the exact body will be posted/);
+  assert.match(closeout, /When the exact body will be posted or linked for tracker closeout/);
   assert.doesNotMatch(closeout, /inspected body file path before tracker URL exists/);
   assert.match(skill, /two independent snapshots or server renders are not equivalent/);
   assert.match(skill, /every named value unless the source explicitly permits/);
@@ -329,6 +516,9 @@ test("guidance carries sink, snapshot, exactness, and shared closeout contracts"
   assert.match(closeout, /every exact named contract in the issue criteria/);
   assert.match(closeout, /fixture paths withheld because/);
   assert.match(closeout, /Evidence-only proof server preflight:/);
+  assert.match(closeout, /--expected-final-sha "\$\(git rev-parse HEAD\)"/);
+  assert.match(closeout, /\| Exact command \| Observed result\/counts \| Run count \| Represented SHA\/tree \|/);
+  assert.match(closeout, /output-derived result or count/);
   assert.equal(
     closeout.match(/no hits outside classified identity\/history lines and no active-proof hits/g)?.length,
     3

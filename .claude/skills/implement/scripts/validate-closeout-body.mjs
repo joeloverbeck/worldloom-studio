@@ -7,8 +7,10 @@ const acceptanceManifestFlag = args.indexOf("--acceptance-manifest");
 const acceptanceManifestPath = acceptanceManifestFlag >= 0 ? args[acceptanceManifestFlag + 1] : undefined;
 const maxBytesFlag = args.indexOf("--max-bytes");
 const maxBytesText = maxBytesFlag >= 0 ? args[maxBytesFlag + 1] : undefined;
+const expectedFinalShaFlag = args.indexOf("--expected-final-sha");
+const expectedFinalSha = expectedFinalShaFlag >= 0 ? args[expectedFinalShaFlag + 1] : undefined;
 const valueIndexes = new Set(
-  [acceptanceManifestFlag, maxBytesFlag]
+  [acceptanceManifestFlag, maxBytesFlag, expectedFinalShaFlag]
     .filter((index) => index >= 0)
     .map((index) => index + 1)
 );
@@ -18,9 +20,10 @@ const file = args.find(
 const flags = new Set(args.filter((arg) => arg.startsWith("--")));
 const auditOnly = flags.has("--audit-only");
 const reviewEntry = flags.has("--review-entry");
+const emitPreflight = flags.has("--emit-preflight");
 
 const DEFAULT_CLOSEOUT_BODY_MAX_BYTES = 65_536;
-const usage = `Usage: node .claude/skills/implement/scripts/validate-closeout-body.mjs <body.md> [--audit-only [--review-entry] | --closing] [--principles] [--local-only] [--fixed-child | --fixed-child-pending] [--review-fallback] [--acceptance-manifest <manifest.json>] [--max-bytes <positive integer>]`;
+const usage = `Usage: node .claude/skills/implement/scripts/validate-closeout-body.mjs <body.md> [--audit-only [--review-entry] | --closing --expected-final-sha <sha> [--emit-preflight]] [--principles] [--local-only] [--fixed-child | --fixed-child-pending] [--review-fallback] [--acceptance-manifest <manifest.json>] [--max-bytes <positive integer>]`;
 
 if (flags.has("--help")) {
   console.error(usage);
@@ -40,6 +43,30 @@ if (acceptanceManifestFlag >= 0 && (!acceptanceManifestPath || acceptanceManifes
 
 if (maxBytesFlag >= 0 && (!maxBytesText || maxBytesText.startsWith("--"))) {
   console.error("--max-bytes requires a value");
+  console.error(usage);
+  process.exit(2);
+}
+
+if (expectedFinalShaFlag >= 0 && (!expectedFinalSha || expectedFinalSha.startsWith("--"))) {
+  console.error("--expected-final-sha requires a commit SHA");
+  console.error(usage);
+  process.exit(2);
+}
+
+if (expectedFinalSha && !/^[0-9a-f]{7,40}$/i.test(expectedFinalSha)) {
+  console.error("--expected-final-sha must be a 7-40 character hexadecimal commit SHA");
+  console.error(usage);
+  process.exit(2);
+}
+
+if (flags.has("--closing") && !auditOnly && !expectedFinalSha) {
+  console.error("--closing requires --expected-final-sha");
+  console.error(usage);
+  process.exit(2);
+}
+
+if (emitPreflight && !flags.has("--closing")) {
+  console.error("--emit-preflight requires --closing");
   console.error(usage);
   process.exit(2);
 }
@@ -69,7 +96,9 @@ const auditOnlyIncompatibleFlags = [
   "--local-only",
   "--fixed-child",
   "--fixed-child-pending",
-  "--review-fallback"
+  "--review-fallback",
+  "--expected-final-sha",
+  "--emit-preflight"
 ].filter((flag) => flags.has(flag));
 if (auditOnly && auditOnlyIncompatibleFlags.length) {
   console.error(`--audit-only cannot be combined with ${auditOnlyIncompatibleFlags.join(", ")}`);
@@ -79,6 +108,7 @@ if (auditOnly && auditOnlyIncompatibleFlags.length) {
 
 const body = readFileSync(file, "utf8");
 const errors = [];
+const lines = body.split(/\r?\n/);
 
 if (flags.has("--closing")) {
   const bodyBytes = Buffer.byteLength(body, "utf8");
@@ -110,6 +140,48 @@ const valuesForField = (label) => {
   return [...body.matchAll(pattern)].map((match) => match[1].trim());
 };
 
+const valuesAfterInlineLabel = (label) => {
+  const escaped = label.replace(/[.*+?^{}$()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`\\b${escaped}\\b\\s*:?\\s*\`?([0-9a-f]{7,40})\\b\`?`, "gi");
+  return [...body.matchAll(pattern)].map((match) => match[1]);
+};
+
+const tableRowsAfter = (header) => {
+  const headerIndex = lines.findIndex((line) => line.trim() === header);
+  if (headerIndex < 0 || !/^\|(?:\s*:?-{3,}:?\s*\|)+$/.test(lines[headerIndex + 1]?.trim() ?? "")) {
+    return [];
+  }
+  const rows = [];
+  for (let index = headerIndex + 2; index < lines.length; index += 1) {
+    const line = lines[index].trim();
+    if (!line.startsWith("|")) break;
+    rows.push(line.slice(1, -1).split("|").map((cell) => cell.trim()));
+  }
+  return rows;
+};
+
+const closeoutPreflightBlock = () => {
+  const start = lines.findIndex((line) => line.trim() === "Closeout preflight:");
+  const end = lines.findIndex(
+    (line, index) => index > start && line.startsWith("Closeout gate passed: audit sink")
+  );
+  if (start < 0 || end < 0) return "";
+  const content = lines.slice(start + 1, end).filter((line) => line.trim());
+  if (!content.length || content.some((line) => !/^\s*[-*]\s+\S/.test(line))) return "";
+  return lines.slice(start, end + 1).join("\n");
+};
+
+const concreteSha = (value) => value.match(/`?\b([0-9a-f]{7,40})\b`?/i)?.[1];
+const compatibleSha = (left, right) => {
+  const normalizedLeft = left.toLowerCase();
+  const normalizedRight = right.toLowerCase();
+  return normalizedLeft.startsWith(normalizedRight) || normalizedRight.startsWith(normalizedLeft);
+};
+
+const currentnessCommitShas = (value) =>
+  [...value.matchAll(/\b(?:final\s+)?commit(?:ted)?(?:\s+SHA)?\s+`?([0-9a-f]{7,40})\b`?/gi)]
+    .map((match) => match[1]);
+
 const allowedHtmlTags = new Set([
   "br",
   "code",
@@ -140,8 +212,44 @@ const isAllowedAngleToken = (token) => {
 
 requireText("| Issue | Acceptance criterion or conformance check | Evidence | Status |", "audit table header");
 
+let finalSha;
 if (!auditOnly) {
   requireText("Final SHA:");
+  const finalShas = valuesForField("Final SHA").map(concreteSha).filter(Boolean);
+  if (!finalShas.length) {
+    errors.push("Final SHA must contain a concrete 7-40 character hexadecimal commit identity");
+  } else {
+    finalSha = finalShas.reduce((longest, candidate) =>
+      candidate.length > longest.length ? candidate : longest
+    );
+    for (const candidate of finalShas) {
+      if (!compatibleSha(finalSha, candidate)) {
+        errors.push(`Final SHA fields disagree: ${candidate} is not compatible with ${finalSha}`);
+      }
+    }
+    for (const label of ["Backend process currentness", "Evidence-only backend process currentness"]) {
+      for (const value of valuesForField(label)) {
+        if (/^(?:N\/A|blocked)\b/i.test(value)) continue;
+        for (const candidate of currentnessCommitShas(value)) {
+          if (!compatibleSha(finalSha, candidate)) {
+            errors.push(`${label} names commit ${candidate}, which does not match Final SHA ${finalSha}`);
+          }
+        }
+      }
+    }
+    if (expectedFinalSha) {
+      for (const candidate of finalShas) {
+        if (!compatibleSha(expectedFinalSha, candidate)) {
+          errors.push(`Final SHA ${candidate} does not match expected final SHA ${expectedFinalSha}`);
+        }
+      }
+      for (const candidate of valuesAfterInlineLabel("reviewed HEAD SHA")) {
+        if (!compatibleSha(expectedFinalSha, candidate)) {
+          errors.push(`reviewed HEAD SHA ${candidate} does not match expected final SHA ${expectedFinalSha}`);
+        }
+      }
+    }
+  }
   requireMatch(/(^|\n)(#{1,6}\s*)?Verification\b:?/i, "verification evidence");
   requireMatch(/TDD evidence gate passed:|N\/A because no tdd skill was invoked/i, "TDD evidence or explicit N/A");
   requireMatch(/Review:|Review fallback:/, "review evidence");
@@ -185,8 +293,12 @@ if (!auditOnly) {
       "withheld fixture identity must include reason, logical fixture, 64-character content SHA-256, and provenance"
     );
   }
-  if (!allSupersededCategoriesNone && !/\b(?:no hits?|zero matches|0 matches|absent)\b/i.test(supersededSweep)) {
-    errors.push("superseded-token sweep must report no hits for listed superseded identities");
+  const hasClassifiedHistoryResult = /\bno hits outside classified identity\/history lines\b/i.test(supersededSweep);
+  const hasActiveProofResult = /\bno active-proof hits\b/i.test(supersededSweep);
+  if (!allSupersededCategoriesNone && (!hasClassifiedHistoryResult || !hasActiveProofResult)) {
+    errors.push(
+      "superseded-token sweep must report 'no hits outside classified identity/history lines and no active-proof hits' for listed superseded identities"
+    );
   }
   if (allSupersededCategoriesNone && /^N\/A\b/i.test(supersededSweep) && !/because/i.test(supersededSweep)) {
     errors.push("superseded-token sweep N/A must include 'because'");
@@ -208,6 +320,38 @@ if (flags.has("--local-only")) {
 }
 
 if (flags.has("--closing")) {
+  const verificationHeader = "| Exact command | Observed result/counts | Run count | Represented SHA/tree |";
+  requireText(verificationHeader, "verification command ledger header");
+  const verificationRows = tableRowsAfter(verificationHeader);
+  if (!verificationRows.length) {
+    errors.push("verification command ledger must contain at least one final-tree row");
+  }
+  for (const [index, cells] of verificationRows.entries()) {
+    const [command, result, runCount, representedTree] = cells;
+    const row = index + 1;
+    if (cells.length !== 4) {
+      errors.push(`verification command ledger row ${row} must contain exactly four columns`);
+      continue;
+    }
+    if (!/^`\S(?:.*\S)?`$/.test(command)) {
+      errors.push(`verification command ledger row ${row} must contain an exact backticked command`);
+    }
+    if (!/\b(?:passed|failed|blocked|unavailable|not applicable)\b/i.test(result)) {
+      errors.push(`verification command ledger row ${row} must contain an observed pass/fail/block result`);
+    }
+    if (!/^[1-9]\d*$/.test(runCount)) {
+      errors.push(`verification command ledger row ${row} run count must be a positive integer`);
+    }
+    const representedSha = concreteSha(representedTree ?? "");
+    if (!representedSha) {
+      errors.push(`verification command ledger row ${row} must name a concrete represented commit SHA`);
+    } else if (expectedFinalSha && !compatibleSha(expectedFinalSha, representedSha)) {
+      errors.push(
+        `verification command ledger row ${row} represents ${representedSha}, not expected final SHA ${expectedFinalSha}`
+      );
+    }
+  }
+
   const localAbsolutePath = /(?:^|[\s\x60("'=])((?:\/(?!\/)|[A-Za-z]:\\)[^\s\x60"'),;]+)/;
   const publishableSinkValues = [
     ...["Durable sink/body inspected", "Audit sink", "Body file(s) inspected"]
@@ -272,7 +416,6 @@ for (const match of body.matchAll(/<[^>\n]{1,120}>/g)) {
   }
 }
 
-const lines = body.split(/\r?\n/);
 const statusRows = [];
 const auditHeader = "| Issue | Acceptance criterion or conformance check | Evidence | Status |";
 const circularEvidenceReference = /\b(?:exact named (?:items?|atoms?|surfaces?) in (?:this|the) (?:criterion|checkbox|requirement)|(?:criterion|checkbox|requirement) (?:above|as written|itself)|(?:all|every) (?:named|listed) (?:items?|atoms?|surfaces?))\b/i;
@@ -407,10 +550,19 @@ if (acceptanceManifestPath) {
   }
 }
 
+const preflight = emitPreflight ? closeoutPreflightBlock() : "";
+if (emitPreflight && !preflight) {
+  errors.push("--emit-preflight requires an exact Closeout preflight block followed by the Closeout gate passed line");
+}
+
 if (errors.length) {
   console.error(`Closeout body validation failed for ${file}:`);
   for (const error of errors) console.error(`- ${error}`);
   process.exit(1);
 }
 
-console.log(`${auditOnly ? "Acceptance audit" : "Closeout body"} validation passed: ${file}`);
+if (emitPreflight) {
+  console.log(preflight);
+} else {
+  console.log(`${auditOnly ? "Acceptance audit" : "Closeout body"} validation passed: ${file}`);
+}

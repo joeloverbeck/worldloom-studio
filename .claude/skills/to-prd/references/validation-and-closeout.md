@@ -59,9 +59,19 @@ gh issue view <number> --json number,title,labels,state,url \
   --jq '{number,title,state,url,labels:[.labels[].name]}'
 
 test -f "$POLICY_FILE" || { printf 'validator policy manifest is missing\n' >&2; exit 1; }
-gh issue view <number> --json body --jq '.body' \
+published_body="$(gh issue view <number> --json body --jq '.body')" || {
+  printf 'published-body tracker read failed\n' >&2
+  exit 1
+}
+test -n "$published_body" || {
+  printf 'published-body tracker read returned an empty body\n' >&2
+  exit 1
+}
+printf '%s\n' "$published_body" \
   | node .claude/skills/to-prd/scripts/validate-prd-body.mjs --stdin --policy-file "$POLICY_FILE"
 ```
+
+If the body fetch exits nonzero or returns an empty body, classify the attempt as a tracker-readback failure rather than a body-validation failure. Retry the same readback under the active environment's network and approval rules; do not edit the issue unless a successfully retrieved body then fails validation.
 
 Use the published validator output only when it matches the staged validator configuration and returns no failures. Rerun the [source-durability gate](source-durability.md#durability-gate) for every emitted `localSourcePaths` and `resolvedAdrPaths` entry; the helper does not replace Git durability proof.
 

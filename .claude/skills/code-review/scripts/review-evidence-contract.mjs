@@ -11,12 +11,15 @@ export const validateReviewClosingBodySize = (body, errors, options = {}) => {
   }
 };
 
-const fieldPattern = (label) => {
+const fieldPattern = (label, flags = "im") => {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`^\\s*[-*]?\\s*(?:\\*\\*)?${escaped}(?:\\*\\*)?:\\s*(.+)$`, "im");
+  return new RegExp(`^\\s*[-*]?\\s*(?:\\*\\*)?${escaped}(?:\\*\\*)?:\\s*(.+)$`, flags);
 };
 
-export const fieldValue = (body, label) => body.match(fieldPattern(label))?.[1]?.trim() ?? "";
+export const fieldValues = (body, label) =>
+  [...body.matchAll(fieldPattern(label, "gim"))].map((match) => match[1].trim());
+
+export const fieldValue = (body, label) => fieldValues(body, label)[0] ?? "";
 
 export const unresolvedValue = (value) =>
   !value ||
@@ -226,17 +229,21 @@ export const validateReviewFixtureSnapshotCurrentness = (body, errors, options =
   const fixturePaths = identityInventory(fieldValue(body, "Current evidence identities")).get("fixture paths") ?? "";
   if (!fixturePaths || /^none$/i.test(fixturePaths)) return;
 
-  const backendCurrentness = fieldValue(body, "Backend process currentness");
-  if (/\bN\/A because no stateful fixture was copied\b/i.test(backendCurrentness)) return;
+  const backendCurrentnessValues = fieldValues(body, "Backend process currentness");
+  const candidates = backendCurrentnessValues.length ? backendCurrentnessValues : [""];
+  for (const [index, backendCurrentness] of candidates.entries()) {
+    if (/\bN\/A because no stateful fixture was copied\b/i.test(backendCurrentness)) continue;
 
-  const hasSnapshotMethod = /\bstateful fixture snapshot method\b/i.test(backendCurrentness);
-  const hasSnapshotSource = /\bsnapshot source\b/i.test(backendCurrentness);
-  const hasExpectedStateProbe = /\bexpected-state probe\b/i.test(backendCurrentness);
-  if (hasSnapshotMethod && hasSnapshotSource && hasExpectedStateProbe) return;
+    const hasSnapshotMethod = /\bstateful fixture snapshot method\b/i.test(backendCurrentness);
+    const hasSnapshotSource = /\bsnapshot source\b/i.test(backendCurrentness);
+    const hasExpectedStateProbe = /\bexpected-state probe\b/i.test(backendCurrentness);
+    if (hasSnapshotMethod && hasSnapshotSource && hasExpectedStateProbe) continue;
 
-  errors.push(
-    "Backend process currentness with non-none fixture paths must state stateful fixture snapshot method, snapshot source, and expected-state probe, or 'N/A because no stateful fixture was copied'"
-  );
+    const occurrence = backendCurrentnessValues.length > 1 ? ` occurrence ${index + 1}` : "";
+    errors.push(
+      `Backend process currentness${occurrence} with non-none fixture paths must state stateful fixture snapshot method, snapshot source, and expected-state probe, or 'N/A because no stateful fixture was copied'`
+    );
+  }
 };
 
 const validateIdentityInventory = (value, label, errors) => {
@@ -302,9 +309,18 @@ export const validateReviewEvidenceIdentities = (body, errors) => {
 
   const namesAllSupersededValues = supersededValues.every((value) => sweep.includes(value));
   const hasSearchCommand = /\b(?:rg|grep)\b/i.test(sweep);
-  const classifiesActiveProof = /\b(?:no|0) active-proof hits\b/i.test(sweep);
+  const hasClassifiedHistoryResult = /\bno hits outside classified identity\/history lines\b/i.test(sweep);
+  const hasActiveProofResult = /\bno active-proof hits\b/i.test(sweep);
   const classifiesHistoricalRed = /^none$/i.test(historicalRed) || /historical-red .+classified/i.test(sweep);
-  if (!hasSearchCommand || !classifiesActiveProof || !classifiesHistoricalRed || !namesAllSupersededValues) {
-    errors.push("Superseded-token sweep must name rg/grep, every superseded value, no active-proof hits, and classified historical-red hits");
+  if (
+    !hasSearchCommand ||
+    !hasClassifiedHistoryResult ||
+    !hasActiveProofResult ||
+    !classifiesHistoricalRed ||
+    !namesAllSupersededValues
+  ) {
+    errors.push(
+      "Superseded-token sweep must name rg/grep, every superseded value, no hits outside classified identity/history lines and no active-proof hits, and classified historical-red hits"
+    );
   }
 };

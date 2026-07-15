@@ -6,13 +6,21 @@ import { pathToFileURL } from "node:url";
 
 export const DEFAULT_TDD_CLOSEOUT_BODY_MAX_BYTES = 65_536;
 
-const usage = `Usage: node .claude/skills/tdd/scripts/validate-tdd-closeout-body.mjs <body.md> [--closing] [--parent-rollup] [--max-bytes <positive integer>]`;
+const usage = `Usage: node .claude/skills/tdd/scripts/validate-tdd-closeout-body.mjs <body.md> [--closing --expected-final-sha <sha>] [--parent-rollup] [--max-bytes <positive integer>]`;
 
 export const validateTddCloseoutBody = (body, options = {}) => {
   const flags = new Set(options.flags ?? []);
   const closing = flags.has("--closing");
   const errors = [];
   const maxBytes = options.maxBytes ?? DEFAULT_TDD_CLOSEOUT_BODY_MAX_BYTES;
+  const expectedFinalSha = options.expectedFinalSha;
+
+  if (expectedFinalSha !== undefined && !/^[0-9a-f]{7,40}$/i.test(expectedFinalSha)) {
+    errors.push("expected final SHA must be a 7-40 character hexadecimal commit SHA");
+  }
+  if (closing && !expectedFinalSha) {
+    errors.push("closing validation requires expected final SHA");
+  }
 
   if (!Number.isInteger(maxBytes) || maxBytes <= 0) {
     errors.push("max bytes must be a positive integer");
@@ -136,11 +144,42 @@ export const validateTddCloseoutBody = (body, options = {}) => {
   const firstLineMatching = (regex) =>
     lines.map((candidate) => candidate.trim()).find((candidate) => regex.test(candidate)) ?? "";
 
-  const extractFieldValue = (label) => {
+  const extractFieldValuesFrom = (text, label) => {
     const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const match = body.match(new RegExp(`^\\s*-?\\s*(?:\\*\\*)?${escapedLabel}(?:\\*\\*)?:\\s*(.+)$`, "im"));
-    return match?.[1]?.trim() || "";
+    const pattern = new RegExp(`^\\s*-?\\s*(?:\\*\\*)?${escapedLabel}(?:\\*\\*)?:\\s*(.+)$`, "gim");
+    return [...text.matchAll(pattern)].map((match) => match[1].trim());
   };
+  const extractFieldValues = (label) => extractFieldValuesFrom(body, label);
+  const extractFieldValue = (label) => extractFieldValues(label)[0] ?? "";
+
+  const tableRowsAfter = (header) => {
+    const headerIndex = lines.findIndex((line) => line.trim() === header);
+    if (headerIndex < 0) return [];
+
+    const rows = [];
+    for (let index = headerIndex + 1; index < lines.length; index += 1) {
+      const line = lines[index].trim();
+      if (!line.startsWith("|")) break;
+      if (/^\|(?:\s*:?-+:?\s*\|)+$/.test(line)) continue;
+      rows.push(splitTableRow(line));
+    }
+    return rows;
+  };
+
+  const executableCommandPattern = /^(?:(?:[A-Za-z_][A-Za-z0-9_]*=\S+)\s+)*(?:(?:pnpm|npm|npx|node|cargo|git|gh|curl|bash|sh|pytest|python3?|go|make|deno|bun|dotnet|mvn|gradle|java|ruby|bundle|composer|php|swift|xcodebuild|cmake|ctest|zig|vitest|jest|playwright|mocha|ava|tap)\b|(?:\.{0,2}\/|\/)[^\s`]+)/i;
+  const isExecutableCommand = (value) => executableCommandPattern.test(value.trim());
+  const hasBacktickedExecutableCommand = (value) =>
+    [...value.matchAll(/`([^`\n]+)`/g)].some((match) => isExecutableCommand(match[1]));
+
+  const concreteSha = (value) => value.match(/`?\b([0-9a-f]{7,40})\b`?/i)?.[1];
+  const compatibleSha = (left, right) => {
+    const normalizedLeft = left.toLowerCase();
+    const normalizedRight = right.toLowerCase();
+    return normalizedLeft.startsWith(normalizedRight) || normalizedRight.startsWith(normalizedLeft);
+  };
+  const currentnessCommitShas = (value) =>
+    [...value.matchAll(/\b(?:final\s+)?commit(?:ted)?(?:\s+SHA)?\s+`?([0-9a-f]{7,40})\b`?/gi)]
+      .map((match) => match[1]);
 
   const validateFreshnessValue = (value) => {
     const normalized = value.replace(/\s+/g, " ").trim();
@@ -274,6 +313,98 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     return "must state server command, watch/reload mode, process or port ownership, restart/reload proof, and expected API field/behavior probe, or a justified N/A/blocked reason";
   };
 
+  const validateBackendCurrentnessValues = (label, values) => {
+    const candidates = values.length ? values : [""];
+    for (const [index, value] of candidates.entries()) {
+      const error = validateBackendCurrentnessValue(value);
+      if (error) {
+        const occurrence = values.length > 1 ? ` occurrence ${index + 1}` : "";
+        errors.push(`${label}${occurrence} ${error}`);
+      }
+    }
+  };
+
+  const finalShas = extractFieldValues("Final SHA").map(concreteSha).filter(Boolean);
+  let finalSha;
+  if (finalShas.length) {
+    finalSha = finalShas.reduce((longest, candidate) =>
+      candidate.length > longest.length ? candidate : longest
+    );
+    for (const candidate of finalShas) {
+      if (!compatibleSha(finalSha, candidate)) {
+        errors.push(`Final SHA fields disagree: ${candidate} is not compatible with ${finalSha}`);
+      }
+    }
+    for (const label of ["Backend process currentness", "Evidence-only backend process currentness"]) {
+      for (const value of extractFieldValues(label)) {
+        for (const candidate of currentnessCommitShas(value)) {
+          if (!compatibleSha(finalSha, candidate)) {
+            errors.push(`${label} names commit ${candidate}, which does not match Final SHA ${finalSha}`);
+          }
+        }
+      }
+    }
+  }
+
+  if (closing && !finalSha) {
+    errors.push("closing validation requires a concrete Final SHA field");
+  }
+  if (closing && expectedFinalSha && /^[0-9a-f]{7,40}$/i.test(expectedFinalSha)) {
+    for (const candidate of finalShas) {
+      if (!compatibleSha(expectedFinalSha, candidate)) {
+        errors.push(`Final SHA ${candidate} does not match expected final SHA ${expectedFinalSha}`);
+      }
+    }
+    for (const match of body.matchAll(/\breviewed HEAD SHA\s*:?[ \t]*`?([0-9a-f]{7,40})\b`?/gi)) {
+      const candidate = match[1];
+      if (!compatibleSha(expectedFinalSha, candidate)) {
+        errors.push(`reviewed HEAD SHA ${candidate} does not match expected final SHA ${expectedFinalSha}`);
+      }
+    }
+  }
+
+  if (closing) {
+    const verificationHeader = "| Exact command | Observed result/counts | Run count | Represented SHA/tree |";
+    if (!body.includes(verificationHeader)) {
+      errors.push("missing verification command ledger header");
+    }
+    const verificationRows = tableRowsAfter(verificationHeader);
+    if (!verificationRows.length) {
+      errors.push("verification command ledger must contain at least one final-tree row");
+    }
+    for (const [index, cells] of verificationRows.entries()) {
+      const [command, result, runCount, representedTree] = cells;
+      const row = index + 1;
+      if (cells.length !== 4) {
+        errors.push(`verification command ledger row ${row} must contain exactly four columns`);
+        continue;
+      }
+      const commandMatch = command.match(/^`([^`\n]+)`$/);
+      if (!commandMatch || !isExecutableCommand(commandMatch[1])) {
+        errors.push(`verification command ledger row ${row} must contain an exact executable command`);
+      }
+      const hasObservedOutcome = /\b(?:passed|failed|blocked|unavailable|not applicable)\b/i.test(result);
+      const hasOutputDetail =
+        /\bexit(?: code)?\s*-?\d+\b/i.test(result) ||
+        /\b\d+\s+(?:tests?|files?|suites?|checks?|assertions?|errors?|warnings?|packages?|tasks?|snapshots?|rows?|bytes?)\b/i.test(result) ||
+        /\b(?:blocked|unavailable|not applicable)\b.+\bbecause\b/i.test(result);
+      if (!hasObservedOutcome || !hasOutputDetail) {
+        errors.push(`verification command ledger row ${row} must contain an output-derived result or count`);
+      }
+      if (!/^[1-9]\d*$/.test(runCount)) {
+        errors.push(`verification command ledger row ${row} run count must be a positive integer`);
+      }
+      const representedSha = concreteSha(representedTree ?? "");
+      if (!representedSha) {
+        errors.push(`verification command ledger row ${row} must name a concrete represented commit SHA`);
+      } else if (finalSha && !compatibleSha(finalSha, representedSha)) {
+        errors.push(
+          `verification command ledger row ${row} represents ${representedSha}, which does not match Final SHA ${finalSha}`
+        );
+      }
+    }
+  }
+
   const validateProofServerPreflightValue = (value) => {
     const normalized = value.replace(/\s+/g, " ").trim();
     if (!normalized) return "is empty";
@@ -336,7 +467,7 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     if (/\bexisting contract-change expectation\b/i.test(normalized)) return true;
     if (/\b(shared[- ]red[- ]command|same red command as|linked shared red command)\b/i.test(normalized)) return true;
 
-    return /`[^`]+`/.test(normalized) && /\b(fail(?:ed|ing|ure)?|expected failure|assertion|error|exit code|no test files|red)\b/i.test(normalized);
+    return hasBacktickedExecutableCommand(normalized) && /\b(fail(?:ed|ing|ure)?|expected failure|assertion|error|exit code|no test files|red)\b/i.test(normalized);
   };
 
   const hasConcreteGreenEvidence = (cell) => {
@@ -509,13 +640,12 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     /active revisions\s+none(?:;|$)/i,
     /artifacts\s+none(?:;|$)/i
   ].every((pattern) => pattern.test(supersededIdentities));
-  if (
-    !allSupersededCategoriesNone &&
-    !/\b(?:no active-proof hits?|zero active-proof matches|0 active-proof matches|absent from active proof)\b/i.test(
-      supersededSweep
-    )
-  ) {
-    errors.push("Superseded-token sweep must report no active-proof hits for listed superseded identities");
+  const hasClassifiedHistoryResult = /\bno hits outside classified identity\/history lines\b/i.test(supersededSweep);
+  const hasActiveProofResult = /\bno active-proof hits\b/i.test(supersededSweep);
+  if (!allSupersededCategoriesNone && (!hasClassifiedHistoryResult || !hasActiveProofResult)) {
+    errors.push(
+      "Superseded-token sweep must report 'no hits outside classified identity/history lines and no active-proof hits' for listed superseded identities"
+    );
   }
   if (allSupersededCategoriesNone && /^N\/A\b/i.test(supersededSweep) && !/because/i.test(supersededSweep)) {
     errors.push("Superseded-token sweep N/A must include 'because'");
@@ -706,19 +836,17 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     }
   }
 
-  const backendCurrentnessValue = extractFieldValue("Evidence-only backend process currentness");
+  const backendCurrentnessValues = extractFieldValues("Evidence-only backend process currentness");
+  const backendCurrentnessValue = backendCurrentnessValues[0] ?? "";
   const backendCurrentnessClaimsNoBrowserRows =
-    /^none\b.+\bno browser\/manual\b/i.test(backendCurrentnessValue) ||
-    /^N\/A\b.+\bno browser\/manual evidence-only rows\b/i.test(backendCurrentnessValue);
+    backendCurrentnessValues.some((value) => /^none\b.+\bno browser\/manual\b/i.test(value)) ||
+    backendCurrentnessValues.some((value) => /^N\/A\b.+\bno browser\/manual evidence-only rows\b/i.test(value));
   if (browserManualEvidenceRows.length && backendCurrentnessClaimsNoBrowserRows) {
     errors.push(
       `browser/manual evidence-only row(s) ${browserManualEvidenceRows.join(", ")} cannot use Evidence-only backend process currentness ${backendCurrentnessValue}`
     );
   }
-  const backendCurrentnessError = validateBackendCurrentnessValue(backendCurrentnessValue);
-  if (backendCurrentnessError) {
-    errors.push(`Evidence-only backend process currentness ${backendCurrentnessError}`);
-  }
+  validateBackendCurrentnessValues("Evidence-only backend process currentness", backendCurrentnessValues);
 
   const proofServerPreflightValue = extractFieldValue("Evidence-only proof server preflight");
   const proofServerPreflightClaimsNoBrowserRows =
@@ -756,45 +884,79 @@ export const validateTddCloseoutBody = (body, options = {}) => {
 
   const hasExplicitNoReviewFixAddendum =
     /^\s*TDD review-fix addendum:\s*N\/A\b.+\bbecause\b/im.test(body);
+  const reviewFixAddendumBlocks = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const heading = lines[index].match(/^\s*TDD review-fix addendum:\s*(.*)$/i);
+    if (!heading || /^N\/A\b.+\bbecause\b/i.test(heading[1])) continue;
+
+    const blockLines = [lines[index]];
+    for (let blockIndex = index + 1; blockIndex < lines.length; blockIndex += 1) {
+      const line = lines[blockIndex];
+      if (!line.trim() || /^\s*TDD review-fix addendum:/i.test(line) || /^#{1,6}\s/.test(line)) break;
+      blockLines.push(line);
+    }
+    reviewFixAddendumBlocks.push(blockLines.join("\n"));
+  }
   const hasReviewFixSignal =
     reviewFixRows.length > 0 ||
     /TDD\/review-fix evidence|Review-fix red evidence/i.test(body) ||
     (body.includes("TDD review-fix addendum:") && !hasExplicitNoReviewFixAddendum);
-  const hasReviewFixAddendum = body.includes("TDD review-fix addendum:") && !hasExplicitNoReviewFixAddendum;
   const hasReviewFixEquivalent =
     reviewFixEquivalentLabels.every((label) => body.includes(label)) &&
     reviewFixFreshnessLabels.some((label) => body.includes(label));
 
-  if (hasReviewFixSignal && !hasReviewFixAddendum && !hasReviewFixEquivalent) {
+  if (hasReviewFixSignal && !reviewFixAddendumBlocks.length && !hasReviewFixEquivalent) {
     errors.push(
       "review fix evidence must include TDD review-fix addendum or equivalent Finding/Intended red/Green/Updated row/Browser freshness/Backend currentness fields"
     );
   }
 
-  if (hasReviewFixSignal) {
+  const validateReviewFixFields = (text, labelPrefix) => {
+    for (const label of reviewFixEquivalentLabels) {
+      if (!extractFieldValuesFrom(text, label.slice(0, -1)).length) {
+        errors.push(`${labelPrefix} missing ${label}`);
+      }
+    }
+    const freshnessLabel = reviewFixFreshnessLabels.find((label) =>
+      extractFieldValuesFrom(text, label.slice(0, -1)).length
+    );
+    if (!freshnessLabel) {
+      errors.push(`${labelPrefix} missing Browser/manual evidence freshness:`);
+    }
+
     const browserFreshnessValue =
-      extractFieldValue("Browser/manual evidence freshness") || extractFieldValue("Browser/manual freshness");
-    const browserFreshnessError = validateFreshnessValue(browserFreshnessValue);
-    if (browserFreshnessError) {
-      errors.push(`Browser/manual evidence freshness ${browserFreshnessError}`);
+      extractFieldValuesFrom(text, "Browser/manual evidence freshness")[0] ||
+      extractFieldValuesFrom(text, "Browser/manual freshness")[0] ||
+      "";
+    if (browserFreshnessValue) {
+      const browserFreshnessError = validateFreshnessValue(browserFreshnessValue);
+      if (browserFreshnessError) {
+        errors.push(`${labelPrefix} Browser/manual evidence freshness ${browserFreshnessError}`);
+      }
     }
 
-    const reviewBackendCurrentnessValue = extractFieldValue("Backend process currentness");
-    const reviewBackendCurrentnessError = validateBackendCurrentnessValue(reviewBackendCurrentnessValue);
-    if (reviewBackendCurrentnessError) {
-      errors.push(`Backend process currentness ${reviewBackendCurrentnessError}`);
+    const reviewBackendCurrentnessValues = extractFieldValuesFrom(text, "Backend process currentness");
+    if (reviewBackendCurrentnessValues.length) {
+      validateBackendCurrentnessValues(`${labelPrefix} Backend process currentness`, reviewBackendCurrentnessValues);
     }
 
-    const intendedRedValue = extractFieldValue("Intended red command/failure");
+    const intendedRedValue = extractFieldValuesFrom(text, "Intended red command/failure")[0] ?? "";
     const usesTransientBrowserRed =
       /\b(?:Playwright|browser|run-code|waitForResponse|page\.|manual probe|manual assertion)\b/i.test(intendedRedValue);
     if (usesTransientBrowserRed) {
-      const regressionDurabilityValue = extractFieldValue("Regression durability");
+      const regressionDurabilityValue = extractFieldValuesFrom(text, "Regression durability")[0] ?? "";
       const regressionDurabilityError = validateRegressionDurabilityValue(regressionDurabilityValue);
       if (regressionDurabilityError) {
-        errors.push(`Regression durability ${regressionDurabilityError}`);
+        errors.push(`${labelPrefix} Regression durability ${regressionDurabilityError}`);
       }
     }
+  };
+
+  for (const block of reviewFixAddendumBlocks) {
+    validateReviewFixFields(block, "review-fix addendum");
+  }
+  if (hasReviewFixSignal && !reviewFixAddendumBlocks.length && hasReviewFixEquivalent) {
+    validateReviewFixFields(body, "review-fix evidence");
   }
 
   forbidText("TDD evidence gate passed: yes", "TDD evidence gate shorthand");
@@ -808,8 +970,14 @@ if (isCli) {
   const args = process.argv.slice(2);
   const maxBytesFlag = args.indexOf("--max-bytes");
   const maxBytesText = maxBytesFlag >= 0 ? args[maxBytesFlag + 1] : undefined;
-  const maxBytesValueIndex = maxBytesFlag >= 0 ? maxBytesFlag + 1 : -1;
-  const file = args.find((arg, index) => !arg.startsWith("--") && index !== maxBytesValueIndex);
+  const expectedFinalShaFlag = args.indexOf("--expected-final-sha");
+  const expectedFinalSha = expectedFinalShaFlag >= 0 ? args[expectedFinalShaFlag + 1] : undefined;
+  const valueIndexes = new Set(
+    [maxBytesFlag, expectedFinalShaFlag]
+      .filter((index) => index >= 0)
+      .map((index) => index + 1)
+  );
+  const file = args.find((arg, index) => !arg.startsWith("--") && !valueIndexes.has(index));
   const flags = new Set(args.filter((arg) => arg.startsWith("--")));
 
   if (flags.has("--help")) {
@@ -828,6 +996,24 @@ if (isCli) {
     process.exit(2);
   }
 
+  if (expectedFinalShaFlag >= 0 && (!expectedFinalSha || expectedFinalSha.startsWith("--"))) {
+    console.error("--expected-final-sha requires a commit SHA");
+    console.error(usage);
+    process.exit(2);
+  }
+
+  if (expectedFinalSha && !/^[0-9a-f]{7,40}$/i.test(expectedFinalSha)) {
+    console.error("--expected-final-sha must be a 7-40 character hexadecimal commit SHA");
+    console.error(usage);
+    process.exit(2);
+  }
+
+  if (flags.has("--closing") && !expectedFinalSha) {
+    console.error("--closing requires --expected-final-sha");
+    console.error(usage);
+    process.exit(2);
+  }
+
   const maxBytes = maxBytesText === undefined ? DEFAULT_TDD_CLOSEOUT_BODY_MAX_BYTES : Number(maxBytesText);
   if (!Number.isInteger(maxBytes) || maxBytes <= 0) {
     console.error("--max-bytes must be a positive integer");
@@ -836,7 +1022,7 @@ if (isCli) {
   }
 
   const body = readFileSync(file, "utf8");
-  const errors = validateTddCloseoutBody(body, { flags, maxBytes });
+  const errors = validateTddCloseoutBody(body, { flags, maxBytes, expectedFinalSha });
 
   if (errors.length) {
     console.error(`TDD closeout body validation failed for ${file}:`);

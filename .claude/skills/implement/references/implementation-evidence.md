@@ -42,6 +42,25 @@ If the session resumes, compacts, or is interrupted during implementation or bro
 
 When a package manifest or lockfile changes, run the dependency install or synchronization command required by the root guidance before treating focused or canonical verification as behavior evidence. Classify missing-module, missing-binary, or workspace-link failures observed before that synchronization as setup-only, repair the install, and rerun the original verification command.
 
+## Verification Command Ledger
+
+Start a durable verification-command ledger before the first command whose
+result will support a pass/fail or closeout claim. Record each exact command,
+the observed result and counts from that invocation, its run count, and the
+commit SHA or explicitly named working tree it represents:
+
+| Exact command | Observed result/counts | Run count | Represented SHA/tree |
+|---|---|---:|---|
+| `<exact command>` | <passed/failed/blocked plus output-derived counts or result> | <positive integer> | `<commit SHA>` / <explicit working-tree identity> |
+
+Do not reconstruct counts from memory or reuse the output of a nearby command.
+When an identical successful command is rerun against the same tree, update its
+run count and retain the final observed result; record every unexpected failed,
+blocked, or unavailable attempt as a separate row. Before closing issues, rerun
+required verification on the final tree and publish only rows whose represented
+SHA/tree is the final SHA. Copy final closeout verification claims from those
+rows rather than transcribing them independently.
+
 Run typechecking regularly and single test files regularly. After a focused test command, check the output confirms the intended file or seam actually ran. If a package script does not forward file arguments cleanly, invoke the underlying runner directly, for example `pnpm --filter <pkg> exec vitest run test/file.test.ts`.
 
 Before closeout, read the root verification guidance and run the canonical gates required for the work's blast radius. In this repo, workflow, package, cross-package, or closeout-scale changes require `pnpm test`, `pnpm typecheck`, and `pnpm build`; do not report a lint, browser/e2e, or hard-audit gate as satisfied unless the repo adds that script and policy.

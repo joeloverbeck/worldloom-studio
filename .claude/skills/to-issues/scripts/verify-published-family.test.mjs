@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  checklistValidationArgs,
   validateManifest,
   verifyPublishedChild,
   verifyPublishedFamily,
@@ -36,6 +37,34 @@ ${blocker != null
 No exception.
 `;
 
+const sourceBody = () => `
+## Source and coordination
+
+PRD #379
+
+Blocks PRD #379
+
+## What to build
+
+Build the repair.
+
+## User stories covered
+
+US1.
+
+## Acceptance criteria
+
+- [ ] Observable behavior.
+
+## Blocked by
+
+None - can start immediately
+
+## Principles
+
+No exception.
+`;
+
 const ledgerBody = `
 # Child Issue Map for PRD #353 - Issues #354-#355
 
@@ -47,7 +76,9 @@ const ledgerBody = `
 
 const manifest = {
   approvedCount: 2,
+  forbidPatterns: ["RUN_TOKEN"],
   runSheet: "run-sheet.md",
+  workingLedger: "working-publication.json",
   parent: {
     number: 353,
     token: "PRD #353",
@@ -60,6 +91,7 @@ const manifest = {
   children: [
     {
       number: 354,
+      url: "https://example.test/issues/354",
       title: "Contract",
       bodyFile: "354.md",
       slice: "Contract",
@@ -71,6 +103,7 @@ const manifest = {
     },
     {
       number: 355,
+      url: "https://example.test/issues/355",
       title: "Server",
       bodyFile: "355.md",
       slice: "Server",
@@ -116,6 +149,58 @@ const parentPayload = {
   }],
 };
 
+const sourceManifest = {
+  approvedCount: 1,
+  forbidPatterns: ["RUN_TOKEN"],
+  runSheet: "run-sheet.md",
+  workingLedger: "working-publication.json",
+  source: {
+    number: 379,
+    token: "PRD #379",
+    relationship: "Blocks PRD #379",
+  },
+  children: [{
+    number: 380,
+    url: "https://example.test/issues/380",
+    title: "Repair conformance before PRD delivery",
+    bodyFile: "380.md",
+    slice: "Conformance repair",
+    labels: ["enhancement", "ready-for-agent"],
+    blockers: [],
+    externalBlockers: [],
+    noBlockerPhrase: "None - can start immediately",
+    checklistMapped: "yes",
+  }],
+};
+
+const sourceStagedBodies = new Map([[380, sourceBody()]]);
+const sourceChildPayloads = new Map([[380, {
+  number: 380,
+  title: sourceManifest.children[0].title,
+  body: sourceBody().trimEnd(),
+  labels: [{ name: "enhancement" }, { name: "ready-for-agent" }],
+  state: "OPEN",
+  url: "https://example.test/issues/380",
+}]]);
+const sourcePayload = {
+  number: 379,
+  state: "OPEN",
+  url: "https://example.test/issues/379",
+};
+
+const workingLedgerFor = (subject) => ({
+  approvedCount: subject.approvedCount,
+  entries: subject.children.map((child) => ({
+    slice: child.slice,
+    title: child.title,
+    number: child.number,
+    url: child.url,
+    blockers: child.blockers,
+    externalBlockers: child.externalBlockers ?? [],
+    verifierStatus: "verified",
+  })),
+});
+
 test("verifies an approved published family and ledger", () => {
   const report = verifyPublishedFamily({
     manifest,
@@ -124,6 +209,7 @@ test("verifies an approved published family and ledger", () => {
     parentPayload,
     ledgerBody,
     checklistVerified: true,
+    workingLedger: workingLedgerFor(manifest),
   });
 
   assert.deepEqual(report.failedChecks, []);
@@ -146,6 +232,7 @@ test("fails the family when a published child has an unexpected label", () => {
     parentPayload,
     ledgerBody,
     checklistVerified: true,
+    workingLedger: workingLedgerFor(manifest),
   });
 
   assert.equal(report.children[0].checks.labelsMatch, false);
@@ -168,6 +255,69 @@ test("single-child verification normalizes markdown and checks the exact contrac
   assert.equal(Object.values(report.checks).every(Boolean), true);
 });
 
+test("verifies a standalone issue with an exact source relationship and no parent ledger", () => {
+  assert.deepEqual(validateManifest(sourceManifest), []);
+
+  const report = verifyPublishedFamily({
+    manifest: sourceManifest,
+    childPayloads: sourceChildPayloads,
+    stagedBodies: sourceStagedBodies,
+    sourcePayload,
+    checklistVerified: true,
+    workingLedger: workingLedgerFor(sourceManifest),
+  });
+
+  assert.deepEqual(report.failedChecks, []);
+  assert.equal(report.checks.sourcePass, true);
+  assert.equal(report.children[0].checks.sourceHeadingPresent, true);
+  assert.equal(report.children[0].checks.sourcePresent, true);
+  assert.equal(report.children[0].checks.sourceRelationshipPresent, true);
+  assert.equal(report.source.relationship, "Blocks PRD #379");
+  assert.equal("parent" in report, false);
+});
+
+test("manifest validation rejects a parent ledger in standalone-source mode", () => {
+  const wrongManifest = structuredClone(sourceManifest);
+  wrongManifest.source.ledger = { status: "skipped", reason: "not applicable" };
+
+  assert.equal(
+    validateManifest(wrongManifest).includes(
+      "source.ledger is not allowed in standalone-source mode"),
+    true,
+  );
+});
+
+test("manifest validation requires valid custom forbidden patterns and a working ledger", () => {
+  const missing = structuredClone(manifest);
+  delete missing.forbidPatterns;
+  delete missing.workingLedger;
+  assert.equal(validateManifest(missing).includes("forbidPatterns must be an array"), true);
+  assert.equal(validateManifest(missing).includes("workingLedger is required"), true);
+
+  const invalid = structuredClone(manifest);
+  invalid.forbidPatterns = ["("];
+  assert.equal(validateManifest(invalid).some((error) => error.startsWith("forbidPatterns[0] is invalid:")), true);
+});
+
+test("family checklist validation receives every manifest forbidden pattern", () => {
+  const args = checklistValidationArgs(manifest);
+  assert.deepEqual(args.slice(-2), ["--forbid-pattern", "RUN_TOKEN"]);
+});
+
+test("single-child verification rejects a mismatched standalone source relationship", () => {
+  const actual = sourceChildPayloads.get(380);
+  const report = verifyPublishedChild({
+    actual,
+    expected: sourceManifest.children[0],
+    expectedBody: actual.body,
+    sourceToken: sourceManifest.source.token,
+    sourceRelationship: "Follows PRD #379",
+  });
+
+  assert.equal(report.checks.sourcePresent, true);
+  assert.equal(report.checks.sourceRelationshipPresent, false);
+});
+
 test("single-child verification applies a run-specific placeholder pattern", () => {
   const actual = {
     ...childPayloads.get(354),
@@ -182,6 +332,60 @@ test("single-child verification applies a run-specific placeholder pattern", () 
   });
 
   assert.equal(report.checks.noPlaceholders, false);
+});
+
+test("single-child verification rejects every family forbidden pattern", () => {
+  const actual = {
+    ...childPayloads.get(354),
+    body: childPayloads.get(354).body.replace("Build the slice.", "Build RUN_TOKEN."),
+  };
+  const report = verifyPublishedChild({
+    actual,
+    expected: manifest.children[0],
+    expectedBody: actual.body,
+    forbiddenPatterns: manifest.forbidPatterns,
+    parentToken: manifest.parent.token,
+  });
+
+  assert.equal(report.checks.noForbiddenPatterns, false);
+  assert.deepEqual(report.forbiddenPatterns, ["RUN_TOKEN"]);
+});
+
+test("family verification rejects a forbidden pattern in the exact posted ledger", () => {
+  const forbiddenLedger = `${ledgerBody}\nRUN_TOKEN\n`;
+  const forbiddenParent = structuredClone(parentPayload);
+  forbiddenParent.comments[0].body = forbiddenLedger.trimEnd();
+  const report = verifyPublishedFamily({
+    manifest,
+    childPayloads,
+    stagedBodies,
+    parentPayload: forbiddenParent,
+    ledgerBody: forbiddenLedger,
+    checklistVerified: true,
+    workingLedger: workingLedgerFor(manifest),
+  });
+
+  assert.equal(report.parent.checks.ledgerPostureValid, true);
+  assert.equal(report.parent.checks.ledgerNoForbiddenPatterns, false);
+  assert.equal(report.checks.parentPass, false);
+});
+
+test("family verification requires every working-ledger entry to be verified", () => {
+  const workingLedger = workingLedgerFor(manifest);
+  workingLedger.entries[1].verifierStatus = "failed";
+  const report = verifyPublishedFamily({
+    manifest,
+    childPayloads,
+    stagedBodies,
+    parentPayload,
+    ledgerBody,
+    checklistVerified: true,
+    workingLedger,
+  });
+
+  assert.equal(report.workingPublicationLedger.entries[1].checks.verifierPassed, false);
+  assert.equal(report.checks.workingPublicationLedgerPass, false);
+  assert.equal(report.failedChecks.includes("workingPublicationLedgerPass"), true);
 });
 
 test("fails the family when a published blocker differs from the manifest", () => {
@@ -200,6 +404,7 @@ test("fails the family when a published blocker differs from the manifest", () =
     parentPayload,
     ledgerBody,
     checklistVerified: true,
+    workingLedger: workingLedgerFor(manifest),
   });
 
   assert.equal(report.children[1].checks.blockersMatch, false);
@@ -227,6 +432,7 @@ test("verifies an exact external blocker for a checklist-mapped needs-triage chi
     parentPayload,
     ledgerBody,
     checklistVerified: true,
+    workingLedger: workingLedgerFor(externalManifest),
   });
 
   assert.deepEqual(report.children[0].actualBlockers, []);
@@ -269,6 +475,7 @@ test("fails the family when an external blocker differs from the manifest", () =
     parentPayload,
     ledgerBody,
     checklistVerified: true,
+    workingLedger: workingLedgerFor(externalManifest),
   });
 
   assert.equal(report.children[0].checks.externalBlockersMatch, false);

@@ -8,7 +8,7 @@ import { buildAuditScaffold } from "./build-acceptance-manifest.mjs";
 
 export const DEFAULT_CLOSEOUT_BODY_MAX_BYTES = 65_536;
 
-const usage = `Usage: node .claude/skills/implement/scripts/build-closeout-body.mjs <manifest.json> --output <body.md> --parent <issue> --review <normal|fallback> [--audit-input <audit.md>] [--tdd-parent-rollup] [--browser] [--principles] [--local-only] [--fixed-child <none|pending|final>] [--max-bytes <positive integer>]`;
+const usage = `Usage: node .claude/skills/implement/scripts/build-closeout-body.mjs <manifest.json> --output <body.md> --parent <issue> --review <normal|fallback> [--audit-input <audit.md>] [--immediate-fix] [--tdd-parent-rollup] [--browser] [--principles] [--local-only] [--fixed-child <none|pending|final>] [--max-bytes <positive integer>]`;
 
 export const assertCloseoutBodySize = (body, maxBytes = DEFAULT_CLOSEOUT_BODY_MAX_BYTES) => {
   if (!Number.isInteger(maxBytes) || maxBytes <= 0) {
@@ -109,9 +109,33 @@ const reviewRows = (manifest) => manifest.issues.map(
     `| #${issue.number} | ${acceptanceIds(issue)}; sequence: <ordered events and observing proof or justified N/A> | <diff, tests, docs, and artifacts reviewed> | <none or finding> |`
 ).join("\n");
 
-const normalReviewBlock = (manifest) => `Review frame: fixed point input <ref>; fixed point resolved SHA <sha>; reviewed HEAD SHA <sha>; diff command \`git diff <resolved SHA>...HEAD\`; commits <commit list>; worktree scope <scope>; excluded dirty files <none or paths>; spec source <issues and specs>.
+const normalImmediateFixBlock = `Initial Standards outcome: <count/worst plus findings before fixes>
 
-Review: code-review against <resolved fixed point>; outcome <no findings, findings fixed, or accepted residuals>; verification rerun <commands>.
+Initial Spec outcome: <count/worst plus findings before fixes>
+
+Final Standards outcome: <count/worst after final re-review>
+
+Final Spec outcome: <count/worst after final re-review>
+
+Findings found: <count and short titles>
+
+Fixes made: <files/behavior/proof changed>
+
+TDD/review-fix evidence: <red/green proof, coverage-only proof, or justified red-first skip>
+
+TDD closeout gate: <fielded gate or N/A because no tdd skill was invoked>
+
+Verification rerun: <exact final-tree commands and observed results>
+
+Browser/manual evidence freshness: <final-tree rerun, justified not affected proof, blocked reason, or N/A because no browser/manual evidence was used>
+
+Browser/manual console state: <0 errors and 0 warnings, classified output, blocked reason, or N/A because no browser/manual evidence was used>
+
+Commit handling: <amended/follow-up/unchanged commit SHA or no commit yet>`;
+
+const normalReviewBlock = (manifest, immediateFix) => `Review frame: fixed point input <ref>; fixed point resolved SHA <sha>; reviewed HEAD SHA <sha>; diff command \`git diff <resolved SHA>...HEAD\`; commits <commit list>; worktree scope <scope>; excluded dirty files <none or paths>; spec source <issues and specs>.
+
+Review: code-review against <resolved fixed point>; outcome ${immediateFix ? "findings fixed" : "<no findings or accepted residuals>"}; verification rerun <commands>.
 
 Review subagents: Standards final reviewer <ID> completed; Spec final reviewer <ID> completed
 
@@ -139,7 +163,7 @@ Residual findings: <none or accepted residual records>
 
 Parent PRD coverage: <parent row present, exact audit rows cited, or N/A>
 
-Spec sequence coverage: sequence: <ordered events and observing proof or justified N/A>`;
+Spec sequence coverage: sequence: <ordered events and observing proof or justified N/A>${immediateFix ? `\n\n${normalImmediateFixBlock}` : ""}`;
 
 const fallbackReviewBlock = (manifest) => `Review frame: fixed point input <ref>; fixed point resolved SHA <sha>; reviewed HEAD SHA <sha>; diff command \`git diff <resolved SHA>...HEAD\`; commits <commit list>; worktree scope <scope>; excluded dirty files <none or paths>; spec source <issues and specs>.
 
@@ -190,7 +214,7 @@ const identityBlock = `Evidence identity refresh:
 - Current evidence identities: fixture paths <paths, none, or structured withheld identity>; browser sessions <names or none>; packet paths/hashes <paths and hashes or none>; active revisions <IDs or none>; artifacts <paths/IDs or none>
 - Historical red identities retained: <all five categories or none>
 - Superseded evidence identities: fixture paths <paths or none>; browser sessions <names or none>; packet paths/hashes <paths and hashes or none>; active revisions <IDs or none>; artifacts <paths/IDs or none>
-- Superseded-token sweep: <rg/grep command and classified result, or N/A because every superseded category is none>`;
+- Superseded-token sweep: <rg/grep command naming every exact superseded value; no hits outside classified identity/history lines and no active-proof hits; historical-red hits classified or none, or N/A because every superseded category is none>`;
 
 const fixedChildBlock = (mode) => {
   if (mode === "pending") {
@@ -211,6 +235,7 @@ export const buildCloseoutBodyScaffold = (manifest, options) => {
     parentIssue,
     audit,
     reviewMode,
+    immediateFix = false,
     tddParentRollup = false,
     browser = false,
     principles = false,
@@ -221,12 +246,13 @@ export const buildCloseoutBodyScaffold = (manifest, options) => {
 
   if (!Number.isInteger(parentIssue) || parentIssue <= 0) throw new Error("parent issue must be a positive integer");
   if (!["normal", "fallback"].includes(reviewMode)) throw new Error("review mode must be normal or fallback");
+  if (immediateFix && reviewMode !== "normal") throw new Error("immediate fix requires normal review mode");
   if (!["none", "pending", "final"].includes(fixedChildMode)) {
     throw new Error("fixed child mode must be none, pending, or final");
   }
 
   const auditText = validateAuditInput(manifest, audit ?? buildAuditScaffold(manifest));
-  const review = reviewMode === "normal" ? normalReviewBlock(manifest) : fallbackReviewBlock(manifest);
+  const review = reviewMode === "normal" ? normalReviewBlock(manifest, immediateFix) : fallbackReviewBlock(manifest);
   const tdd = tddParentRollup ? tddBlock(manifest) : "TDD evidence: N/A because no tdd skill was invoked.";
   const localSha = localOnly
     ? "Local-only SHA: <final SHA> is not remote-reachable because <reason>; local-only closeout is acceptable because <user request or repo policy>."
@@ -244,7 +270,10 @@ Final SHA: <final SHA>
 ${localSha}
 
 Verification:
-- \`<exact command>\`: <passed, failed, or blocked with scope>
+
+| Exact command | Observed result/counts | Run count | Represented SHA/tree |
+|---|---|---:|---|
+| \`<exact command>\` | <passed/failed/blocked plus output-derived counts or result> | <positive integer> | \`<final SHA>\` |
 
 ${tdd}
 
@@ -342,6 +371,7 @@ if (isCli) {
       parentIssue: Number(parentText),
       audit: auditPath ? readFileSync(auditPath, "utf8") : undefined,
       reviewMode,
+      immediateFix: args.includes("--immediate-fix"),
       tddParentRollup: args.includes("--tdd-parent-rollup"),
       browser: args.includes("--browser"),
       principles: args.includes("--principles"),

@@ -16,6 +16,7 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 const builder = resolve(here, "build-closeout-body.mjs");
+const normalReviewValidator = resolve(here, "../../code-review/scripts/validate-review-normal-body.mjs");
 
 const manifest = buildAcceptanceManifest([
   {
@@ -42,6 +43,7 @@ test("buildCloseoutBodyScaffold emits selected normal-review closeout fields", (
   const body = buildCloseoutBodyScaffold(manifest, {
     parentIssue: 364,
     reviewMode: "normal",
+    immediateFix: true,
     tddParentRollup: true,
     browser: true,
     principles: true,
@@ -56,13 +58,111 @@ test("buildCloseoutBodyScaffold emits selected normal-review closeout fields", (
   assert.match(body, /Evidence-only proof server preflight:/);
   assert.match(body, /proof server preflight <present or N\/A>/);
   assert.match(body, /Review: code-review against <resolved fixed point>/);
+  assert.match(body, /outcome findings fixed/);
+  for (const label of [
+    "Initial Standards outcome:",
+    "Initial Spec outcome:",
+    "Final Standards outcome:",
+    "Final Spec outcome:",
+    "Findings found:",
+    "Fixes made:",
+    "TDD\/review-fix evidence:",
+    "TDD closeout gate:",
+    "Verification rerun:",
+    "Browser\/manual evidence freshness:",
+    "Browser\/manual console state:",
+    "Commit handling:"
+  ]) {
+    assert.match(body, new RegExp(label));
+  }
   assert.match(body, /## Standards[\s\S]+## Spec/);
   assert.match(body, /Browser evidence:\n- Route\/action\/outcome:/);
+  assert.match(body, /no hits outside classified identity\/history lines and no active-proof hits/);
   assert.match(body, /Fixed child inline close comment: Completed by <final SHA>\. Evidence: this parent rollup comment URL/);
   assert.match(body, /\| #364 \| AC1 - Parent behavior \|/);
   assert.match(body, /\| #368 \| AC1 - Replay the production route \|/);
   assert.doesNotMatch(body, /\| satisfied \|/);
   assert.doesNotMatch(body, /Review fallback:/);
+});
+
+test("normal immediate-fix scaffold satisfies the normal-review validator after filling generated fields", () => {
+  const generated = buildCloseoutBodyScaffold(manifest, {
+    parentIssue: 364,
+    reviewMode: "normal",
+    immediateFix: true
+  });
+  const body = generated
+    .replace(
+      /^Review:.*$/m,
+      "Review: code-review against abcdef0; outcome findings fixed; verification rerun node --test."
+    )
+    .replace(
+      /^Review subagents:.*$/m,
+      "Review subagents: Standards final reviewer standards-final completed; Spec final reviewer spec-final completed"
+    )
+    .replace(
+      /^Review subagent cleanup:.*$/m,
+      "Review subagent cleanup: Standards closed; Spec closed"
+    )
+    .replace(/^Findings:.*$/gm, "Findings: none")
+    .replace(/^Axis summary:.*$/m, "Axis summary: Standards 0/none, Spec 0/none")
+    .replace(/^Residual findings:.*$/m, "Residual findings: none")
+    .replace(
+      /^Spec sequence coverage:.*$/m,
+      "Spec sequence coverage: sequence: N/A because the reviewed criteria are not sequence-sensitive"
+    )
+    .replace(/^Initial Standards outcome:.*$/m, "Initial Standards outcome: 1/medium before fixes")
+    .replace(/^Initial Spec outcome:.*$/m, "Initial Spec outcome: 0/none before fixes")
+    .replace(/^Final Standards outcome:.*$/m, "Final Standards outcome: 0/none after final re-review")
+    .replace(/^Final Spec outcome:.*$/m, "Final Spec outcome: 0/none after final re-review")
+    .replace(/^Findings found:.*$/m, "Findings found: 1 Standards finding")
+    .replace(/^Fixes made:.*$/m, "Fixes made: scaffold field corrected")
+    .replace(
+      /^TDD\/review-fix evidence:.*$/m,
+      "TDD/review-fix evidence: red-first skipped because Standards-only fix did not change behavior"
+    )
+    .replace(/^TDD closeout gate:.*$/m, "TDD closeout gate: N/A because no tdd skill was invoked")
+    .replace(/^Verification rerun:.*$/m, "Verification rerun: node --test passed")
+    .replace(
+      /^Browser\/manual evidence freshness:.*$/m,
+      "Browser/manual evidence freshness: N/A because no browser/manual evidence was used"
+    )
+    .replace(
+      /^Browser\/manual console state:.*$/m,
+      "Browser/manual console state: N/A because no browser/manual evidence was used"
+    )
+    .replace(/^Commit handling:.*$/m, "Commit handling: follow-up commit abcdef0")
+    .replace(
+      /^- Current evidence identities:.*$/m,
+      "- Current evidence identities: fixture paths none; browser sessions none; packet paths/hashes none; active revisions none; artifacts none"
+    )
+    .replace(/^- Historical red identities retained:.*$/m, "- Historical red identities retained: none")
+    .replace(
+      /^- Superseded evidence identities:.*$/m,
+      "- Superseded evidence identities: fixture paths none; browser sessions none; packet paths/hashes none; active revisions none; artifacts none"
+    )
+    .replace(/^- Superseded-token sweep:.*$/m, "- Superseded-token sweep: N/A because every superseded category is none");
+
+  const directory = mkdtempSync(join(tmpdir(), "implement-normal-review-scaffold-test-"));
+  const bodyPath = join(directory, "body.md");
+  writeFileSync(bodyPath, body);
+  const result = spawnSync(process.execPath, [normalReviewValidator, bodyPath, "--immediate-fix"], {
+    encoding: "utf8"
+  });
+  rmSync(directory, { recursive: true, force: true });
+
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test("buildCloseoutBodyScaffold rejects immediate-fix fallback scaffolds", () => {
+  assert.throws(
+    () => buildCloseoutBodyScaffold(manifest, {
+      parentIssue: 364,
+      reviewMode: "fallback",
+      immediateFix: true
+    }),
+    /immediate fix requires normal review mode/
+  );
 });
 
 test("buildCloseoutBodyScaffold preserves a completed exact audit input", () => {
@@ -144,6 +244,7 @@ test("closeout scaffold CLI writes a deterministic body", () => {
     "364",
     "--review",
     "normal",
+    "--immediate-fix",
     "--tdd-parent-rollup",
     "--browser",
     "--principles",

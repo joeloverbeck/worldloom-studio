@@ -34,6 +34,8 @@ Also scan for decisions the source explicitly delegates to grooming, issue break
 
 Treat source assertions that an implementation mechanism already exists as testable premises, not implementation latitude. Extract material claims signaled by terms such as `existing`, `current`, `preserve`, `reuse`, or `unchanged`, then verify the named budget, policy, route, seam, or behavior against the live code and authoritative specs. Classify each claim as verified current, present-but-materially-different, or absent. Carry the latter two into the Step 4 checkpoint as structural decisions: propose the concrete interpretation for ratification, route it through a first spec/document blocker, or leave affected children `needs-triage`. Do not silently invent a missing mechanism or encode it as settled behavior.
 
+Before drafting, classify the tracker relationship for every proposed issue. Use **child mode** when the source tracker item is a parent whose scope the issue implements. Use **standalone-source mode** when the new issue is derived from a tracker item but is a predecessor, follow-on, or coordination issue rather than its child; name the exact relationship in durable wording such as `Blocks PRD #379`. Do not force an inverse or coordination relationship into a `Parent` section.
+
 If the maintainer asks whether an existing issue or PRD should be split, treat that as an assessment request first. Fetch the source issue and comments, run the granularity check, and decide whether child issues would reduce implementation risk. If the right answer is **do not split** — because the work is already a single coherent document/process issue, narrow bug fix, or one complete vertical slice — report that rationale and stop before house-style lookup, quiz, or publication. Do not create a no-op child issue just to exercise this skill.
 
 ### 2. Explore the codebase (optional)
@@ -84,7 +86,7 @@ When a slice's correctness hinges on a *derivation* a cited spec or ADR made —
 
 Fetch one or two child issues of a prior breakdown from the tracker and match their house style — title pattern, body voice, section order, and acceptance-criteria conventions. Prefer a narrow lookup: query recent issue titles/numbers first, identify a prior PRD child set, then fetch one or two exact child issue bodies by default instead of pulling broad full-body lists. Usually stop at three exact child issue bodies; fetch one additional exact child body per materially distinct domain surface only when needed to cover both current house style and domain-specific precedent, and keep each read compact. The approval-only publication protocol contains the required issue template; preserve fetched house-style section order unless repo docs explicitly require a different order.
 
-When the breakdown is likely to create multiple issues and Step 4 will offer a parent child-map ledger comment, also fetch or inspect one recent same-repo parent child-map comment before the approval checkpoint when available. Use it to learn the ledger heading/table style and whether the repo uses a stable disclaimer. If no parent-ledger precedent or disclaimer requirement is found, say that in the approval checkpoint rather than discovering it only during publication.
+When the breakdown is likely to create multiple issues and Step 4 will offer a parent child-map ledger comment, also fetch or inspect one recent same-repo parent child-map comment before the approval checkpoint when available. Use a two-stage lookup: first list candidate comment URLs plus only their first Markdown heading, then select exactly one comment whose heading matches `^# Child Issue Map` and fetch only that exact comment body. Do not search or print every comment body with a broad `child`, `breakdown`, or issue-reference regex; closeout comments can be very large and are not ledger precedent. For example, list candidates with `gh issue view <candidate-parent> --json comments --jq '.comments[] | {url, heading: (.body | split("\n") | map(select(startswith("#"))) | .[0] // "")}'`, choose one exact URL whose heading matches, then project only that URL's body with a second `gh issue view` query. Use the selected comment to learn the ledger heading/table style and whether the repo uses a stable disclaimer. If no parent-ledger precedent or disclaimer requirement is found, say that in the approval checkpoint rather than discovering it only during publication.
 
 ### 4. Quiz the user
 
@@ -104,6 +106,18 @@ Use this proposal item shape so the approval checkpoint is mechanically complete
 
 Before asking for approval, self-check that every proposed slice has all three fields. If the source has numbered stories, no proposed slice may omit `User stories covered`; either list the covered story numbers or explicitly explain why story coverage is N/A for that slice.
 
+After the numbered list, include these seven global posture lines and self-check that none is missing:
+
+- `Decision scan: <live or fallback source>; <hits and classification, or none>`
+- `Tracker relationship: <child of #N, or standalone source #N with exact relationship>`
+- `Source/target posture: <authoritative source and the exact issue set this breakdown will create>`
+- `Prerequisite posture: <hard blockers, coordination-only items, and unresolved prerequisites, or none>`
+- `Publication posture: <dependency order, label set, and child-ledger or standalone-source posture>`
+- `Artifact posture: <publication ref and durability result for every relied-on local artifact, or no local artifacts>`
+- `Coverage gate: <story coverage and browser-visible guidance mapping status, including specific N/A posture>`
+
+Before asking for approval, verify that the numbered slices and all seven posture lines agree: every blocker appears in the prerequisite and publication order, every target matches the tracker relationship, every non-durable artifact has a document blocker or durable issue-linked summary, and every story/checklist obligation is assigned to a slice. A posture line that says only `see above` is missing.
+
 If the source user stories are unnumbered, assign temporary story ordinals in source order (`US1`, `US2`, etc.) for the proposal. Either include a one-line mapping or quote enough of each covered story that the references are unambiguous; the ordinals are proposal aids, not published requirement IDs unless the source already uses them.
 
 Include a one-line prefactoring verdict for the whole breakdown ("Prefactoring: none needed because …", or a prefactor slice placed before all code-bearing slices — position 1, or immediately after any document blockers), so the reader can tell the check ran.
@@ -113,10 +127,10 @@ When any proposed slice touches guided-flow, Prompt-out, Canon Workbench provena
 ```markdown
 | Slice | Checklist item | Covered by staged AC | N/A reason |
 |---|---|---|---|
-| <slice title> | <package source / decision-point contract / prompt packet preview / etc.> | AC <n> or "<short staged criterion excerpt>" | - |
+| <slice title> | <package source / decision-point contract / prompt packet preview / etc.> | AC <n> - "<short staged criterion excerpt>" | - |
 ```
 
-For unaffected slices, include one row with `Checklist item` set to `browser-visible guidance checklist` and a specific `N/A reason` such as `server metadata seam only; browser consumer slice covers the checklist`. N/A means the checklist item does not apply; an external prerequisite is not an N/A reason. This Step 4 table can stay in the approval checkpoint or draft notes; do not publish it as a required issue-body section unless house style already does. If full issue bodies are not drafted before the approval checkpoint, the `Covered by staged AC` entries may use provisional AC numbers or concise coverage labels, but after drafting the actual issue bodies and before applying `ready-for-agent`, rerun the checklist mapping against the final acceptance-criteria bullets and revise the staged body or label if any checklist item no longer maps cleanly. The final pre-publication mapping must cite the staged acceptance-criterion ordinal or a short excerpt from the staged criterion; a generic acceptance criterion that merely says `Browser-visible guidance checklist mapped` is useful as an issue-body summary but does not satisfy the local mapping by itself. A bare `yes` is only acceptable in the final ledger after that concrete mapping has already been performed.
+For unaffected slices, include one row with `Checklist item` set to `browser-visible guidance checklist` and a specific `N/A reason` such as `server metadata seam only; browser consumer slice covers the checklist`. N/A means the checklist item does not apply; an external prerequisite is not an N/A reason. This Step 4 table can stay in the approval checkpoint or draft notes; do not publish it as a required issue-body section unless house style already does. If full issue bodies are not drafted before the approval checkpoint, the `Covered by staged AC` entries may use provisional AC numbers or concise coverage labels, but after drafting the actual issue bodies and before applying `ready-for-agent`, rerun the checklist mapping against the final acceptance-criteria bullets and revise the staged body or label if any checklist item no longer maps cleanly. Every final pre-publication mapping must use `AC <n> - "<verbatim excerpt>"`, with the excerpt belonging to that exact staged acceptance criterion; composite rows must resolve every named component or an explicit cross-slice handoff. A generic acceptance criterion that merely says `Browser-visible guidance checklist mapped` is useful as an issue-body summary but does not satisfy the local mapping by itself. A bare `yes` is only acceptable in the final ledger after that concrete mapping has already been performed.
 
 Ask the user:
 
@@ -125,16 +139,16 @@ Ask the user:
 - Should any slices be merged or split further?
 - When intake surfaced a doctrine conflict or correction (Step 3), does the user accept the correction and how it was resolved?
 - When intake surfaced provisional, timed-out, unratified, or open-to-veto decisions, does the user ratify the listed decisions as encoded in the slices, revise them, or leave them unresolved?
-- For multi-issue publication, should the optional parent child-map ledger comment be posted after creation, assuming tracker docs or house style allow it?
-- If the optional parent ledger is declined while the breakdown has ratified structural, durability, coordination, dependency, or story-coverage decisions that would otherwise live only in chat, should a concise "Breakdown decisions" note go in the first relevant child issue body before publication, or should that rationale intentionally remain out of the tracker?
+- In child mode with multi-issue publication, should the optional parent child-map ledger comment be posted after creation, assuming tracker docs or house style allow it? In standalone-source mode, record the ledger posture as N/A.
+- In child mode, if the optional parent ledger is declined while the breakdown has ratified structural, durability, coordination, dependency, or story-coverage decisions that would otherwise live only in chat, should a concise "Breakdown decisions" note go in the first relevant child issue body before publication, or should that rationale intentionally remain out of the tracker?
 
-For multi-issue breakdowns, end the checkpoint with an explicit publication sentence: "If you approve, I will publish these N child issues in the dependency order shown, apply labels <labels>, and <post/skip> the parent child-map ledger as specified." Adjust the ledger clause when the parent comment decision is still open.
+For multi-issue breakdowns, end the checkpoint with an explicit publication sentence that states approval covers the seven posture lines as well as the numbered slices. In child mode: "If you approve this breakdown and its decision, tracker, source/target, prerequisite, publication, artifact, and coverage postures, I will publish these N child issues in the dependency order shown, apply labels <labels>, and <post/skip> the parent child-map ledger as specified." In standalone-source mode, use the same posture list and say that the issues will carry the exact approved source relationship and no parent ledger. Adjust an open child-mode ledger clause before publication.
 
 If the user approves publication but delegates optional ledger judgment to you, default to posting the parent child-map ledger when the breakdown ratified structural, durability, coordination, dependency, or story-coverage decisions that future implementers would otherwise have to reconstruct from chat. Skip the ledger only when the user explicitly declines it, tracker docs or house precedent forbid it, or the breakdown has no durable rationale beyond the issue map; state that decision in the final report.
 
 If the user approves publication and explicitly declines the parent ledger without answering the fallback-rationale question, default to adding a concise `## Breakdown decisions` note to the first relevant child issue body when the breakdown ratified structural, durability, coordination, dependency, or story-coverage decisions future implementers would otherwise have to reconstruct from chat. State that default before publishing. If the user explicitly says to leave the rationale out of the tracker, do that and state the choice in the final report.
 
-When the proposed breakdown is a single no-blocker issue, a compact approval question is enough, but make it explicit that approval covers the one-slice granularity, no dependencies, and publication. For example: "Does this one-slice/no-blocker breakdown feel right, and should I publish it as the child issue?"
+When the proposed breakdown is a single no-blocker issue, a compact approval question is enough, but it must still make approval cover the one-slice granularity and all seven posture lines, including the no-prerequisite, artifact, coverage, ledger, and publication decisions. In child mode, default the ledger to `skipped — relationship rationale is complete in the issue body` when a separate child-map comment adds no information. In standalone-source mode, the parent ledger is N/A because the issue body owns the exact source relationship. For example: "Does this one-slice/no-blocker breakdown and its seven postures feel right, and should I publish it as specified?"
 
 Iterate until the user approves the breakdown. If the environment provides a timed approval mechanism and the approval question times out with no response, weigh re-asking once before proceeding — especially right after a long context dump (the user may have been reading rather than away) or when publishing is consequential (creating several real issues at once). Only on a second timeout (the user is away) proceed with the proposed breakdown, state in the conversation that it was applied unapproved, and offer post-hoc adjustment (merge/split/re-wire, closing issues if needed) when the user returns. If no timed approval mechanism is available, ask a plain-text approval question and stop before publishing unless the user has explicitly pre-authorized publication; do not treat tool unavailability as a timeout.
 
@@ -146,12 +160,12 @@ After approval, read [`references/publication-protocol.md`](references/publicati
 
 Execution spine:
 
-1. Freeze the approved titles, dependencies, labels, ledger posture, and story/checklist mappings.
+1. Freeze the approved titles, dependencies, labels, tracker relationship, ledger posture, and story/checklist mappings.
 2. Run exact-title duplicate guards, then stage bodies and the local checklist run sheet.
 3. Validate and sweep each body before its individual create call; substitute only real backward references.
 4. Publish in dependency order and verify each returned issue before continuing.
-5. Validate and post the approved parent ledger or apply its approved fallback.
+5. In child mode, validate and post the approved parent ledger or apply its approved fallback; in standalone-source mode, verify the approved source relationship in the issue body.
 6. Run the live published-family verifier against the staged bodies and complete run sheet.
 7. Remove every temporary artifact, prove cleanup, inspect final worktree status, and report the verified family.
 
-Completion criterion: the approved-created count matches; every child and blocker is live-verified; checklist, ledger, placeholder/path, and cleanup gates pass; and the final response contains the proof required by the publication protocol.
+Completion criterion: the approved-created count matches; every published issue and blocker is live-verified; the approved parent/ledger or standalone-source relationship is verified; checklist, placeholder/path, and cleanup gates pass; and the final response contains the proof required by the publication protocol.

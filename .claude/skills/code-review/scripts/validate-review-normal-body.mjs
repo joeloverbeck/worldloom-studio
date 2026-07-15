@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import { validateTddCloseoutBody } from "../../tdd/scripts/validate-tdd-closeout-body.mjs";
 import {
   fieldValue,
+  fieldValues,
   unresolvedValue,
   validateReviewClosingBodySize,
   validateReviewEvidenceIdentities,
@@ -14,7 +15,7 @@ import {
 } from "./review-evidence-contract.mjs";
 
 const usage =
-  "Usage: node .claude/skills/code-review/scripts/validate-review-normal-body.mjs <body.md> [--immediate-fix] [--parent-prd] [--child-family] [--issue-set] [--acceptance-manifest <path>] [--browser] [--tdd] [--tdd-parent-rollup] [--closing] [--max-bytes <positive integer>]";
+  "Usage: node .claude/skills/code-review/scripts/validate-review-normal-body.mjs <body.md> [--immediate-fix] [--parent-prd] [--child-family] [--issue-set] [--acceptance-manifest <path>] [--browser] [--tdd] [--tdd-parent-rollup] [--closing --expected-final-sha <sha>] [--max-bytes <positive integer>]";
 
 const validateRevisitTrigger = (value) => {
   if (unresolvedValue(value)) return "is empty or unresolved";
@@ -149,7 +150,7 @@ const validateConsoleStateValue = (value) => {
 
 const validateBackendCurrentnessValue = (value) => {
   if (unresolvedValue(value)) return "is empty or unresolved";
-  if (/^N\/A\b.+\bbecause\b.+\b(?:no browser\/manual evidence was used|browser proof has no backend\/API dependency)\b/i.test(value)) {
+  if (/^N\/A\b.+\bbecause\b.+\b(?:no browser\/manual (?:evidence|proof) was used|browser proof has no backend\/API dependency)\b/i.test(value)) {
     return "";
   }
   if (/\bblocked\b.+\b(?:because|reason|unable|cannot)\b/i.test(value)) return "";
@@ -164,6 +165,16 @@ const validateBackendCurrentnessValue = (value) => {
 
   return "must state server command, watch/reload mode, process or port ownership, restart/reload proof, and expected API field/behavior probe, or a justified N/A/blocked reason";
 };
+
+const compatibleSha = (left, right) => {
+  const normalizedLeft = left.toLowerCase();
+  const normalizedRight = right.toLowerCase();
+  return normalizedLeft.startsWith(normalizedRight) || normalizedRight.startsWith(normalizedLeft);
+};
+
+const currentnessCommitShas = (value) =>
+  [...value.matchAll(/\b(?:final\s+)?commit(?:ted)?(?:\s+SHA)?\s+`?([0-9a-f]{7,40})\b`?/gi)]
+    .map((match) => match[1]);
 
 const validateRegressionDurability = (body, errors) => {
   const intendedRed = fieldValue(body, "Intended red command/failure");
@@ -266,13 +277,36 @@ export const validateReviewNormalBody = (body, options = {}) => {
     }
   }
 
-  const backendCurrentnessValue = requireField("Backend process currentness");
-  const backendCurrentnessError = validateBackendCurrentnessValue(backendCurrentnessValue);
-  if (backendCurrentnessError) {
-    errors.push(`Backend process currentness ${backendCurrentnessError}`);
+  const backendCurrentnessValues = fieldValues(body, "Backend process currentness");
+  const backendCurrentnessCandidates = backendCurrentnessValues.length ? backendCurrentnessValues : [""];
+  for (const [index, backendCurrentnessValue] of backendCurrentnessCandidates.entries()) {
+    const occurrence = backendCurrentnessValues.length > 1 ? ` occurrence ${index + 1}` : "";
+    const backendCurrentnessError = validateBackendCurrentnessValue(backendCurrentnessValue);
+    if (backendCurrentnessError) {
+      errors.push(`Backend process currentness${occurrence} ${backendCurrentnessError}`);
+    }
+    if (
+      flags.has("--browser") &&
+      /^N\/A\b.+\bno browser\/manual (?:evidence|proof) was used\b/i.test(backendCurrentnessValue)
+    ) {
+      errors.push(
+        `--browser requires backend currentness${occurrence} or N/A because the browser proof has no backend/API dependency`
+      );
+    }
   }
-  if (flags.has("--browser") && /^N\/A\b.+\bno browser\/manual evidence was used\b/i.test(backendCurrentnessValue)) {
-    errors.push("--browser requires backend currentness or N/A because the browser proof has no backend/API dependency");
+
+  const reviewedHeadSha = body.match(/\breviewed HEAD SHA\s+`?([0-9a-f]{7,40})\b`?/i)?.[1] ?? "";
+  const currentnessCommitClaims = backendCurrentnessValues.flatMap(currentnessCommitShas);
+  if (currentnessCommitClaims.length && !reviewedHeadSha) {
+    errors.push("Backend process currentness names a commit but Review frame lacks a concrete reviewed HEAD SHA");
+  } else {
+    for (const candidate of currentnessCommitClaims) {
+      if (!compatibleSha(reviewedHeadSha, candidate)) {
+        errors.push(
+          `Backend process currentness names commit ${candidate}, which does not match reviewed HEAD SHA ${reviewedHeadSha}`
+        );
+      }
+    }
   }
   validateReviewFixtureSnapshotCurrentness(body, errors, { requireBrowser: flags.has("--browser") });
 
@@ -284,7 +318,11 @@ export const validateReviewNormalBody = (body, options = {}) => {
     const tddFlags = [];
     if (flags.has("--tdd-parent-rollup")) tddFlags.push("--parent-rollup");
     if (flags.has("--closing")) tddFlags.push("--closing");
-    const tddErrors = validateTddCloseoutBody(body, { flags: tddFlags, maxBytes: options.maxBytes });
+    const tddErrors = validateTddCloseoutBody(body, {
+      flags: tddFlags,
+      maxBytes: options.maxBytes,
+      expectedFinalSha: options.expectedFinalSha
+    });
     if (tddErrors.length) {
       errors.push(`TDD validator failed:\n${tddErrors.map((error) => `- ${error}`).join("\n")}`);
     }
@@ -305,9 +343,12 @@ if (isCli) {
   const manifestPath = manifestIndex < 0 ? undefined : args[manifestIndex + 1];
   const maxBytesIndex = args.indexOf("--max-bytes");
   const maxBytesValue = maxBytesIndex < 0 ? undefined : args[maxBytesIndex + 1];
+  const expectedFinalShaIndex = args.indexOf("--expected-final-sha");
+  const expectedFinalSha = expectedFinalShaIndex < 0 ? undefined : args[expectedFinalShaIndex + 1];
   const valueIndexes = new Set([
     ...(manifestIndex < 0 ? [] : [manifestIndex + 1]),
-    ...(maxBytesIndex < 0 ? [] : [maxBytesIndex + 1])
+    ...(maxBytesIndex < 0 ? [] : [maxBytesIndex + 1]),
+    ...(expectedFinalShaIndex < 0 ? [] : [expectedFinalShaIndex + 1])
   ]);
   const file = args.find((arg, index) => !arg.startsWith("--") && !valueIndexes.has(index));
   const flags = args.filter((arg) => arg.startsWith("--"));
@@ -330,6 +371,14 @@ if (isCli) {
     console.error("--max-bytes must be a positive integer");
     process.exit(2);
   }
+  if (expectedFinalShaIndex >= 0 && (!expectedFinalSha || expectedFinalSha.startsWith("--"))) {
+    console.error("--expected-final-sha requires a commit SHA");
+    process.exit(2);
+  }
+  if (expectedFinalSha && !/^[0-9a-f]{7,40}$/i.test(expectedFinalSha)) {
+    console.error("--expected-final-sha must be a 7-40 character hexadecimal commit SHA");
+    process.exit(2);
+  }
 
   let acceptanceManifest;
   if (manifestIndex >= 0 && (!manifestPath || manifestPath.startsWith("--"))) {
@@ -345,7 +394,12 @@ if (isCli) {
     }
   }
 
-  const errors = validateReviewNormalBody(readFileSync(file, "utf8"), { flags, acceptanceManifest, maxBytes });
+  const errors = validateReviewNormalBody(readFileSync(file, "utf8"), {
+    flags,
+    acceptanceManifest,
+    maxBytes,
+    expectedFinalSha
+  });
   if (errors.length) {
     console.error(`Normal review body validation failed for ${file}:`);
     for (const error of errors) console.error(`- ${error}`);

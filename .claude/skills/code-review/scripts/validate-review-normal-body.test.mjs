@@ -381,6 +381,20 @@ test("requires review-native evidence identity reconciliation", () => {
       "Superseded-token sweep: rg old.json body.md found no hits outside classified identity/history lines and no active-proof hits; historical-red red.json classified as failing history"
     );
   assert.deepEqual(validateReviewNormalBody(strongSweep), []);
+
+  for (const oneSidedSweep of [
+    "- Superseded-token sweep: rg old.json body.md found no active-proof hits; historical-red red.json classified as failing history",
+    "- Superseded-token sweep: rg old.json body.md found no hits outside classified identity/history lines; historical-red red.json classified as failing history"
+  ]) {
+    const errors = validateReviewNormalBody(
+      strongSweep.replace(/^- Superseded-token sweep:.*$/m, oneSidedSweep)
+    );
+    assert.ok(
+      errors.some((error) =>
+        error.includes("no hits outside classified identity/history lines and no active-proof hits")
+      )
+    );
+  }
 });
 
 test("rejects HTML-like angle tokens and documents shared identity safety", () => {
@@ -510,6 +524,49 @@ test("requires current freshness and console evidence when --browser is used", (
     "N/A because no stateful fixture was copied"
   );
   assert.deepEqual(validateReviewNormalBody(noStatefulCopy, { flags: ["--browser"] }), []);
+
+  const duplicateMissingSnapshot = `${copiedFixtureBody}
+- **Backend process currentness**: server command pnpm dev; watch/reload mode watch; process or port ownership PID 123 on port 4173; restart/reload proof server restarted; expected API field probe returned created
+`;
+  assert.ok(
+    validateReviewNormalBody(duplicateMissingSnapshot, { flags: ["--browser"] }).some((error) =>
+      error.includes("Backend process currentness occurrence 2 with non-none fixture paths")
+    )
+  );
+});
+
+test("validates every backend currentness field against the reviewed HEAD", () => {
+  const currentness =
+    "server command pnpm dev; watch/reload mode watch; process or port ownership PID 123 on port 4173; restart/reload proof clean start from final committed SHA def5678; expected API field probe returned created";
+  const body = `Review frame: fixed point input HEAD~1; fixed point resolved SHA abc1234; reviewed HEAD SHA def5678901234567; diff command git diff abc1234...HEAD
+${noFixBody.replace(
+  "N/A because no browser/manual evidence was used",
+  currentness
+)}`;
+
+  assert.deepEqual(validateReviewNormalBody(body), []);
+
+  const staleErrors = validateReviewNormalBody(
+    `${body}
+- **Backend process currentness**: ${currentness.replace("def5678", "1234567")}
+`
+  );
+  assert.ok(
+    staleErrors.some((error) =>
+      error.includes("Backend process currentness names commit 1234567, which does not match reviewed HEAD SHA def5678901234567")
+    )
+  );
+
+  const incompleteErrors = validateReviewNormalBody(
+    `${body}
+- **Backend process currentness**: server reachable on port 4173
+`
+  );
+  assert.ok(
+    incompleteErrors.some((error) =>
+      error.includes("Backend process currentness occurrence 2 must state server command")
+    )
+  );
 });
 
 test("requires a structured accepted residual with a revisit trigger", () => {
@@ -583,9 +640,16 @@ test("accepts a complete immediate-fix body with current nested TDD evidence", (
   )}
 TDD evidence
 
+Final SHA: def5678
+
 | Issue | CONTEXT.md status | ADRs/principles/docs status | Seam | Red command/failure | Green command or evidence | Acceptance covered | Review fix / red-first skip reason |
 |---|---|---|---|---|---|---|---|
 | #355 | read | ADR 0008 read | typed public contract | red-first skipped because Standards-only/conformance-only fix did not change behavior | pnpm typecheck passed | AC1; atoms: atomic; proof surfaces: server type contract; sequence: N/A because criterion is not sequence-sensitive | review-fix evidence |
+
+Verification command ledger:
+| Exact command | Observed result/counts | Run count | Represented SHA/tree |
+|---|---|---|---|
+| \`pnpm typecheck\` | passed: 1 check; exit 0 | 1 | def5678 |
 
 Existing-test contract-change rows: none
 
@@ -626,13 +690,16 @@ TDD evidence gate passed: durable sink issue #355 closeout comment; compact tabl
 
   assert.deepEqual(validateReviewNormalBody(body, { flags: ["--immediate-fix", "--tdd"] }), []);
   assert.deepEqual(
-    validateReviewNormalBody(body, { flags: ["--immediate-fix", "--tdd", "--closing"] }),
+    validateReviewNormalBody(body, {
+      flags: ["--immediate-fix", "--tdd", "--closing"],
+      expectedFinalSha: "def5678"
+    }),
     []
   );
 
   const localSink = validateReviewNormalBody(
     body.replace("Durable sink/body inspected: issue #355 closeout comment", "Durable sink/body inspected: /tmp/review-closeout.md"),
-    { flags: ["--immediate-fix", "--tdd", "--closing"] }
+    { flags: ["--immediate-fix", "--tdd", "--closing"], expectedFinalSha: "def5678" }
   );
   assert.ok(localSink.some((error) => error.includes("published TDD closeout field")));
 
@@ -641,7 +708,10 @@ TDD evidence gate passed: durable sink issue #355 closeout comment; compact tabl
     "Current evidence identities: fixture paths /tmp/review.sqlite; browser sessions none"
   );
   assert.deepEqual(
-    validateReviewNormalBody(localFixture, { flags: ["--immediate-fix", "--tdd", "--closing"] }),
+    validateReviewNormalBody(localFixture, {
+      flags: ["--immediate-fix", "--tdd", "--closing"],
+      expectedFinalSha: "def5678"
+    }),
     []
   );
 });

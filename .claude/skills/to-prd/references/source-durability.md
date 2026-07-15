@@ -21,16 +21,17 @@ node .claude/skills/to-prd/scripts/validate-prd-body.mjs "$BODY_FILE" --extract-
 
 For each emitted path that the PRD relies on as a source citation, run `git ls-files --error-unmatch <path>` or an equivalent repo-durability check before publishing. Tracked-ness alone is not durability: also intersect the cited paths with `git status --porcelain` — a cited file that is modified, staged, or untracked carries content no commit contains yet, and when the citation leans on that session-authored content, it gets the same treatment as an untracked artifact. Also verify publication-ref visibility for every tracked/clean cited source path: resolve the repository publication ref, normally `origin/main` or the default branch remote ref, and run `git ls-tree -r --name-only <publication-ref> -- <paths>`.
 
-Path visibility is not content durability. A clean tracked file may come from a local commit that the publication ref does not contain, while an older file still exists at the same path on the ref. For every cited path, also run `git diff --quiet <publication-ref> -- <path>` (or an equivalent blob-identity comparison) against the live working-tree content the PRD actually consulted. Exit status `0` proves the content matches; exit status `1` means the cited content differs from the publication ref and is pending local publication even when `git status` is clean and `git ls-tree` finds the path. If a cited artifact is missing from the publication ref or its relied-on content differs, replace the citation with a conclusion summary plus "pending local publication" wording, or stop before publishing when the PRD cannot be accurate without a stable source citation. If a cited artifact fails any tracked, clean, publication-ref path, or publication-ref content check, replace the citation with a conclusion summary plus "temporary source summarized, not cited" wording, or record that the artifact is pending authoring/commit/publication as appropriate.
+Path visibility is not content durability. A clean tracked file may come from a local commit that the publication ref does not contain, while an older file still exists at the same path on the ref. Evaluate content identity only after both tracked and publication-ref-visible checks succeed. When either prerequisite fails, record content identity as `N/A - no publication-ref blob`; do not interpret a successful `git diff --quiet` result for an untracked or ref-absent path as a match, because Git may have no compared blob for that working-tree path. For a tracked, visible cited path, run `git diff --quiet <publication-ref> -- <path>` (or an equivalent blob-identity comparison) against the live working-tree content the PRD actually consulted. Exit status `0` then proves the content matches; exit status `1` means the cited content differs from the publication ref and is pending local publication even when `git status` is clean and `git ls-tree` finds the path. If a cited artifact is missing from the publication ref or its relied-on content differs, replace the citation with a conclusion summary plus "pending local publication" wording, or stop before publishing when the PRD cannot be accurate without a stable source citation. If a cited artifact fails any tracked, clean, publication-ref path, or publication-ref content check, replace the citation with a conclusion summary plus "temporary source summarized, not cited" wording, or record that the artifact is pending authoring/commit/publication as appropriate.
 
 ## Durability gate
 
-Use direct repo commands for the durability proof rather than wrapping `git` calls inside a helper that can fail under the active sandbox. After path extraction and ADR shorthand resolution, run the gate for every staged-body source. After the published validator readback, run it again for each emitted `localSourcePaths` and `resolvedAdrPaths` entry:
+Use direct repo commands for the durability proof rather than wrapping `git` calls inside a helper that can fail under the active sandbox. After path extraction and ADR shorthand resolution, run the tracked, status, and publication-ref path checks for every staged-body source; run the content comparison only for paths that are tracked and publication-ref-visible. After the published validator readback, repeat that ordered gate for each emitted `localSourcePaths` and `resolvedAdrPaths` entry:
 
 ```sh
 git status --porcelain -- <paths>
 git ls-files --error-unmatch <paths>
 git ls-tree -r --name-only <publication-ref> -- <paths>
+# only after the tracked and publication-ref path checks above succeed:
 git diff --quiet <publication-ref> -- <path>
 ```
 
@@ -58,13 +59,16 @@ for path in "${SOURCE_PATHS[@]}"; do
   visible=no
   git ls-tree -r --name-only "$PUBLICATION_REF" -- "$path" | rg -Fx -- "$path" >/dev/null && visible=yes
 
-  content_match=no
-  git diff --quiet "$PUBLICATION_REF" -- "$path" && content_match=yes
+  content_match="N/A - no publication-ref blob"
+  if test "$tracked" = yes && test "$visible" = yes; then
+    content_match=no
+    git diff --quiet "$PUBLICATION_REF" -- "$path" && content_match=yes
+  fi
 
   printf '| `%s` | %s | %s | %s | %s |\n' "$path" "$clean" "$tracked" "$visible" "$content_match"
 done
 ```
 
-Every cell must be `yes` before the path may remain a durable citation. Preserve the completed ledger for both the staged and published durability runs; do not infer the second run from the first.
+Every durability prerequisite must be `yes` before the path may remain a durable citation. `N/A - no publication-ref blob` is explicit proof that the content comparison was inapplicable and the path is non-durable, not a passing cell. Preserve the completed ledger for both the staged and published durability runs; do not infer the second run from the first.
 
 Also scan for ADR shorthand such as `ADR 0006`, `ADR 0008`, or `ADR 0009`. Resolve each unique shorthand reference to exactly one `docs/adr/<number>-*.md` file and run the same tracked, dirty, publication-ref path, and publication-ref content checks on that resolved path. If no ADR file resolves, or more than one file resolves, treat the shorthand as unresolved and either cite a durable explicit path, summarize the decision without a stable citation, or stop before publishing if the PRD cannot be accurate without it.
