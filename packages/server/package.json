@@ -14,7 +14,7 @@
     "@hono/node-server": "^2.0.8",
     "@worldloom/shared": "workspace:*",
     "better-sqlite3": "^12.2.0",
-    "hono": "^4.8.4"
+    "hono": "^4.12.29"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
