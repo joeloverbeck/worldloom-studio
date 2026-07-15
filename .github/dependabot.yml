@@ -4,6 +4,12 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    ignore:
+      # @types/node major tracks the Node runtime major; keep it on the
+      # pinned Node 24 line (.node-version, "Node 24" CI job). Revisit when
+      # the runtime moves to Node 26. See closed PR #334.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
