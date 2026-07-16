@@ -1,7 +1,11 @@
 import { intakeProposedFact } from "./admission-flow.js";
 import { ADVISORY_OUTPUT_LABELS, promptMode, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
 import { methodCard, methodCardDoctrineSlots, methodCardsForFlow, methodCardSourceManifest } from "./method-cards.js";
-import { coverMatchingConditionalPassObligation } from "./conditional-pass-obligations.js";
+import {
+  bindConditionalPassFlow,
+  conditionalPassBindingForFlow,
+  coverMatchingConditionalPassObligation
+} from "./conditional-pass-obligations.js";
 import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, RecordRow, WorldFile } from "./world-file.js";
 
@@ -568,7 +572,14 @@ const findExistingRun = (
 };
 
 export type StartConstraintRunInput =
-  | { sourceType: "fact" | "capability" | "constraint_card" | "canon_debt"; recordId: number; constrainedSubject?: string }
+  | {
+      sourceType: "fact";
+      recordId: number;
+      constrainedSubject?: string;
+      conditionalPassObligationId?: number;
+      propagationReportRecordId?: number;
+    }
+  | { sourceType: "capability" | "constraint_card" | "canon_debt"; recordId: number; constrainedSubject?: string }
   | { sourceType: "record_section"; recordId: number; sectionHeading: string; constrainedSubject?: string }
   | { sourceType: "material"; materialTitle: string; materialBody: string; constrainedSubject?: string }
   | { sourceType: "pass_report"; reportRecordId: number };
@@ -633,6 +644,7 @@ export const getConstraintRun = (world: WorldFile, flowId: number) => {
     skips: skipRows(world, flowId),
     closeReadiness: closeReadiness(world, flowId),
     closePreview: closePreview(world, flowId),
+    conditionalPassBinding: conditionalPassBindingForFlow(world, flowId),
     promptOut: promptOutState(world, flowId),
     readSideTrail: readSideTrail(world, flowId),
     decisionPoint: constraintDecisionPoint(world, flowId)
@@ -658,7 +670,18 @@ export const startConstraintRun = (world: WorldFile, input: StartConstraintRunIn
 
   const source = sourceSummaryFor(world, input);
   const existingFlowId = findExistingRun(world, input.sourceType, source);
-  if (existingFlowId != null) return getConstraintRun(world, existingFlowId);
+  if (existingFlowId != null) {
+    if (input.sourceType === "fact" && input.conditionalPassObligationId != null) {
+      bindConditionalPassFlow(world, {
+        flowId: existingFlowId,
+        obligationId: input.conditionalPassObligationId,
+        passKey: "constraint_composition",
+        sourceFactRecordId: input.recordId,
+        propagationReportRecordId: input.propagationReportRecordId
+      });
+    }
+    return getConstraintRun(world, existingFlowId);
+  }
 
   return world.atomicWrite(() => {
     const report = world.createRecord({
@@ -702,6 +725,15 @@ export const startConstraintRun = (world: WorldFile, input: StartConstraintRunIn
     );
     if (source.sourceRecordId != null) {
       world.createLinkIfMissing(report.id, source.sourceRecordId, "derived_from", "Constraint Composition pass analyzes this source");
+    }
+    if (input.sourceType === "fact" && input.conditionalPassObligationId != null) {
+      bindConditionalPassFlow(world, {
+        flowId: Number(flow.id),
+        obligationId: input.conditionalPassObligationId,
+        passKey: "constraint_composition",
+        sourceFactRecordId: input.recordId,
+        propagationReportRecordId: input.propagationReportRecordId
+      });
     }
     return getConstraintRun(world, Number(flow.id));
   });
@@ -1257,12 +1289,15 @@ export const closeConstraintRun = (world: WorldFile, flowId: number) => {
   }
   return world.atomicWrite(() => {
     const source = readSource(world, flowId);
+    const conditionalPassBinding = conditionalPassBindingForFlow(world, flowId);
     writeCloseSections(world, flowId);
     const complete = world.updateFlowInstance(flowId, { state: "complete", currentStep: "constraint:complete" });
     if (source.sourceRecordId != null) {
       coverMatchingConditionalPassObligation(world, {
         passKey: "constraint_composition",
         sourceFactRecordId: source.sourceRecordId,
+        obligationId: conditionalPassBinding?.obligationId,
+        propagationReportRecordId: conditionalPassBinding?.propagationReportRecordId,
         coveringReportRecordId: source.passReportRecordId,
         flowStep: "constraint:complete"
       });

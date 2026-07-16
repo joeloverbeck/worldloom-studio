@@ -129,12 +129,72 @@ const conditionalPassWorkflowMap = {
         ? { id: 20, shortId: "PAS-1", recordTypeKey: "pass_report", title: "Constraint pass report", body: "Completed evidence.", canonStatus: "accepted" }
         : null,
       doctrine: "Foundational Propagation owes this specialized pass before further dependency-bearing Admission.",
-      blocker: null,
-      destination: { destinationKey, label: passLabel, method: "POST", href: `/api/${destinationKey}/runs/start`, body: { sourceType: "fact", recordId: 3 } },
+      packageSources: [
+        "docs/worldbuilding-system/03_truth_layers_and_canon_governance.md",
+        "docs/worldbuilding-system/07_propagation_engine.md",
+        "docs/worldbuilding-system/22_glossary.md"
+      ],
+      fieldClassifications: {
+        required: index === 1 ? [] : ["reason"],
+        optional: [],
+        skippable: index === 1 ? [] : ["governed deferral with written rationale"],
+        severityDependent: []
+      },
+      blocker: index === 1 ? "Covered Conditional-pass obligations are terminal in this lifecycle." : null,
+      remediation: index === 1 ? "Correct completed work through the owning specialized flow." : null,
+      destination: {
+        destinationKey,
+        label: passLabel,
+        method: "POST",
+        href: `/api/${destinationKey}/runs/start`,
+        available: index === 0,
+        blocker: index === 0 ? null : "The source-selected pass route is available only while the obligation is outstanding.",
+        body: {
+          sourceType: "fact",
+          recordId: 3,
+          conditionalPassObligationId: index + 1,
+          propagationReportRecordId: 9
+        }
+      },
       provenance: { actor: "steward", timestamp: "2026-07-12T10:00:00.000Z", flowStep: "propagation:close:conditional-pass-handoff", sourceFact: { id: 3, shortId: "FAC-3" }, propagationReport: { id: 9, shortId: "PRP-1" } },
-      history: [],
-      readSideTrail: [],
-      action: index === 0 ? { method: "POST", href: `/api/conditional-pass-obligations/${index + 1}/defer`, requiredRationale: true, body: { disposition: "deferred", passKey, sourceFactRecordId: 3, propagationReportRecordId: 9 }, proposedWrite: `Defer ${passLabel} while preserving governed history.`, willLeaveUntouched: ["source fact", "Propagation report", "Admission queue"] } : null
+      history: index === 1
+        ? [{ action: "covered", priorState: "outstanding", resultingState: "covered", rationale: null, evidenceRecordId: 20, actor: "steward", timestamp: "2026-07-12T10:20:00.000Z", flowStep: "constraint:complete" }]
+        : index === 2
+          ? [{ action: "deferred", priorState: "outstanding", resultingState: "deferred", rationale: "Govern after institutional actors are named.", evidenceRecordId: null, actor: "steward", timestamp: "2026-07-12T10:15:00.000Z", flowStep: "conditional-pass-obligation:defer" }]
+          : [],
+      readSideTrail: [
+        { label: "Source fact FAC-3", recordId: 3, href: "/api/canon-workbench/records/3" },
+        { label: "Propagation report PRP-1", recordId: 9, href: "/api/canon-workbench/records/9" }
+      ],
+      action: index === 0
+        ? {
+            kind: "defer",
+            label: "Defer with rationale",
+            method: "POST",
+            href: `/api/conditional-pass-obligations/${index + 1}/defer`,
+            requiredReason: true,
+            requiredRationale: true,
+            reasonLabel: "Deferral rationale",
+            identityGuards: ["passKey", "sourceFactRecordId", "propagationReportRecordId"],
+            body: { disposition: "deferred", expectedDisposition: "outstanding", passKey, sourceFactRecordId: 3, propagationReportRecordId: 9 },
+            proposedWrite: `Defer ${passLabel} while preserving governed history.`,
+            willLeaveUntouched: ["source fact", "Propagation report", "Admission queue"]
+          }
+        : index === 2
+          ? {
+              kind: "reinstate",
+              label: "Reinstate obligation",
+              method: "POST",
+              href: `/api/conditional-pass-obligations/${index + 1}/reinstate`,
+              requiredReason: true,
+              requiredRationale: true,
+              reasonLabel: "Reinstatement reason",
+              identityGuards: ["passKey", "sourceFactRecordId", "propagationReportRecordId"],
+              body: { disposition: "outstanding", expectedDisposition: "deferred", passKey, sourceFactRecordId: 3, propagationReportRecordId: 9 },
+              proposedWrite: `Reinstate ${passLabel} and restore the source-selected route.`,
+              willLeaveUntouched: ["source fact", "Propagation report", "prior events", "Admission queue"]
+            }
+          : null
     }))
   }
 };
@@ -242,6 +302,7 @@ describe("workflow map shell", () => {
       initialWorkflowMap={conditionalPassWorkflowMap as any}
     />);
     const shellSource = readFileSync(new URL("./workflow-shell.tsx", import.meta.url), "utf8");
+    const mainSource = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
 
     expect(html).toContain("Post-Propagation conditional-pass handoff");
     expect(html).toContain("Work Temporal/Timeline for FAC-3 after PRP-1");
@@ -260,11 +321,23 @@ describe("workflow map shell", () => {
     expect(html).toContain("Govern after institutional actors are named.");
     expect(html).toContain("Follow source-selected pass");
     expect(html).toContain("Deferral rationale");
-    expect(html).toContain("Preview governed deferral");
+    expect(html).toMatch(/Preview governed.*deferral/);
+    expect(html).toContain("Reinstatement reason");
+    expect(html).toMatch(/Preview governed.*reinstatement/);
+    expect(html).toContain("docs/worldbuilding-system/03_truth_layers_and_canon_governance.md");
+    expect(html).toContain("docs/worldbuilding-system/07_propagation_engine.md");
+    expect(html).toContain("docs/worldbuilding-system/22_glossary.md");
+    expect(html).toContain("Required fields");
+    expect(html).toContain("Source fact FAC-3");
     expect(html).toContain("Admission queue");
     expect(html).toContain("One proposed fact remains available.");
     expect(shellSource).toContain("const handoff = workflowMap.conditionalPasses");
     expect(shellSource).toContain("handoff.obligations.map");
+    expect(shellSource).toContain("disabled={!obligation.destination.available}");
+    expect(shellSource).toContain("obligation.action.kind");
+    expect(shellSource).not.toContain('obligation.disposition !== "outstanding"');
     expect(shellSource).not.toMatch(/title.*includes\(|body.*includes\(|temporal.*test\(/i);
+    expect(mainSource).toContain("obligation.destination.body.conditionalPassObligationId");
+    expect(mainSource).toContain("obligation.destination.body.propagationReportRecordId");
   });
 });

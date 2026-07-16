@@ -234,14 +234,21 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
   ];
   const stateForStage = (key: string): WorkflowMapStage["state"] =>
     stages.find((item) => item.key === key)?.state ?? "not_yet_earned";
-  const conditionalState = stateForStage("conditional-passes");
+  const conditionalDestinationState = (
+    passKey: string,
+    flowKey: string
+  ): WorkflowMapStage["state"] => {
+    if (outstandingConditionalPasses.some((item) => item.passKey === passKey)) return "owed";
+    if (hasInProgressFlow(flows, flowKey)) return "active";
+    return worldHasCanonMaterial ? "blocked" : "not_yet_earned";
+  };
   const stageStates = new Map<string, WorkflowMapStage["state"]>([
     ["creation", stateForStage("creation")],
     ["admission", stateForStage("admission")],
     ["propagation", stateForStage("propagation")],
-    ["constraint", outstandingConditionalPasses.some((item) => item.passKey === "constraint_composition") ? "owed" : conditionalState],
-    ["temporal", outstandingConditionalPasses.some((item) => item.passKey === "temporal_timeline") ? "owed" : conditionalState],
-    ["stage12", outstandingConditionalPasses.some((item) => item.passKey === "institutional_economic_suppression") ? "owed" : conditionalState],
+    ["constraint", conditionalDestinationState("constraint_composition", "constraint_composition")],
+    ["temporal", conditionalDestinationState("temporal_timeline", "temporal_timeline")],
+    ["stage12", conditionalDestinationState("institutional_economic_suppression", "institutional_economic_suppression")],
     ["contradiction", stateForStage("contradiction")],
     ["qa", stateForStage("qa")]
   ]);
@@ -327,7 +334,7 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
       nextOrResumeState: {
         current: firstOutstandingConditionalPass?.passLabel ?? null,
         next: outstandingConditionalPasses[1]?.passLabel ?? null,
-        resume: "Return safely to a fresh workflow-map response after every conditional-pass or deferral action."
+        resume: "Return safely to a fresh workflow-map response after every Conditional-pass transition or completed matching pass."
       }
     },
     methodCards: workflowMapMethodCards()

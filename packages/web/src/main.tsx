@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { HealthPayload, LinkTypeDefinition, MethodCard, RecordTypeDefinition, WorkflowMapConditionalPassObligation, WorkflowMapPayload } from "@worldloom/shared";
+import type { ConditionalPassKey, HealthPayload, LinkTypeDefinition, MethodCard, RecordTypeDefinition, WorkflowMapConditionalPassObligation, WorkflowMapPayload } from "@worldloom/shared";
 import {
   PropagationWorkspace,
   type ConsequenceRevisionInput,
@@ -351,6 +351,32 @@ interface Stage12CloseBlocker {
   message: string;
 }
 
+interface ConditionalPassBinding {
+  flowId: number;
+  obligationId: number;
+  passKey: string;
+  sourceFactRecordId: number;
+  propagationReportRecordId: number;
+}
+
+type ConditionalPassRouteBinding = Pick<ConditionalPassBinding, "obligationId" | "propagationReportRecordId">;
+
+const routeBindingFrom = (binding: ConditionalPassBinding | null | undefined): ConditionalPassRouteBinding | null =>
+  binding == null
+    ? null
+    : {
+        obligationId: binding.obligationId,
+        propagationReportRecordId: binding.propagationReportRecordId
+      };
+
+const routeBindingBody = (binding: ConditionalPassRouteBinding | undefined) =>
+  binding == null
+    ? {}
+    : {
+        conditionalPassObligationId: binding.obligationId,
+        propagationReportRecordId: binding.propagationReportRecordId
+      };
+
 interface Stage12Run {
   flow: { id: number; state: string; current_step: string };
   report: RecordRow;
@@ -380,6 +406,7 @@ interface Stage12Run {
   advisories: Array<{ id: number; stepKey: string; record: RecordRow }>;
   skips: Array<{ id: number; stepKey: string; record: RecordRow; debt: RecordRow | null }>;
   closeReadiness: { status: string; blockers: Stage12CloseBlocker[] };
+  conditionalPassBinding: ConditionalPassBinding | null;
   decisionPoint?: DecisionPointEnvelope;
 }
 
@@ -423,6 +450,7 @@ interface ConstraintRun {
   skips: Array<{ id: number; stepKey: string; record: RecordRow; debt: RecordRow | null }>;
   closeReadiness: { status: string; blockers: ConstraintCloseBlocker[] };
   closePreview: { state: string; outcomeState: string; beforeCompletion: string[]; afterCompletion: string[] };
+  conditionalPassBinding: ConditionalPassBinding | null;
   promptOut: { available: boolean; templateKey: string; stepKey: string; coldUseEvidence: string; sourceRecordId: number | null };
   readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
   decisionPoint?: { sharedContract: { methodCard?: MethodCard } };
@@ -486,6 +514,7 @@ interface TemporalRun {
   skips: Array<{ record: RecordRow }>;
   closeReadiness: { status: string; blockers: TemporalCloseBlocker[] };
   closePreview: TemporalFinalizationPreview;
+  conditionalPassBinding: ConditionalPassBinding | null;
   reportRelationship: { type: "final" | "correction"; retainedPriorReportRecordId: number | null };
   promptOut: { available: boolean; templateKey: string; stepKey: string; coldUseEvidence: string; sourceRecordId: number | null };
   readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
@@ -1365,6 +1394,15 @@ const apiErrorMessage = (error: unknown): string => {
       || error.message;
   }
   return error instanceof Error ? error.message : String(error);
+};
+
+const conditionalPassActionError = (error: unknown): Error => {
+  if (error instanceof ApiError) {
+    const payload = error.payload as { error?: string; remediation?: string };
+    const message = payload.error ?? error.message;
+    return new Error(payload.remediation ? `${message}. Remediation: ${payload.remediation}` : message);
+  }
+  return error instanceof Error ? error : new Error(String(error));
 };
 
 const api = async <T,>(path: string, init?: RequestInit): Promise<T> => {
@@ -2328,6 +2366,11 @@ function App({
   const [temporalFlowId, setTemporalFlowId] = useState<number | null>(initialTemporalRun?.flow.id ?? null);
   const [temporalSourceType, setTemporalSourceType] = useState<"fact" | "capability" | "canon_debt" | "material" | "pass_report">("fact");
   const [temporalSourceRecordId, setTemporalSourceRecordId] = useState(initialTemporalRun?.source.sourceRecordId == null ? "" : String(initialTemporalRun.source.sourceRecordId));
+  const [conditionalPassRouteBindings, setConditionalPassRouteBindings] = useState<Partial<Record<ConditionalPassKey, ConditionalPassRouteBinding>>>(
+    initialTemporalRun?.conditionalPassBinding == null
+      ? {}
+      : { temporal_timeline: routeBindingFrom(initialTemporalRun.conditionalPassBinding)! }
+  );
   const [temporalMaterialTitle, setTemporalMaterialTitle] = useState("");
   const [temporalMaterialBody, setTemporalMaterialBody] = useState("");
   const [temporalSubject, setTemporalSubject] = useState(initialTemporalRun?.source.auditedSubject ?? "");
@@ -3334,8 +3377,30 @@ function App({
     }
   };
 
+  const updateConditionalPassRouteBinding = (
+    passKey: ConditionalPassKey,
+    binding: ConditionalPassBinding | ConditionalPassRouteBinding | null | undefined
+  ) => {
+    setConditionalPassRouteBindings((current) => {
+      const next = { ...current };
+      const routeBinding = binding == null
+        ? null
+        : {
+            obligationId: binding.obligationId,
+            propagationReportRecordId: binding.propagationReportRecordId
+          };
+      if (routeBinding == null) delete next[passKey];
+      else next[passKey] = routeBinding;
+      return next;
+    });
+  };
+
   const followConditionalPass = async (obligation: WorkflowMapConditionalPassObligation) => {
     const sourceId = String(obligation.destination.body.recordId);
+    updateConditionalPassRouteBinding(obligation.passKey, {
+      obligationId: obligation.destination.body.conditionalPassObligationId,
+      propagationReportRecordId: obligation.destination.body.propagationReportRecordId
+    });
     if (obligation.passKey === "temporal_timeline") {
       setTemporalSourceType("fact");
       setTemporalSourceRecordId(sourceId);
@@ -3350,11 +3415,27 @@ function App({
   };
 
   const deferConditionalPass = async (obligation: WorkflowMapConditionalPassObligation, rationale: string) => {
-    await api<{ obligation: WorkflowMapConditionalPassObligation }>(obligation.action?.href ?? `/api/conditional-pass-obligations/${obligation.id}/defer`, {
-      method: "POST",
-      body: JSON.stringify({ ...obligation.action?.body, rationale })
-    });
-    await loadWorldData();
+    try {
+      await api<{ obligation: WorkflowMapConditionalPassObligation }>(obligation.action?.href ?? `/api/conditional-pass-obligations/${obligation.id}/defer`, {
+        method: "POST",
+        body: JSON.stringify({ ...obligation.action?.body, reason: rationale })
+      });
+      await loadWorldData();
+    } catch (error) {
+      throw conditionalPassActionError(error);
+    }
+  };
+
+  const reinstateConditionalPass = async (obligation: WorkflowMapConditionalPassObligation, reason: string) => {
+    try {
+      await api<{ obligation: WorkflowMapConditionalPassObligation }>(obligation.action?.href ?? `/api/conditional-pass-obligations/${obligation.id}/reinstate`, {
+        method: "POST",
+        body: JSON.stringify({ ...obligation.action?.body, reason })
+      });
+      await loadWorldData();
+    } catch (error) {
+      throw conditionalPassActionError(error);
+    }
   };
 
   const resetAdmissionFullGateDraftState = (decision: AdmissionDecisionPoint | null = null) => {
@@ -3601,6 +3682,7 @@ function App({
     setTemporalRun(null);
     setTemporalFlowId(null);
     setTemporalSourceRecordId("");
+    setConditionalPassRouteBindings({});
     setTemporalMaterialTitle("");
     setTemporalMaterialBody("");
     setTemporalSubject("");
@@ -5016,6 +5098,7 @@ function App({
     setStage12FlowId(payload.flow.id);
     setStage12LensKey(payload.doctrine.lenses[0]?.key ?? "action_arena");
     if (payload.source.sourceRecordId != null) setStage12SourceRecordId(String(payload.source.sourceRecordId));
+    updateConditionalPassRouteBinding("institutional_economic_suppression", payload.conditionalPassBinding);
   };
 
   const refreshStage12Run = async (flowId = stage12FlowId) => {
@@ -5033,7 +5116,13 @@ function App({
     if (stage12SourceType === "pass_report") {
       return { sourceType: stage12SourceType, reportRecordId: Number(stage12SourceRecordId) };
     }
-    return { sourceType: stage12SourceType, recordId: Number(stage12SourceRecordId) };
+    return {
+      sourceType: stage12SourceType,
+      recordId: Number(stage12SourceRecordId),
+      ...(stage12SourceType === "fact"
+        ? routeBindingBody(conditionalPassRouteBindings.institutional_economic_suppression)
+        : {})
+    };
   };
 
   const startStage12Run = async () => {
@@ -5140,6 +5229,7 @@ function App({
     setConstraintRun(payload);
     setConstraintFlowId(payload.flow.id);
     if (payload.source.sourceRecordId != null) setConstraintSourceRecordId(String(payload.source.sourceRecordId));
+    updateConditionalPassRouteBinding("constraint_composition", payload.conditionalPassBinding);
     setConstraintSubject(payload.source.constrainedSubject);
     if (payload.inventory[0] && !constraintInventoryId) setConstraintInventoryId(String(payload.inventory[0].id));
   };
@@ -5172,7 +5262,10 @@ function App({
     return {
       sourceType: constraintSourceType,
       recordId: Number(constraintSourceRecordId),
-      constrainedSubject: constraintSubject || undefined
+      constrainedSubject: constraintSubject || undefined,
+      ...(constraintSourceType === "fact"
+        ? routeBindingBody(conditionalPassRouteBindings.constraint_composition)
+        : {})
     };
   };
 
@@ -5317,6 +5410,7 @@ function App({
     setTemporalRun(payload);
     setTemporalFlowId(payload.flow.id);
     if (payload.source.sourceRecordId != null) setTemporalSourceRecordId(String(payload.source.sourceRecordId));
+    updateConditionalPassRouteBinding("temporal_timeline", payload.conditionalPassBinding);
     setTemporalSubject(payload.source.auditedSubject);
     const attempted = payload.revisionContract.draftState.attemptedInput;
     if (payload.revisionContract.draftState.failed && attempted && TEMPORAL_COVERAGE_KEYS.every(
@@ -5398,7 +5492,10 @@ function App({
     return {
       sourceType: temporalSourceType,
       recordId: Number(temporalSourceRecordId),
-      auditedSubject: temporalSubject || undefined
+      auditedSubject: temporalSubject || undefined,
+      ...(temporalSourceType === "fact"
+        ? routeBindingBody(conditionalPassRouteBindings.temporal_timeline)
+        : {})
     };
   };
 
@@ -7263,6 +7360,20 @@ function App({
               <p className="status">{stage12Run ? "No server-returned blockers." : "Refresh a run to load exact server blockers."}</p>
             )}
           </section>
+          <div className="grid">
+            <label>Coverage lens<select value={stage12LensKey} onChange={(event) => setStage12LensKey(event.target.value)}>
+              {(stage12Run?.doctrine.lenses ?? []).map((lens) => <option key={lens.key} value={lens.key}>{lens.label}</option>)}
+            </select></label>
+            <label>Stage-12 advisory id<input value={stage12AdvisoryRecordId} onChange={(event) => setStage12AdvisoryRecordId(event.target.value)} /></label>
+          </div>
+          <label>Coverage or outcome prose<textarea rows={4} value={stage12CoverageBody} onChange={(event) => setStage12CoverageBody(event.target.value)} /></label>
+          <button onClick={saveStage12Coverage} disabled={stage12FlowId == null || !stage12CoverageBody.trim()}>Save Coverage</button>
+          {stage12Run && (
+            <section className="subpanel">
+              <h3>Saved coverage</h3>
+              {stage12Run.coverage.map((coverage) => <article key={coverage.id}><h4>{coverage.lensLabel}</h4><p>{coverage.body}</p></article>)}
+            </section>
+          )}
         </section>
       ),
       contradiction: (
@@ -7457,6 +7568,7 @@ function App({
           onNavigate={(destinationKey) => void navigateWorkflow(destinationKey)}
           onFollowConditionalPass={(obligation) => void followConditionalPass(obligation)}
           onDeferConditionalPass={deferConditionalPass}
+          onReinstateConditionalPass={reinstateConditionalPass}
         />
       </main>
     );

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { MethodCard, WorkflowMapConditionalPassObligation, WorkflowMapPayload } from "@worldloom/shared";
 
 interface WorkflowShellProps {
@@ -10,6 +10,7 @@ interface WorkflowShellProps {
   onNavigate: (destinationKey: string) => void;
   onFollowConditionalPass: (obligation: WorkflowMapConditionalPassObligation) => void;
   onDeferConditionalPass: (obligation: WorkflowMapConditionalPassObligation, rationale: string) => Promise<void>;
+  onReinstateConditionalPass: (obligation: WorkflowMapConditionalPassObligation, reason: string) => Promise<void>;
 }
 
 interface DestinationSurfaceProps {
@@ -61,21 +62,35 @@ export function SurfaceNavigation({ workflowMap, activeDestination, onNavigate }
 function ConditionalPassHandoff({
   workflowMap,
   onFollowConditionalPass,
-  onDeferConditionalPass
-}: Pick<WorkflowShellProps, "workflowMap" | "onFollowConditionalPass" | "onDeferConditionalPass">) {
-  const [rationales, setRationales] = useState<Record<number, string>>({});
+  onDeferConditionalPass,
+  onReinstateConditionalPass
+}: Pick<WorkflowShellProps, "workflowMap" | "onFollowConditionalPass" | "onDeferConditionalPass" | "onReinstateConditionalPass">) {
+  const [reasons, setReasons] = useState<Record<number, string>>({});
   const [errors, setErrors] = useState<Record<number, string | null>>({});
   const [pendingId, setPendingId] = useState<number | null>(null);
+  const reasonRefs = useRef<Record<number, HTMLTextAreaElement | null>>({});
   const handoff = workflowMap.conditionalPasses;
   if (!handoff || handoff.obligations.length === 0) return null;
 
-  const submitDeferral = async (obligation: WorkflowMapConditionalPassObligation) => {
+  const submitTransition = async (obligation: WorkflowMapConditionalPassObligation) => {
+    if (!obligation.action) return;
     setPendingId(obligation.id);
     setErrors((current) => ({ ...current, [obligation.id]: null }));
     try {
-      await onDeferConditionalPass(obligation, rationales[obligation.id] ?? "");
+      const reason = reasons[obligation.id] ?? "";
+      if (obligation.action.kind === "reinstate") {
+        await onReinstateConditionalPass(obligation, reason);
+      } else {
+        await onDeferConditionalPass(obligation, reason);
+      }
+      setReasons((current) => {
+        const next = { ...current };
+        delete next[obligation.id];
+        return next;
+      });
     } catch (error) {
       setErrors((current) => ({ ...current, [obligation.id]: error instanceof Error ? error.message : String(error) }));
+      reasonRefs.current[obligation.id]?.focus();
     } finally {
       setPendingId(null);
     }
@@ -97,37 +112,80 @@ function ConditionalPassHandoff({
           <article className={`subpanel conditional-pass-row ${obligation.disposition}`} key={obligation.id}>
             <div className="row">
               <h3>{obligation.ordinal}. {obligation.passLabel}</h3>
-              <span className="pill">{stateLabel(obligation.disposition)}</span>
+              <span className="pill" aria-label={`${obligation.passLabel} current state: ${stateLabel(obligation.disposition)}`}>
+                {stateLabel(obligation.disposition)}
+              </span>
             </div>
             <p>{obligation.doctrine}</p>
+            <p className="meta">Package sources: {obligation.packageSources.join(" · ")}</p>
             <p><strong>Source fact</strong>: {obligation.sourceFact.shortId} · {obligation.sourceFact.title}</p>
             <p><strong>Propagation report</strong>: {obligation.propagationReport.shortId} · {obligation.propagationReport.title}</p>
             <p><strong>Destination</strong>: {obligation.destination.label} · {obligation.destination.href}</p>
             {obligation.blocker && <p className="error">{obligation.blocker}</p>}
+            {obligation.remediation && <p className="meta"><strong>Remediation</strong>: {obligation.remediation}</p>}
             {obligation.coveringEvidence && <p><strong>Coverage evidence</strong>: {obligation.coveringEvidence.shortId} · {obligation.coveringEvidence.title}</p>}
             {obligation.rationale && <p><strong>Deferral rationale</strong>: {obligation.rationale}</p>}
             <details>
               <summary>Provenance and governed history</summary>
               <p>{obligation.provenance.actor} · {obligation.provenance.timestamp} · {obligation.provenance.flowStep}</p>
               {obligation.history.map((event, index) => (
-                <p key={`${event.action}:${event.timestamp}:${index}`}>{event.action}: {event.priorState ?? "emitted"} → {event.resultingState} · {event.actor} · {event.timestamp} · {event.flowStep}</p>
+                <p
+                  className={`conditional-pass-event ${event.action}`}
+                  aria-label={`${obligation.passLabel} historical ${event.action} event`}
+                  key={`${event.action}:${event.timestamp}:${index}`}
+                >
+                  {event.action}: {event.priorState ?? "emitted"} → {event.resultingState}
+                  {event.rationale ? ` · reason: ${event.rationale}` : ""}
+                  {event.evidenceRecordId != null ? ` · evidence record ${event.evidenceRecordId}` : ""}
+                  {` · ${event.actor} · ${event.timestamp} · ${event.flowStep}`}
+                </p>
               ))}
             </details>
-            <button onClick={() => onFollowConditionalPass(obligation)} disabled={obligation.disposition !== "outstanding"}>
+            {obligation.readSideTrail.length > 0 && (
+              <nav aria-label={`${obligation.passLabel} read-side trail`} className="chips">
+                {obligation.readSideTrail.map((trail) => (
+                  <a href={trail.href} key={`${trail.recordId}:${trail.href}`}>{trail.label}</a>
+                ))}
+              </nav>
+            )}
+            <button
+              onClick={() => onFollowConditionalPass(obligation)}
+              disabled={!obligation.destination.available}
+              title={obligation.destination.blocker ?? undefined}
+            >
               Follow source-selected pass
             </button>
             {obligation.action && (
-              <section className="subpanel conditional-pass-deferral">
-                <h4>Preview governed deferral</h4>
+              <section className={`subpanel conditional-pass-transition ${obligation.action.kind}`}>
+                <h4>Preview governed {obligation.action.kind === "reinstate" ? "reinstatement" : "deferral"}</h4>
                 <p>{obligation.action.proposedWrite}</p>
                 <p className="meta">Leaves untouched: {obligation.action.willLeaveUntouched.join(" · ")}</p>
-                <label>Deferral rationale<textarea
+                <p className="meta">Required fields: {obligation.fieldClassifications.required.join(", ") || "none"}</p>
+                <p className="meta">Optional fields: {obligation.fieldClassifications.optional.join(", ") || "none"}</p>
+                <p className="meta">Skippable: {obligation.fieldClassifications.skippable.join(", ") || "none"}</p>
+                <p className="meta">Severity-dependent fields: {obligation.fieldClassifications.severityDependent.join(", ") || "none"}</p>
+                <label>{obligation.action.reasonLabel}<textarea
+                  ref={(element) => {
+                    reasonRefs.current[obligation.id] = element;
+                  }}
                   rows={3}
-                  value={rationales[obligation.id] ?? ""}
-                  onChange={(event) => setRationales((current) => ({ ...current, [obligation.id]: event.target.value }))}
+                  aria-describedby={errors[obligation.id] ? `conditional-pass-error-${obligation.id}` : undefined}
+                  value={reasons[obligation.id] ?? ""}
+                  onChange={(event) => setReasons((current) => ({ ...current, [obligation.id]: event.target.value }))}
                 /></label>
-                {errors[obligation.id] && <p className="error">{errors[obligation.id]}</p>}
-                <button onClick={() => void submitDeferral(obligation)} disabled={pendingId === obligation.id}>Defer with rationale</button>
+                {errors[obligation.id] && (
+                  <p
+                    className="error"
+                    id={`conditional-pass-error-${obligation.id}`}
+                    role="alert"
+                    aria-live="assertive"
+                  >
+                    {errors[obligation.id]}
+                  </p>
+                )}
+                <button onClick={() => void submitTransition(obligation)} disabled={pendingId === obligation.id}>
+                  {obligation.action.label}
+                </button>
               </section>
             )}
           </article>
@@ -137,7 +195,13 @@ function ConditionalPassHandoff({
   );
 }
 
-export function WorkflowMapHome({ workflowMap, onNavigate, onFollowConditionalPass, onDeferConditionalPass }: Pick<WorkflowShellProps, "workflowMap" | "onNavigate" | "onFollowConditionalPass" | "onDeferConditionalPass">) {
+export function WorkflowMapHome({
+  workflowMap,
+  onNavigate,
+  onFollowConditionalPass,
+  onDeferConditionalPass,
+  onReinstateConditionalPass
+}: Pick<WorkflowShellProps, "workflowMap" | "onNavigate" | "onFollowConditionalPass" | "onDeferConditionalPass" | "onReinstateConditionalPass">) {
   return (
     <section className="workflow-map-home" aria-labelledby="workflow-map-heading">
       <div className="panel">
@@ -172,6 +236,7 @@ export function WorkflowMapHome({ workflowMap, onNavigate, onFollowConditionalPa
         workflowMap={workflowMap}
         onFollowConditionalPass={onFollowConditionalPass}
         onDeferConditionalPass={onDeferConditionalPass}
+        onReinstateConditionalPass={onReinstateConditionalPass}
       />
 
       <section className="panel">
@@ -227,7 +292,17 @@ export function DestinationSurface({ destinationKey, workflowMap, children, onNa
   );
 }
 
-export function WorkflowShell({ workflowMap, activeDestination, setupControls, surfaces, status, onNavigate, onFollowConditionalPass, onDeferConditionalPass }: WorkflowShellProps) {
+export function WorkflowShell({
+  workflowMap,
+  activeDestination,
+  setupControls,
+  surfaces,
+  status,
+  onNavigate,
+  onFollowConditionalPass,
+  onDeferConditionalPass,
+  onReinstateConditionalPass
+}: WorkflowShellProps) {
   const surface = activeDestination === "map" ? null : surfaces[activeDestination] ?? surfaces.substrate;
 
   return (
@@ -243,6 +318,7 @@ export function WorkflowShell({ workflowMap, activeDestination, setupControls, s
             onNavigate={onNavigate}
             onFollowConditionalPass={onFollowConditionalPass}
             onDeferConditionalPass={onDeferConditionalPass}
+            onReinstateConditionalPass={onReinstateConditionalPass}
           />
         ) : (
           <DestinationSurface destinationKey={activeDestination} workflowMap={workflowMap} onNavigate={onNavigate}>

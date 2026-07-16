@@ -1,7 +1,11 @@
 import { intakeProposedFact } from "./admission-flow.js";
 import { ADVISORY_OUTPUT_LABELS, promptMode, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
 import { methodCard, methodCardDoctrineSlots, methodCardSourceManifest, methodCardsForFlow } from "./method-cards.js";
-import { coverMatchingConditionalPassObligation } from "./conditional-pass-obligations.js";
+import {
+  bindConditionalPassFlow,
+  conditionalPassBindingForFlow,
+  coverMatchingConditionalPassObligation
+} from "./conditional-pass-obligations.js";
 import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, RecordRow, WorldFile } from "./world-file.js";
 
@@ -395,7 +399,13 @@ const stage12DecisionPoint = (world: WorldFile, flowId: number): { sharedContrac
 };
 
 export type StartStage12RunInput =
-  | { sourceType: "fact" | "under_review_fact" | "canon_debt"; recordId: number }
+  | {
+      sourceType: "fact";
+      recordId: number;
+      conditionalPassObligationId?: number;
+      propagationReportRecordId?: number;
+    }
+  | { sourceType: "under_review_fact" | "canon_debt"; recordId: number }
   | { sourceType: "record_section"; recordId: number; sectionHeading: string }
   | { sourceType: "material"; materialTitle: string; materialBody: string }
   | { sourceType: "pass_report"; reportRecordId: number };
@@ -417,6 +427,7 @@ export const getStage12Run = (world: WorldFile, flowId: number) => {
     advisories: advisoryRows(world, flowId),
     skips: skipRows(world, flowId),
     closeReadiness: closeReadiness(world, flowId),
+    conditionalPassBinding: conditionalPassBindingForFlow(world, flowId),
     decisionPoint: stage12DecisionPoint(world, flowId)
   };
 };
@@ -440,7 +451,18 @@ export const startStage12Run = (world: WorldFile, input: StartStage12RunInput) =
 
   const source = sourceSummaryFor(world, input);
   const existingFlowId = findExistingRun(world, input.sourceType, source);
-  if (existingFlowId != null) return getStage12Run(world, existingFlowId);
+  if (existingFlowId != null) {
+    if (input.sourceType === "fact" && input.conditionalPassObligationId != null) {
+      bindConditionalPassFlow(world, {
+        flowId: existingFlowId,
+        obligationId: input.conditionalPassObligationId,
+        passKey: "institutional_economic_suppression",
+        sourceFactRecordId: input.recordId,
+        propagationReportRecordId: input.propagationReportRecordId
+      });
+    }
+    return getStage12Run(world, existingFlowId);
+  }
 
   return world.atomicWrite(() => {
     const report = world.createRecord({
@@ -481,6 +503,15 @@ export const startStage12Run = (world: WorldFile, input: StartStage12RunInput) =
     );
     if (source.sourceRecordId != null) {
       world.createLinkIfMissing(report.id, source.sourceRecordId, "derived_from", "Stage-12 pass analyzes this source");
+    }
+    if (input.sourceType === "fact" && input.conditionalPassObligationId != null) {
+      bindConditionalPassFlow(world, {
+        flowId: Number(flow.id),
+        obligationId: input.conditionalPassObligationId,
+        passKey: "institutional_economic_suppression",
+        sourceFactRecordId: input.recordId,
+        propagationReportRecordId: input.propagationReportRecordId
+      });
     }
     return getStage12Run(world, Number(flow.id));
   });
@@ -849,12 +880,15 @@ export const closeStage12Run = (world: WorldFile, flowId: number) => {
   }
   return world.atomicWrite(() => {
     const source = readSource(world, flowId);
+    const conditionalPassBinding = conditionalPassBindingForFlow(world, flowId);
     writeCloseSections(world, flowId);
     const complete = world.updateFlowInstance(flowId, { state: "complete", currentStep: "stage12:complete" });
     if (source.sourceRecordId != null) {
       coverMatchingConditionalPassObligation(world, {
         passKey: "institutional_economic_suppression",
         sourceFactRecordId: source.sourceRecordId,
+        obligationId: conditionalPassBinding?.obligationId,
+        propagationReportRecordId: conditionalPassBinding?.propagationReportRecordId,
         coveringReportRecordId: source.passReportRecordId,
         flowStep: "stage12:complete"
       });

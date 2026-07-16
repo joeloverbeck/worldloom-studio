@@ -1,6 +1,6 @@
 # Browser-Visible Guidance Acceptance
 
-This document defines reusable acceptance evidence for browser guidance. It is not a PRD and not a test framework; it tells reviewers what proof to ask for when a guided-flow issue claims completion.
+This document defines reusable acceptance evidence for browser guidance. It is not a PRD and not a test framework; it tells reviewers what proof to ask for when a guided-flow issue claims completion. The post-Propagation Conditional-pass evidence contract is downstream of `docs/worldbuilding-system/03_truth_layers_and_canon_governance.md`, `docs/worldbuilding-system/07_propagation_engine.md`, and `docs/worldbuilding-system/22_glossary.md`.
 
 ## Required Evidence Patterns
 
@@ -66,6 +66,28 @@ When a slice claims the source-linked post-Propagation handoff, active-route evi
 - separate browser console errors and warnings with zero unexplained entries, plus a docs-naive walkthrough that can identify what is owed, why, what deferral writes, where Admission remains available, and how to return safely.
 
 Prompt-out packets and advisory material are N/A for this handoff. Package paths are provenance; the visible decision and doctrine remain sufficient without opening them.
+
+### Redeemable deferral extension
+
+When the post-Propagation Conditional-pass handoff supports redemption, active-route evidence must additionally show:
+
+- app-owned doctrine at the handoff explaining outstanding work, governed deferral, rationale-bearing reinstatement, direct evidence-based coverage, covered terminality, and the append-only history boundary;
+- current `outstanding`, `deferred`, and `covered` projections rendered as current state, visually and semantically distinct from emitted, reconciled, deferred, reinstated, and covered history; `reinstated` is never rendered as a fourth current disposition;
+- only server-returned destination and transition actions, required, optional, skippable, and severity-dependent field classifications, blockers, remediation, request bodies, write previews, untouched-state guarantees, counts, order, routeability, and orientation, with no new optional or severity-dependent authoring field;
+- separate deferral and reinstatement decision states, each with the server-declared required written reason, selected obligation and source/report/pass identity, proposed write, affected state, non-mutation boundary, and no silent decline or silent undo;
+- one intentionally empty, stale, mismatched, rejected, or forced-failure reinstatement whose exact blocker and substance remediation remain adjacent to the action while the entered reason, row context, current authoritative state, keyboard focus, and screen-reader context are preserved for correction or safe return;
+- a successful reinstatement that waits for a fresh workflow-map payload before rendering outstanding state, restored server-returned source-selected routing, refreshed outstanding/governed counts, stable order, primary next decision, current/next/resume orientation, safe return, Admission visibility, and complete deferral plus reinstatement history;
+- following the restored pass and returning safely without substantive completion, proving navigation and map reads leave the obligation outstanding and create no coverage;
+- completed matching work after reinstatement producing outstanding-to-covered history, completed-report evidence, complete prior history, fresh orientation, terminal covered state, and no stale transition action;
+- an independent separate obligation covered directly from deferred state, retaining its deferral event and rationale, recording deferred-to-covered history and the completed report, and fabricating no reinstatement;
+- exact browser/API blockers and remediation for incomplete work, wrong source fact, wrong pass key, wrong Propagation report, wrong report type, ambiguous matching, stale state, incompatible retry, and already-covered attempts, with no browser-selected target and no partial mutation;
+- at least two complete defer/reinstate cycles with distinct ordered reasons and actor/timestamp/flow-step provenance, unchanged-target retries with no new event, and the same reason after an intervening transition producing a genuine new event;
+- read-side links for source fact, final Propagation report, obligation, and covering report, with current rationale or evidence separated from complete immutable event history;
+- covered obligations exposing and accepting neither deferral nor reinstatement;
+- before/after fingerprints proving source fact text and standing, append-only reports, Admission contents and ordering, canon debt, sibling obligations, records, links, and unrelated flows remain unchanged except for the selected projection, approved events, covering evidence, and explicit specialized-pass outcomes; and
+- a docs-naive cognitive walkthrough for both redemption paths, including route, action, outcome, required/optional/skippable/severity-dependent classifications, accessibility and focus behavior, screenshots or equivalent durable observations, safe return, and separate browser console errors and warnings with zero unexplained entries.
+
+Focused React evidence supports this pattern by covering outstanding deferral, deferred reinstatement, invalid-action preservation and focus, successful fresh-payload routing, repeated history, direct deferred coverage, terminal covered state, Admission alternative, read-side links, and current/next/resume rendering. Source-policy checks may prove that the browser consumes returned transition, identity, doctrine, blocker, evidence, history, count, ordering, route, and orientation shapes, but they never replace the rendered production route.
 
 ## Propagation Pre-Close Revision Evidence Pattern
 

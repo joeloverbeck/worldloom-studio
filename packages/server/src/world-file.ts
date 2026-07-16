@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { basename, dirname, join, resolve } from "node:path";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { APPLICATION_ID, CURRENT_SCHEMA_VERSION, migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010, migration011, migration012, migration013 } from "./schema.js";
+import { APPLICATION_ID, CURRENT_SCHEMA_VERSION, migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010, migration011, migration012, migration013, migration014 } from "./schema.js";
 import { PROMPT_TEMPLATE_SEEDS } from "./prompt-out-defaults.js";
 import { LINK_TYPES, RECORD_TYPES, RECORD_TYPE_BY_KEY } from "@worldloom/shared";
 
@@ -1116,6 +1116,16 @@ export class WorldFile {
       this.db.exec("BEGIN");
       try {
         this.db.exec(migration013);
+        this.db.exec("COMMIT");
+      } catch (error) {
+        this.db.exec("ROLLBACK");
+        throw error;
+      }
+    }
+    if (version < 14) {
+      this.db.exec("BEGIN");
+      try {
+        this.db.exec(migration014);
         this.db.exec("COMMIT");
       } catch (error) {
         this.db.exec("ROLLBACK");

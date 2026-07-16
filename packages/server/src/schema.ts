@@ -12,7 +12,7 @@ import {
 import { QA_RED_TEAM_PROMPT_TEXT, QA_TEST_CATALOG } from "./qa-catalog.js";
 
 export const APPLICATION_ID = 0x574c4f4d;
-export const CURRENT_SCHEMA_VERSION = 13;
+export const CURRENT_SCHEMA_VERSION = 14;
 
 const sqlString = (value: string): string => `'${value.replaceAll("'", "''")}'`;
 
@@ -1854,4 +1854,137 @@ CREATE TABLE IF NOT EXISTS temporal_run_outcomes (
 ) STRICT;
 
 PRAGMA user_version = 13;
+`;
+
+export const migration014 = `
+ALTER TABLE conditional_pass_obligation_events RENAME TO conditional_pass_obligation_events_v13;
+
+CREATE TABLE conditional_pass_obligation_events (
+  id INTEGER PRIMARY KEY,
+  obligation_id INTEGER NOT NULL REFERENCES conditional_pass_obligations(id) ON DELETE CASCADE,
+  action_key TEXT NOT NULL CHECK (action_key IN ('emitted', 'reconciled', 'deferred', 'reinstated', 'covered')),
+  prior_disposition TEXT CHECK (prior_disposition IN ('outstanding', 'covered', 'deferred')),
+  resulting_disposition TEXT NOT NULL CHECK (resulting_disposition IN ('outstanding', 'covered', 'deferred')),
+  rationale TEXT,
+  evidence_record_id INTEGER REFERENCES records(id) ON DELETE RESTRICT,
+  actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+  flow_step TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+INSERT INTO conditional_pass_obligation_events (
+  id,
+  obligation_id,
+  action_key,
+  prior_disposition,
+  resulting_disposition,
+  rationale,
+  evidence_record_id,
+  actor_id,
+  flow_step,
+  created_at
+)
+SELECT
+  id,
+  obligation_id,
+  action_key,
+  prior_disposition,
+  resulting_disposition,
+  rationale,
+  evidence_record_id,
+  actor_id,
+  flow_step,
+  created_at
+FROM conditional_pass_obligation_events_v13
+ORDER BY id;
+
+DROP TABLE conditional_pass_obligation_events_v13;
+
+CREATE TRIGGER conditional_pass_events_emission_shape
+BEFORE INSERT ON conditional_pass_obligation_events
+WHEN new.action_key IN ('emitted', 'reconciled')
+  AND (
+    new.prior_disposition IS NOT NULL
+    OR new.resulting_disposition != 'outstanding'
+    OR new.rationale IS NOT NULL
+    OR new.evidence_record_id IS NOT NULL
+  )
+BEGIN
+  SELECT RAISE(ABORT, 'emitted and reconciled Conditional-pass events require no prior state and an outstanding result');
+END;
+
+CREATE TRIGGER conditional_pass_events_deferral_shape
+BEFORE INSERT ON conditional_pass_obligation_events
+WHEN new.action_key = 'deferred'
+  AND (new.prior_disposition != 'outstanding' OR new.resulting_disposition != 'deferred')
+BEGIN
+  SELECT RAISE(ABORT, 'deferred Conditional-pass events require outstanding to deferred');
+END;
+
+CREATE TRIGGER conditional_pass_events_deferral_reason
+BEFORE INSERT ON conditional_pass_obligation_events
+WHEN new.action_key = 'deferred'
+  AND length(trim(COALESCE(new.rationale, ''))) = 0
+BEGIN
+  SELECT RAISE(ABORT, 'deferred Conditional-pass events require a non-empty reason');
+END;
+
+CREATE TRIGGER conditional_pass_events_reinstatement_shape
+BEFORE INSERT ON conditional_pass_obligation_events
+WHEN new.action_key = 'reinstated'
+  AND (new.prior_disposition != 'deferred' OR new.resulting_disposition != 'outstanding')
+BEGIN
+  SELECT RAISE(ABORT, 'reinstated Conditional-pass events require deferred to outstanding');
+END;
+
+CREATE TRIGGER conditional_pass_events_reinstatement_reason
+BEFORE INSERT ON conditional_pass_obligation_events
+WHEN new.action_key = 'reinstated'
+  AND length(trim(COALESCE(new.rationale, ''))) = 0
+BEGIN
+  SELECT RAISE(ABORT, 'reinstated Conditional-pass events require a non-empty reason');
+END;
+
+CREATE TRIGGER conditional_pass_events_coverage_shape
+BEFORE INSERT ON conditional_pass_obligation_events
+WHEN new.action_key = 'covered'
+  AND (
+    new.prior_disposition NOT IN ('outstanding', 'deferred')
+    OR new.resulting_disposition != 'covered'
+  )
+BEGIN
+  SELECT RAISE(ABORT, 'covered Conditional-pass events require outstanding or deferred to covered');
+END;
+
+CREATE TRIGGER conditional_pass_events_coverage_evidence
+BEFORE INSERT ON conditional_pass_obligation_events
+WHEN new.action_key = 'covered'
+  AND (
+    new.evidence_record_id IS NULL
+    OR NOT EXISTS (
+      SELECT 1
+      FROM records evidence
+      WHERE evidence.id = new.evidence_record_id
+        AND evidence.record_type_key = 'pass_report'
+    )
+  )
+BEGIN
+  SELECT RAISE(ABORT, 'covered Conditional-pass events require completed pass_report evidence');
+END;
+
+CREATE TRIGGER conditional_pass_events_coverage_rationale
+BEFORE INSERT ON conditional_pass_obligation_events
+WHEN new.action_key = 'covered'
+  AND new.rationale IS NOT NULL
+BEGIN
+  SELECT RAISE(ABORT, 'covered Conditional-pass events cannot carry a rationale instead of evidence');
+END;
+
+CREATE TABLE conditional_pass_flow_bindings (
+  flow_id INTEGER PRIMARY KEY REFERENCES flow_instances(id) ON DELETE CASCADE,
+  obligation_id INTEGER NOT NULL REFERENCES conditional_pass_obligations(id) ON DELETE RESTRICT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) STRICT;
+
+PRAGMA user_version = 14;
 `;

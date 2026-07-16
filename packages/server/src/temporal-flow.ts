@@ -1,7 +1,11 @@
 import { intakeProposedFact } from "./admission-flow.js";
 import { ADVISORY_OUTPUT_LABELS, promptMode, withPromptModeSummaries, type DecisionPointPromptMode, type DecisionPointSharedContract } from "./decision-point-contract.js";
 import { methodCard, methodCardDoctrineSlots, methodCardsForFlow, methodCardSourceManifest } from "./method-cards.js";
-import { coverMatchingConditionalPassObligation } from "./conditional-pass-obligations.js";
+import {
+  bindConditionalPassFlow,
+  conditionalPassBindingForFlow,
+  coverMatchingConditionalPassObligation
+} from "./conditional-pass-obligations.js";
 import * as PromptOut from "./prompt-out.js";
 import * as TemporalStore from "./temporal-store.js";
 import type { AdmissionQueueRow, RecordRow, SectionRow, WorldFile } from "./world-file.js";
@@ -543,7 +547,14 @@ const stagedRecords = (world: WorldFile, flowId: number, recordType: string, lin
 const sections = (world: WorldFile, flowId: number) => world.listSections(readReport(world, flowId).id);
 
 export type StartTemporalRunInput =
-  | { sourceType: "fact" | "capability" | "canon_debt"; recordId: number; auditedSubject?: string }
+  | {
+      sourceType: "fact";
+      recordId: number;
+      auditedSubject?: string;
+      conditionalPassObligationId?: number;
+      propagationReportRecordId?: number;
+    }
+  | { sourceType: "capability" | "canon_debt"; recordId: number; auditedSubject?: string }
   | { sourceType: "material"; materialTitle: string; materialBody: string; auditedSubject?: string }
   | { sourceType: "pass_report"; reportRecordId: number };
 
@@ -583,6 +594,7 @@ export const getTemporalRun = (world: WorldFile, flowId: number) => {
     skips: stagedRecords(world, flowId, "skip_record", "covers").map((record) => ({ record })),
     closeReadiness: closeReadiness(world, flowId),
     closePreview: previewTemporalClose(world, flowId),
+    conditionalPassBinding: conditionalPassBindingForFlow(world, flowId),
     revisionContract: revisionDecisionContract(world, flowId),
     reportRelationship: reportRelationship(world, flowId),
     promptOut: promptOutState(world, flowId),
@@ -602,7 +614,18 @@ export const startTemporalRun = (world: WorldFile, input: StartTemporalRunInput)
 
   const source = sourceSummaryFor(world, input);
   const existingFlowId = findExistingRun(world, source);
-  if (existingFlowId != null) return getTemporalRun(world, existingFlowId);
+  if (existingFlowId != null) {
+    if (input.sourceType === "fact" && input.conditionalPassObligationId != null) {
+      bindConditionalPassFlow(world, {
+        flowId: existingFlowId,
+        obligationId: input.conditionalPassObligationId,
+        passKey: "temporal_timeline",
+        sourceFactRecordId: input.recordId,
+        propagationReportRecordId: input.propagationReportRecordId
+      });
+    }
+    return getTemporalRun(world, existingFlowId);
+  }
 
   return world.atomicWrite(() => {
     const flow = world.createFlowInstance({ flowKey: FLOW_KEY, currentStep: "temporal:entry" });
@@ -615,6 +638,15 @@ export const startTemporalRun = (world: WorldFile, input: StartTemporalRunInput)
       auditedSubject: source.auditedSubject,
       sourceSummary: source.sourceSummary
     });
+    if (input.sourceType === "fact" && input.conditionalPassObligationId != null) {
+      bindConditionalPassFlow(world, {
+        flowId: Number(flow.id),
+        obligationId: input.conditionalPassObligationId,
+        passKey: "temporal_timeline",
+        sourceFactRecordId: input.recordId,
+        propagationReportRecordId: input.propagationReportRecordId
+      });
+    }
     return getTemporalRun(world, Number(flow.id));
   });
 };
@@ -889,6 +921,7 @@ export const closeTemporalRun = (world: WorldFile, flowId: number) => {
   }
   return world.atomicWrite(() => {
     const source = sourceForRun(world, flowId);
+    const conditionalPassBinding = conditionalPassBindingForFlow(world, flowId);
     const coverage = requireCoverage(world, flowId);
     const staged = TemporalStore.getRun(world, flowId);
     const lineage = TemporalStore.listRevisions(world, flowId);
@@ -953,6 +986,8 @@ export const closeTemporalRun = (world: WorldFile, flowId: number) => {
       coverMatchingConditionalPassObligation(world, {
         passKey: "temporal_timeline",
         sourceFactRecordId: source.sourceRecordId,
+        obligationId: conditionalPassBinding?.obligationId,
+        propagationReportRecordId: conditionalPassBinding?.propagationReportRecordId,
         coveringReportRecordId: report.id,
         flowStep: "temporal:complete"
       });

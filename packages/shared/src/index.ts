@@ -82,13 +82,28 @@ export interface WorkflowMapConditionalPassObligation {
   rationale: string | null;
   coveringEvidence: WorkflowMapRecordRef | null;
   doctrine: string;
+  packageSources: string[];
+  fieldClassifications: {
+    required: string[];
+    optional: string[];
+    skippable: string[];
+    severityDependent: string[];
+  };
   blocker: string | null;
+  remediation: string | null;
   destination: {
     destinationKey: string;
     label: string;
     method: "POST";
     href: string;
-    body: { sourceType: "fact"; recordId: number };
+    available: boolean;
+    blocker: string | null;
+    body: {
+      sourceType: "fact";
+      recordId: number;
+      conditionalPassObligationId: number;
+      propagationReportRecordId: number;
+    };
   };
   provenance: {
     actor: string;
@@ -109,13 +124,19 @@ export interface WorkflowMapConditionalPassObligation {
   }>;
   readSideTrail: Array<{ label: string; recordId: number; href: string }>;
   action: null | {
+    kind: "defer" | "reinstate";
+    label: string;
     method: "POST";
     href: string;
+    requiredReason: true;
     requiredRationale: true;
+    reasonLabel: string;
+    identityGuards: readonly ["passKey", "sourceFactRecordId", "propagationReportRecordId"];
     proposedWrite: string;
     willLeaveUntouched: string[];
     body: {
-      disposition: "deferred";
+      disposition: "deferred" | "outstanding";
+      expectedDisposition: "outstanding" | "deferred";
       passKey: ConditionalPassKey;
       sourceFactRecordId: number;
       propagationReportRecordId: number;

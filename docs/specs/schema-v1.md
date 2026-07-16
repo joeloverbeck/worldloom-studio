@@ -1,6 +1,6 @@
 # Schema v1 Spec
 
-This spec defines the first Worldloom Studio world-file schema and the generic walking-skeleton surfaces that exercise it. It is downstream of `docs/worldbuilding-system/` package 1.0, `docs/adr/0001-sqlite-file-per-world.md`, `docs/adr/0002-localhost-native-process.md`, `docs/adr/0003-branch-and-collaboration-schema-door.md`, and `docs/adr/0004-typescript-hono-react-better-sqlite.md`.
+This spec defines the first Worldloom Studio world-file schema and the generic walking-skeleton surfaces that exercise it. It is downstream of `docs/worldbuilding-system/` package 1.0, including `docs/worldbuilding-system/03_truth_layers_and_canon_governance.md`, `docs/worldbuilding-system/07_propagation_engine.md`, and `docs/worldbuilding-system/22_glossary.md`, plus `docs/adr/0001-sqlite-file-per-world.md`, `docs/adr/0002-localhost-native-process.md`, `docs/adr/0003-branch-and-collaboration-schema-door.md`, and `docs/adr/0004-typescript-hono-react-better-sqlite.md`.
 
 Guided flows are out of scope. The schema makes every package record type usable at the record level before flow-specific screens exist.
 
@@ -126,6 +126,35 @@ Temporal-specific tables, reads, writes, and migration interpretation belong to 
 A new run creates no report before close. Its first accepted save inserts the active first revision. A material replacement retires that row as superseded and inserts a new active revision in one transaction. Close creates one append-only `pass_report` from only the active revision plus sufficient revision audit, links explicit Temporal outcomes, freezes staging, and records that report as the current result.
 
 Migration of an existing open run whose coverage already lives in a `pass_report` preserves the report and its sections byte-for-byte, restores the ten values into an active first revision, records the retained report identity, and fabricates no reason or retired version. It does not complete the flow or mutate source standing/text, the source Propagation report, sibling conditional-pass obligations, Admission contents, canon debt, advisory artifacts, records, links, or unrelated flow state. Final close creates a new correction `pass_report`, links correction to retained prior report through `supersedes`, and selects the correction for current-result reads while audit reads retain both reports and staged lineage.
+
+## Conditional-Pass Obligation Lifecycle
+
+The source-linked **post-Propagation Conditional-pass handoff** is flow-owned structured state downstream of `03`, `07`, and the glossary's governance, audit-trail, propagation, and identifier vocabulary. It is not inferred from canon-debt prose, titles, report bodies, or link notes.
+
+`conditional_pass_obligations` is the current projection. It retains exactly three disposition values:
+
+- `outstanding`: rationale and covering evidence are empty;
+- `deferred`: a non-empty current deferral rationale is present and covering evidence is empty;
+- `covered`: current rationale is empty and a completed `pass_report` is present as covering evidence.
+
+The stable obligation identity is source fact record + final Propagation report record + pass key, with the existing stable ordinal. `reinstated` is not a projection value. It is an immutable event action representing `deferred` to `outstanding`.
+
+`conditional_pass_obligation_events` is the ordered governed history. Its action vocabulary is `emitted`, `reconciled`, `deferred`, `reinstated`, and `covered`. Every transition event preserves obligation identity, prior disposition where applicable, resulting disposition, actor, timestamp, flow step, and either a non-empty governing rationale or completed-report evidence as applicable. Event identity and retry protection must permit repeated real defer/reinstate cycles; action text, reason text, and resulting disposition alone are not unique lifecycle identity.
+
+Transition invariants are:
+
+- deferral is `outstanding` to `deferred`, requires a reason, stores that reason on the current projection, and appends one deferral event;
+- reinstatement is `deferred` to `outstanding`, requires a reason, clears only the current deferral rationale, keeps covering evidence empty, and appends one reinstatement event while preserving prior reasons in history;
+- coverage is `outstanding` or `deferred` to `covered`, records the actual prior disposition, clears current rationale, stores a completed matching `pass_report`, and appends one coverage event without rewriting prior events;
+- covered is terminal for this lifecycle and cannot be deferred or reinstated;
+- an unchanged-target retry with the same governing reason returns the current projection without another event, while an incompatible repeat is refused and the same action after an intervening transition creates a new event even when the reason repeats;
+- source fact, pass key, final Propagation report, report type, and unambiguous obligation identity govern matching; incomplete work, partial identity, and prose never establish coverage.
+
+Conditional-pass-specific reads and SQL remain with the owning Conditional-pass flow module under ADR 0008. The module composes `WorldFile.atomicWrite` for projection updates plus event inserts and uses shared record/link operations for source, report, obligation, and covering-evidence relationships. Transition legality, action availability, blockers, matching, ordering, and routeability remain server-owned under ADR 0009.
+
+The forward migration expands the event vocabulary and transition contract without changing the existing three-value projection. It preserves every existing obligation id, record id, source/report/pass tuple, ordinal, disposition, rationale, covering evidence, actor, flow step, and timestamp, plus every existing event id, action, prior/resulting disposition, rationale, evidence, actor, flow step, timestamp, and order. It fabricates no reinstatement event and does not change a deferred obligation to outstanding. Historical worlds become eligible for explicit reinstatement and direct deferred coverage only after the steward or substantive matching work performs the relevant transition.
+
+Every transition validates the authoritative row within the same atomic write that updates the projection and appends its event. Stale state, empty reason, incompatible retry, identity mismatch, ambiguous coverage, wrong report type, incomplete evidence, and forced projection or event persistence failure roll back together. The rollback boundary preserves sibling obligations, source fact text and standing, append-only Propagation and specialized-pass reports, Admission contents and ordering, canon debt, records, links, and unrelated flow state.
 
 ## Controlled Vocabulary Seeds
 

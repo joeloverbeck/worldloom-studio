@@ -4,6 +4,14 @@ import { join } from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
+import {
+  coverMatchingConditionalPassObligation,
+  deferConditionalPassObligation,
+  emitFoundationalObligations,
+  reinstateConditionalPassObligation
+} from "../src/conditional-pass-obligations.js";
+import { CURRENT_SCHEMA_VERSION } from "../src/schema.js";
+import { WorldFile } from "../src/world-file.js";
 
 let tempDirs: string[] = [];
 
@@ -92,6 +100,386 @@ afterEach(() => {
 });
 
 describe("conditional-pass obligation HTTP contract", () => {
+  it("enforces Conditional-pass event transition shape at the SQLite boundary", () => {
+    const path = tempPath("conditional-pass-event-invariants.sqlite");
+    const world = WorldFile.create(path);
+    try {
+      const fact = world.createRecord({
+        recordTypeKey: "canon_fact",
+        title: "Invariant source fact",
+        body: "Direct SQL must preserve the Conditional-pass lifecycle contract.",
+        truthLayer: "Objective canon",
+        canonStatus: "accepted"
+      });
+      world.addFacet(fact.id, { vocabulary: "admission_level", term: "5" });
+      world.addFacet(fact.id, { vocabulary: "work_scale", term: "catastrophic" });
+      const report = world.createRecord({
+        recordTypeKey: "propagation_report",
+        title: "Invariant final Propagation report",
+        body: "Final source-linked report.",
+        truthLayer: "Objective canon",
+        canonStatus: "accepted"
+      });
+      const obligation = emitFoundationalObligations(world, {
+        sourceFactRecordId: fact.id,
+        propagationReportRecordId: report.id
+      })[0]!;
+      const evidence = world.createRecord({
+        recordTypeKey: "pass_report",
+        title: "Completed matching pass",
+        body: "Substantive completed evidence.",
+        truthLayer: "Objective canon",
+        canonStatus: "accepted"
+      });
+      const insert = world.db.prepare(`
+        INSERT INTO conditional_pass_obligation_events (
+          obligation_id, action_key, prior_disposition, resulting_disposition,
+          rationale, evidence_record_id, actor_id, flow_step
+        ) VALUES (?, ?, ?, ?, ?, ?, 1, 'test:direct-sql')
+      `);
+
+      expect(() => insert.run(obligation.id, "reinstated", "outstanding", "outstanding", "Invalid prior state.", null))
+        .toThrow(/reinstated.*deferred.*outstanding/i);
+      expect(() => insert.run(obligation.id, "reinstated", "deferred", "outstanding", "   ", null))
+        .toThrow(/reinstated.*reason/i);
+      expect(() => insert.run(obligation.id, "covered", "deferred", "covered", null, null))
+        .toThrow(/covered.*evidence/i);
+      expect(() => insert.run(obligation.id, "covered", "deferred", "covered", "Reason is not coverage evidence.", evidence.id))
+        .toThrow(/covered.*rationale/i);
+    } finally {
+      world.close();
+    }
+  });
+
+  it("migrates deferred obligations and ordered history without rewriting them before redemption", () => {
+    const path = tempPath("conditional-pass-v13-migration.sqlite");
+    const world = WorldFile.create(path);
+    const fact = world.createRecord({
+      recordTypeKey: "canon_fact",
+      title: "Historical redemption source",
+      body: "A historical deferred handoff must remain deferred until explicit redemption.",
+      truthLayer: "Objective canon",
+      canonStatus: "accepted"
+    });
+    world.addFacet(fact.id, { vocabulary: "admission_level", term: "5" });
+    world.addFacet(fact.id, { vocabulary: "work_scale", term: "catastrophic" });
+    const report = world.createRecord({
+      recordTypeKey: "propagation_report",
+      title: "Historical final Propagation report",
+      body: "The immutable historical report owns the original source-linked handoff.",
+      truthLayer: "Objective canon",
+      canonStatus: "accepted"
+    });
+    const obligations = emitFoundationalObligations(world, {
+      sourceFactRecordId: fact.id,
+      propagationReportRecordId: report.id
+    });
+    const temporal = obligations.find((item) => item.passKey === "temporal_timeline")!;
+    const constraint = obligations.find((item) => item.passKey === "constraint_composition")!;
+    deferConditionalPassObligation(world, {
+      obligationId: temporal.id,
+      reason: "Historical Temporal deferral remains governed.",
+      passKey: temporal.passKey,
+      sourceFactRecordId: fact.id,
+      propagationReportRecordId: report.id
+    });
+    deferConditionalPassObligation(world, {
+      obligationId: constraint.id,
+      reason: "Historical Constraint deferral remains governed.",
+      passKey: constraint.passKey,
+      sourceFactRecordId: fact.id,
+      propagationReportRecordId: report.id
+    });
+    const obligationsBefore = world.db.prepare(`
+      SELECT * FROM conditional_pass_obligations ORDER BY id
+    `).all();
+    const eventsBefore = world.db.prepare(`
+      SELECT * FROM conditional_pass_obligation_events ORDER BY id
+    `).all();
+
+    world.db.exec(`
+      DROP TABLE conditional_pass_flow_bindings;
+      DROP TRIGGER conditional_pass_events_emission_shape;
+      DROP TRIGGER conditional_pass_events_deferral_shape;
+      DROP TRIGGER conditional_pass_events_deferral_reason;
+      DROP TRIGGER conditional_pass_events_reinstatement_shape;
+      DROP TRIGGER conditional_pass_events_reinstatement_reason;
+      DROP TRIGGER conditional_pass_events_coverage_shape;
+      DROP TRIGGER conditional_pass_events_coverage_evidence;
+      DROP TRIGGER conditional_pass_events_coverage_rationale;
+      ALTER TABLE conditional_pass_obligation_events RENAME TO conditional_pass_obligation_events_v14;
+      CREATE TABLE conditional_pass_obligation_events (
+        id INTEGER PRIMARY KEY,
+        obligation_id INTEGER NOT NULL REFERENCES conditional_pass_obligations(id) ON DELETE CASCADE,
+        action_key TEXT NOT NULL CHECK (action_key IN ('emitted', 'reconciled', 'deferred', 'covered')),
+        prior_disposition TEXT CHECK (prior_disposition IN ('outstanding', 'covered', 'deferred')),
+        resulting_disposition TEXT NOT NULL CHECK (resulting_disposition IN ('outstanding', 'covered', 'deferred')),
+        rationale TEXT,
+        evidence_record_id INTEGER REFERENCES records(id) ON DELETE RESTRICT,
+        actor_id INTEGER NOT NULL DEFAULT 1 REFERENCES actors(id),
+        flow_step TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        UNIQUE (obligation_id, action_key, resulting_disposition, evidence_record_id)
+      ) STRICT;
+      INSERT INTO conditional_pass_obligation_events
+      SELECT * FROM conditional_pass_obligation_events_v14 ORDER BY id;
+      DROP TABLE conditional_pass_obligation_events_v14;
+      PRAGMA user_version = 13;
+    `);
+    world.close();
+
+    const migrated = WorldFile.open(path);
+    try {
+      expect(migrated.schemaVersion()).toBe(CURRENT_SCHEMA_VERSION);
+      expect(migrated.db.prepare("SELECT * FROM conditional_pass_obligations ORDER BY id").all()).toEqual(obligationsBefore);
+      expect(migrated.db.prepare("SELECT * FROM conditional_pass_obligation_events ORDER BY id").all()).toEqual(eventsBefore);
+      expect(migrated.db.prepare(`
+        SELECT disposition FROM conditional_pass_obligations WHERE id = ?
+      `).get(temporal.id)).toEqual({ disposition: "deferred" });
+
+      const reinstated = reinstateConditionalPassObligation(migrated, {
+        obligationId: temporal.id,
+        reason: "Historical evidence is ready for renewed Temporal work.",
+        passKey: temporal.passKey,
+        sourceFactRecordId: fact.id,
+        propagationReportRecordId: report.id
+      }).obligation;
+      expect(reinstated).toMatchObject({ disposition: "outstanding", rationale: null });
+
+      const evidence = migrated.createRecord({
+        recordTypeKey: "pass_report",
+        title: "Historical Constraint completion evidence",
+        body: "Completed matching work directly redeems the historical deferred obligation.",
+        truthLayer: "Objective canon",
+        canonStatus: "accepted"
+      });
+      const covered = coverMatchingConditionalPassObligation(migrated, {
+        obligationId: constraint.id,
+        passKey: constraint.passKey,
+        sourceFactRecordId: fact.id,
+        propagationReportRecordId: report.id,
+        coveringReportRecordId: evidence.id,
+        flowStep: "test:historical-direct-coverage"
+      });
+      expect(covered).toMatchObject({
+        disposition: "covered",
+        history: expect.arrayContaining([
+          expect.objectContaining({ action: "deferred", rationale: "Historical Constraint deferral remains governed." }),
+          expect.objectContaining({ action: "covered", priorState: "deferred", evidenceRecordId: evidence.id })
+        ])
+      });
+      expect(migrated.db.prepare(`
+        SELECT action_key FROM conditional_pass_obligation_events ORDER BY id LIMIT ?
+      `).all(eventsBefore.length)).toEqual(eventsBefore.map((event: any) => ({ action_key: event.action_key })));
+    } finally {
+      migrated.close();
+    }
+  });
+
+  it("refuses ambiguous or wrong-report direct coverage without selecting an obligation", () => {
+    const path = tempPath("conditional-pass-coverage-identity.sqlite");
+    const world = WorldFile.create(path);
+    try {
+      const fact = world.createRecord({
+        recordTypeKey: "canon_fact",
+        title: "Coverage identity source",
+        body: "Multiple final reports require exact structured coverage identity.",
+        truthLayer: "Objective canon",
+        canonStatus: "accepted"
+      });
+      world.addFacet(fact.id, { vocabulary: "admission_level", term: "5" });
+      world.addFacet(fact.id, { vocabulary: "work_scale", term: "catastrophic" });
+      const reports = ["First final report", "Second final report"].map((title) => world.createRecord({
+        recordTypeKey: "propagation_report",
+        title,
+        body: `${title} preserves its own source-linked handoff.`,
+        truthLayer: "Objective canon",
+        canonStatus: "accepted"
+      }));
+      const first = emitFoundationalObligations(world, {
+        sourceFactRecordId: fact.id,
+        propagationReportRecordId: reports[0]!.id
+      }).find((item) => item.passKey === "temporal_timeline")!;
+      const second = emitFoundationalObligations(world, {
+        sourceFactRecordId: fact.id,
+        propagationReportRecordId: reports[1]!.id
+      }).find((item) => item.passKey === "temporal_timeline")!;
+      const evidence = world.createRecord({
+        recordTypeKey: "pass_report",
+        title: "Completed Temporal evidence",
+        body: "Completed source-linked Temporal work.",
+        truthLayer: "Objective canon",
+        canonStatus: "accepted"
+      });
+      const before = world.db.prepare(`
+        SELECT id, disposition, rationale, covering_report_record_id
+        FROM conditional_pass_obligations
+        WHERE id IN (?, ?)
+        ORDER BY id
+      `).all(first.id, second.id);
+
+      expect(() => coverMatchingConditionalPassObligation(world, {
+        passKey: "temporal_timeline",
+        sourceFactRecordId: fact.id,
+        propagationReportRecordId: reports[1]!.id + 999,
+        coveringReportRecordId: evidence.id,
+        flowStep: "test:wrong-report"
+      })).toThrow(/Propagation report.*does not match/i);
+      expect(() => coverMatchingConditionalPassObligation(world, {
+        passKey: "temporal_timeline",
+        sourceFactRecordId: fact.id,
+        coveringReportRecordId: evidence.id,
+        flowStep: "test:ambiguous"
+      })).toThrow(/multiple non-covered.*select.*Propagation report/i);
+      expect(world.db.prepare(`
+        SELECT id, disposition, rationale, covering_report_record_id
+        FROM conditional_pass_obligations
+        WHERE id IN (?, ?)
+        ORDER BY id
+      `).all(first.id, second.id)).toEqual(before);
+    } finally {
+      world.close();
+    }
+  });
+
+  it("rolls back projection and event persistence failures without changing unrelated World state", () => {
+    const path = tempPath("conditional-pass-transition-rollback.sqlite");
+    const world = WorldFile.create(path);
+    try {
+      const kernel = world.createRecord({
+        recordTypeKey: "world_kernel",
+        title: "Rollback kernel",
+        body: "Only the selected Conditional-pass projection and event may change.",
+        truthLayer: "Objective canon",
+        canonStatus: "accepted"
+      });
+      const fact = world.createRecord({
+        recordTypeKey: "canon_fact",
+        title: "Rollback source fact",
+        body: "Forced transition failures preserve every authoritative neighbor.",
+        truthLayer: "Objective canon",
+        canonStatus: "accepted"
+      });
+      world.addFacet(fact.id, { vocabulary: "admission_level", term: "5" });
+      world.addFacet(fact.id, { vocabulary: "work_scale", term: "catastrophic" });
+      const report = world.createRecord({
+        recordTypeKey: "propagation_report",
+        title: "Rollback final Propagation report",
+        body: "Append-only report content must survive every forced failure.",
+        truthLayer: "Objective canon",
+        canonStatus: "accepted"
+      });
+      const admission = world.createRecord({
+        recordTypeKey: "canon_fact",
+        title: "Unrelated Admission proposal",
+        body: "This queued proposal is outside the transition boundary.",
+        truthLayer: "Objective canon",
+        canonStatus: "proposed"
+      });
+      const debt = world.createCanonDebt({
+        name: "Unrelated rollback debt",
+        scope: "qa",
+        assignee: "steward",
+        body: "This debt remains unchanged."
+      });
+      world.createLinkIfMissing(debt.id, kernel.id, "requires_follow_up", "Unrelated rollback fixture link");
+      const obligations = emitFoundationalObligations(world, {
+        sourceFactRecordId: fact.id,
+        propagationReportRecordId: report.id
+      });
+      const temporal = obligations.find((item) => item.passKey === "temporal_timeline")!;
+      const constraint = obligations.find((item) => item.passKey === "constraint_composition")!;
+      deferConditionalPassObligation(world, {
+        obligationId: temporal.id,
+        reason: "Deferred before forced reinstatement failures.",
+        passKey: temporal.passKey,
+        sourceFactRecordId: fact.id,
+        propagationReportRecordId: report.id
+      });
+      deferConditionalPassObligation(world, {
+        obligationId: constraint.id,
+        reason: "Deferred before forced coverage failure.",
+        passKey: constraint.passKey,
+        sourceFactRecordId: fact.id,
+        propagationReportRecordId: report.id
+      });
+      const snapshot = () => ({
+        obligations: world.db.prepare("SELECT * FROM conditional_pass_obligations ORDER BY id").all(),
+        events: world.db.prepare("SELECT * FROM conditional_pass_obligation_events ORDER BY id").all(),
+        records: world.listRecords(),
+        links: world.listLinks(),
+        admission: world.getRecord(admission.id),
+        debt: world.getRecord(debt.id)
+      });
+
+      const beforeProjectionFailure = snapshot();
+      world.db.exec(`
+        CREATE TRIGGER fail_conditional_pass_projection_update
+        BEFORE UPDATE ON conditional_pass_obligations
+        WHEN old.id = ${temporal.id}
+        BEGIN
+          SELECT RAISE(ABORT, 'forced Conditional-pass projection failure');
+        END;
+      `);
+      expect(() => reinstateConditionalPassObligation(world, {
+        obligationId: temporal.id,
+        reason: "This transition must roll back.",
+        passKey: temporal.passKey,
+        sourceFactRecordId: fact.id,
+        propagationReportRecordId: report.id
+      })).toThrow(/forced Conditional-pass projection failure/i);
+      expect(snapshot()).toEqual(beforeProjectionFailure);
+      world.db.exec("DROP TRIGGER fail_conditional_pass_projection_update");
+
+      const beforeEventFailure = snapshot();
+      world.db.exec(`
+        CREATE TRIGGER fail_conditional_pass_reinstatement_event
+        BEFORE INSERT ON conditional_pass_obligation_events
+        WHEN new.action_key = 'reinstated'
+        BEGIN
+          SELECT RAISE(ABORT, 'forced Conditional-pass event failure');
+        END;
+      `);
+      expect(() => reinstateConditionalPassObligation(world, {
+        obligationId: temporal.id,
+        reason: "The projection update must roll back with the event.",
+        passKey: temporal.passKey,
+        sourceFactRecordId: fact.id,
+        propagationReportRecordId: report.id
+      })).toThrow(/forced Conditional-pass event failure/i);
+      expect(snapshot()).toEqual(beforeEventFailure);
+      world.db.exec("DROP TRIGGER fail_conditional_pass_reinstatement_event");
+
+      const evidence = world.createRecord({
+        recordTypeKey: "pass_report",
+        title: "Forced coverage evidence",
+        body: "This report exists before the forced event failure.",
+        truthLayer: "Objective canon",
+        canonStatus: "accepted"
+      });
+      const beforeCoverageFailure = snapshot();
+      world.db.exec(`
+        CREATE TRIGGER fail_conditional_pass_coverage_event
+        BEFORE INSERT ON conditional_pass_obligation_events
+        WHEN new.action_key = 'covered'
+        BEGIN
+          SELECT RAISE(ABORT, 'forced Conditional-pass coverage event failure');
+        END;
+      `);
+      expect(() => coverMatchingConditionalPassObligation(world, {
+        obligationId: constraint.id,
+        passKey: constraint.passKey,
+        sourceFactRecordId: fact.id,
+        propagationReportRecordId: report.id,
+        coveringReportRecordId: evidence.id,
+        flowStep: "test:forced-coverage-failure"
+      })).toThrow(/forced Conditional-pass coverage event failure/i);
+      expect(snapshot()).toEqual(beforeCoverageFailure);
+    } finally {
+      world.close();
+    }
+  });
+
   it("atomically emits the three ordered source/report-linked obligations on foundational Propagation close", async () => {
     const app = await createWorld();
     await createRecord(app, {
@@ -161,6 +549,7 @@ describe("conditional-pass obligation HTTP contract", () => {
     const db = new Database(path);
     db.pragma("foreign_keys = ON");
     const obligationRecordIds = (db.prepare("SELECT record_id FROM conditional_pass_obligations ORDER BY id").all() as Array<{ record_id: number }>).map((row) => row.record_id);
+    db.exec("DROP TABLE conditional_pass_flow_bindings");
     db.exec("DROP TABLE conditional_pass_obligation_events");
     db.exec("DROP TABLE conditional_pass_obligations");
     for (const recordId of obligationRecordIds) db.prepare("DELETE FROM records WHERE id = ?").run(recordId);
@@ -339,6 +728,181 @@ describe("conditional-pass obligation HTTP contract", () => {
     }
   });
 
+  it("reinstates a deferred obligation with governed history, state-aware retries, and fresh-map routing", async () => {
+    const app = await createWorld("reinstatement.sqlite");
+    await createRecord(app, {
+      recordTypeKey: "world_kernel",
+      title: "Redeemable handoff kernel",
+      body: "The workflow map keeps Admission available while specialized work remains governed."
+    });
+    await createRecord(app, {
+      title: "Waiting Admission proposal",
+      body: "This proposal remains directly navigable while Conditional-pass work is owed.",
+      canonStatus: "proposed"
+    });
+    const fact = await createRecord(app, {
+      title: "Redeemable foundational fact",
+      body: "Its Temporal obligation may be deferred and later reinstated without losing history."
+    });
+    const close = await closeFoundationalPropagation(app, fact.id);
+    const target = close.obligations.find((item: any) => item.passKey === "temporal_timeline");
+    const initialMap = await json<any>(await app.request("/api/workflow-map"));
+    const outstanding = initialMap.conditionalPasses.obligations.find((item: any) => item.id === target.id);
+
+    expect(outstanding).toMatchObject({
+      disposition: "outstanding",
+      packageSources: [
+        "docs/worldbuilding-system/03_truth_layers_and_canon_governance.md",
+        "docs/worldbuilding-system/07_propagation_engine.md",
+        "docs/worldbuilding-system/22_glossary.md"
+      ],
+      fieldClassifications: {
+        required: ["reason"],
+        optional: [],
+        skippable: ["governed deferral with written rationale"],
+        severityDependent: []
+      },
+      action: {
+        kind: "defer",
+        requiredReason: true,
+        body: {
+          disposition: "deferred",
+          expectedDisposition: "outstanding",
+          passKey: "temporal_timeline",
+          sourceFactRecordId: fact.id,
+          propagationReportRecordId: close.report.id
+        }
+      }
+    });
+
+    const deferralReason = "Defer Temporal work until the chrononaut archive is indexed.";
+    const deferredResponse = await postJson(app, outstanding.action.href, {
+      ...outstanding.action.body,
+      reason: deferralReason
+    });
+    expect(deferredResponse.status).toBe(201);
+    const deferred = (await json<{ obligation: any }>(deferredResponse)).obligation;
+    expect(deferred).toMatchObject({
+      disposition: "deferred",
+      rationale: deferralReason,
+      coveringEvidence: null,
+      action: {
+        kind: "reinstate",
+        requiredReason: true,
+        body: {
+          disposition: "outstanding",
+          expectedDisposition: "deferred",
+          passKey: "temporal_timeline",
+          sourceFactRecordId: fact.id,
+          propagationReportRecordId: close.report.id
+        }
+      }
+    });
+
+    const invalid = await postJson(app, deferred.action.href, { ...deferred.action.body, reason: "" });
+    expect(invalid.status).toBe(400);
+    expect(await json<{ error: string; remediation: string }>(invalid)).toMatchObject({
+      error: expect.stringMatching(/reinstatement.*non-empty.*reason/i),
+      remediation: expect.stringMatching(/enter.*reason.*retry/i)
+    });
+    const unchangedAfterInvalid = await json<{ obligations: Array<any> }>(await app.request("/api/conditional-pass-obligations"));
+    expect(unchangedAfterInvalid.obligations.find((item) => item.id === target.id)).toEqual(deferred);
+
+    const reinstatementReason = "The archive is indexed; make the source-selected Temporal pass owed again.";
+    const reinstatedResponse = await postJson(app, deferred.action.href, {
+      ...deferred.action.body,
+      reason: reinstatementReason
+    });
+    expect(reinstatedResponse.status).toBe(201);
+    const reinstated = (await json<{ obligation: any }>(reinstatedResponse)).obligation;
+    expect(reinstated).toMatchObject({
+      disposition: "outstanding",
+      rationale: null,
+      coveringEvidence: null,
+      action: { kind: "defer" },
+      history: expect.arrayContaining([
+        expect.objectContaining({
+          action: "deferred",
+          priorState: "outstanding",
+          resultingState: "deferred",
+          rationale: deferralReason
+        }),
+        expect.objectContaining({
+          action: "reinstated",
+          priorState: "deferred",
+          resultingState: "outstanding",
+          rationale: reinstatementReason,
+          actor: "steward",
+          timestamp: expect.any(String),
+          flowStep: "conditional-pass-obligation:reinstate"
+        })
+      ])
+    });
+
+    const retry = await postJson(app, deferred.action.href, {
+      ...deferred.action.body,
+      reason: reinstatementReason
+    });
+    expect(retry.status).toBe(200);
+    expect((await json<{ obligation: any }>(retry)).obligation).toEqual(reinstated);
+
+    const incompatible = await postJson(app, deferred.action.href, {
+      ...deferred.action.body,
+      reason: "A different retry reason."
+    });
+    expect(incompatible.status).toBe(400);
+    expect(await json<{ error: string }>(incompatible)).toMatchObject({
+      error: expect.stringMatching(/already outstanding.*different reinstatement reason/i)
+    });
+
+    const secondDeferredResponse = await postJson(app, reinstated.action.href, {
+      ...reinstated.action.body,
+      reason: deferralReason
+    });
+    expect(secondDeferredResponse.status).toBe(201);
+    const secondDeferred = (await json<{ obligation: any }>(secondDeferredResponse)).obligation;
+    const secondReinstatedResponse = await postJson(app, secondDeferred.action.href, {
+      ...secondDeferred.action.body,
+      reason: reinstatementReason
+    });
+    expect(secondReinstatedResponse.status).toBe(201);
+    const secondReinstated = (await json<{ obligation: any }>(secondReinstatedResponse)).obligation;
+    expect(secondReinstated.history.filter((event: any) => event.action === "deferred")).toHaveLength(2);
+    expect(secondReinstated.history.filter((event: any) => event.action === "reinstated")).toHaveLength(2);
+    expect(secondReinstated.history.map((event: any) => event.action)).toEqual([
+      "emitted",
+      "deferred",
+      "reinstated",
+      "deferred",
+      "reinstated"
+    ]);
+    const secondRetry = await postJson(app, secondDeferred.action.href, {
+      ...secondDeferred.action.body,
+      reason: reinstatementReason
+    });
+    expect(secondRetry.status).toBe(200);
+    expect((await json<{ obligation: any }>(secondRetry)).obligation.history).toEqual(secondReinstated.history);
+
+    const refreshedMap = await json<any>(await app.request("/api/workflow-map"));
+    expect(refreshedMap.conditionalPasses).toMatchObject({
+      outstandingCount: 3,
+      governedCount: 0,
+      nextOrResumeState: {
+        current: "Temporal/Timeline",
+        next: "Constraint Composition",
+        resume: expect.stringMatching(/fresh workflow-map/i)
+      }
+    });
+    expect(refreshedMap.nextDecision).toMatchObject({
+      destinationKey: "temporal",
+      label: expect.stringMatching(/Temporal\/Timeline.*Redeemable foundational fact|Temporal\/Timeline.*FAC-/i)
+    });
+    expect(refreshedMap.destinations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "temporal", state: "owed" }),
+      expect.objectContaining({ key: "admission", state: "active" })
+    ]));
+  });
+
   it("covers the Temporal obligation only from a completed matching source-linked Temporal pass", async () => {
     const app = await createWorld("temporal-coverage.sqlite");
     const fact = await createRecord(app, {
@@ -387,6 +951,181 @@ describe("conditional-pass obligation HTTP contract", () => {
       ])
     });
     expect(read.obligations.filter((item) => item.id !== temporal.id).every((item) => item.disposition === "outstanding")).toBe(true);
+  });
+
+  it("covers a deferred obligation directly from completed matching evidence and keeps covered state terminal", async () => {
+    const app = await createWorld("direct-deferred-coverage.sqlite");
+    const fact = await createRecord(app, {
+      title: "Direct redemption foundational fact",
+      body: "Completing the real Temporal work may redeem its deferred obligation without an intervening reinstatement."
+    });
+    const close = await closeFoundationalPropagation(app, fact.id);
+    const temporal = close.obligations.find((item: any) => item.passKey === "temporal_timeline");
+    const deferralReason = "Defer the route while another valid Temporal entry is already underway.";
+    const deferredResponse = await postJson(app, `/api/conditional-pass-obligations/${temporal.id}/defer`, {
+      reason: deferralReason,
+      disposition: "deferred",
+      expectedDisposition: "outstanding",
+      passKey: "temporal_timeline",
+      sourceFactRecordId: fact.id,
+      propagationReportRecordId: close.report.id
+    });
+    expect(deferredResponse.status).toBe(201);
+    const deferred = (await json<{ obligation: any }>(deferredResponse)).obligation;
+
+    const started = await json<any>(await postJson(app, "/api/temporal/runs/start", { sourceType: "fact", recordId: fact.id }));
+    expect((await postJson(app, "/api/temporal/coverage", {
+      flowId: started.flow.id,
+      temporalQuestions: "When does direct evidence become complete enough to redeem the deferred obligation?",
+      firstTrueOrRelativeSequence: "The fact becomes true before observation, regulation, and ordinary-life adaptation.",
+      firstKnownOrReason: "The steward records first knowledge after repeated source-linked observations.",
+      dateTypesAndGranularity: "Event, discovery, public, institutional, ordinary-life, mythic, and authorial dates remain separate at season granularity.",
+      latency: "Observation precedes institutional reaction by two seasons.",
+      residueByTimescale: "Days create rumor, years create procedure, and generations create inherited offices.",
+      sequenceIntegrity: "The institutional response cannot precede the first governed observation.",
+      retrospectiveInsertion: "Earlier scenes retain rumor and one source-linked archive entry.",
+      temporalMysteryBoundaries: "The cause remains author-secret while recurrence and forbidden uses stay governed.",
+      outcomeDecision: "Close the substantive pass and let matching evidence redeem the exact source obligation."
+    })).status).toBe(201);
+    const completedResponse = await postJson(app, `/api/temporal/runs/${started.flow.id}/close`);
+    expect(completedResponse.status).toBe(201);
+    const completed = await json<any>(completedResponse);
+
+    const read = await json<{ obligations: Array<any> }>(await app.request("/api/conditional-pass-obligations"));
+    const covered = read.obligations.find((item) => item.id === temporal.id);
+    expect(covered).toMatchObject({
+      disposition: "covered",
+      rationale: null,
+      coveringEvidence: { id: completed.report.id, recordTypeKey: "pass_report" },
+      blocker: expect.stringMatching(/terminal/i),
+      action: null,
+      history: expect.arrayContaining([
+        expect.objectContaining({
+          action: "deferred",
+          priorState: "outstanding",
+          resultingState: "deferred",
+          rationale: deferralReason
+        }),
+        expect.objectContaining({
+          action: "covered",
+          priorState: "deferred",
+          resultingState: "covered",
+          evidenceRecordId: completed.report.id,
+          flowStep: "temporal:complete"
+        })
+      ]),
+      readSideTrail: expect.arrayContaining([
+        expect.objectContaining({
+          label: `Covering report ${completed.report.shortId}`,
+          recordId: completed.report.id
+        })
+      ])
+    });
+    expect(covered.history.filter((event: any) => event.action === "reinstated")).toEqual([]);
+
+    const refreshedMap = await json<any>(await app.request("/api/workflow-map"));
+    expect(refreshedMap.destinations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "temporal", state: "blocked" }),
+      expect.objectContaining({ key: "constraint", state: "owed" }),
+      expect.objectContaining({ key: "stage12", state: "owed" })
+    ]));
+
+    for (const attempt of [
+      { path: `/api/conditional-pass-obligations/${temporal.id}/defer`, body: { reason: "Try to defer covered work." }, error: /covered.*cannot be deferred/i },
+      { path: `/api/conditional-pass-obligations/${temporal.id}/reinstate`, body: { reason: "Try to reinstate covered work." }, error: /covered.*cannot be reinstated/i }
+    ]) {
+      const response = await postJson(app, attempt.path, attempt.body);
+      expect(response.status).toBe(400);
+      expect(await json<{ error: string }>(response)).toMatchObject({ error: expect.stringMatching(attempt.error) });
+    }
+    const afterRefusals = await json<{ obligations: Array<any> }>(await app.request("/api/conditional-pass-obligations"));
+    expect(afterRefusals.obligations.find((item) => item.id === temporal.id)).toEqual(covered);
+    expect(deferred.history).toHaveLength(2);
+  });
+
+  it("binds a source-selected specialized pass to the exact obligation when the source has multiple final Propagation reports", async () => {
+    const app = await createWorld("source-selected-binding.sqlite");
+    const fact = await createRecord(app, {
+      title: "Repeated Propagation source",
+      body: "Two final Propagation reports for the same source keep separate Temporal obligations."
+    });
+    const firstClose = await closeFoundationalPropagation(app, fact.id);
+    const secondClose = await closeFoundationalPropagation(app, fact.id);
+    const firstTemporal = firstClose.obligations.find((item: any) => item.passKey === "temporal_timeline");
+    const secondTemporal = secondClose.obligations.find((item: any) => item.passKey === "temporal_timeline");
+    const firstConstraint = firstClose.obligations.find((item: any) => item.passKey === "constraint_composition");
+    const otherFact = await createRecord(app, {
+      title: "Wrong source fact",
+      body: "This record cannot inherit the selected obligation's route."
+    });
+    const map = await json<any>(await app.request("/api/workflow-map"));
+    const selected = map.conditionalPasses.obligations.find((item: any) => item.id === firstTemporal.id);
+
+    expect(selected.destination.body).toEqual({
+      sourceType: "fact",
+      recordId: fact.id,
+      conditionalPassObligationId: firstTemporal.id,
+      propagationReportRecordId: firstClose.report.id
+    });
+    const recordsBeforeInvalidStarts = await json<{ records: Array<any> }>(await app.request("/api/records"));
+    for (const attempt of [
+      {
+        body: { ...selected.destination.body, recordId: otherFact.id },
+        error: /source fact does not match/i
+      },
+      {
+        body: { ...selected.destination.body, propagationReportRecordId: secondClose.report.id },
+        error: /Propagation report does not match/i
+      },
+      {
+        body: {
+          ...selected.destination.body,
+          conditionalPassObligationId: firstConstraint.id
+        },
+        error: /pass key does not match/i
+      }
+    ]) {
+      const response = await postJson(app, selected.destination.href, attempt.body);
+      expect(response.status).toBe(400);
+      expect(await json<{ error: string; remediation: string }>(response)).toMatchObject({
+        error: expect.stringMatching(attempt.error),
+        remediation: expect.any(String)
+      });
+    }
+    expect(await json(await app.request("/api/records"))).toEqual(recordsBeforeInvalidStarts);
+
+    const started = await json<any>(await postJson(app, selected.destination.href, selected.destination.body));
+    expect(started.conditionalPassBinding).toMatchObject({
+      obligationId: firstTemporal.id,
+      sourceFactRecordId: fact.id,
+      propagationReportRecordId: firstClose.report.id,
+      passKey: "temporal_timeline"
+    });
+    expect((await postJson(app, "/api/temporal/coverage", {
+      flowId: started.flow.id,
+      temporalQuestions: "Which of the source's final Propagation reports does this pass satisfy?",
+      firstTrueOrRelativeSequence: "The source becomes true before the first selected report and its later correction report.",
+      firstKnownOrReason: "The selected report's audit identifies the exact governed handoff.",
+      dateTypesAndGranularity: "Event, discovery, public, institutional, ordinary-life, mythic, and authorial dates remain separate at season granularity.",
+      latency: "The selected handoff's response occurs two seasons after public proof.",
+      residueByTimescale: "Days create rumor, years create report-linked procedure, and generations retain audit offices.",
+      sequenceIntegrity: "Coverage follows the selected report and never jumps to the later report.",
+      retrospectiveInsertion: "Earlier scenes retain source-linked residue without merging report identities.",
+      temporalMysteryBoundaries: "The cause remains author-secret while report identity stays explicit.",
+      outcomeDecision: "Close this pass against only the server-selected Conditional-pass obligation."
+    })).status).toBe(201);
+    const completed = await postJson(app, `/api/temporal/runs/${started.flow.id}/close`);
+    expect(completed.status, await completed.clone().text()).toBe(201);
+
+    const read = await json<{ obligations: Array<any> }>(await app.request("/api/conditional-pass-obligations"));
+    expect(read.obligations.find((item) => item.id === firstTemporal.id)).toMatchObject({
+      disposition: "covered",
+      propagationReport: { id: firstClose.report.id }
+    });
+    expect(read.obligations.find((item) => item.id === secondTemporal.id)).toMatchObject({
+      disposition: "outstanding",
+      propagationReport: { id: secondClose.report.id }
+    });
   });
 
   it("covers Constraint Composition and Institutional obligations from their existing completed pass reports", async () => {

@@ -35,6 +35,41 @@ describe("Institutional, Economic, and Suppression web surface", () => {
     expect(source).not.toContain("const STAGE12_REQUIRED_LENSES");
   });
 
+  it("keeps the coverage editor on the routed stage-12 destination", () => {
+    const html = renderToString(
+      <App
+        initialOpenWorld="/tmp/stage12.sqlite"
+        initialDestination="stage12"
+        initialWorkflowMap={{
+          readOnly: true,
+          world: { path: "/tmp/stage12.sqlite" },
+          stages: [],
+          queues: [],
+          nextDecision: {
+            destinationKey: "stage12",
+            label: "Resume Stage 12",
+            reason: "A Stage 12 run is in progress.",
+            href: "/api/institutional/runs/start"
+          },
+          destinations: [
+            {
+              key: "stage12",
+              label: "Institutional / Economic / Suppression",
+              kind: "guided-flow",
+              summary: "Work the source-selected institutional pass.",
+              state: "active"
+            }
+          ]
+        }}
+      />
+    );
+
+    expect(html).toContain("Institutional / Economic / Suppression flow");
+    expect(html).toContain("Coverage lens");
+    expect(html).toContain("Coverage or outcome prose");
+    expect(html).toContain("Save Coverage");
+  });
+
   it("offers stage-12 Prompt-out through the shared prompt lifecycle", () => {
     const html = renderToString(<App initialOpenWorld="/tmp/stage12.sqlite" />);
     const source = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
