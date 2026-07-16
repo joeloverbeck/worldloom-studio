@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const usage = `Usage:
-  node .claude/skills/field-build/scripts/validate-report.mjs <report.md> <live-log.md> [--no-prior-report]
+  node .claude/skills/field-build/scripts/validate-report.mjs <report.md> <live-log.md> [--no-prior-report] [--preflight-closeout]
   node .claude/skills/field-build/scripts/validate-report.mjs --bootstrap-only <live-log.md>`;
 
 const REQUIRED_REPORT_HEADINGS = [
@@ -78,6 +78,27 @@ const WORKTREE_AUDIT_COLUMNS = [
   "final note wording"
 ];
 
+const CLOSEOUT_COMMAND_COLUMNS = ["check", "exact command", "outcome"];
+
+const REQUIRED_DECISION_POINT_FIELDS = [
+  "Stage / decision point",
+  "Docs-first draft",
+  "Prompt-out coverage",
+  "Cold LLM (proposal)",
+  "Cold LLM (pressure)",
+  "Committed",
+  "UX/style verdict",
+  "Obsolescence verdict"
+];
+
+const COVERAGE_STATES = [
+  "exercised",
+  "refused",
+  "blocked by app",
+  "probe unavailable",
+  "deferred because frontier moved"
+];
+
 const REQUIRED_BOOTSTRAP_FIELDS = [
   "Seed",
   "Baseline worktree",
@@ -129,9 +150,10 @@ const fieldValue = (body, label) => {
 
 const validValue = (value) => value.length > 0 && !/^<.*>$/.test(value);
 
-const markdownTableAfter = (body, label) => {
+const markdownTableAfter = (body, label, { last = false } = {}) => {
   const lines = body.split(/\r?\n/);
-  const labelIndex = lines.findIndex((line) => line.trim() === label);
+  const labelIndexes = lines.flatMap((line, index) => (line.trim() === label ? [index] : []));
+  const labelIndex = last ? labelIndexes.at(-1) ?? -1 : labelIndexes[0] ?? -1;
   if (labelIndex < 0) return null;
   const tableStartOffset = lines.slice(labelIndex + 1).findIndex((line) => line.trim().startsWith("|"));
   if (tableStartOffset < 0) return { columns: [], rows: [] };
@@ -152,6 +174,66 @@ const columnsMatch = (actual, expected) =>
   actual.length === expected.length && actual.every((column, index) => column === expected[index]);
 
 const auditState = (value) => /^(present(?:\s*\(.+\))?|N\/A - .+)$/i.test(value);
+
+const coverageSegment = (coverage, mode) => {
+  const ownMatch = new RegExp(`\\b${mode}\\s*=`, "i").exec(coverage);
+  if (!ownMatch) return "";
+  const start = ownMatch.index + ownMatch[0].length;
+  const otherMode = mode === "proposal" ? "pressure" : "proposal";
+  const tail = coverage.slice(start);
+  const otherMatch = new RegExp(`;\\s*${otherMode}\\s*=`, "i").exec(tail);
+  return tail.slice(0, otherMatch?.index ?? tail.length).trim();
+};
+
+const coverageToken = (segment, label) => {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return segment.match(new RegExp(`(?:^|;)\\s*${escaped}\\s*=\\s*([^;]+)`, "i"))?.[1]?.trim() ?? "";
+};
+
+const validateModeCoverage = ({ point, coverage, mode, errors }) => {
+  const segment = coverageSegment(coverage, mode);
+  if (!segment) {
+    errors.push(`${point.heading} Prompt-out coverage missing ${mode}= segment`);
+    return;
+  }
+
+  const statePattern = COVERAGE_STATES.map((state) => state.replace(/\s+/g, "\\s+")).join("|");
+  const state =
+    segment.match(new RegExp(`\\b(?:active|state)\\s*=\\s*(${statePattern})\\b`, "i"))?.[1] ??
+    segment.match(new RegExp(`^\\s*(${statePattern})\\b`, "i"))?.[1] ??
+    "";
+  const normalizedState = normalize(state);
+  if (!COVERAGE_STATES.includes(normalizedState)) {
+    errors.push(`${point.heading} ${mode} coverage has invalid or missing active-surface state`);
+    return;
+  }
+
+  if (normalizedState !== "exercised") {
+    if (!validValue(coverageToken(segment, "reason"))) {
+      errors.push(`${point.heading} ${mode} coverage state ${normalizedState} requires reason=<one line>`);
+    }
+    return;
+  }
+
+  for (const label of ["prompt", "output"]) {
+    const path = coverageToken(segment, label).replace(/`/g, "");
+    if (!/^\/tmp\/worldloom-field-build\/cold-llm\/\S+/.test(path)) {
+      errors.push(`${point.heading} exercised ${mode} coverage requires canonical ${label} path`);
+    }
+  }
+
+  const subagent = coverageToken(segment, "subagent").replace(/`/g, "");
+  if (!validValue(subagent) || /^(?:N\/A|pending|unavailable)$/i.test(subagent)) {
+    errors.push(`${point.heading} exercised ${mode} coverage requires cold subagent identity`);
+  }
+
+  for (const label of ["raw", "artifact", "handoff"]) {
+    const identity = coverageToken(segment, label);
+    if (!/[a-f0-9]{64}\s*:\s*\d+/i.test(identity)) {
+      errors.push(`${point.heading} exercised ${mode} coverage requires full ${label} SHA-256 and byte length`);
+    }
+  }
+};
 
 const findingSections = (report, errors) => {
   const findingsBody = sectionBody(report, /^## Findings\s*$/i);
@@ -266,9 +348,15 @@ const validateDecisionPoints = (report, errors) => {
   const points = subsections(decisionLog);
   if (points.length === 0) errors.push("Decision-point log contains no decision points");
   for (const point of points) {
-    for (const label of ["Stage / decision point", "Prompt-out coverage", "UX/style verdict", "Obsolescence verdict"]) {
+    for (const label of REQUIRED_DECISION_POINT_FIELDS) {
       if (!validValue(fieldValue(point.body, label))) {
         errors.push(`${point.heading} missing required field: ${label}`);
+      }
+    }
+    const coverage = fieldValue(point.body, "Prompt-out coverage");
+    if (validValue(coverage)) {
+      for (const mode of ["proposal", "pressure"]) {
+        validateModeCoverage({ point, coverage, mode, errors });
       }
     }
   }
@@ -352,13 +440,15 @@ const validateUserDirectedEvidence = (liveLog, errors, { requireFinal = true } =
   }
 };
 
-const validateLiveLog = ({ liveLog, findings, reportPath, errors }) => {
-  for (const label of [
+const validateLiveLog = ({ liveLog, findings, reportPath, errors, preflightCloseout }) => {
+  const requiredLabels = [
     "Closeout run sheet",
     "Report-metadata audit:",
     "Finding-field audit:",
     "Worktree delta audit:"
-  ]) {
+  ];
+  if (!preflightCloseout) requiredLabels.push("Closeout command ledger:");
+  for (const label of requiredLabels) {
     if (!liveLog.includes(label)) errors.push(`live log missing required closeout label: ${label}`);
   }
 
@@ -447,6 +537,59 @@ const validateLiveLog = ({ liveLog, findings, reportPath, errors }) => {
     errors.push("Worktree delta audit does not name the field-build report path");
   }
 
+  if (!preflightCloseout) {
+    const commandLedger = markdownTableAfter(liveLog, "Closeout command ledger:", { last: true });
+    if (!commandLedger || !columnsMatch(commandLedger.columns, CLOSEOUT_COMMAND_COLUMNS)) {
+      errors.push("live log missing exact Closeout command ledger header");
+    } else {
+      commandLedger.rows.forEach((row, index) => {
+        if (row.length !== CLOSEOUT_COMMAND_COLUMNS.length) {
+          errors.push(`Closeout command ledger row ${index + 1} has the wrong number of cells`);
+        }
+      });
+
+      const rowFor = (check) =>
+        commandLedger.rows.filter(([value]) => normalize(value ?? "") === normalize(check));
+      const headingRows = rowFor("heading check");
+      const preflightRows = rowFor("preflight validator");
+      if (headingRows.length !== 1) {
+        errors.push(`Closeout command ledger must contain exactly one heading check row; found ${headingRows.length}`);
+      } else {
+        const [, command = "", outcome = ""] = headingRows[0];
+        if (
+          !command.includes("rg -n") ||
+          !command.includes("^#{1,2} ") ||
+          !reportName ||
+          !command.includes(reportName)
+        ) {
+          errors.push("Closeout command ledger heading check row has the wrong command");
+        }
+        if (!/^passed\b/i.test(normalize(outcome)) || !/required headings/i.test(outcome)) {
+          errors.push("Closeout command ledger heading check row does not record a passed required-heading result");
+        }
+      }
+      if (preflightRows.length !== 1) {
+        errors.push(
+          `Closeout command ledger must contain exactly one preflight validator row; found ${preflightRows.length}`
+        );
+      } else {
+        const [, command = "", outcome = ""] = preflightRows[0];
+        if (
+          !command.includes("node ") ||
+          !command.includes("validate-report.mjs") ||
+          !command.includes("--preflight-closeout") ||
+          !reportName ||
+          !command.includes(reportName)
+        ) {
+          errors.push("Closeout command ledger preflight validator row has the wrong command");
+        }
+        if (!/^passed\b/i.test(normalize(outcome)) || !/Field-build report preflight validated\./i.test(outcome)) {
+          errors.push("Closeout command ledger preflight validator row does not record the successful output");
+        }
+      }
+    }
+  }
+
   validateUserDirectedEvidence(liveLog, errors);
 };
 
@@ -480,7 +623,13 @@ export const validateFieldBuildBootstrap = ({ liveLog }) => {
   };
 };
 
-export const validateFieldBuild = ({ report, liveLog, reportPath = "report.md", noPriorReport = false }) => {
+export const validateFieldBuild = ({
+  report,
+  liveLog,
+  reportPath = "report.md",
+  noPriorReport = false,
+  preflightCloseout = false
+}) => {
   const errors = [];
 
   if (!/^# Field Build \d+\s+[-—]\s+.+$/m.test(report)) {
@@ -497,7 +646,7 @@ export const validateFieldBuild = ({ report, liveLog, reportPath = "report.md", 
   validateRegression({ report, noPriorReport, errors });
   validateDecisionPoints(report, errors);
   validateAppSeeds(report, findings, errors);
-  validateLiveLog({ liveLog, findings, reportPath, errors });
+  validateLiveLog({ liveLog, findings, reportPath, errors, preflightCloseout });
 
   return {
     errors,
@@ -516,15 +665,20 @@ const isCli = process.argv[1] && import.meta.url === pathToFileURL(resolve(proce
 if (isCli) {
   const args = process.argv.slice(2);
   const unknownOptions = args.filter(
-    (arg) => arg.startsWith("--") && arg !== "--no-prior-report" && arg !== "--bootstrap-only"
+    (arg) =>
+      arg.startsWith("--") &&
+      arg !== "--no-prior-report" &&
+      arg !== "--bootstrap-only" &&
+      arg !== "--preflight-closeout"
   );
   const noPriorReport = args.includes("--no-prior-report");
   const bootstrapOnly = args.includes("--bootstrap-only");
+  const preflightCloseout = args.includes("--preflight-closeout");
   const paths = args.filter((arg) => !arg.startsWith("--"));
 
   if (
     unknownOptions.length > 0 ||
-    (bootstrapOnly && (noPriorReport || paths.length !== 1)) ||
+    (bootstrapOnly && (noPriorReport || preflightCloseout || paths.length !== 1)) ||
     (!bootstrapOnly && paths.length !== 2)
   ) {
     console.error(usage);
@@ -547,12 +701,15 @@ if (isCli) {
       report: readFileSync(reportPath, "utf8"),
       liveLog: readFileSync(liveLogPath, "utf8"),
       reportPath,
-      noPriorReport
+      noPriorReport,
+      preflightCloseout
     });
     console.log(JSON.stringify(result.summary, null, 2));
     for (const error of result.errors) console.error(`error: ${error}`);
     if (result.errors.length > 0) process.exit(1);
-    console.log("Field-build report structure validated.");
+    console.log(
+      preflightCloseout ? "Field-build report preflight validated." : "Field-build report structure validated."
+    );
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);

@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { validateFieldBuild, validateFieldBuildBootstrap } from "./validate-report.mjs";
 
+const PACKET_SHA = "a".repeat(64);
+const ARTIFACT_SHA = "b".repeat(64);
+const HANDOFF_SHA = "c".repeat(64);
+
 const finding = ({ id, mode = "", severity, extra = "" }) => `
 ### ${id}${mode ? ` (${mode})` : ""} - ${id} title
 
@@ -30,12 +34,26 @@ const defaultAppSeed = (seedDisposition) => `
 
 Scope prose.`;
 
+const decisionPointFixture = ({
+  coverage = `proposal=active=exercised; prompt=/tmp/worldloom-field-build/cold-llm/field-build-17-propagation-proposal-prompt.md; raw=${PACKET_SHA}:123; artifact=none:${ARTIFACT_SHA}:123; handoff=${HANDOFF_SHA}:123; output=/tmp/worldloom-field-build/cold-llm/field-build-17-propagation-proposal.md; subagent=/root/proposal; pressure=active=blocked by app; reason=no active Pressure control`
+} = {}) => `### Propagation decision
+
+- Stage / decision point: Propagation.
+- Docs-first draft: Steward draft.
+- Prompt-out coverage: ${coverage}
+- Cold LLM (proposal): Candidate summary plus canonical artifact path.
+- Cold LLM (pressure): N/A - active surface blocked.
+- Committed: Stable state.
+- UX/style verdict: ok - clear.
+- Obsolescence verdict: docs still needed -> P-01.`;
+
 const reportFixture = ({
   regression = true,
   regressionLine = "- Field Build 16 F-03: still-broken.",
   seedDisposition = "extending relative to issue #1",
   findings = defaultFindings(),
-  appSection
+  appSection,
+  decisionPoint = decisionPointFixture()
 } = {}) => `
 # Field Build 17 - Example World
 
@@ -58,16 +76,7 @@ ${regressionLine}
 }
 ## Decision-point log (evidence)
 
-### Propagation decision
-
-- Stage / decision point: Propagation.
-- Docs-first draft: Steward draft.
-- Prompt-out coverage: proposal=deferred; pressure=blocked.
-- Cold LLM (proposal): N/A.
-- Cold LLM (pressure): N/A.
-- Committed: Stable state.
-- UX/style verdict: ok - clear.
-- Obsolescence verdict: docs still needed -> P-01.
+${decisionPoint}
 
 ## For the app (PRD seeds)
 ${appSection ?? defaultAppSeed(seedDisposition)}
@@ -96,7 +105,10 @@ const liveLogFixture = ({
   findingIds = ["V-01", "P-01", "R-01"],
   targetSummary = "none",
   targetTables = "",
-  priorArtAuditState = "present"
+  priorArtAuditState = "present",
+  includeCommandLedger = true,
+  headingOutcome = "passed - all required headings present",
+  preflightOutcome = "passed - Field-build report preflight validated."
 } = {}) => `
 - User-directed evidence targets: ${targetSummary}
 
@@ -121,6 +133,17 @@ Worktree delta audit:
 | path | baseline state | final state | field-build-owned? | final note wording |
 |---|---|---|---|---|
 | reports/field-build-17-example-world.md | absent | untracked | yes | new field-build report |
+
+${
+  includeCommandLedger
+    ? `Closeout command ledger:
+
+| check | exact command | outcome |
+|---|---|---|
+| heading check | \`rg -n '^#{1,2} ' reports/field-build-17-example-world.md\` | ${headingOutcome} |
+| preflight validator | \`node .claude/skills/field-build/scripts/validate-report.mjs reports/field-build-17-example-world.md /tmp/worldloom-field-build/build-log-17-example-world.md --preflight-closeout\` | ${preflightOutcome} |`
+    : ""
+}
 `;
 
 const bootstrapFixture = ({
@@ -159,6 +182,100 @@ test("accepts a complete field-build report and live log", () => {
 
   assert.deepEqual(result.errors, []);
   assert.deepEqual(result.summary, { findings: 3, appSeeds: 1, priorReportExpected: true });
+});
+
+test("requires every decision-point field", () => {
+  const requiredLines = [
+    ["Stage / decision point", "- Stage / decision point: Propagation.\n"],
+    ["Docs-first draft", "- Docs-first draft: Steward draft.\n"],
+    ["Prompt-out coverage", reportFixture().match(/^- Prompt-out coverage:.*\n/m)?.[0] ?? ""],
+    ["Cold LLM (proposal)", "- Cold LLM (proposal): Candidate summary plus canonical artifact path.\n"],
+    ["Cold LLM (pressure)", "- Cold LLM (pressure): N/A - active surface blocked.\n"],
+    ["Committed", "- Committed: Stable state.\n"],
+    ["UX/style verdict", "- UX/style verdict: ok - clear.\n"],
+    ["Obsolescence verdict", "- Obsolescence verdict: docs still needed -> P-01.\n"]
+  ];
+
+  for (const [label, line] of requiredLines) {
+    const result = validateFieldBuild({
+      report: reportFixture().replace(line, ""),
+      liveLog: liveLogFixture(),
+      reportPath: "reports/field-build-17-example-world.md"
+    });
+    assert.match(result.errors.join("\n"), new RegExp(`missing required field: ${label.replace(/[()]/g, "\\$&")}`));
+  }
+});
+
+test("requires complete evidence for exercised prompt coverage", () => {
+  const result = validateFieldBuild({
+    report: reportFixture({
+      decisionPoint: decisionPointFixture({
+        coverage: `proposal=active=exercised; prompt=/tmp/worldloom-field-build/cold-llm/field-build-17-propagation-proposal-prompt.md; raw=abc123:123; artifact=none:${ARTIFACT_SHA}:123; handoff=${HANDOFF_SHA}:123; output=/tmp/worldloom-field-build/cold-llm/field-build-17-propagation-proposal.md; subagent=pending; pressure=active=blocked by app; reason=no active Pressure control`
+      })
+    }),
+    liveLog: liveLogFixture(),
+    reportPath: "reports/field-build-17-example-world.md"
+  });
+
+  assert.match(result.errors.join("\n"), /requires cold subagent identity/);
+  assert.match(result.errors.join("\n"), /requires full raw SHA-256 and byte length/);
+});
+
+test("requires a reason for non-exercised prompt coverage", () => {
+  const result = validateFieldBuild({
+    report: reportFixture({
+      decisionPoint: decisionPointFixture({
+        coverage: `proposal=active=exercised; prompt=/tmp/worldloom-field-build/cold-llm/field-build-17-propagation-proposal-prompt.md; raw=${PACKET_SHA}:123; artifact=none:${ARTIFACT_SHA}:123; handoff=${HANDOFF_SHA}:123; output=/tmp/worldloom-field-build/cold-llm/field-build-17-propagation-proposal.md; subagent=/root/proposal; pressure=active=blocked by app`
+      })
+    }),
+    liveLog: liveLogFixture(),
+    reportPath: "reports/field-build-17-example-world.md"
+  });
+
+  assert.match(result.errors.join("\n"), /blocked by app requires reason=<one line>/);
+});
+
+test("uses a preflight pass before requiring the closeout command ledger", () => {
+  const preflight = validateFieldBuild({
+    report: reportFixture(),
+    liveLog: liveLogFixture({ includeCommandLedger: false }),
+    reportPath: "reports/field-build-17-example-world.md",
+    preflightCloseout: true
+  });
+  const final = validateFieldBuild({
+    report: reportFixture(),
+    liveLog: liveLogFixture({ includeCommandLedger: false }),
+    reportPath: "reports/field-build-17-example-world.md"
+  });
+
+  assert.deepEqual(preflight.errors, []);
+  assert.match(final.errors.join("\n"), /missing required closeout label: Closeout command ledger:/);
+});
+
+test("rejects closeout command ledger rows without observed successful output", () => {
+  const result = validateFieldBuild({
+    report: reportFixture(),
+    liveLog: liveLogFixture({ preflightOutcome: "passed - validator returned zero" }),
+    reportPath: "reports/field-build-17-example-world.md"
+  });
+
+  assert.match(result.errors.join("\n"), /does not record the successful output/);
+});
+
+test("validates the latest append-only closeout command ledger", () => {
+  const correctedLedger = `Closeout command ledger:
+
+| check | exact command | outcome |
+|---|---|---|
+| heading check | \`rg -n '^#{1,2} ' reports/field-build-17-example-world.md\` | passed - all required headings present |
+| preflight validator | \`node .claude/skills/field-build/scripts/validate-report.mjs reports/field-build-17-example-world.md /tmp/worldloom-field-build/build-log-17-example-world.md --preflight-closeout\` | passed - Field-build report preflight validated. |`;
+  const result = validateFieldBuild({
+    report: reportFixture(),
+    liveLog: `${liveLogFixture({ preflightOutcome: "failed - missing report field" })}\n${correctedLedger}`,
+    reportPath: "reports/field-build-17-example-world.md"
+  });
+
+  assert.deepEqual(result.errors, []);
 });
 
 test("rejects fixed boundary regressions whose negative control is deferred", () => {
