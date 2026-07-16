@@ -15,6 +15,45 @@ import {
 const validator = fileURLToPath(new URL("./validate-tdd-closeout-body.mjs", import.meta.url));
 const expectedFinalSha = "abcdef0123456789";
 const closingOptions = { flags: ["--closing"], expectedFinalSha };
+const singleIssueManifest = {
+  version: 1,
+  issues: [
+    {
+      number: 1,
+      title: "Single issue",
+      checks: [{ id: "AC1", kind: "acceptance", text: "Exact workflow" }]
+    }
+  ]
+};
+const parentManifest = {
+  version: 1,
+  issues: [
+    {
+      number: 1,
+      title: "Parent PRD",
+      checks: [
+        { id: "Parent-Solution", kind: "parent-prd-section", text: "Parent PRD ## Solution section" },
+        { id: "US1", kind: "user-story", text: "First story" },
+        { id: "US2", kind: "user-story", text: "Second story" },
+        { id: "US3", kind: "user-story", text: "Third story" },
+        {
+          id: "Parent-Implementation-Decisions",
+          kind: "parent-prd-section",
+          text: "Parent PRD ## Implementation Decisions section"
+        },
+        {
+          id: "Parent-Testing-Decisions",
+          kind: "parent-prd-section",
+          text: "Parent PRD ## Testing Decisions section"
+        },
+        { id: "AC1", kind: "acceptance", text: "First acceptance" },
+        { id: "AC2", kind: "acceptance", text: "Second acceptance" },
+        { id: "AC3", kind: "acceptance", text: "Third acceptance" },
+        { id: "Principles", kind: "principles", text: "Principles/ADR conformance for #1" }
+      ]
+    }
+  ]
+};
 
 const bodyWith = ({
   acceptance =
@@ -92,8 +131,78 @@ TDD review-fix addendum:
 - Evidence identity refresh: same-sink current/historical-red/superseded identity block inspected
 `;
 
+const parentBodyWithStoryMap = () =>
+  bodyWith({
+    acceptance:
+      "Solution/Implementation/Testing/Principles/US1-US3/AC1-AC3; atoms: parent requirements plus individual stories and acceptance checks; proof surfaces: adjacent story map and focused tests; sequence: N/A because these criteria are not sequence-sensitive"
+  }).replace(
+    "Verification command ledger:",
+    `| Story | Exact proof |
+|---|---|
+| US1 | child seam one |
+| US2 | child seam two |
+| US3 | child seam three |
+
+Verification command ledger:`
+  );
+
 test("accepts sequence evidence and reconciled evidence identities", () => {
   assert.deepEqual(validateTddCloseoutBody(bodyWith()), []);
+});
+
+test("parent-rollup manifest validation requires every individual story mapping", () => {
+  const complete = parentBodyWithStoryMap();
+  assert.deepEqual(
+    validateTddCloseoutBody(complete, {
+      flags: ["--parent-rollup"],
+      acceptanceManifest: parentManifest
+    }),
+    []
+  );
+
+  const withoutStoryMap = complete.replace(
+    /\| Story \| Exact proof \|\n\|---\|---\|\n\| US1 .+\n\| US2 .+\n\| US3 .+\n\n/,
+    ""
+  );
+  const missingStoryErrors = validateTddCloseoutBody(withoutStoryMap, {
+    flags: ["--parent-rollup"],
+    acceptanceManifest: parentManifest
+  });
+  assert.deepEqual(
+    missingStoryErrors.filter((error) => error.includes("missing TDD coverage for US")),
+    [
+      "acceptance manifest issue #1 is missing TDD coverage for US1",
+      "acceptance manifest issue #1 is missing TDD coverage for US2",
+      "acceptance manifest issue #1 is missing TDD coverage for US3"
+    ]
+  );
+  assert.ok(
+    validateTddCloseoutBody(complete, { flags: ["--parent-rollup"] }).some((error) =>
+      error.includes("requires an acceptance manifest")
+    )
+  );
+});
+
+test("parent-rollup CLI requires and reads an acceptance manifest", () => {
+  const directory = mkdtempSync(join(tmpdir(), "tdd-closeout-manifest-test-"));
+  const bodyPath = join(directory, "body.md");
+  const manifestPath = join(directory, "manifest.json");
+  writeFileSync(bodyPath, bodyWith());
+  writeFileSync(manifestPath, JSON.stringify(singleIssueManifest));
+
+  const missing = spawnSync(process.execPath, [validator, bodyPath, "--parent-rollup"], {
+    encoding: "utf8"
+  });
+  const complete = spawnSync(
+    process.execPath,
+    [validator, bodyPath, "--parent-rollup", "--acceptance-manifest", manifestPath],
+    { encoding: "utf8" }
+  );
+  rmSync(directory, { recursive: true, force: true });
+
+  assert.equal(missing.status, 2);
+  assert.match(missing.stderr, /requires --acceptance-manifest/);
+  assert.equal(complete.status, 0, complete.stderr);
 });
 
 test("closing rejects local staging paths while interim validation permits them", () => {
@@ -517,6 +626,10 @@ test("guidance carries sink, snapshot, exactness, and shared closeout contracts"
   assert.match(closeout, /fixture paths withheld because/);
   assert.match(closeout, /Evidence-only proof server preflight:/);
   assert.match(closeout, /--expected-final-sha "\$\(git rev-parse HEAD\)"/);
+  assert.match(closeout, /--acceptance-manifest <path>/);
+  assert.match(closeout, /--size-plan --require-headroom/);
+  assert.match(closeout, /--select <issue\[:check-id\[,check-id\.\.\.\]\]>/);
+  assert.match(skill, /authoritative acceptance manifest/);
   assert.match(closeout, /\| Exact command \| Observed result\/counts \| Run count \| Represented SHA\/tree \|/);
   assert.match(closeout, /output-derived result or count/);
   assert.equal(

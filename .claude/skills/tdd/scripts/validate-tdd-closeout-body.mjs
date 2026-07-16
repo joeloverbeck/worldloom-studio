@@ -6,7 +6,38 @@ import { pathToFileURL } from "node:url";
 
 export const DEFAULT_TDD_CLOSEOUT_BODY_MAX_BYTES = 65_536;
 
-const usage = `Usage: node .claude/skills/tdd/scripts/validate-tdd-closeout-body.mjs <body.md> [--closing --expected-final-sha <sha>] [--parent-rollup] [--max-bytes <positive integer>]`;
+const usage = `Usage: node .claude/skills/tdd/scripts/validate-tdd-closeout-body.mjs <body.md> [--closing --expected-final-sha <sha>] [--parent-rollup] [--parent-prd] [--child-family] [--issue-set] [--acceptance-manifest <manifest.json>] [--max-bytes <positive integer>]`;
+
+const manifestScopeFlags = ["--parent-rollup", "--parent-prd", "--child-family", "--issue-set"];
+
+const validateAcceptanceManifest = (manifest, errors) => {
+  if (!manifest) return [];
+  if (manifest.version !== 1 || !Array.isArray(manifest.issues) || manifest.issues.length === 0) {
+    errors.push("acceptance manifest must have version 1 and a non-empty issues array");
+    return [];
+  }
+
+  const seenIssues = new Set();
+  for (const issue of manifest.issues) {
+    if (!Number.isInteger(issue?.number) || seenIssues.has(issue.number) || !Array.isArray(issue.checks) || issue.checks.length === 0) {
+      errors.push("acceptance manifest issues require unique integer numbers and non-empty checks arrays");
+      return [];
+    }
+    seenIssues.add(issue.number);
+
+    const seenChecks = new Set();
+    for (const check of issue.checks) {
+      const id = typeof check?.id === "string" ? check.id.trim() : "";
+      if (!id || seenChecks.has(id.toLowerCase()) || typeof check?.text !== "string") {
+        errors.push(`acceptance manifest issue #${issue.number} contains an invalid or duplicate check`);
+        return [];
+      }
+      seenChecks.add(id.toLowerCase());
+    }
+  }
+
+  return manifest.issues;
+};
 
 export const validateTddCloseoutBody = (body, options = {}) => {
   const flags = new Set(options.flags ?? []);
@@ -14,6 +45,13 @@ export const validateTddCloseoutBody = (body, options = {}) => {
   const errors = [];
   const maxBytes = options.maxBytes ?? DEFAULT_TDD_CLOSEOUT_BODY_MAX_BYTES;
   const expectedFinalSha = options.expectedFinalSha;
+  const requiresAcceptanceManifest = manifestScopeFlags.some((flag) => flags.has(flag));
+  if (requiresAcceptanceManifest && !options.acceptanceManifest) {
+    errors.push(
+      `${manifestScopeFlags.filter((flag) => flags.has(flag)).join("/")} TDD validation requires an acceptance manifest`
+    );
+  }
+  const manifestIssues = validateAcceptanceManifest(options.acceptanceManifest, errors);
 
   if (expectedFinalSha !== undefined && !/^[0-9a-f]{7,40}$/i.test(expectedFinalSha)) {
     errors.push("expected final SHA must be a 7-40 character hexadecimal commit SHA");
@@ -524,6 +562,35 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     }
     return refs;
   };
+  const sourceNamesManifestCheck = (source, checkId) => {
+    const sourceForExactMatch = /^US\d+$/i.test(checkId)
+      ? source.replace(/\bUS\s*\d+\s*(?:-|–|—|to|through)\s*(?:US\s*)?\d+\b/gi, " ")
+      : source;
+    const escapedId = checkId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (new RegExp(`(?:^|[^A-Za-z0-9])${escapedId}(?=$|[^A-Za-z0-9])`, "i").test(sourceForExactMatch)) {
+      return true;
+    }
+
+    const acNumber = checkId.match(/^AC(\d+)$/i)?.[1];
+    if (acNumber) {
+      const number = Number(acNumber);
+      const rangePattern = /\bAC\s*(\d+)\s*(?:-|–|—|to|through)\s*(?:AC\s*)?(\d+)\b/gi;
+      if ([...source.matchAll(rangePattern)].some((match) => {
+        const start = Number(match[1]);
+        const end = Number(match[2]);
+        return number >= Math.min(start, end) && number <= Math.max(start, end);
+      })) {
+        return true;
+      }
+    }
+
+    const parentAliases = {
+      "Parent-Solution": /\bSolution\b/i,
+      "Parent-Implementation-Decisions": /\bImplementation(?:\s+Decisions)?\b/i,
+      "Parent-Testing-Decisions": /\bTesting(?:\s+Decisions)?\b/i
+    };
+    return parentAliases[checkId]?.test(source) ?? false;
+  };
   const intersects = (left, right) => {
     for (const value of left) {
       if (right.has(value)) return true;
@@ -690,6 +757,50 @@ export const validateTddCloseoutBody = (body, options = {}) => {
 
   if (hasCompactHeader && !compactRows.length) {
     errors.push("compact TDD table has no issue rows");
+  }
+
+  if (manifestIssues.length) {
+    const sourcesByIssue = new Map(manifestIssues.map((issue) => [issue.number, []]));
+    const addIssueSource = (issueNumber, source) => {
+      if (sourcesByIssue.has(issueNumber)) sourcesByIssue.get(issueNumber).push(source);
+    };
+
+    for (const { cells } of compactRows) {
+      const issueNumber = Number(cells[0]?.match(/^#(\d+)/)?.[1]);
+      if (Number.isInteger(issueNumber)) addIssueSource(issueNumber, cells[6] ?? "");
+    }
+
+    const checkOwners = new Map();
+    for (const issue of manifestIssues) {
+      for (const check of issue.checks) {
+        const key = check.id.toLowerCase();
+        const owners = checkOwners.get(key) ?? [];
+        owners.push(issue.number);
+        checkOwners.set(key, owners);
+      }
+    }
+
+    for (const line of lines) {
+      if (!line.trim().startsWith("|")) continue;
+      const cells = splitTableRow(line);
+      const issueNumber = Number(cells[0]?.match(/^#(\d+)/)?.[1]);
+      if (Number.isInteger(issueNumber)) {
+        addIssueSource(issueNumber, cells.slice(1).join(" "));
+        continue;
+      }
+
+      const owners = checkOwners.get((cells[0] ?? "").toLowerCase()) ?? [];
+      if (owners.length === 1) addIssueSource(owners[0], cells.join(" "));
+    }
+
+    for (const issue of manifestIssues) {
+      const sources = sourcesByIssue.get(issue.number) ?? [];
+      for (const check of issue.checks) {
+        if (!sources.some((source) => sourceNamesManifestCheck(source, check.id))) {
+          errors.push(`acceptance manifest issue #${issue.number} is missing TDD coverage for ${check.id}`);
+        }
+      }
+    }
   }
 
   const reviewFixRows = [];
@@ -972,8 +1083,10 @@ if (isCli) {
   const maxBytesText = maxBytesFlag >= 0 ? args[maxBytesFlag + 1] : undefined;
   const expectedFinalShaFlag = args.indexOf("--expected-final-sha");
   const expectedFinalSha = expectedFinalShaFlag >= 0 ? args[expectedFinalShaFlag + 1] : undefined;
+  const acceptanceManifestFlag = args.indexOf("--acceptance-manifest");
+  const acceptanceManifestPath = acceptanceManifestFlag >= 0 ? args[acceptanceManifestFlag + 1] : undefined;
   const valueIndexes = new Set(
-    [maxBytesFlag, expectedFinalShaFlag]
+    [maxBytesFlag, expectedFinalShaFlag, acceptanceManifestFlag]
       .filter((index) => index >= 0)
       .map((index) => index + 1)
   );
@@ -1002,6 +1115,20 @@ if (isCli) {
     process.exit(2);
   }
 
+  if (acceptanceManifestFlag >= 0 && (!acceptanceManifestPath || acceptanceManifestPath.startsWith("--"))) {
+    console.error("--acceptance-manifest requires a manifest path");
+    console.error(usage);
+    process.exit(2);
+  }
+
+  if (manifestScopeFlags.some((flag) => flags.has(flag)) && !acceptanceManifestPath) {
+    console.error(
+      `${manifestScopeFlags.filter((flag) => flags.has(flag)).join("/")} requires --acceptance-manifest`
+    );
+    console.error(usage);
+    process.exit(2);
+  }
+
   if (expectedFinalSha && !/^[0-9a-f]{7,40}$/i.test(expectedFinalSha)) {
     console.error("--expected-final-sha must be a 7-40 character hexadecimal commit SHA");
     console.error(usage);
@@ -1021,8 +1148,23 @@ if (isCli) {
     process.exit(2);
   }
 
+  let acceptanceManifest;
+  if (acceptanceManifestPath) {
+    try {
+      acceptanceManifest = JSON.parse(readFileSync(acceptanceManifestPath, "utf8"));
+    } catch (error) {
+      console.error(`Acceptance manifest read failed: ${error.message}`);
+      process.exit(1);
+    }
+  }
+
   const body = readFileSync(file, "utf8");
-  const errors = validateTddCloseoutBody(body, { flags, maxBytes, expectedFinalSha });
+  const errors = validateTddCloseoutBody(body, {
+    flags,
+    maxBytes,
+    expectedFinalSha,
+    acceptanceManifest
+  });
 
   if (errors.length) {
     console.error(`TDD closeout body validation failed for ${file}:`);

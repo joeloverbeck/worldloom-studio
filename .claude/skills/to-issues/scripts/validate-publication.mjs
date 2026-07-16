@@ -35,12 +35,12 @@ const COMPOSITE_CHECKLIST_COMPONENTS = new Map([
     ["canon", /\bcanon\b/i],
   ]],
   ["skip path and reason storage", [
-    ["skip path", /\bskip path\b/i],
-    ["reason storage", /\breason storage\b/i],
+    ["skip path", /\b(?:skip path|defer(?:ral|red|ring)?|governed decline)\b/i],
+    ["reason storage", /\breason storage\b|(?:\b(?:reason|rationale)\b[\s\S]{0,240}\b(?:persist\w*|record\w*|retain\w*|history|provenance)\b)|(?:\b(?:persist\w*|record\w*|retain\w*|history|provenance)\b[\s\S]{0,240}\b(?:reason|rationale)\b)/i],
   ]],
   ["blockers/substance validation", [
     ["blockers", /\bblockers?\b/i],
-    ["substance validation", /\bsubstance validation\b/i],
+    ["substance validation", /\bsubstance validation\b|\bincomplete(?:\s+\w+){0,2}\s+(?:work|completion|step|material|evidence)\b/i],
   ]],
   ["current, next, and resume state", [
     ["current", /\bcurrent\b/i],

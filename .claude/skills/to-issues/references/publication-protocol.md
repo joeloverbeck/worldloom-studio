@@ -125,6 +125,8 @@ Use columns `Slice | Checklist item | Covered by final AC mapping | N/A reason`.
 
 For a composite checklist item, the resolved AC text must cover every named component. One AC may cover multiple components, multiple exact mappings may divide them, or an AC may encode an explicit cross-slice handoff that names the component and the slice that closes it. Do not map a row such as `prompt packet preview, source manifest, and cold external LLM test` to criteria that cover only preview and manifest. Every inapplicable row uses `N/A - <specific reason>`. An unaffected slice gets one `browser-visible guidance checklist` row with a specific N/A reason. A generic body criterion or final-ledger `yes` never substitutes for this run sheet.
 
+Composite coverage is semantic, not a demand to copy checklist labels into issue prose. Use the repository's governed terms when they prove the same behavior: a governed deferral or decline can satisfy the skip-path component; a recorded, retained, or persisted reason/rationale can satisfy reason storage; and an explicit refusal of incomplete work, material, evidence, or completion can satisfy substance validation. The validator keeps negative controls for each alternative. Do not add phrases such as `skip path and reason storage` or `substance validation` solely to make the checker pass.
+
 ## 3. Validate staged artifacts
 
 The staged-artifact validator is the canonical check for content, patch markers, default placeholders, `/home/`, `/tmp`, sections, blockers, story coverage, AC count, and exact checklist-to-AC mappings:

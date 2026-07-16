@@ -405,8 +405,16 @@ if (shouldRunTddValidator) {
 
   const tddFlags = [];
   if (flags.has("--tdd-parent-rollup")) tddFlags.push("--parent-rollup");
+  for (const scopeFlag of ["--child-family", "--issue-set"]) {
+    if (flags.has(scopeFlag)) tddFlags.push(scopeFlag);
+  }
   if (flags.has("--closing")) tddFlags.push("--closing");
-  const tddErrors = validateTddCloseoutBody(body, { flags: tddFlags, maxBytes, expectedFinalSha });
+  const tddErrors = validateTddCloseoutBody(body, {
+    flags: tddFlags,
+    maxBytes,
+    expectedFinalSha,
+    acceptanceManifest
+  });
   if (tddErrors.length) {
     errors.push(`TDD validator failed:\n${tddErrors.map((error) => `- ${error}`).join("\n")}`);
   }

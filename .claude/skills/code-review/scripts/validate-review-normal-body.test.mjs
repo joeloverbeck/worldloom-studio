@@ -147,6 +147,63 @@ test("requires parent PRD coverage only when requested", () => {
     { flags: ["--parent-prd"], acceptanceManifest }
   );
   assert.ok(nAErrors.some((error) => error.includes("cannot be N/A")));
+
+  const structuredManifest = {
+    version: 1,
+    issues: [
+      {
+        number: 359,
+        title: "Parent PRD",
+        checks: [
+          { id: "Parent-Solution", kind: "parent-prd-section", text: "Parent PRD ## Solution section" },
+          { id: "US1", kind: "user-story", text: "First story" },
+          { id: "US2", kind: "user-story", text: "Second story" },
+          { id: "US3", kind: "user-story", text: "Third story" },
+          {
+            id: "Parent-Implementation-Decisions",
+            kind: "parent-prd-section",
+            text: "Parent PRD ## Implementation Decisions section"
+          },
+          {
+            id: "Parent-Testing-Decisions",
+            kind: "parent-prd-section",
+            text: "Parent PRD ## Testing Decisions section"
+          }
+        ]
+      }
+    ]
+  };
+  const storyMap = `| Story | Exact proof |
+|---|---|
+| US1 | first child seam |
+| US2 | second child seam |
+| US3 | third child seam |
+`;
+  const structuredBody = parentBody
+    .replace(
+      "issue #359 AC1, AC2; sequence: N/A because these criteria are not sequence-sensitive",
+      "issue #359 Solution, Implementation Decisions, Testing Decisions, individual US1-US3 map below; sequence: N/A because these criteria are not sequence-sensitive"
+    )
+    .replace("- **Review subagents**", `${storyMap}\n- **Review subagents**`);
+  assert.deepEqual(
+    validateReviewNormalBody(structuredBody, {
+      flags: ["--parent-prd"],
+      acceptanceManifest: structuredManifest
+    }),
+    []
+  );
+  const missingStories = validateReviewNormalBody(
+    structuredBody.replace(`${storyMap}\n`, ""),
+    { flags: ["--parent-prd"], acceptanceManifest: structuredManifest }
+  );
+  assert.deepEqual(
+    missingStories.filter((error) => error.includes("missing acceptance source US")),
+    [
+      "PRD child coverage issue #359 is missing acceptance source US1",
+      "PRD child coverage issue #359 is missing acceptance source US2",
+      "PRD child coverage issue #359 is missing acceptance source US3"
+    ]
+  );
 });
 
 test("requires exact sequence-aware child coverage when --child-family is used", () => {
@@ -382,6 +439,33 @@ test("requires review-native evidence identity reconciliation", () => {
     );
   assert.deepEqual(validateReviewNormalBody(strongSweep), []);
 
+  const canonicalMultiValueSweep = noFixBody
+    .replace(
+      "Superseded evidence identities: fixture paths none; browser sessions none; packet paths/hashes none; active revisions none; artifacts none",
+      "Superseded evidence identities: fixture paths old-a.json | old-b.json; browser sessions none; packet paths/hashes none; active revisions none; artifacts none"
+    )
+    .replace(
+      "Superseded-token sweep: N/A because every superseded category is none",
+      "Superseded-token sweep: rg old-a.json old-b.json body.md found no hits outside classified identity/history lines and no active-proof hits"
+    );
+  assert.deepEqual(validateReviewNormalBody(canonicalMultiValueSweep), []);
+  assert.ok(
+    validateReviewNormalBody(
+      canonicalMultiValueSweep.replace("rg old-a.json old-b.json", "rg old-a.json")
+    ).some((error) => error.includes("every normalized superseded value"))
+  );
+
+  const legacyMarkdownListSweep = noFixBody
+    .replace(
+      "Superseded evidence identities: fixture paths none; browser sessions none; packet paths/hashes none; active revisions none; artifacts none",
+      "Superseded evidence identities: fixture paths `old-a.json`, `old-b.json`.; browser sessions none; packet paths/hashes none; active revisions none; artifacts none"
+    )
+    .replace(
+      "Superseded-token sweep: N/A because every superseded category is none",
+      "Superseded-token sweep: rg old-a.json old-b.json body.md found no hits outside classified identity/history lines and no active-proof hits"
+    );
+  assert.deepEqual(validateReviewNormalBody(legacyMarkdownListSweep), []);
+
   for (const oneSidedSweep of [
     "- Superseded-token sweep: rg old.json body.md found no active-proof hits; historical-red red.json classified as failing history",
     "- Superseded-token sweep: rg old.json body.md found no hits outside classified identity/history lines; historical-red red.json classified as failing history"
@@ -418,12 +502,18 @@ test("rejects HTML-like angle tokens and documents shared identity safety", () =
   assert.match(identities, /published current artifact is not safe to remove until closeout is complete/);
   assert.match(identities, /fixture paths withheld because/);
   assert.match(identities, /Never use `fixture paths none published because/);
+  assert.match(identities, /canonical delimiter/);
+  assert.match(implementTemplate, /normalized value independently/);
   for (const contract of [skill, fallback]) {
     assert.match(contract, /Evidence-only proof server preflight:/);
     assert.match(contract, /proof server preflight/);
     assert.match(contract, /65,536-byte body maximum/);
     assert.match(contract, /--max-bytes <positive integer>/);
+    assert.match(contract, /US1-US36.*does not replace individual story rows/);
+    assert.match(contract, /--select <issue\[:check-id\[,check-id\.\.\.\]\]>/);
   }
+  assert.match(skill, /--review normal --size-plan --require-headroom/);
+  assert.match(fallback, /--review fallback --size-plan --require-headroom/);
 });
 
 test("rejects non-terminal review subagent status", () => {
@@ -689,6 +779,28 @@ TDD evidence gate passed: durable sink issue #355 closeout comment; compact tabl
 `;
 
   assert.deepEqual(validateReviewNormalBody(body, { flags: ["--immediate-fix", "--tdd"] }), []);
+  const nestedAcceptanceManifest = {
+    version: 1,
+    issues: [
+      {
+        number: 355,
+        title: "Nested TDD issue",
+        checks: [{ id: "AC1", kind: "acceptance", text: "Typed public contract" }]
+      }
+    ]
+  };
+  assert.deepEqual(
+    validateReviewNormalBody(body, {
+      flags: ["--immediate-fix", "--tdd-parent-rollup"],
+      acceptanceManifest: nestedAcceptanceManifest
+    }),
+    []
+  );
+  assert.ok(
+    validateReviewNormalBody(body, {
+      flags: ["--immediate-fix", "--tdd-parent-rollup"]
+    }).some((error) => error.includes("requires an acceptance manifest"))
+  );
   assert.deepEqual(
     validateReviewNormalBody(body, {
       flags: ["--immediate-fix", "--tdd", "--closing"],

@@ -6,7 +6,11 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 
-import { buildAcceptanceManifest, buildAuditScaffold } from "./build-acceptance-manifest.mjs";
+import {
+  buildAcceptanceManifest,
+  buildAuditScaffold,
+  selectAcceptanceManifest
+} from "./build-acceptance-manifest.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const validator = resolve(here, "validate-closeout-body.mjs");
@@ -111,6 +115,122 @@ test("buildAcceptanceManifest keeps an empty Principles heading as a required ch
   assert.equal(manifest.issues[0].checks.at(-1).id, "Principles");
 });
 
+test("buildAcceptanceManifest expands parent PRD sections and individual user stories", () => {
+  const manifest = buildAcceptanceManifest({
+    number: 391,
+    title: "PRD: Parent coverage",
+    body: `## Problem Statement
+
+The workflow is incomplete.
+
+## Solution
+
+Complete the workflow.
+
+## User Stories
+
+1. As a steward, I want the first behavior, so that the workflow is complete
+2. As a reviewer, I want the second behavior,
+   so that the evidence is exact
+
+## Implementation Decisions
+
+- Keep policy server-owned.
+
+## Testing Decisions
+
+- Exercise the production seam.
+
+## Principles
+`
+  });
+
+  assert.deepEqual(manifest.issues[0].checks, [
+    {
+      id: "Parent-Solution",
+      kind: "parent-prd-section",
+      text: "Parent PRD ## Solution section"
+    },
+    {
+      id: "US1",
+      kind: "user-story",
+      text: "As a steward, I want the first behavior, so that the workflow is complete"
+    },
+    {
+      id: "US2",
+      kind: "user-story",
+      text: "As a reviewer, I want the second behavior, so that the evidence is exact"
+    },
+    {
+      id: "Parent-Implementation-Decisions",
+      kind: "parent-prd-section",
+      text: "Parent PRD ## Implementation Decisions section"
+    },
+    {
+      id: "Parent-Testing-Decisions",
+      kind: "parent-prd-section",
+      text: "Parent PRD ## Testing Decisions section"
+    },
+    {
+      id: "Principles",
+      kind: "principles",
+      text: "Principles/ADR conformance for #391"
+    }
+  ]);
+});
+
+test("selectAcceptanceManifest emits deterministic issue and check subsets", () => {
+  const full = buildAcceptanceManifest([
+    {
+      number: 391,
+      body: `## Problem Statement
+
+Problem.
+
+## Solution
+
+Solution.
+
+## User Stories
+
+1. As a steward, I want one behavior, so that one outcome follows
+2. As a steward, I want another behavior, so that another outcome follows
+
+## Testing Decisions
+
+- Test both.
+
+## Principles
+`
+    },
+    {
+      number: 392,
+      body: "## Acceptance criteria\n\n- [ ] Child behavior\n"
+    }
+  ]);
+
+  const subset = selectAcceptanceManifest(full, [
+    "391:US2,Parent-Testing-Decisions",
+    "392"
+  ]);
+
+  assert.deepEqual(
+    subset.issues.map((issue) => [issue.number, issue.checks.map((check) => check.id)]),
+    [
+      [391, ["US2", "Parent-Testing-Decisions"]],
+      [392, ["AC1"]]
+    ]
+  );
+  const audit = buildAuditScaffold(subset);
+  assert.match(audit, /\| #391 \| US2 - As a steward/);
+  assert.match(audit, /\| #392 \| AC1 - Child behavior/);
+  assert.doesNotMatch(audit, /Parent-Solution/);
+  assert.throws(
+    () => selectAcceptanceManifest(full, ["391:US99"]),
+    /selector references missing check #391:US99/
+  );
+});
+
 test("manifest CLI writes JSON and audit scaffold from saved issue output", () => {
   const directory = mkdtempSync(join(tmpdir(), "implement-manifest-test-"));
   const inputPath = join(directory, "issues.json");
@@ -127,6 +247,38 @@ test("manifest CLI writes JSON and audit scaffold from saved issue output", () =
   assert.equal(result.status, 0, result.stderr);
   assert.equal(JSON.parse(readFileSync(manifestPath, "utf8")).issues[0].checks.length, 3);
   assert.match(readFileSync(auditPath, "utf8"), /\| #359 \| Principles - Principles\/ADR conformance/);
+  rmSync(directory, { recursive: true, force: true });
+});
+
+test("manifest CLI writes a selected check subset and matching audit scaffold", () => {
+  const directory = mkdtempSync(join(tmpdir(), "implement-manifest-subset-test-"));
+  const inputPath = join(directory, "issues.json");
+  const manifestPath = join(directory, "manifest.json");
+  const auditPath = join(directory, "audit.md");
+  writeFileSync(inputPath, JSON.stringify({ issues: issueInput }));
+
+  const result = spawnSync(
+    process.execPath,
+    [
+      builder,
+      inputPath,
+      "--select",
+      "359:AC2,Principles",
+      "--output",
+      manifestPath,
+      "--audit-output",
+      auditPath
+    ],
+    { encoding: "utf8" }
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(
+    JSON.parse(readFileSync(manifestPath, "utf8")).issues[0].checks.map((check) => check.id),
+    ["AC2", "Principles"]
+  );
+  assert.doesNotMatch(readFileSync(auditPath, "utf8"), /\| #359 \| AC1 -/);
+  assert.match(readFileSync(auditPath, "utf8"), /\| #359 \| AC2 -/);
   rmSync(directory, { recursive: true, force: true });
 });
 

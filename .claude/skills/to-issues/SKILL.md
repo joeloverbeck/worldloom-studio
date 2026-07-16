@@ -70,7 +70,15 @@ Before finalizing the breakdown, check whether the source plan cites local ADRs,
 
 Treat a source-plan note such as "temporary source summarized, not cited," "summarized rather than cited," "pending local repo publication," "pending authoring/publication," or equivalent wording as the same durability trigger even when the source omits an exact local path. If code-bearing slices depend on that summarized finding, create the document blocker first so the durable source or issue-linked summary exists before implementation depends on it. Before creating that blocker, verify the note's currency against the repo: such notes can go stale between the source's authoring and the breakdown. If the cited doctrine or artifact is now tracked and committed (for example, confirmed via git earlier in the session), record that verification in the Step 4 proposal and skip the blocker — a stale note does not owe a no-op issue.
 
-Durability requires content identity with the resolved publication ref, not merely a clean tracked path or a same-named file on that ref. For every exact cited path, run `git status --porcelain -- <path>`, `git ls-files --error-unmatch <path>`, `git ls-tree -r --name-only <publication-ref> -- <path>`, and `git diff --quiet <publication-ref> -- <path>` (or an equivalent blob-identity comparison), capturing the content comparison's exit status explicitly. A clean file from a local-only commit is pending publication when its content differs from the publication ref. Name the resolved ref and results in the Step 4 proposal. If a relied-on path is absent from that ref or its content differs, create the document blocker, move the necessary conclusion into a durable tracker note or sufficient parent summary, or stop before publishing dependent children.
+Durability requires content identity with the resolved publication ref, not merely a clean tracked path or a same-named file on that ref. After resolving every stable identifier to an exact tracked path as described below, use the canonical checker:
+
+```sh
+node .claude/skills/to-issues/scripts/check-artifact-durability.mjs <publication-ref> <path> [<path>...]
+```
+
+The checker emits one structured result per path. Exit `0` means every path is tracked, clean, visible at the resolved ref, and content-identical; exit `1` means at least one path is not durable and must be routed through the blocker/summary decision; exit `2` means the check itself failed. `identicalToRef: null` means identity was not evaluated because the path was untracked or absent at the ref — never reinterpret it as `true`.
+
+If the helper cannot run, use the manual fallback for every exact path: `git status --porcelain -- <path>`, `git ls-files --error-unmatch <path>`, `git ls-tree -r --name-only <publication-ref> -- <path>`, then `git diff --quiet <publication-ref> -- <path>`. Only run or interpret the final content comparison after the tracked and ref-visible checks both succeed; otherwise record identity as N/A rather than identical. A clean file from a local-only commit is pending publication when its content differs from the publication ref. Name the resolved ref and results in the Step 4 proposal. If a relied-on path is absent from that ref or its content differs, create the document blocker, move the necessary conclusion into a durable tracker note or sufficient parent summary, or stop before publishing dependent children.
 
 When the parent issue body itself contains the ratified conclusions from an otherwise untracked or temporary source at enough detail for child issues to cite the parent plus tracked docs, treat the parent as the durable issue-linked summary. In that case, do not create a separate "publish the temporary source" blocker just to duplicate the parent body; instead, surface the decision in the Step 4 approval checkpoint and include it in the optional parent ledger. Still create a document blocker when code-bearing slices depend on details absent from both the parent body and tracked repo docs, or when a downstream tracked spec/ledger must absorb the conclusion before implementation can safely proceed.
 
@@ -86,7 +94,27 @@ When a slice's correctness hinges on a *derivation* a cited spec or ADR made —
 
 Fetch one or two child issues of a prior breakdown from the tracker and match their house style — title pattern, body voice, section order, and acceptance-criteria conventions. Prefer a narrow lookup: query recent issue titles/numbers first, identify a prior PRD child set, then fetch one or two exact child issue bodies by default instead of pulling broad full-body lists. Usually stop at three exact child issue bodies; fetch one additional exact child body per materially distinct domain surface only when needed to cover both current house style and domain-specific precedent, and keep each read compact. The approval-only publication protocol contains the required issue template; preserve fetched house-style section order unless repo docs explicitly require a different order.
 
-When the breakdown is likely to create multiple issues and Step 4 will offer a parent child-map ledger comment, also fetch or inspect one recent same-repo parent child-map comment before the approval checkpoint when available. Use a two-stage lookup: first list candidate comment URLs plus only their first Markdown heading, then select exactly one comment whose heading matches `^# Child Issue Map` and fetch only that exact comment body. Do not search or print every comment body with a broad `child`, `breakdown`, or issue-reference regex; closeout comments can be very large and are not ledger precedent. For example, list candidates with `gh issue view <candidate-parent> --json comments --jq '.comments[] | {url, heading: (.body | split("\n") | map(select(startswith("#"))) | .[0] // "")}'`, choose one exact URL whose heading matches, then project only that URL's body with a second `gh issue view` query. Use the selected comment to learn the ledger heading/table style and whether the repo uses a stable disclaimer. If no parent-ledger precedent or disclaimer requirement is found, say that in the approval checkpoint rather than discovering it only during publication.
+#### Parent-ledger precedent lookup gate
+
+When the breakdown is likely to create multiple issues and Step 4 will offer a parent child-map ledger comment, inspect one recent same-repo parent ledger before the approval checkpoint when available. This is a mandatory two-phase lookup:
+
+1. **Candidate headings only.** List each comment URL and its first Markdown heading:
+
+   ```sh
+   gh issue view <candidate-parent> --json comments \
+     --jq '.comments[] | {url, heading: (.body | split("\n") | map(select(startswith("#"))) | .[0] // "")}'
+   ```
+
+   This candidate query may not project or print a comment `body`. Select exactly one URL whose heading matches `^# Child Issue Map`; broad `child`, `breakdown`, issue-reference, or full-body searches fail this gate because closeout comments can be very large and are not ledger precedent.
+
+2. **One exact body.** Only after selecting the exact URL, fetch that comment:
+
+   ```sh
+   gh issue view <candidate-parent> --json comments \
+     --jq '.comments[] | select(.url == "<exact-comment-url>") | .body'
+   ```
+
+Use only that selected comment to learn the ledger heading/table style and whether the repo uses a stable disclaimer. If phase 1 finds no matching parent-ledger precedent or disclaimer requirement, say so in the approval checkpoint and do not perform a broad fallback body search.
 
 ### 4. Quiz the user
 

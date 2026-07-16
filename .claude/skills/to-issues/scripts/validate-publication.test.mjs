@@ -249,6 +249,101 @@ ${rows}
   }
 });
 
+test("run-sheet mode accepts repo-native governed-deferral and incomplete-work language", () => {
+  const directory = mkdtempSync(join(tmpdir(), "to-issues-validator-"));
+  try {
+    const bodyA = join(directory, "a.md");
+    writeFileSync(bodyA, checklistIssueBody()
+      .replace(
+        "skip path and reason storage.",
+        "Governed deferral requires a rationale and records it in immutable history.",
+      )
+      .replace(
+        "blockers/substance validation.",
+        "Server blockers refuse incomplete specialized work and return remediation.",
+      ));
+    const rows = checklistRows("Slice A")
+      .replace(
+        'AC 7 - "skip path and reason storage."',
+        'AC 7 - "Governed deferral requires a rationale and records it in immutable history."',
+      )
+      .replace(
+        'AC 8 - "blockers/substance validation."',
+        'AC 8 - "Server blockers refuse incomplete specialized work and return remediation."',
+      );
+
+    const report = validateRunSheet(`
+| Slice | Checklist item | Covered by final AC mapping | N/A reason |
+|---|---|---|---|
+${rows}
+`, options({ sliceBodies: [{ slice: "Slice A", path: bodyA }] }));
+
+    assert.deepEqual(report.affected[0].missingCompositeComponents, []);
+    assert.equal(report.affected[0].checks.hasCompleteCompositeCoverage, true);
+    assert.equal(report.checks.affectedSlicesPass, true);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("run-sheet mode still requires reason persistence for governed deferral", () => {
+  const directory = mkdtempSync(join(tmpdir(), "to-issues-validator-"));
+  try {
+    const bodyA = join(directory, "a.md");
+    writeFileSync(bodyA, checklistIssueBody().replace(
+      "skip path and reason storage.",
+      "Governed deferral is available.",
+    ));
+    const rows = checklistRows("Slice A").replace(
+      'AC 7 - "skip path and reason storage."',
+      'AC 7 - "Governed deferral is available."',
+    );
+
+    const report = validateRunSheet(`
+| Slice | Checklist item | Covered by final AC mapping | N/A reason |
+|---|---|---|---|
+${rows}
+`, options({ sliceBodies: [{ slice: "Slice A", path: bodyA }] }));
+
+    assert.deepEqual(report.affected[0].missingCompositeComponents, [{
+      item: "skip path and reason storage",
+      missing: ["reason storage"],
+    }]);
+    assert.equal(report.checks.affectedSlicesPass, false);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("run-sheet mode still requires incomplete-work or substance validation", () => {
+  const directory = mkdtempSync(join(tmpdir(), "to-issues-validator-"));
+  try {
+    const bodyA = join(directory, "a.md");
+    writeFileSync(bodyA, checklistIssueBody().replace(
+      "blockers/substance validation.",
+      "Server blockers return exact remediation.",
+    ));
+    const rows = checklistRows("Slice A").replace(
+      'AC 8 - "blockers/substance validation."',
+      'AC 8 - "Server blockers return exact remediation."',
+    );
+
+    const report = validateRunSheet(`
+| Slice | Checklist item | Covered by final AC mapping | N/A reason |
+|---|---|---|---|
+${rows}
+`, options({ sliceBodies: [{ slice: "Slice A", path: bodyA }] }));
+
+    assert.deepEqual(report.affected[0].missingCompositeComponents, [{
+      item: "blockers/substance validation",
+      missing: ["substance validation"],
+    }]);
+    assert.equal(report.checks.affectedSlicesPass, false);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("child output distinguishes an inactive no-blocker expectation", () => {
   const directory = mkdtempSync(join(tmpdir(), "to-issues-validator-"));
   try {

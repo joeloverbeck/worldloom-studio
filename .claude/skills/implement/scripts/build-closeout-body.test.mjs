@@ -9,8 +9,11 @@ import test from "node:test";
 import { buildAcceptanceManifest, buildAuditScaffold } from "./build-acceptance-manifest.mjs";
 import {
   DEFAULT_CLOSEOUT_BODY_MAX_BYTES,
+  DEFAULT_CLOSEOUT_EVIDENCE_HEADROOM_BYTES,
   assertCloseoutBodySize,
+  buildCloseoutBodyPlan,
   buildCloseoutBodyScaffold,
+  buildCloseoutBodySizePlan,
   validateAuditInput
 } from "./build-closeout-body.mjs";
 
@@ -78,6 +81,8 @@ test("buildCloseoutBodyScaffold emits selected normal-review closeout fields", (
   assert.match(body, /## Standards[\s\S]+## Spec/);
   assert.match(body, /Browser evidence:\n- Route\/action\/outcome:/);
   assert.match(body, /no hits outside classified identity\/history lines and no active-proof hits/);
+  assert.match(body, /fixture paths <path 1 \| path 2 \| none/);
+  assert.match(body, /every normalized exact superseded value individually/);
   assert.match(body, /Fixed child inline close comment: Completed by <final SHA>\. Evidence: this parent rollup comment URL/);
   assert.match(body, /\| #364 \| AC1 - Parent behavior \|/);
   assert.match(body, /\| #368 \| AC1 - Replay the production route \|/);
@@ -131,6 +136,10 @@ test("normal immediate-fix scaffold satisfies the normal-review validator after 
       /^Browser\/manual console state:.*$/m,
       "Browser/manual console state: N/A because no browser/manual evidence was used"
     )
+    .replace(
+      /^Backend process currentness:.*$/m,
+      "Backend process currentness: N/A because no browser/manual evidence was used"
+    )
     .replace(/^Commit handling:.*$/m, "Commit handling: follow-up commit abcdef0")
     .replace(
       /^- Current evidence identities:.*$/m,
@@ -154,15 +163,27 @@ test("normal immediate-fix scaffold satisfies the normal-review validator after 
   assert.equal(result.status, 0, result.stderr);
 });
 
-test("buildCloseoutBodyScaffold rejects immediate-fix fallback scaffolds", () => {
-  assert.throws(
-    () => buildCloseoutBodyScaffold(manifest, {
-      parentIssue: 364,
-      reviewMode: "fallback",
-      immediateFix: true
-    }),
-    /immediate fix requires normal review mode/
-  );
+test("buildCloseoutBodyScaffold emits immediate-fix fallback fields", () => {
+  const body = buildCloseoutBodyScaffold(manifest, {
+    parentIssue: 364,
+    reviewMode: "fallback",
+    immediateFix: true
+  });
+
+  assert.match(body, /Review fallback:/);
+  for (const label of [
+    "Browser/manual evidence freshness:",
+    "Browser/manual console state:",
+    "Backend process currentness:",
+    "Findings found:",
+    "Fixes made:",
+    "TDD\/review-fix evidence:",
+    "Verification rerun:",
+    "Commit handling:",
+    "Residual findings:"
+  ]) {
+    assert.match(body, new RegExp(label));
+  }
 });
 
 test("buildCloseoutBodyScaffold preserves a completed exact audit input", () => {
@@ -210,6 +231,39 @@ test("closeout scaffold enforces the configured UTF-8 byte ceiling", () => {
   assert.equal(DEFAULT_CLOSEOUT_BODY_MAX_BYTES, 65_536);
 });
 
+test("closeout size plan reports scaffold, audit, and evidence headroom", () => {
+  const audit = buildAuditScaffold(manifest);
+  const { body, sizePlan } = buildCloseoutBodyPlan(manifest, {
+    parentIssue: 364,
+    audit,
+    reviewMode: "normal"
+  });
+
+  assert.equal(sizePlan.scaffoldBytes, Buffer.byteLength(body, "utf8"));
+  assert.equal(sizePlan.auditBytes, Buffer.byteLength(audit.trim(), "utf8"));
+  assert.equal(
+    sizePlan.remainingBytes,
+    DEFAULT_CLOSEOUT_BODY_MAX_BYTES - sizePlan.scaffoldBytes
+  );
+  assert.equal(
+    sizePlan.recommendedEvidenceHeadroomBytes,
+    DEFAULT_CLOSEOUT_EVIDENCE_HEADROOM_BYTES
+  );
+  assert.equal(sizePlan.status, "ok");
+
+  const lowHeadroom = buildCloseoutBodySizePlan("x".repeat(90), "audit", 100);
+  assert.deepEqual(lowHeadroom, {
+    maxBytes: 100,
+    scaffoldBytes: 90,
+    auditBytes: 5,
+    nonAuditScaffoldBytes: 85,
+    remainingBytes: 10,
+    recommendedEvidenceHeadroomBytes: 25,
+    status: "low-headroom"
+  });
+  assert.equal(buildCloseoutBodySizePlan("x".repeat(101), "audit", 100).status, "exceeds-limit");
+});
+
 test("buildCloseoutBodyScaffold emits fallback and explicit N/A branches", () => {
   const body = buildCloseoutBodyScaffold(manifest, {
     parentIssue: 364,
@@ -219,6 +273,9 @@ test("buildCloseoutBodyScaffold emits fallback and explicit N/A branches", () =>
 
   assert.match(body, /Review fallback gate passed:/);
   assert.match(body, /Review fallback: <why code-review could not run>/);
+  assert.match(body, /Browser\/manual evidence freshness:/);
+  assert.match(body, /Browser\/manual console state:/);
+  assert.match(body, /Backend process currentness:/);
   assert.match(body, /TDD evidence: N\/A because no tdd skill was invoked/);
   assert.match(body, /Browser evidence: N\/A because <reason no browser\/manual evidence applies>/);
   assert.match(body, /Principles\/ADR conformance: N\/A because no in-scope issue has a Principles section/);
@@ -288,6 +345,43 @@ test("closeout scaffold CLI refuses an oversized output", () => {
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /maximum is 100 bytes/);
+  assert.equal(existsSync(outputPath), false);
+  rmSync(directory, { recursive: true, force: true });
+});
+
+test("closeout scaffold CLI emits a size plan and can require fill headroom", () => {
+  const directory = mkdtempSync(join(tmpdir(), "implement-closeout-plan-test-"));
+  const manifestPath = join(directory, "manifest.json");
+  const outputPath = join(directory, "closeout.md");
+  writeFileSync(manifestPath, JSON.stringify(manifest));
+  const basePlan = buildCloseoutBodyPlan(manifest, {
+    parentIssue: 364,
+    reviewMode: "normal"
+  }).sizePlan;
+  const maxBytes = basePlan.scaffoldBytes + 10;
+
+  const result = spawnSync(
+    process.execPath,
+    [
+      builder,
+      manifestPath,
+      "--output",
+      outputPath,
+      "--parent",
+      "364",
+      "--review",
+      "normal",
+      "--max-bytes",
+      String(maxBytes),
+      "--size-plan",
+      "--require-headroom"
+    ],
+    { encoding: "utf8" }
+  );
+
+  assert.equal(result.status, 1);
+  assert.equal(JSON.parse(result.stdout).status, "low-headroom");
+  assert.match(result.stderr, /recommended minimum headroom/);
   assert.equal(existsSync(outputPath), false);
   rmSync(directory, { recursive: true, force: true });
 });

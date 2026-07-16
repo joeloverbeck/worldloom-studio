@@ -18,6 +18,7 @@ TDD preflight:
 - CONTEXT.md status: <read / absent / N/A>
 - ADRs/principles/docs status: <ADRs/principles/docs read or N/A>
 - Agreed seams: <issue/PRD-stated seams restated / user-confirmed seams / confirmation needed>
+- Authoritative acceptance manifest: <path generated from saved exact issue JSON / N/A because one non-PRD issue has no shared or parent boundary>
 - Row plan: <red-first seams>; <no-runnable criteria>; <evidence-only browser/manual/external seams>
 - Acceptance atom map: <each exact criterion mapped to authoritative atoms and required proof surfaces, with every named value in a quantified range listed unless the source permits sampling / all criteria atomic, with proof surfaces named / blocked because ...>
 - Acceptance sequence map: <each order/transition/timeline-sensitive criterion mapped to the ordered events and proof that observes their order, with rerender/resume/transition proof kept on one active instance / all rows use sequence N/A because their criteria are not sequence-sensitive / blocked because ...>
@@ -26,6 +27,8 @@ TDD preflight:
 - Existing expectation rewrite checkpoint: <none yet / row will be added immediately if an existing test, fixture, snapshot, route/schema expectation, or artifact assertion is edited after a failing command>
 - User confirmation needed: <yes/no, and why>
 ```
+
+Acceptance-source inventory hard stop: for a parent PRD, child issue family, or named multi-issue set, save the exact issue JSON and generate the authoritative acceptance manifest with `.claude/skills/implement/scripts/build-acceptance-manifest.mjs` before the first red command. The preflight and compact-table row plan must account for every generated parent section check, individual `USN`, AC check, and Principles check. A broad range such as `US1-US36` does not replace the individual story-to-seam map; use exact keyed rows or an adjacent keyed map for every story. Reuse the same manifest for TDD closeout, review, and implementation closeout rather than rebuilding scope from prose.
 
 Shared-boundary pre-red hard stop: when the work covers multiple issues, one PRD with child issues, or one implementation boundary shared by several acceptance rows, paste the compact evidence table immediately below the preflight before any red command. A prose row plan is not enough. Mark each row as `red-first`, `existing contract-change expectation`, `static contract check + browser evidence`, `coverage-only existing behavior`, `no-runnable`, or `evidence-only`; if the table is genuinely N/A, name the exception in the `Shared-boundary table stub` field before proceeding.
 
@@ -45,7 +48,7 @@ For shared-boundary issue families, paste this compact evidence table stub befor
 
 When the repo `implement` skill owns the surrounding workflow, keep this table or equivalent fields in the implementation ledger before review and carry them into the final closeout sink before tracker mutation. Do not wait until closeout pressure to reconstruct TDD evidence from prose-only command notes.
 
-Implement-owned pre-red hard stop: when this skill is invoked under the repo `implement` skill, do not run the first red command until either the `TDD preflight:` block and compact table stub above are pasted, or the visible implementation ledger explicitly states that it contains each required TDD preflight field and compact-table row. If this gate was missed, stop before more implementation or review and paste a `TDD recovery addendum:` that names the missing preflight/table, records the current red/green evidence by issue/seam, and says where those fields will be preserved in the final durable sink.
+Implement-owned pre-red hard stop: when this skill is invoked under the repo `implement` skill, do not run the first red command until either the `TDD preflight:` block and compact table stub above are pasted, or the visible implementation ledger explicitly states that it contains each required TDD preflight field and compact-table row. For parent PRDs, child families, and named issue sets, that visible state must include the authoritative acceptance-manifest path and a row or keyed-map destination for every generated check. If this gate was missed, stop before more implementation or review and paste a `TDD recovery addendum:` that names the missing preflight/table/manifest coverage, records the current red/green evidence by issue/seam, and says where those fields will be preserved in the final durable sink.
 
 Before handing work to review, drafting a pre-close audit, or mutating the tracker, read [closeout-evidence.md](closeout-evidence.md). It owns the validator command, interim/final durable-sink gates, parent-rollup template, and tracker-mutation stop; do not reconstruct those contracts from memory.
 

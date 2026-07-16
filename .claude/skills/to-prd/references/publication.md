@@ -10,9 +10,22 @@ Once each intended title is final, run an exact-title duplicate guard before sta
 
 ```sh
 TITLE='PRD: <name> — <key mechanisms>'
-gh issue list --state all --search "\"$TITLE\" in:title" --json number,title,state,url,labels,updatedAt --limit 20 \
-  | jq --arg title "$TITLE" '[.[] | select(.title == $title)]'
+candidate_json="$(gh issue list --state all --search "\"$TITLE\" in:title" --json number,title,state,url,labels,updatedAt --limit 20)" || {
+  printf 'exact-title tracker read failed\n' >&2
+  exit 1
+}
+test -n "$candidate_json" || {
+  printf 'exact-title tracker read returned empty output\n' >&2
+  exit 1
+}
+exact_matches="$(printf '%s\n' "$candidate_json" | jq --arg title "$TITLE" '[.[] | select(.title == $title)]')" || {
+  printf 'exact-title tracker read returned invalid JSON\n' >&2
+  exit 1
+}
+printf '%s\n' "$exact_matches"
 ```
+
+A nonzero tracker command, empty output, or invalid JSON is a tracker-read failure, never a zero-match result. Retry the same read under the active environment's network and approval rules; do not stage or create the issue until one successful read yields a valid exact-match array.
 
 ## Program of PRDs
 

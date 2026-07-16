@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { validatePrdPrep } from "./validate-prd-prep.mjs";
 
-const artifactWithRows = (rows) => `
+const artifactWithRows = (rows, { verdict = "no-new" } = {}) => `
 Source artifact: \`reports/source.md\`.
+Existing same-stem prep artifact classification: missing at intake.
 Source durability: durable.
 Authored-artifact durability: new and untracked.
 Tracker freshness: refreshed live.
@@ -11,7 +12,10 @@ Deliverable status: PRD-ready determination only.
 
 ## Reassessment Verdict
 
-Verdict.
+First operational action: none - no separate tracker or verification action applies.
+${verdict === "recommended"
+    ? "Recommended first new PRD: Example lifecycle repair."
+    : "No-new-PRD verdict: no new PRD recommended."}
 
 ## Evidence Checked
 
@@ -62,6 +66,55 @@ Complete.
 
 Current.
 `;
+
+test("accepts an explicit recommended-first-PRD decision handoff", () => {
+  const result = validatePrdPrep({
+    source: "",
+    artifact: artifactWithRows([{ label: "Example candidate", status: "fresh product scope" }], { verdict: "recommended" })
+  });
+
+  assert.deepEqual(result.errors, []);
+});
+
+test("accepts an explicit no-new-PRD decision handoff", () => {
+  const result = validatePrdPrep({
+    source: "",
+    artifact: artifactWithRows([{ label: "Example validation", status: "validated/no product scope" }])
+  });
+
+  assert.deepEqual(result.errors, []);
+});
+
+test("requires the existing-prep classification and first operational action fields", () => {
+  const missingPrepClassification = validatePrdPrep({
+    source: "",
+    artifact: artifactWithRows([]).replace(/^Existing same-stem prep artifact classification:.*\n/m, "")
+  });
+  assert.match(missingPrepClassification.errors.join("\n"), /missing required field: existing same-stem prep artifact classification/);
+
+  const missingFirstAction = validatePrdPrep({
+    source: "",
+    artifact: artifactWithRows([]).replace(/^First operational action:.*\n/m, "")
+  });
+  assert.match(missingFirstAction.errors.join("\n"), /missing required field: first operational action/);
+});
+
+test("requires exactly one decision verdict field", () => {
+  const missingVerdict = validatePrdPrep({
+    source: "",
+    artifact: artifactWithRows([]).replace(/^No-new-PRD verdict:.*\n/m, "")
+  });
+  assert.match(missingVerdict.errors.join("\n"), /exactly one decision verdict field.*found 0/);
+
+  const duplicateVerdict = validatePrdPrep({
+    source: "",
+    artifact: artifactWithRows([]).replace(
+      /^No-new-PRD verdict:.*$/m,
+      "No-new-PRD verdict: no new PRD recommended.\nRecommended first new PRD: duplicate verdict."
+    )
+  });
+  assert.match(duplicateVerdict.errors.join("\n"), /exactly one decision verdict field.*found 2/);
+});
 
 test("recognizes supported finding heading separators", () => {
   const source = `

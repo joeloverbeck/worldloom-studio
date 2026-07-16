@@ -32,10 +32,12 @@ const REQUIRED_HEADINGS = [
 
 const REQUIRED_FIELDS = [
   { label: "source artifact", pattern: /^Source (?:artifact|report(?: path)?):/im },
+  { label: "existing same-stem prep artifact classification", pattern: /^Existing same-stem prep artifact classification:/im },
   { label: "source durability", pattern: /^Source durability(?: status)?:/im },
   { label: "authored-artifact durability", pattern: /^Authored[- ]artifact (?:durability|status):/im },
   { label: "tracker freshness", pattern: /^Tracker freshness:/im },
   { label: "deliverable status", pattern: /^Deliverable status:/im },
+  { label: "first operational action", pattern: /^First operational action:/im },
   { label: "suggested title", pattern: /^Suggested title:/im },
   { label: "publication package", pattern: /^Publication package:/im },
   { label: "recommended testing seam", pattern: /^Recommended testing seams?(?: and seam checkpoint)?:/im },
@@ -45,6 +47,11 @@ const REQUIRED_FIELDS = [
   { label: "canonical implementation gates", pattern: /^Canonical (?:implementation )?gates(?: for [^:]+)?:/im },
   { label: "focused implementation gates", pattern: /^Focused (?:implementation|likely) gates(?: if [^:]+)?:/im },
   { label: "evidence expectations", pattern: /^Evidence expectations:/im }
+];
+
+const DECISION_VERDICT_FIELDS = [
+  { label: "recommended first new PRD", pattern: /^Recommended first new PRD:/im },
+  { label: "no-new-PRD verdict", pattern: /^No-new-PRD verdict:/im }
 ];
 
 const normalize = (value) =>
@@ -175,6 +182,10 @@ export const validatePrdPrep = ({ source, artifact }) => {
   }
   for (const field of REQUIRED_FIELDS) {
     if (!field.pattern.test(artifact)) errors.push(`missing required field: ${field.label}`);
+  }
+  const decisionVerdictCount = DECISION_VERDICT_FIELDS.filter((field) => field.pattern.test(artifact)).length;
+  if (decisionVerdictCount !== 1) {
+    errors.push(`artifact must contain exactly one decision verdict field (Recommended first new PRD or No-new-PRD verdict); found ${decisionVerdictCount}`);
   }
   for (const heading of unparsedFindingHeadings(source)) {
     errors.push(`unparsed finding heading: ${heading}`);

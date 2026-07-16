@@ -45,7 +45,8 @@ const findRowsAfterTableHeader = (body) => {
 };
 
 const sourceEnumeratesAcceptanceItems = (source) =>
-  /\b(?:AC|A)\s*#?\d+\b/i.test(source) ||
+  /\b(?:AC|A|US)\s*#?\d+\b/i.test(source) ||
+  /\bParent-(?:Solution|Implementation-Decisions|Testing-Decisions)\b/i.test(source) ||
   /\b(?:acceptance item|acceptance criterion|criterion|criteria|checkbox|checklist item|user story|story)\s*#?\d+\b/i.test(source);
 
 const sourceCitesExactAcceptanceRows = (source) =>
@@ -113,13 +114,26 @@ const validateAcceptanceManifest = (manifest, errors, coverageLabel) => {
 };
 
 const sourceNamesCheck = (source, id) => {
+  const sourceForExactMatch = /^US\d+$/i.test(id)
+    ? source.replace(/\bUS\s*#?\d+\s*(?:-|–|—|to|through)\s*(?:US\s*)?#?\d+\b/gi, " ")
+    : source;
   const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  if (new RegExp(`(?:^|[^A-Za-z0-9])${escapedId}(?:[^A-Za-z0-9]|$)`, "i").test(source)) return true;
+  if (new RegExp(`(?:^|[^A-Za-z0-9])${escapedId}(?=$|[^A-Za-z0-9])`, "i").test(sourceForExactMatch)) {
+    return true;
+  }
+
+  const parentAliases = {
+    "Parent-Solution": /\bSolution\b/i,
+    "Parent-Implementation-Decisions": /\bImplementation(?:\s+Decisions)?\b/i,
+    "Parent-Testing-Decisions": /\bTesting(?:\s+Decisions)?\b/i
+  };
+  if (parentAliases[id]?.test(source)) return true;
 
   const numericId = id.match(/^([A-Za-z]+)(\d+)$/);
   if (!numericId) return false;
 
   const [, prefix, numberText] = numericId;
+  if (/^US$/i.test(prefix)) return false;
   const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const rangePattern = new RegExp(
     `(?:^|[^A-Za-z0-9])${escapedPrefix}\\s*#?(\\d+)\\s*(?:-|–|—|to|through)\\s*(?:${escapedPrefix}\\s*)?#?(\\d+)(?:[^A-Za-z0-9]|$)`,
@@ -192,11 +206,41 @@ export const validateReviewSpecCoverage = (body, errors, options = {}) => {
     if (sequenceError) errors.push(`${coverageLabel} row ${issue} ${sequenceError}`);
   }
 
+  const sourcesByIssue = new Map(manifestIssues.map((issue) => [issue.number, []]));
+  const addIssueSource = (issueNumber, source) => {
+    if (sourcesByIssue.has(issueNumber)) sourcesByIssue.get(issueNumber).push(source);
+  };
+
+  for (const row of childIssueRows) {
+    const [rowIssue, source] = splitMarkdownTableRow(row);
+    addIssueSource(Number(rowIssue.slice(1)), source);
+  }
+
+  const checkOwners = new Map();
   for (const issue of manifestIssues) {
-    const issueSources = childIssueRows
-      .map((row) => splitMarkdownTableRow(row))
-      .filter(([rowIssue]) => rowIssue === `#${issue.number}`)
-      .map(([, source]) => source);
+    for (const check of issue.checks) {
+      const key = check.id.toLowerCase();
+      const owners = checkOwners.get(key) ?? [];
+      owners.push(issue.number);
+      checkOwners.set(key, owners);
+    }
+  }
+
+  for (const line of body.split(/\r?\n/)) {
+    if (!line.trim().startsWith("|")) continue;
+    const cells = splitMarkdownTableRow(line);
+    const issueNumber = Number(cells[0]?.match(/^#(\d+)\b/)?.[1]);
+    if (Number.isInteger(issueNumber)) {
+      addIssueSource(issueNumber, cells.slice(1).join(" "));
+      continue;
+    }
+
+    const owners = checkOwners.get((cells[0] ?? "").toLowerCase()) ?? [];
+    if (owners.length === 1) addIssueSource(owners[0], cells.join(" "));
+  }
+
+  for (const issue of manifestIssues) {
+    const issueSources = sourcesByIssue.get(issue.number) ?? [];
     for (const check of issue.checks) {
       if (!issueSources.some((source) => sourceNamesCheck(source, check.id))) {
         errors.push(`${coverageLabel} issue #${issue.number} is missing acceptance source ${check.id}`);
@@ -222,6 +266,37 @@ const identityInventory = (value) => {
   }
   return inventory;
 };
+
+const normalizeIdentityToken = (value) => {
+  let token = value.trim().replace(/[.,;:!?]+$/u, "");
+  for (const [open, close] of [
+    ["**", "**"],
+    ["__", "__"],
+    ["`", "`"],
+    ["*", "*"],
+    ["_", "_"]
+  ]) {
+    if (token.startsWith(open) && token.endsWith(close) && token.length > open.length + close.length) {
+      token = token.slice(open.length, -close.length).trim().replace(/[.,;:!?]+$/u, "");
+      break;
+    }
+  }
+  return token;
+};
+
+const markdownWrappedIdentityList = (value) => {
+  const parts = value.split(/\s*,\s*/);
+  if (parts.length < 2) return null;
+  const wrappedToken = /^(?:`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_)[.,;:!?]*$/u;
+  return parts.every((part) => wrappedToken.test(part)) ? parts : null;
+};
+
+const identityTokens = (value) =>
+  value
+    .split(/\s+\|\s+/)
+    .flatMap((segment) => markdownWrappedIdentityList(segment) ?? [segment])
+    .map(normalizeIdentityToken)
+    .filter((token) => token && !/^none$/i.test(token));
 
 export const validateReviewFixtureSnapshotCurrentness = (body, errors, options = {}) => {
   if (!options.requireBrowser) return;
@@ -298,7 +373,9 @@ export const validateReviewEvidenceIdentities = (body, errors) => {
   }
 
   const supersededInventory = identityInventory(superseded);
-  const supersededValues = [...supersededInventory.values()].filter((value) => value && !/^none$/i.test(value));
+  const supersededValues = [
+    ...new Set([...supersededInventory.values()].flatMap(identityTokens))
+  ];
   const everySupersededCategoryIsNone = supersededValues.length === 0;
   if (/^N\/A\b/i.test(sweep)) {
     if (!everySupersededCategoryIsNone || !/because every superseded category is none/i.test(sweep)) {
@@ -320,7 +397,7 @@ export const validateReviewEvidenceIdentities = (body, errors) => {
     !namesAllSupersededValues
   ) {
     errors.push(
-      "Superseded-token sweep must name rg/grep, every superseded value, no hits outside classified identity/history lines and no active-proof hits, and classified historical-red hits"
+      "Superseded-token sweep must name rg/grep, every normalized superseded value, no hits outside classified identity/history lines and no active-proof hits, and classified historical-red hits"
     );
   }
 };

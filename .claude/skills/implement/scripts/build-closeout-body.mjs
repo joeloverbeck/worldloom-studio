@@ -7,8 +7,9 @@ import { pathToFileURL } from "node:url";
 import { buildAuditScaffold } from "./build-acceptance-manifest.mjs";
 
 export const DEFAULT_CLOSEOUT_BODY_MAX_BYTES = 65_536;
+export const DEFAULT_CLOSEOUT_EVIDENCE_HEADROOM_BYTES = 16_384;
 
-const usage = `Usage: node .claude/skills/implement/scripts/build-closeout-body.mjs <manifest.json> --output <body.md> --parent <issue> --review <normal|fallback> [--audit-input <audit.md>] [--immediate-fix] [--tdd-parent-rollup] [--browser] [--principles] [--local-only] [--fixed-child <none|pending|final>] [--max-bytes <positive integer>]`;
+const usage = `Usage: node .claude/skills/implement/scripts/build-closeout-body.mjs <manifest.json> --output <body.md> --parent <issue> --review <normal|fallback> [--audit-input <audit.md>] [--immediate-fix] [--tdd-parent-rollup] [--browser] [--principles] [--local-only] [--fixed-child <none|pending|final>] [--max-bytes <positive integer>] [--size-plan] [--require-headroom]`;
 
 export const assertCloseoutBodySize = (body, maxBytes = DEFAULT_CLOSEOUT_BODY_MAX_BYTES) => {
   if (!Number.isInteger(maxBytes) || maxBytes <= 0) {
@@ -23,6 +24,39 @@ export const assertCloseoutBodySize = (body, maxBytes = DEFAULT_CLOSEOUT_BODY_MA
   }
 
   return body;
+};
+
+export const buildCloseoutBodySizePlan = (
+  body,
+  audit,
+  maxBytes = DEFAULT_CLOSEOUT_BODY_MAX_BYTES
+) => {
+  if (!Number.isInteger(maxBytes) || maxBytes <= 0) {
+    throw new Error("max bytes must be a positive integer");
+  }
+
+  const scaffoldBytes = Buffer.byteLength(body, "utf8");
+  const auditBytes = Buffer.byteLength(audit, "utf8");
+  const remainingBytes = maxBytes - scaffoldBytes;
+  const recommendedEvidenceHeadroomBytes = Math.min(
+    DEFAULT_CLOSEOUT_EVIDENCE_HEADROOM_BYTES,
+    Math.floor(maxBytes / 4)
+  );
+  const status = scaffoldBytes > maxBytes
+    ? "exceeds-limit"
+    : remainingBytes < recommendedEvidenceHeadroomBytes
+      ? "low-headroom"
+      : "ok";
+
+  return {
+    maxBytes,
+    scaffoldBytes,
+    auditBytes,
+    nonAuditScaffoldBytes: scaffoldBytes - auditBytes,
+    remainingBytes,
+    recommendedEvidenceHeadroomBytes,
+    status
+  };
 };
 
 const tableText = (value) => value.replaceAll("|", "&#124;").replaceAll("\n", " ").trim();
@@ -109,6 +143,12 @@ const reviewRows = (manifest) => manifest.issues.map(
     `| #${issue.number} | ${acceptanceIds(issue)}; sequence: <ordered events and observing proof or justified N/A> | <diff, tests, docs, and artifacts reviewed> | <none or finding> |`
 ).join("\n");
 
+const reviewRuntimeEvidenceBlock = `Browser/manual evidence freshness: <final-tree rerun, justified not affected proof, blocked reason, or N/A because no browser/manual evidence was used>
+
+Browser/manual console state: <0 errors and 0 warnings, classified output, blocked reason, or N/A because no browser/manual evidence was used>
+
+Backend process currentness: <server command, watch/reload mode, ownership, restart/reload proof, and API probe, or justified N/A/blocked reason>`;
+
 const normalImmediateFixBlock = `Initial Standards outcome: <count/worst plus findings before fixes>
 
 Initial Spec outcome: <count/worst plus findings before fixes>
@@ -127,11 +167,19 @@ TDD closeout gate: <fielded gate or N/A because no tdd skill was invoked>
 
 Verification rerun: <exact final-tree commands and observed results>
 
-Browser/manual evidence freshness: <final-tree rerun, justified not affected proof, blocked reason, or N/A because no browser/manual evidence was used>
-
-Browser/manual console state: <0 errors and 0 warnings, classified output, blocked reason, or N/A because no browser/manual evidence was used>
-
 Commit handling: <amended/follow-up/unchanged commit SHA or no commit yet>`;
+
+const fallbackImmediateFixBlock = `Findings found: <count and short titles>
+
+Fixes made: <files/behavior/proof changed>
+
+TDD/review-fix evidence: <red/green proof, coverage-only proof, or justified red-first skip>
+
+Verification rerun: <exact final-tree commands and observed results>
+
+Commit handling: <amended/follow-up/unchanged commit SHA or no commit yet>
+
+Residual findings: <remaining Standards and Spec findings or none>`;
 
 const normalReviewBlock = (manifest, immediateFix) => `Review frame: fixed point input <ref>; fixed point resolved SHA <sha>; reviewed HEAD SHA <sha>; diff command \`git diff <resolved SHA>...HEAD\`; commits <commit list>; worktree scope <scope>; excluded dirty files <none or paths>; spec source <issues and specs>.
 
@@ -163,9 +211,11 @@ Residual findings: <none or accepted residual records>
 
 Parent PRD coverage: <parent row present, exact audit rows cited, or N/A>
 
-Spec sequence coverage: sequence: <ordered events and observing proof or justified N/A>${immediateFix ? `\n\n${normalImmediateFixBlock}` : ""}`;
+Spec sequence coverage: sequence: <ordered events and observing proof or justified N/A>
 
-const fallbackReviewBlock = (manifest) => `Review frame: fixed point input <ref>; fixed point resolved SHA <sha>; reviewed HEAD SHA <sha>; diff command \`git diff <resolved SHA>...HEAD\`; commits <commit list>; worktree scope <scope>; excluded dirty files <none or paths>; spec source <issues and specs>.
+${reviewRuntimeEvidenceBlock}${immediateFix ? `\n\n${normalImmediateFixBlock}` : ""}`;
+
+const fallbackReviewBlock = (manifest, immediateFix) => `Review frame: fixed point input <ref>; fixed point resolved SHA <sha>; reviewed HEAD SHA <sha>; diff command \`git diff <resolved SHA>...HEAD\`; commits <commit list>; worktree scope <scope>; excluded dirty files <none or paths>; spec source <issues and specs>.
 
 ## Standards
 
@@ -191,9 +241,11 @@ Findings: <none or findings>
 
 TDD closeout gate: <fielded TDD closeout gate or N/A because no tdd skill was invoked>
 
-Axis summary: Standards <count/worst>, Spec <count/worst>
+${reviewRuntimeEvidenceBlock}
 
-Residual findings: <none or accepted residual records>
+${immediateFix ? fallbackImmediateFixBlock : "Residual findings: <none or accepted residual records>"}
+
+Axis summary: Standards <count/worst>, Spec <count/worst>
 
 Review fallback gate passed: frame <yes>; delegation policy source <yes>; Standards <yes>; Spec <yes>; child table <yes or N/A>; smell baseline <yes>; evidence identities <yes>; found-vs-residual <yes or N/A>; closeout line <yes>; immediate-fix block <yes or N/A>; tdd fielded closeout gate <yes or N/A>; verification/browser freshness <yes or N/A>.
 
@@ -203,18 +255,16 @@ const browserBlock = (browser) => browser
   ? `Browser evidence:
 - Route/action/outcome: <production route, action path, and observed result>
 - Console state: <0 errors and 0 warnings, classified output, or blocked>
-- Backend process currentness: <server command, watch/reload mode, ownership, restart/reload proof, and API probe>
 - Final freshness delta: <files touched since smoke and rerun/not-affected/blocked result>`
   : `Browser evidence: N/A because <reason no browser/manual evidence applies>
 Console state: N/A because browser evidence is N/A
-Backend process currentness: N/A because no browser/manual evidence was used
 Final freshness delta: N/A because browser evidence is N/A`;
 
 const identityBlock = `Evidence identity refresh:
-- Current evidence identities: fixture paths <paths, none, or structured withheld identity>; browser sessions <names or none>; packet paths/hashes <paths and hashes or none>; active revisions <IDs or none>; artifacts <paths/IDs or none>
+- Current evidence identities: fixture paths <path 1 | path 2 | none, or structured withheld identity>; browser sessions <name 1 | name 2 | none>; packet paths/hashes <path/hash 1 | path/hash 2 | none>; active revisions <ID 1 | ID 2 | none>; artifacts <path/ID 1 | path/ID 2 | none>
 - Historical red identities retained: <all five categories or none>
-- Superseded evidence identities: fixture paths <paths or none>; browser sessions <names or none>; packet paths/hashes <paths and hashes or none>; active revisions <IDs or none>; artifacts <paths/IDs or none>
-- Superseded-token sweep: <rg/grep command naming every exact superseded value; no hits outside classified identity/history lines and no active-proof hits; historical-red hits classified or none, or N/A because every superseded category is none>`;
+- Superseded evidence identities: fixture paths <path 1 | path 2 | none>; browser sessions <name 1 | name 2 | none>; packet paths/hashes <path/hash 1 | path/hash 2 | none>; active revisions <ID 1 | ID 2 | none>; artifacts <path/ID 1 | path/ID 2 | none>
+- Superseded-token sweep: <rg/grep command naming every normalized exact superseded value individually; no hits outside classified identity/history lines and no active-proof hits; historical-red hits classified or none, or N/A because every superseded category is none>`;
 
 const fixedChildBlock = (mode) => {
   if (mode === "pending") {
@@ -229,7 +279,7 @@ Fixed child final inline close comment inspected: Completed by <final SHA>. Evid
 Fixed child final inline close comment inspected: N/A because no fixed-template child closeout applies`;
 };
 
-export const buildCloseoutBodyScaffold = (manifest, options) => {
+const renderCloseoutBodyScaffold = (manifest, options) => {
   requireManifest(manifest);
   const {
     parentIssue,
@@ -246,13 +296,14 @@ export const buildCloseoutBodyScaffold = (manifest, options) => {
 
   if (!Number.isInteger(parentIssue) || parentIssue <= 0) throw new Error("parent issue must be a positive integer");
   if (!["normal", "fallback"].includes(reviewMode)) throw new Error("review mode must be normal or fallback");
-  if (immediateFix && reviewMode !== "normal") throw new Error("immediate fix requires normal review mode");
   if (!["none", "pending", "final"].includes(fixedChildMode)) {
     throw new Error("fixed child mode must be none, pending, or final");
   }
 
   const auditText = validateAuditInput(manifest, audit ?? buildAuditScaffold(manifest));
-  const review = reviewMode === "normal" ? normalReviewBlock(manifest, immediateFix) : fallbackReviewBlock(manifest);
+  const review = reviewMode === "normal"
+    ? normalReviewBlock(manifest, immediateFix)
+    : fallbackReviewBlock(manifest, immediateFix);
   const tdd = tddParentRollup ? tddBlock(manifest) : "TDD evidence: N/A because no tdd skill was invoked.";
   const localSha = localOnly
     ? "Local-only SHA: <final SHA> is not remote-reachable because <reason>; local-only closeout is acceptable because <user request or repo policy>."
@@ -318,7 +369,20 @@ Closeout gate passed: audit sink <stable issue reference>; review evidence <line
 Closeout body check passed: audit table columns exact; every acceptance checkbox or conformance check named; every satisfied Evidence cell contains atoms/proof surfaces/sequence; every status literal satisfied/blocked/not done; final SHA present; verification evidence present; TDD evidence present or N/A; review evidence present; evidence identity refresh and superseded-token sweep present; Principles/ADR conformance string present or N/A; full Local-only SHA explanatory sentence present or N/A; browser evidence present/N/A/blocked; browser console state recorded when browser evidence is present or N/A/blocked; final browser/manual freshness delta present/N/A; exact fixed child inline comment inspected <yes or N/A>.
 `;
 
-  return assertCloseoutBodySize(body, maxBytes);
+  return { body, auditText, maxBytes };
+};
+
+export const buildCloseoutBodyPlan = (manifest, options) => {
+  const rendered = renderCloseoutBodyScaffold(manifest, options);
+  return {
+    body: rendered.body,
+    sizePlan: buildCloseoutBodySizePlan(rendered.body, rendered.auditText, rendered.maxBytes)
+  };
+};
+
+export const buildCloseoutBodyScaffold = (manifest, options) => {
+  const { body, sizePlan } = buildCloseoutBodyPlan(manifest, options);
+  return assertCloseoutBodySize(body, sizePlan.maxBytes);
 };
 
 const isCli = process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
@@ -367,7 +431,7 @@ if (isCli) {
 
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
     const auditPath = valueFor("--audit-input");
-    const body = buildCloseoutBodyScaffold(manifest, {
+    const { body, sizePlan } = buildCloseoutBodyPlan(manifest, {
       parentIssue: Number(parentText),
       audit: auditPath ? readFileSync(auditPath, "utf8") : undefined,
       reviewMode,
@@ -381,6 +445,15 @@ if (isCli) {
         ? DEFAULT_CLOSEOUT_BODY_MAX_BYTES
         : Number(valueFor("--max-bytes"))
     });
+    if (args.includes("--size-plan")) {
+      process.stdout.write(`${JSON.stringify(sizePlan, null, 2)}\n`);
+    }
+    assertCloseoutBodySize(body, sizePlan.maxBytes);
+    if (args.includes("--require-headroom") && sizePlan.status === "low-headroom") {
+      throw new Error(
+        `closeout scaffold leaves ${sizePlan.remainingBytes} bytes for completed evidence; recommended minimum headroom is ${sizePlan.recommendedEvidenceHeadroomBytes} bytes. Generate issue/check subset manifests and split the durable audit before filling the body`
+      );
+    }
     writeFileSync(outputPath, body);
   } catch (error) {
     console.error(`Closeout body scaffold build failed: ${error.message}`);

@@ -6,7 +6,7 @@ rollup URL that child issues will cite.
 
 ## Parent Rollup Choice
 
-Single-child or small child-family parent rollup: a parent PRD rollup is allowed for a single child plus parent closeout, or for 2-3 child issues, when it is the clearest durable sink for shared evidence, such as local-only SHA rationale, TDD evidence, review fallback evidence, or parent closeout. Use the validator matrix in [tracker-closeout-gates.md](tracker-closeout-gates.md) according to the evidence shape: `--child-family` when review fallback covers a PRD child family, `--tdd-parent-rollup` when TDD evidence uses the parent-rollup compact table, and `--fixed-child-pending` or `--fixed-child` according to the fixed-child state below. Still keep the ledger and audit rows per issue.
+Single-child or small child-family parent rollup: a parent PRD rollup is allowed for a single child plus parent closeout, or for 2-3 child issues, when it is the clearest durable sink for shared evidence, such as local-only SHA rationale, TDD evidence, review fallback evidence, or parent closeout. Use the validator matrix in [tracker-closeout-gates.md](tracker-closeout-gates.md) according to the evidence shape: `--child-family` when review fallback covers a PRD child family, `--tdd-parent-rollup --acceptance-manifest <path>` when TDD evidence uses the parent-rollup compact table, and `--fixed-child-pending` or `--fixed-child` according to the fixed-child state below. Still keep the ledger and audit rows per issue.
 
 For a single child or 2-3 child issues using a parent rollup plus fixed-template child comments, use this compact sequence:
 

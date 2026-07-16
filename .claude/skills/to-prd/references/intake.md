@@ -4,13 +4,13 @@ Read this file in full during Step 1 of [`to-prd`](../SKILL.md).
 
 ## Repo and authority intake
 
-Explore the repo to understand the current state of the codebase, if you haven't already. Run `git status --short` during intake. If dirty files are unrelated to the PRD and are not cited by it, continue and mention them in final reporting; if a dirty or untracked file is cited by the PRD, apply the source-durability gate before publishing.
+Explore the repo to understand the current state of the codebase, if you haven't already. Run `git status --short` during intake and preserve its exact path/status output as the intake worktree baseline, including an explicit `clean` baseline when it emits no rows. If dirty files are unrelated to the PRD and are not cited by it, continue and mention them in final reporting; if a dirty or untracked file is cited by the PRD, apply the source-durability gate before publishing.
 
 If repo entrypoint guidance (`CLAUDE.md` or `AGENTS.md`) is not already loaded this session, read it and follow it to the domain vocabulary source, relevant ADRs, principles authority, issue tracker docs, and triage-label docs before drafting. When a source artifact, exemplar, or entrypoint names an ADR by number, resolve the exact `docs/adr/<number>-*.md` path with the uniqueness rule in the source-durability reference before opening it; do not guess ADR filenames.
 
 Before drafting, make the intake state explicit in your working notes:
 
-- `git status` checked;
+- `git status` checked and its exact path/status baseline preserved;
 - entrypoint guidance read or still in context;
 - domain vocabulary source read or intentionally N/A;
 - domain workflow doc named by the entrypoint read or N/A;

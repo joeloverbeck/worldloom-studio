@@ -4,13 +4,15 @@ Use one shared identity block for normal and fallback reviews, whether or not TD
 
 ```markdown
 Evidence identity refresh:
-- Current evidence identities: fixture paths <paths/none / withheld because <authority and reason>; logical fixture <stable ID>; content SHA-256 <64 hexadecimal characters>; provenance <generated, derived, or copied-source statement>>; browser sessions <names/none>; packet paths/hashes <paths and hashes/none>; active revisions <IDs/none>; artifacts <paths/IDs/none>
+- Current evidence identities: fixture paths <path 1 | path 2 | none / withheld because <authority and reason>; logical fixture <stable ID>; content SHA-256 <64 hexadecimal characters>; provenance <generated, derived, or copied-source statement>>; browser sessions <name 1 | name 2 | none>; packet paths/hashes <path/hash 1 | path/hash 2 | none>; active revisions <ID 1 | ID 2 | none>; artifacts <path/ID 1 | path/ID 2 | none>
 - Historical red identities retained: <fixture paths ...; browser sessions ...; packet paths/hashes ...; active revisions ...; artifacts ... / none>
-- Superseded evidence identities: fixture paths <paths/none>; browser sessions <names/none>; packet paths/hashes <paths and hashes/none>; active revisions <IDs/none>; artifacts <paths/IDs/none>
-- Superseded-token sweep: <`rg`/`grep` command naming every exact superseded value; no hits outside classified identity/history lines and no active-proof hits; historical-red hits classified or none / N/A because every superseded category is none>
+- Superseded evidence identities: fixture paths <path 1 | path 2 | none>; browser sessions <name 1 | name 2 | none>; packet paths/hashes <path/hash 1 | path/hash 2 | none>; active revisions <ID 1 | ID 2 | none>; artifacts <path/ID 1 | path/ID 2 | none>
+- Superseded-token sweep: <`rg`/`grep` command naming every normalized exact superseded value individually; no hits outside classified identity/history lines and no active-proof hits; historical-red hits classified or none / N/A because every superseded category is none>
 ```
 
-Keep historical red identities only when they are explicitly classified as earlier failing evidence. Use literal `none` when there are no historical red identities; otherwise enumerate all five categories just like the current and superseded inventories. If any superseded category is not `none`, run `rg` or `grep` for every exact superseded value and record `no hits outside classified identity/history lines and no active-proof hits`, followed by how any historical-red hits were classified; do not use the all-none N/A.
+Keep historical red identities only when they are explicitly classified as earlier failing evidence. Use literal `none` when there are no historical red identities; otherwise enumerate all five categories just like the current and superseded inventories. If any superseded category is not `none`, run `rg` or `grep` for every normalized exact superseded value and record `no hits outside classified identity/history lines and no active-proof hits`, followed by how any historical-red hits were classified; do not use the all-none N/A.
+
+Use ` | ` as the canonical delimiter between multiple values in one category. Validation compares normalized values one by one, ignoring Markdown code/emphasis wrappers and trailing punctuation. Legacy comma-separated lists remain accepted only when every comma item is Markdown-wrapped. A sweep must name each normalized value individually; it does not need to reproduce the category's raw Markdown or punctuation.
 
 When authority forbids publishing a local fixture path, use the structured `fixture paths withheld because <authority and reason>; logical fixture <stable ID>; content SHA-256 <64 hexadecimal characters>; provenance <generated, derived, or copied-source statement>` form. Never use `fixture paths none published because ...`: it hides the path without preserving a stable identity that another reviewer can compare.
 

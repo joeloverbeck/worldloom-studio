@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,7 +9,9 @@ import { spawnSync } from "node:child_process";
 const directory = mkdtempSync(join(tmpdir(), "worldloom-review-fallback-"));
 const script = fileURLToPath(new URL("./validate-review-fallback-body.mjs", import.meta.url));
 const manifestPath = join(directory, "manifest.json");
+const structuredManifestPath = join(directory, "structured-manifest.json");
 const siblingManifestPath = join(directory, "sibling-manifest.json");
+const tddManifestPath = join(directory, "tdd-manifest.json");
 let sequence = 0;
 
 writeFileSync(
@@ -17,6 +19,35 @@ writeFileSync(
   JSON.stringify({
     version: 1,
     issues: [{ number: 359, title: "Review child", checks: [{ id: "AC1", kind: "acceptance", text: "Behavior" }] }]
+  })
+);
+
+writeFileSync(
+  structuredManifestPath,
+  JSON.stringify({
+    version: 1,
+    issues: [
+      {
+        number: 359,
+        title: "Parent PRD",
+        checks: [
+          { id: "Parent-Solution", kind: "parent-prd-section", text: "Parent PRD ## Solution section" },
+          { id: "US1", kind: "user-story", text: "First story" },
+          { id: "US2", kind: "user-story", text: "Second story" },
+          { id: "US3", kind: "user-story", text: "Third story" },
+          {
+            id: "Parent-Implementation-Decisions",
+            kind: "parent-prd-section",
+            text: "Parent PRD ## Implementation Decisions section"
+          },
+          {
+            id: "Parent-Testing-Decisions",
+            kind: "parent-prd-section",
+            text: "Parent PRD ## Testing Decisions section"
+          }
+        ]
+      }
+    ]
   })
 );
 
@@ -35,6 +66,20 @@ writeFileSync(
         ]
       },
       { number: 370, title: "Second sibling", checks: [{ id: "AC2", kind: "acceptance", text: "Second" }] }
+    ]
+  })
+);
+
+writeFileSync(
+  tddManifestPath,
+  JSON.stringify({
+    version: 1,
+    issues: [
+      {
+        number: 355,
+        title: "Nested TDD issue",
+        checks: [{ id: "AC1", kind: "acceptance", text: "Behavior" }]
+      }
     ]
   })
 );
@@ -264,6 +309,37 @@ Residual findings`
   assert.match(noSequence.stderr, /sequence:/);
 });
 
+test("accepts parent aliases and requires every adjacent story-map row", () => {
+  const storyMap = `| Story | Exact proof |
+|---|---|
+| US1 | first child seam |
+| US2 | second child seam |
+| US3 | third child seam |
+`;
+  const body = baseBody
+    .replace("child table N/A", "child table yes")
+    .replace(
+      "Spec sequence coverage: sequence: N/A because the reviewed acceptance is not sequence-sensitive\n\nResidual findings",
+      `Spec sequence coverage: sequence: N/A because the reviewed acceptance is not sequence-sensitive
+
+| Issue | Acceptance source | Evidence reviewed | Findings/residuals |
+|---|---|---|---|
+| #359 | issue #359 Solution, Implementation Decisions, Testing Decisions, individual US1-US3 map below; sequence: N/A because these criteria are not sequence-sensitive | validator test | none |
+
+${storyMap}
+Residual findings`
+    );
+  const flags = ["--child-family", "--acceptance-manifest", structuredManifestPath];
+  const complete = runValidator(body, flags);
+  assert.equal(complete.status, 0, complete.stderr);
+
+  const missingStories = runValidator(body.replace(`${storyMap}\n`, ""), flags);
+  assert.notEqual(missingStories.status, 0);
+  for (const story of ["US1", "US2", "US3"]) {
+    assert.match(missingStories.stderr, new RegExp(`missing acceptance source ${story}`));
+  }
+});
+
 test("requires exact sibling coverage when --issue-set is used", () => {
   const issueSetFlags = ["--issue-set", "--acceptance-manifest", siblingManifestPath];
   const issueSetBody = baseBody
@@ -338,6 +414,17 @@ test("accepts current nested TDD evidence and rejects missing proof-server field
   );
   assert.notEqual(missingGateField.status, 0);
   assert.match(missingGateField.stderr, /proof server preflight/);
+
+  const parentRollup = runValidator(fallbackWithCurrentTdd, [
+    "--tdd-parent-rollup",
+    "--acceptance-manifest",
+    tddManifestPath
+  ]);
+  assert.equal(parentRollup.status, 0, parentRollup.stderr);
+
+  const missingManifest = runValidator(fallbackWithCurrentTdd, ["--tdd-parent-rollup"]);
+  assert.notEqual(missingManifest.status, 0);
+  assert.match(missingManifest.stderr, /requires an acceptance manifest/);
 });
 
 test("forwards --closing to nested TDD validation", () => {
@@ -404,4 +491,11 @@ test("accepts the cross-validator-safe superseded-token sweep", () => {
 
   const result = runValidator(body);
   assert.equal(result.status, 0, result.stderr);
+});
+
+test("fallback guidance plans closeout size before composition", () => {
+  const fallback = readFileSync(new URL("../fallback-evidence.md", import.meta.url), "utf8");
+  assert.match(fallback, /--review fallback --size-plan --require-headroom/);
+  assert.match(fallback, /--select <issue\[:check-id\[,check-id\.\.\.\]\]>/);
+  assert.match(fallback, /US1-US36.*does not replace individual story rows/);
 });
