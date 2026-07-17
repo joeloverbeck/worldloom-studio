@@ -110,6 +110,49 @@ When a slice claims the Pre-close Propagation revision and finalization contract
 
 Source-policy checks may support this evidence by proving that the browser consumes returned lifecycle, severity, blocker, currentness, and route shapes, but source checks cannot substitute for the rendered active route. Likewise, server/store tests support invariants but cannot substitute for failure recovery, cognitive walkthrough, console state, or cold-packet relevance.
 
+## Prompt-Out Multi-Edge Duplicate-Value Evidence Pattern
+
+When several graph paths can produce identical Prompt-out source-manifest or
+omission prose, active-route evidence must show:
+
+- one canonical aggregated item for equivalent candidate, evidence kind, rule,
+  relationship class, standing, and decision meaning, with server-owned stable
+  identity, deterministically ordered provenance, and the exact aggregate path
+  count;
+- every semantically distinct same-text item retained when any member of that
+  tuple differs, with readable reason, relationship, standing, decision
+  meaning, or provenance explaining the distinction rather than an opaque id
+  alone;
+- stable accessible list semantics and names under keyboard and screen-reader
+  use, including an understandable aggregation count and provenance summary;
+- Proposal and Pressure each rendering every canonical item exactly once in the
+  packet review surface, with no dropped, duplicated, or reordered evidence;
+- the prompt packet preview, source documents, source manifest, omission block,
+  copied body, downloaded body, packet hash, body hash, and source-manifest hash
+  preserving the same canonical-item semantics and exact packet bytes;
+- one active browser instance retaining stable evidence rows through repeated
+  load, mode change, copy, download, controlled rerender, coverage edit, outcome
+  edit, stale recovery, current recovery, final state, safe return, and resume;
+- incomplete-context and stale-packet failures remaining adjacent to the action,
+  announced with exact server text and remediation while preserving selected
+  mode and Temporal orientation;
+- before/after API and World-file fingerprints proving packet generation,
+  preview, copy, download, recovery, and navigation are read-only, apart from
+  separately approved Temporal outcome or finalization actions;
+- browser console errors and warnings recorded separately through the full
+  replay, with no duplicate-key error or warning; and
+- a fresh packet-only cold external session for each mode that can explain the
+  aggregate, preserve same-text distinctions, remain useful without repository
+  access, and respect advisory/canon separation.
+
+The cognitive walkthrough must ask a docs-naive steward to distinguish the
+aggregate from the same-text items, identify the governing decision and
+doctrine, predict the non-mutation boundary, recover from a blocker without
+losing orientation, and explain why no evidence gained canon authority.
+Component and HTTP tests may support this pattern, but they do not replace the
+production Temporal route, one-instance lifecycle, accessibility, console, or
+cold-session evidence.
+
 ## Temporal Pre-Close Revision Evidence Pattern
 
 When a slice claims **Temporal coverage revision and finalization**, active-route evidence must show:

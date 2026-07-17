@@ -47,6 +47,54 @@ Each packet contains exactly one compact structural skeleton example for the act
 
 Current in-scope Prompt-out surfaces are Creation kernel, Creation seed decomposition, Minimal Viable World checkpoint, Admission prerequisite/constraint prompts, Propagation consequence scout, Constraint Composition challenger, Temporal/Timeline spatial-temporal analyst, Stage 12 institution/economy analyst, Stage 13 repair challenge and boundary guard, and QA red team.
 
+## Canonical Evidence Lists
+
+The source manifest and omission block are structured, server-owned evidence
+lists. Each evidence item carries:
+
+- an opaque stable item identifier;
+- display text and an evidence kind (`source` or `omission`);
+- semantic candidate identity when a record or material candidate exists;
+- the inclusion or exclusion rule identity;
+- standing when standing bears on the evidence;
+- relationship class and decision meaning;
+- deterministically ordered provenance references; and
+- an aggregate path count when more than one equivalent path contributed.
+
+The stable item identifier is derived from the canonical semantic item. Display
+prose, array position, browser state, and newly persisted canon-facing records
+are not identity inputs. Reassembling unchanged world and flow state returns the
+same item identities and deterministic order even if presentation wording later
+changes.
+
+Canonical equivalence is the tuple of candidate identity, evidence kind,
+inclusion or exclusion rule, relationship class, standing, and decision
+meaning. Structurally equivalent paths with the same tuple become one item.
+Their provenance references are deduplicated and sorted, and an aggregate count
+greater than one remains visible. A difference in any tuple member preserves a
+distinct item even when two items have identical display text. Display text
+alone never decides equivalence.
+
+The packet renderer consumes these canonical collections directly. The prompt
+packet preview, rendered packet body, source manifest, omission block, copied
+body, downloaded body, packet hash, body hash, and source-manifest hash neither
+independently deduplicate nor reorder the evidence. An omission item appearing
+in both the source manifest and omission block retains one server identity and
+the same semantic fields; only its surrounding section label changes.
+
+String-only consumers may migrate through one shared compatibility boundary.
+That adapter may assign deterministic collection-local fallback identity, but
+it does not infer semantic equivalence, merge rows, traverse relationships, or
+become flow-specific or browser-specific policy. New server-owned evidence uses
+the structured contract directly.
+
+Proposal and Pressure acceptance each review the structured preview and source
+manifest, copy and download the exact current packet, and exercise that copied
+packet in a fresh cold external session. The evidence must keep aggregate and
+same-text distinctions understandable without repository context, retain the
+advisory/canon boundary, and include before/after proof that generation,
+preview, copy, and download are read-only.
+
 ## Inclusion Rules
 
 - Include only context that can affect the current decision point.

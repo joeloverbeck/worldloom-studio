@@ -293,6 +293,17 @@ label {
   overflow-wrap: anywhere;
 }
 
+.prompt-out-evidence-list > li {
+  margin-bottom: 10px;
+}
+
+.prompt-out-evidence-metadata {
+  display: grid;
+  gap: 3px;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+}
+
 .prompt-packet-text,
 .current-prompt-packet-text,
 .stale-prompt-packet-text,

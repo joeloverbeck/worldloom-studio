@@ -16,6 +16,7 @@ import {
   type TemporalPromptError,
   type TemporalPromptModeOffer
 } from "./temporal-prompt-out-panel.js";
+import { PromptOutEvidenceList, type PromptEvidenceItemView } from "./prompt-out-evidence-list.js";
 import {
   TEMPORAL_COVERAGE_KEYS,
   TemporalRevisionWorkspace,
@@ -1357,8 +1358,8 @@ export interface PropagationPacketContextPreview {
       nonCanon: boolean;
     }>;
   };
-  sourceManifest: string[];
-  omissions: string[];
+  sourceManifest: PromptEvidenceItemView[];
+  omissions: PromptEvidenceItemView[];
   advisoryCanonWarning: string;
   readOnlyGuarantee: string;
 }
@@ -1614,9 +1615,9 @@ export function PropagationPacketContextPanel({ context }: { context: Propagatio
         </article>
       ))}
       <strong>Server source manifest</strong>
-      {context.sourceManifest.map((item) => <p key={item}>{item}</p>)}
+      <PromptOutEvidenceList label="Propagation source manifest" items={context.sourceManifest} emptyText="No source manifest loaded." />
       <strong>Record-specific omissions</strong>
-      {context.omissions.map((item) => <p key={item}>{item}</p>)}
+      <PromptOutEvidenceList label="Propagation omissions" items={context.omissions} emptyText="No omissions loaded." />
       <p>{context.advisoryCanonWarning}</p>
       <p>{context.readOnlyGuarantee}</p>
     </section>

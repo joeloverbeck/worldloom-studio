@@ -113,6 +113,24 @@ export interface PromptPacketIdentity {
   sourceManifestHash: string | null;
 }
 
+export interface PromptEvidenceItem {
+  id: string;
+  displayText: string;
+  kind: "source" | "omission";
+  candidateIdentity: string | null;
+  ruleIdentity: string;
+  standing: { truthLayer: string | null; canonStatus: string | null } | null;
+  relationship: string | null;
+  decisionMeaning: string | null;
+  provenanceReferences: string[];
+  aggregatePathCount: number | null;
+}
+
+interface PromptEvidenceDraft extends Omit<PromptEvidenceItem, "id" | "provenanceReferences" | "aggregatePathCount"> {
+  provenanceReferences?: string[];
+  contributionCount?: number;
+}
+
 type PromptIdentityRecord = Pick<RecordRow, "id" | "shortId" | "recordTypeKey" | "title">;
 
 export interface PromptGenerationResult {
@@ -125,6 +143,10 @@ export interface PromptGenerationResult {
     templateKey: string;
     recordId: number | null;
     packetIdentity: PromptPacketIdentity;
+    evidence: {
+      sourceManifest: PromptEvidenceItem[];
+      omissions: PromptEvidenceItem[];
+    };
     propagationContext?: PropagationPacketContextPreview | null;
     temporalContext?: TemporalPacketContextPreview | null;
   };
@@ -172,8 +194,8 @@ export interface TemporalPacketContextPreview {
   skips: TemporalPacketContextRecord[];
   advisoryDispositions: Array<{ advisory: TemporalPacketContextRecord; dispositions: AdvisoryDispositionRow[] }>;
   sourceDocuments: PromptDocument[];
-  sourceManifest: string[];
-  omissions: string[];
+  sourceManifest: PromptEvidenceItem[];
+  omissions: PromptEvidenceItem[];
   outputLabels: string[];
   advisoryCanonWarning: string;
   recovery: {
@@ -213,8 +235,8 @@ export interface PropagationPacketContextPreview {
     completeness: PropagationRelatedWorldContext["completeness"];
     selectedRecords: PropagationRelatedWorldRecord[];
   };
-  sourceManifest: string[];
-  omissions: string[];
+  sourceManifest: PromptEvidenceItem[];
+  omissions: PromptEvidenceItem[];
   advisoryCanonWarning: string;
   readOnlyGuarantee: string;
 }
@@ -255,8 +277,8 @@ interface PromptPacketInput {
   decisionMaterial: string[];
   sourceDocuments: PromptDocument[];
   standingRulings: string[];
-  omissions: string[];
-  sourceManifest: string[];
+  omissions: Array<string | PromptEvidenceItem>;
+  sourceManifest: Array<string | PromptEvidenceItem>;
   advisoryWarning: string;
   outputLabels?: string[];
 }
@@ -283,6 +305,27 @@ const inlineTag = (tag: string, body: string): string =>
 const renderList = (lines: string[]): string =>
   lines.length ? lines.map((line) => `- ${line}`).join("\n") : "- none";
 
+const renderEvidenceList = (items: Array<string | PromptEvidenceItem>, section: "omissions" | "source_manifest"): string =>
+  items.length ? items.map((item) => {
+    if (typeof item === "string") return `- ${item}`;
+    const standing = item.standing == null
+      ? "standing not applicable"
+      : `standing truth=${item.standing.truthLayer ?? "unset"}, canon=${item.standing.canonStatus ?? "unset"}`;
+    const detail = [
+      `evidence ${item.id}`,
+      `kind ${item.kind}`,
+      `candidate ${item.candidateIdentity ?? "none"}`,
+      `rule ${item.ruleIdentity}`,
+      standing,
+      `relationship ${item.relationship ?? "none"}`,
+      `decision meaning ${item.decisionMeaning ?? "none"}`,
+      `provenance ${item.provenanceReferences.join(" | ") || "none"}`,
+      ...(item.aggregatePathCount == null ? [] : [`aggregate path count ${item.aggregatePathCount}`])
+    ].join("; ");
+    const prefix = section === "source_manifest" && item.kind === "omission" ? "Omission: " : "";
+    return `- ${prefix}${item.displayText} [${detail}]`;
+  }).join("\n") : "- none";
+
 const renderDocuments = (documents: PromptDocument[]): string =>
   tagBlock("documents", documents.map((document) => tagBlock("document", [
     inlineTag("source", document.source),
@@ -292,7 +335,7 @@ const renderDocuments = (documents: PromptDocument[]): string =>
 const packetHash = (prompt: string): string =>
   createHash("sha256").update(prompt).digest("hex");
 
-const manifestHash = (sourceManifest: string[]): string =>
+const manifestHash = (sourceManifest: unknown[]): string =>
   packetHash(stableJson(sourceManifest));
 
 const stableJson = (value: unknown): string => {
@@ -305,6 +348,97 @@ const stableJson = (value: unknown): string => {
       .join(",")}}`;
   }
   return JSON.stringify(value);
+};
+
+const evidenceSemanticTuple = (item: PromptEvidenceDraft): unknown => ({
+  candidateIdentity: item.candidateIdentity,
+  decisionMeaning: item.decisionMeaning,
+  kind: item.kind,
+  relationship: item.relationship,
+  ruleIdentity: item.ruleIdentity,
+  standing: item.standing
+});
+
+const canonicalizePromptEvidence = (drafts: PromptEvidenceDraft[]): PromptEvidenceItem[] => {
+  const groups = new Map<string, {
+    draft: PromptEvidenceDraft;
+    displayTexts: Set<string>;
+    provenanceReferences: Set<string>;
+    contributionCount: number;
+  }>();
+  for (const draft of drafts) {
+    const semanticKey = stableJson(evidenceSemanticTuple(draft));
+    const existing = groups.get(semanticKey);
+    if (existing) {
+      existing.displayTexts.add(draft.displayText);
+      for (const reference of draft.provenanceReferences ?? []) existing.provenanceReferences.add(reference);
+      existing.contributionCount += draft.contributionCount ?? 1;
+      continue;
+    }
+    groups.set(semanticKey, {
+      draft,
+      displayTexts: new Set([draft.displayText]),
+      provenanceReferences: new Set(draft.provenanceReferences ?? []),
+      contributionCount: draft.contributionCount ?? 1
+    });
+  }
+  return [...groups.entries()]
+    .map(([semanticKey, group]) => ({
+      id: `prompt-evidence-${createHash("sha256").update(semanticKey).digest("hex").slice(0, 20)}`,
+      displayText: [...group.displayTexts].sort((left, right) => left.localeCompare(right))[0]!,
+      kind: group.draft.kind,
+      candidateIdentity: group.draft.candidateIdentity,
+      ruleIdentity: group.draft.ruleIdentity,
+      standing: group.draft.standing,
+      relationship: group.draft.relationship,
+      decisionMeaning: group.draft.decisionMeaning,
+      provenanceReferences: [...group.provenanceReferences].sort((left, right) => left.localeCompare(right)),
+      aggregatePathCount: group.contributionCount > 1 ? group.contributionCount : null
+    }))
+    .sort((left, right) => left.id.localeCompare(right.id));
+};
+
+const promptEvidenceCompatibilityBoundary = (
+  items: Array<string | PromptEvidenceItem>,
+  kind: PromptEvidenceItem["kind"],
+  collectionIdentity: string
+): PromptEvidenceItem[] => items.map((item, index) => {
+  if (typeof item !== "string") return item;
+  const fallbackKey = stableJson({ collectionIdentity, index, kind });
+  return {
+    id: `prompt-evidence-${createHash("sha256").update(fallbackKey).digest("hex").slice(0, 20)}`,
+    displayText: item.replace(/^Omission:\s*/, ""),
+    kind,
+    candidateIdentity: null,
+    ruleIdentity: "compatibility.string-row",
+    standing: null,
+    relationship: null,
+    decisionMeaning: `legacy ${kind} row ${index + 1} in ${collectionIdentity}`,
+    provenanceReferences: [`compatibility:${collectionIdentity}:${index + 1}`],
+    aggregatePathCount: null
+  };
+});
+
+const packetEvidenceCollections = (input: {
+  sourceManifest: Array<string | PromptEvidenceItem>;
+  omissions: Array<string | PromptEvidenceItem>;
+  collectionIdentity: string;
+}): { sourceManifest: PromptEvidenceItem[]; omissions: PromptEvidenceItem[] } => {
+  const omissions = promptEvidenceCompatibilityBoundary(
+    input.omissions,
+    "omission",
+    `${input.collectionIdentity}:omissions`
+  );
+  const sourceRows = input.sourceManifest.filter((item) =>
+    typeof item !== "string" || !item.startsWith("Omission: "));
+  const sourceManifest = promptEvidenceCompatibilityBoundary(
+    sourceRows,
+    "source",
+    `${input.collectionIdentity}:source-manifest`
+  );
+  const byId = new Map(sourceManifest.map((item) => [item.id, item]));
+  for (const omission of omissions) byId.set(omission.id, omission);
+  return { sourceManifest: [...byId.values()], omissions };
 };
 
 const admissionDraftSectionKeys = (draft?: AdmissionFullGateDraftPayload | null): string[] =>
@@ -414,8 +548,8 @@ const renderPromptPacket = (input: PromptPacketInput): string => {
     ])),
     tagBlock("source_records", renderDocuments(input.sourceDocuments)),
     tagBlock("standing_rulings", renderList(input.standingRulings)),
-    tagBlock("omissions", renderList(input.omissions)),
-    tagBlock("source_manifest", compact(["Source manifest:", renderList(input.sourceManifest)]))
+    tagBlock("omissions", renderEvidenceList(input.omissions, "omissions")),
+    tagBlock("source_manifest", compact(["Source manifest:", renderEvidenceList(input.sourceManifest, "source_manifest")]))
   ].join("\n\n"));
   const bottom = [
     "Current decision:",
@@ -710,6 +844,39 @@ const temporalRelationship = (recordId: number, link: ReturnType<WorldFile["list
 const temporalRecordManifest = (record: TemporalPacketContextRecord): string =>
   `${record.shortId} ${record.title}; type ${record.recordTypeKey}; standing truth=${record.standing.truthLayer ?? "unset"}, canon=${record.standing.canonStatus ?? "unset"}; relationship ${record.relationship.direction}:${record.relationship.kind} (${record.relationship.note || "no note"}); inclusion ${record.inclusionReason}; provenance actor=${record.provenance.actor}, timestamp=${record.provenance.timestamp}, flow_step=${record.provenance.flowStep}`;
 
+const temporalOmissionDraft = (input: {
+  displayText: string;
+  ruleIdentity: string;
+  decisionMeaning: string;
+  candidate?: RecordRow | null;
+  relationship?: string | null;
+  provenanceReferences: string[];
+}): PromptEvidenceDraft => ({
+  displayText: input.displayText,
+  kind: "omission",
+  candidateIdentity: input.candidate?.shortId ?? null,
+  ruleIdentity: input.ruleIdentity,
+  standing: input.candidate == null
+    ? null
+    : { truthLayer: input.candidate.truthLayer, canonStatus: input.candidate.canonStatus },
+  relationship: input.relationship ?? null,
+  decisionMeaning: input.decisionMeaning,
+  provenanceReferences: input.provenanceReferences
+});
+
+const temporalRecordEvidenceDraft = (record: TemporalPacketContextRecord): PromptEvidenceDraft => ({
+  displayText: temporalRecordManifest(record),
+  kind: "source",
+  candidateIdentity: record.shortId,
+  ruleIdentity: "temporal.included-context",
+  standing: record.standing,
+  relationship: `${record.relationship.direction}:${record.relationship.kind}`,
+  decisionMeaning: record.inclusionReason,
+  provenanceReferences: [
+    `record:${record.shortId}:actor=${record.provenance.actor}:timestamp=${record.provenance.timestamp}:flow-step=${record.provenance.flowStep}`
+  ]
+});
+
 const inactiveTemporalStatuses = new Set(["superseded", "deprecated", "rejected", "withdrawn"]);
 
 type TemporalContextLink = ReturnType<WorldFile["listLinks"]>[number];
@@ -813,8 +980,8 @@ const temporalIncompleteContextError = (detail: string): Error & { remediation: 
 const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): {
   lines: string[];
   sourceDocuments: PromptDocument[];
-  sourceManifest: string[];
-  omissions: string[];
+  sourceManifest: PromptEvidenceItem[];
+  omissions: PromptEvidenceItem[];
   preview: TemporalPacketContextPreview | null;
 } => {
   if (input.flowKey !== "temporal_timeline" || input.flowId == null) {
@@ -907,7 +1074,7 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
   const routedProposals: TemporalPacketContextRecord[] = [];
   const skips: TemporalPacketContextRecord[] = [];
   const advisoryDispositions: Array<{ advisory: TemporalPacketContextRecord; dispositions: AdvisoryDispositionRow[] }> = [];
-  const omissions: string[] = [];
+  const omissionDrafts: PromptEvidenceDraft[] = [];
   const stagedOutcomeIds = new Set(TemporalStore.findRun(world, input.flowId) ? TemporalStore.listOutcomes(world, input.flowId).map((outcome) => outcome.record_id) : []);
   const seenDirectRecordIds = new Set<number>();
 
@@ -919,7 +1086,14 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
     if (seenDirectRecordIds.has(candidate.id)) continue;
     seenDirectRecordIds.add(candidate.id);
     if (inactiveTemporalStatuses.has(candidate.canonStatus ?? "")) {
-      omissions.push(`${candidate.shortId} omitted as inactive ${candidate.canonStatus} context; it is historical rather than current support.`);
+      omissionDrafts.push(temporalOmissionDraft({
+        displayText: `${candidate.shortId} omitted as inactive ${candidate.canonStatus} context; it is historical rather than current support.`,
+        ruleIdentity: "temporal.inactive-current-support",
+        decisionMeaning: "historical rather than current Temporal support",
+        candidate,
+        relationship: link.linkTypeKey,
+        provenanceReferences: [`direct-path:selected=${selectedRecord?.shortId ?? "material"}:link=${link.id}:candidate=${candidate.shortId}`]
+      }));
       continue;
     }
     const relationship = temporalRelationship(selectedRecord!.id, link);
@@ -929,20 +1103,41 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
       relatedCanon.push(temporalContextRecord(world, candidate, relationship, "This directly related canon fact can constrain the current Temporal decision."));
     } else if (candidate.recordTypeKey === "canon_debt") {
       if (candidate.canonStatus === "accepted" || candidate.body.includes("State: closed")) {
-        omissions.push(`${candidate.shortId} omitted because the linked canon debt is closed or inactive.`);
+        omissionDrafts.push(temporalOmissionDraft({
+          displayText: `${candidate.shortId} omitted because the linked canon debt is closed or inactive.`,
+          ruleIdentity: "temporal.closed-debt",
+          decisionMeaning: "closed debt is not current Temporal support",
+          candidate,
+          relationship: link.linkTypeKey,
+          provenanceReferences: [`direct-path:selected=${selectedRecord?.shortId ?? "material"}:link=${link.id}:candidate=${candidate.shortId}`]
+        }));
       } else {
         openDebt.push(temporalContextRecord(world, candidate, relationship, "This open debt bears on unresolved timing or residue work."));
       }
     } else if (candidate.recordTypeKey === "mystery_ledger_entry") {
       protectedBoundaries.push(temporalContextRecord(world, candidate, relationship, "This linked mystery ledger entry bounds what the Temporal pass may explain."));
     } else if (candidate.recordTypeKey !== "world_kernel") {
-      omissions.push(`${candidate.shortId} omitted as irrelevant to the Spatial-temporal role despite direct relationship ${link.linkTypeKey}.`);
+      omissionDrafts.push(temporalOmissionDraft({
+        displayText: `${candidate.shortId} omitted as irrelevant to the Spatial-temporal role despite direct relationship ${link.linkTypeKey}.`,
+        ruleIdentity: "temporal.role-irrelevant",
+        decisionMeaning: "irrelevant to the Spatial-temporal role",
+        candidate,
+        relationship: link.linkTypeKey,
+        provenanceReferences: [`direct-path:selected=${selectedRecord?.shortId ?? "material"}:link=${link.id}:candidate=${candidate.shortId}`]
+      }));
     }
   }
 
   const kernelRecords = world.listRecords().filter((record) => record.recordTypeKey === "world_kernel");
   for (const record of kernelRecords.filter((candidate) => inactiveTemporalStatuses.has(candidate.canonStatus ?? ""))) {
-    omissions.push(`${record.shortId} omitted as inactive ${record.canonStatus} world-kernel context; it is historical rather than a current commitment.`);
+    omissionDrafts.push(temporalOmissionDraft({
+      displayText: `${record.shortId} omitted as inactive ${record.canonStatus} world-kernel context; it is historical rather than a current commitment.`,
+      ruleIdentity: "temporal.inactive-kernel",
+      decisionMeaning: "historical kernel is not a current commitment",
+      candidate: record,
+      relationship: "world_kernel_commitment",
+      provenanceReferences: [`world-kernel:${record.shortId}`]
+    }));
   }
   const kernelCommitments = kernelRecords
     .filter((record) => !inactiveTemporalStatuses.has(record.canonStatus ?? ""))
@@ -963,7 +1158,15 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
     if (secondHopId === selectedRecord?.id || graph.directIds.has(secondHopId) || secondHopId === report.id) continue;
     const candidate = world.getRecord(secondHopId);
     if (candidate.recordTypeKey === "world_kernel") continue;
-    omissions.push(`${candidate.shortId} omitted by the bounded second-hop rule; only the selected source and its direct structural relationships are decision context.`);
+    const directRecord = world.getRecord(directId);
+    omissionDrafts.push(temporalOmissionDraft({
+      displayText: `${candidate.shortId} omitted by the bounded second-hop rule; only the selected source and its direct structural relationships are decision context.`,
+      ruleIdentity: "temporal.bounded-second-hop",
+      decisionMeaning: "excluded from bounded Temporal context",
+      candidate,
+      relationship: link.linkTypeKey,
+      provenanceReferences: [`bounded-path:selected=${selectedRecord?.shortId ?? "material"}:via=${directRecord.shortId}:link=${link.id}:candidate=${candidate.shortId}`]
+    }));
   }
 
   const seenOutcomeIds = new Set<number>();
@@ -972,7 +1175,14 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
     if (candidate.id === selectedRecord?.id || seenOutcomeIds.has(candidate.id)) continue;
     seenOutcomeIds.add(candidate.id);
     if (inactiveTemporalStatuses.has(candidate.canonStatus ?? "")) {
-      omissions.push(`${candidate.shortId} omitted as inactive ${candidate.canonStatus} Temporal outcome context.`);
+      omissionDrafts.push(temporalOmissionDraft({
+        displayText: `${candidate.shortId} omitted as inactive ${candidate.canonStatus} Temporal outcome context.`,
+        ruleIdentity: "temporal.inactive-outcome",
+        decisionMeaning: "inactive outcome is not current Temporal support",
+        candidate,
+        relationship: link.linkTypeKey,
+        provenanceReferences: [`report-path:report=${report.shortId}:link=${link.id}:candidate=${candidate.shortId}`]
+      }));
       continue;
     }
     const relationship = temporalRelationship(report.id, link);
@@ -982,7 +1192,14 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
       routedProposals.push(temporalContextRecord(world, candidate, relationship, "This proposed fact was routed from the current Temporal pass for Admission review."));
     } else if (candidate.recordTypeKey === "canon_debt") {
       if (candidate.canonStatus === "accepted" || candidate.body.includes("State: closed")) {
-        omissions.push(`${candidate.shortId} omitted because the report-linked canon debt is closed or inactive.`);
+        omissionDrafts.push(temporalOmissionDraft({
+          displayText: `${candidate.shortId} omitted because the report-linked canon debt is closed or inactive.`,
+          ruleIdentity: "temporal.closed-debt",
+          decisionMeaning: "closed debt is not current Temporal support",
+          candidate,
+          relationship: link.linkTypeKey,
+          provenanceReferences: [`report-path:report=${report.shortId}:link=${link.id}:candidate=${candidate.shortId}`]
+        }));
       } else if (!openDebt.some((record) => record.id === candidate.id)) {
         openDebt.push(temporalContextRecord(world, candidate, relationship, "This open debt records unresolved work from the current Temporal pass."));
       }
@@ -992,7 +1209,14 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
       const dispositions = world.db.prepare("SELECT * FROM advisory_dispositions WHERE advisory_record_id = ? ORDER BY id")
         .all(candidate.id)
         .map((row) => rowToAdvisoryDisposition(row as Record<string, unknown>));
-      if (!dispositions.length) omissions.push(`${candidate.shortId} advisory disposition unavailable: the stored advisory has no explicit steward disposition yet.`);
+      if (!dispositions.length) omissionDrafts.push(temporalOmissionDraft({
+        displayText: `${candidate.shortId} advisory disposition unavailable: the stored advisory has no explicit steward disposition yet.`,
+        ruleIdentity: "temporal.missing-advisory-disposition",
+        decisionMeaning: "undisposed advisory material is not current guidance",
+        candidate,
+        relationship: link.linkTypeKey,
+        provenanceReferences: [`report-path:report=${report.shortId}:link=${link.id}:candidate=${candidate.shortId}`]
+      }));
       const dispositionBody = dispositions.map((row) => `${row.disposition}${row.note ? `: ${row.note}` : ""}`).join("\n");
       const advisory = temporalContextRecord(world, {
         ...candidate,
@@ -1000,20 +1224,45 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
       }, relationship, "This stored advisory and its steward dispositions can constrain repeated suggestions without changing canon standing.");
       advisoryDispositions.push({ advisory, dispositions });
     } else if (candidate.recordTypeKey !== "pass_report") {
-      omissions.push(`${candidate.shortId} omitted as irrelevant report-linked context for the current Temporal decision.`);
+      omissionDrafts.push(temporalOmissionDraft({
+        displayText: `${candidate.shortId} omitted as irrelevant report-linked context for the current Temporal decision.`,
+        ruleIdentity: "temporal.report-role-irrelevant",
+        decisionMeaning: "report-linked record is irrelevant to the current Temporal decision",
+        candidate,
+        relationship: link.linkTypeKey,
+        provenanceReferences: [`report-path:report=${report.shortId}:link=${link.id}:candidate=${candidate.shortId}`]
+      }));
     }
   }
-  if (!sourcePropagation.length) omissions.push("Source Propagation report unavailable: no directly linked final Propagation report is present for this Temporal source.");
-  if (!relatedCanon.length) omissions.push("Related canon unavailable: no active directly linked canon fact bears on this Temporal decision.");
-  if (!openDebt.length) omissions.push("Open debt unavailable: no active directly linked canon debt bears on this Temporal decision.");
-  if (!protectedBoundaries.length) omissions.push("Protected-boundary context unavailable: no active directly linked mystery ledger entry bears on this decision.");
-  if (!kernelCommitments.length) omissions.push("Kernel commitments unavailable: this world has no active world-kernel record.");
-  if (!timelineCards.length) omissions.push("Existing timeline cards unavailable: this Temporal pass has no linked timeline card.");
-  if (!routedProposals.length) omissions.push("Routed proposals unavailable: this Temporal pass has no fact proposal routed to Admission.");
-  if (!skips.length) omissions.push("Governed skips unavailable: this Temporal pass has no recorded skipped instrument.");
-  if (!advisoryDispositions.length) omissions.push("Advisory dispositions unavailable: this Temporal pass has no linked advisory artifact and disposition history.");
-  if (!coverageSection) omissions.push("Saved Temporal coverage unavailable: no Coverage lenses section exists yet; Proposal may help draft candidates, but Pressure is incomplete.");
-  for (const item of coverage.filter((item) => !item.value)) omissions.push(`${item.label} unavailable: no saved steward-authored value exists yet.`);
+  const unavailable = (present: boolean, displayText: string, ruleIdentity: string, decisionMeaning: string): void => {
+    if (present) return;
+    omissionDrafts.push(temporalOmissionDraft({
+      displayText,
+      ruleIdentity,
+      decisionMeaning,
+      provenanceReferences: [`temporal-run:${input.flowId}:${ruleIdentity}`]
+    }));
+  };
+  unavailable(sourcePropagation.length > 0, "Source Propagation report unavailable: no directly linked final Propagation report is present for this Temporal source.", "temporal.missing-source-propagation", "required source Propagation context is unavailable");
+  unavailable(relatedCanon.length > 0, "Related canon unavailable: no active directly linked canon fact bears on this Temporal decision.", "temporal.missing-related-canon", "related current canon is unavailable");
+  unavailable(openDebt.length > 0, "Open debt unavailable: no active directly linked canon debt bears on this Temporal decision.", "temporal.missing-open-debt", "bearing open debt is unavailable");
+  unavailable(protectedBoundaries.length > 0, "Protected-boundary context unavailable: no active directly linked mystery ledger entry bears on this decision.", "temporal.missing-protected-boundary", "bearing protected boundary is unavailable");
+  unavailable(kernelCommitments.length > 0, "Kernel commitments unavailable: this world has no active world-kernel record.", "temporal.missing-kernel", "current kernel commitment is unavailable");
+  unavailable(timelineCards.length > 0, "Existing timeline cards unavailable: this Temporal pass has no linked timeline card.", "temporal.missing-timeline-card", "existing timeline-card context is unavailable");
+  unavailable(routedProposals.length > 0, "Routed proposals unavailable: this Temporal pass has no fact proposal routed to Admission.", "temporal.missing-routed-proposal", "routed Admission proposal context is unavailable");
+  unavailable(skips.length > 0, "Governed skips unavailable: this Temporal pass has no recorded skipped instrument.", "temporal.missing-skip", "governed skip context is unavailable");
+  unavailable(advisoryDispositions.length > 0, "Advisory dispositions unavailable: this Temporal pass has no linked advisory artifact and disposition history.", "temporal.missing-advisory-history", "advisory disposition history is unavailable");
+  unavailable(coverageSection != null, "Saved Temporal coverage unavailable: no Coverage lenses section exists yet; Proposal may help draft candidates, but Pressure is incomplete.", "temporal.missing-coverage", "saved Temporal coverage is unavailable");
+  for (const item of coverage.filter((item) => !item.value)) omissionDrafts.push({
+    displayText: `${item.label} unavailable: no saved steward-authored value exists yet.`,
+    kind: "omission",
+    candidateIdentity: `temporal-coverage:${input.flowId}:${item.key}`,
+    ruleIdentity: "temporal.missing-coverage-lens",
+    standing: null,
+    relationship: "active-revision",
+    decisionMeaning: "required saved Temporal coverage lens is unavailable",
+    provenanceReferences: [`temporal-run:${input.flowId}:coverage:${item.key}`]
+  });
 
   const includedRecords = [
     ...(selectedSource ? [selectedSource] : []),
@@ -1031,12 +1280,31 @@ const temporalPromptContext = (world: WorldFile, input: PromptGenerationInput): 
     { source: `temporal_report:${report.shortId}`, content: [report.body, ...sections.map((section) => `## ${section.heading}\n${section.body}`)].join("\n\n") },
     ...includedRecords.map((record) => ({ source: `${record.recordTypeKey}:${record.shortId}`, content: [temporalRecordManifest(record), record.body].join("\n") }))
   ];
-  const sourceManifest = [
-    `Temporal pass report: ${report.shortId} ${report.title}; flow ${input.flowId}; provenance current step ${String(flow.current_step)}`,
-    ...coverage.map((item) => `Temporal coverage lens: ${item.label}; saved=${item.value ? "yes" : "no"}`),
-    ...includedRecords.map(temporalRecordManifest),
-    ...omissions.map((omission) => `Omission: ${omission}`)
-  ];
+  const omissions = canonicalizePromptEvidence(omissionDrafts);
+  const sourceManifest = canonicalizePromptEvidence([
+    {
+      displayText: `Temporal pass report: ${report.shortId} ${report.title}; flow ${input.flowId}; provenance current step ${String(flow.current_step)}`,
+      kind: "source",
+      candidateIdentity: report.shortId,
+      ruleIdentity: "temporal.current-pass",
+      standing: { truthLayer: report.truthLayer, canonStatus: report.canonStatus },
+      relationship: "selected-temporal-run",
+      decisionMeaning: "current Temporal run and report context",
+      provenanceReferences: [`temporal-run:${input.flowId}:step=${String(flow.current_step)}`]
+    },
+    ...coverage.map((item): PromptEvidenceDraft => ({
+      displayText: `Temporal coverage lens: ${item.label}; saved=${item.value ? "yes" : "no"}`,
+      kind: "source",
+      candidateIdentity: `temporal-coverage:${input.flowId}:${item.key}`,
+      ruleIdentity: "temporal.coverage-lens",
+      standing: null,
+      relationship: "active-revision",
+      decisionMeaning: item.value ? "saved active Temporal coverage" : "missing active Temporal coverage",
+      provenanceReferences: [`temporal-run:${input.flowId}:revision=${activeRevision?.id ?? "legacy"}:coverage=${item.key}`]
+    })),
+    ...includedRecords.map(temporalRecordEvidenceDraft),
+    ...omissionDrafts
+  ]);
   const revision = temporalPacketRevision(world, input.flowId);
   const stepKey = input.stepKey ?? input.templateKey;
   const advisoryCanonWarning = "This Prompt-out packet is optional advisory support. The steward authors surviving material; only Admission may change canon standing.";
@@ -1366,6 +1634,11 @@ const creationDecompositionPrompt = (
     ...methodCardSourceManifest(cardValue),
     ...omissions.map((omission) => `Omission: ${omission}`)
   ];
+  const evidence = packetEvidenceCollections({
+    sourceManifest,
+    omissions,
+    collectionIdentity: `creation:${report.id}:${stepKey}:${mode}`
+  });
 
   const prompt = renderPromptPacket({
       mode,
@@ -1424,8 +1697,8 @@ const creationDecompositionPrompt = (
         ...coverageContext.sourceDocuments
       ],
       standingRulings: rulings.map((row) => `${row.disposition}: ${row.note}`),
-      omissions,
-      sourceManifest,
+      omissions: evidence.omissions,
+      sourceManifest: evidence.sourceManifest,
       advisoryWarning: "This prompt asks for optional pressure only. Pasted responses stay advisory artifacts until the steward authors and admits canon through the governed flow.",
       outputLabels: ["bundled seed", "missing prerequisite", "admission concern", "risk", "alternative", "question", "standing-ruling candidate", "irrelevant omission"]
     });
@@ -1445,8 +1718,9 @@ const creationDecompositionPrompt = (
         record: report,
         selectedSectionHeading: null,
         decisionLabel: report.title,
-        sourceManifestHash: manifestHash(sourceManifest)
-      })
+        sourceManifestHash: manifestHash(evidence.sourceManifest)
+      }),
+      evidence
     }
   };
 };
@@ -1495,6 +1769,11 @@ const creationKernelPrompt = (
     ...methodCardSourceManifest(cardValue),
     ...omissions.map((omission) => `Omission: ${omission}`)
   ];
+  const evidence = packetEvidenceCollections({
+    sourceManifest,
+    omissions,
+    collectionIdentity: `creation:${selectedRecord.id}:${stepKey}:${mode}:${section.heading}`
+  });
 
   const prompt = renderPromptPacket({
       mode,
@@ -1532,8 +1811,8 @@ const creationKernelPrompt = (
         }
       ],
       standingRulings: rulings.map((row) => `${row.disposition}: ${row.note}`),
-      omissions,
-      sourceManifest,
+      omissions: evidence.omissions,
+      sourceManifest: evidence.sourceManifest,
       advisoryWarning: "This prompt is optional advisory support. Pasted responses stay advisory artifacts until the steward authors and admits canon through the governed flow.",
       outputLabels: ["candidate", "assumption", "risk", "alternative", "question", "standing-ruling candidate", "off-section"]
     });
@@ -1553,8 +1832,9 @@ const creationKernelPrompt = (
         record: selectedRecord,
         selectedSectionHeading: section.heading,
         decisionLabel: section.heading,
-        sourceManifestHash: manifestHash(sourceManifest)
-      })
+        sourceManifestHash: manifestHash(evidence.sourceManifest)
+      }),
+      evidence
     }
   };
 };
@@ -1625,6 +1905,11 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
     "No hidden repository context is available to the external LLM.",
     "Unavailable world context must be named before copy-out rather than silently omitted."
   ];
+  const evidence = packetEvidenceCollections({
+    sourceManifest,
+    omissions,
+    collectionIdentity: `${input.flowKey ?? "unspecified"}:${input.flowId ?? "none"}:${stepKey}:${mode}`
+  });
   const advisoryWarning = temporalContext.preview?.advisoryCanonWarning
     ?? "This prompt is optional advisory support. Pasted responses stay advisory artifacts until the steward authors and admits canon through the governed flow.";
   const foundationalPropagation = propagationContext.severity != null && isFoundationalSeverity(propagationContext.severity);
@@ -1669,8 +1954,8 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
       ...admissionDraftContext.sourceDocuments
     ],
     standingRulings: rulings.map((row) => `${row.disposition}: ${row.note}`),
-    omissions,
-    sourceManifest,
+    omissions: evidence.omissions,
+    sourceManifest: evidence.sourceManifest,
     advisoryWarning
   });
 
@@ -1689,8 +1974,9 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
         record: selectedRecord,
         selectedSectionHeading: null,
         decisionLabel: selectedRecord?.title ?? stepKey,
-        sourceManifestHash: manifestHash(sourceManifest)
+        sourceManifestHash: manifestHash(evidence.sourceManifest)
       }),
+      evidence,
       propagationContext: input.flowKey === "propagation" && propagationContext.severity
         ? {
             serverOwned: true,
@@ -1717,8 +2003,8 @@ export const generatePrompt = (world: WorldFile, input: PromptGenerationInput): 
               completeness: propagationContext.relatedWorld.completeness,
               selectedRecords: propagationContext.relatedWorld.selectedRecords
             },
-            sourceManifest,
-            omissions,
+            sourceManifest: evidence.sourceManifest,
+            omissions: evidence.omissions,
             advisoryCanonWarning: advisoryWarning,
             readOnlyGuarantee: "Preview and copy create no record, link, status, debt, skip, advisory artifact, disposition, flow-state, or world-file mutation."
           }

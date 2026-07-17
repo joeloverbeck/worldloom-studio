@@ -140,8 +140,52 @@ describe("Propagation web surface", () => {
           }
         ]
       },
-      sourceManifest: ["related_world:KER-1", "related_world:FAC-9"],
-      omissions: ["FAC-10 Retired rule: inactive or superseded current-support status", "FAC-11 Roof guild: outside the bounded relationship shapes (second hop)"],
+      sourceManifest: [{
+        id: "prompt-evidence-kernel",
+        displayText: "related_world:KER-1",
+        kind: "source",
+        candidateIdentity: "KER-1",
+        ruleIdentity: "propagation.related-world",
+        standing: { truthLayer: "Objective canon", canonStatus: "accepted" },
+        relationship: "active world kernel",
+        decisionMeaning: "included related-world support",
+        provenanceReferences: ["related_world:KER-1"],
+        aggregatePathCount: null
+      }, {
+        id: "prompt-evidence-fact",
+        displayText: "related_world:FAC-9",
+        kind: "source",
+        candidateIdentity: "FAC-9",
+        ruleIdentity: "propagation.related-world",
+        standing: { truthLayer: "disputed claim", canonStatus: "proposed" },
+        relationship: "shared origin KER-1",
+        decisionMeaning: "included related-world support",
+        provenanceReferences: ["related_world:FAC-9"],
+        aggregatePathCount: null
+      }],
+      omissions: [{
+        id: "prompt-evidence-inactive",
+        displayText: "FAC-10 Retired rule: inactive or superseded current-support status",
+        kind: "omission",
+        candidateIdentity: "FAC-10",
+        ruleIdentity: "propagation.inactive-current-support",
+        standing: { truthLayer: "Objective canon", canonStatus: "retired" },
+        relationship: null,
+        decisionMeaning: "excluded inactive current support",
+        provenanceReferences: ["related_world:FAC-10"],
+        aggregatePathCount: null
+      }, {
+        id: "prompt-evidence-second-hop",
+        displayText: "FAC-11 Roof guild: outside the bounded relationship shapes (second hop)",
+        kind: "omission",
+        candidateIdentity: "FAC-11",
+        ruleIdentity: "propagation.bounded-relationship",
+        standing: { truthLayer: "Objective canon", canonStatus: "accepted" },
+        relationship: "second hop",
+        decisionMeaning: "excluded outside bounded relationship shapes",
+        provenanceReferences: ["related_world:FAC-11"],
+        aggregatePathCount: null
+      }],
       advisoryCanonWarning: "This packet is optional advisory support; inclusion does not change canon standing.",
       readOnlyGuarantee: "Preview and copy create no record, link, status, debt, skip, advisory artifact, disposition, or flow-state mutation."
     } as const;
@@ -163,6 +207,8 @@ describe("Propagation web surface", () => {
     expect(html).toContain("disputed claim");
     expect(html).toContain("inactive or superseded current-support status");
     expect(html).toContain("outside the bounded relationship shapes (second hop)");
+    expect(html).toContain("aria-label=\"Propagation source manifest\"");
+    expect(html).toContain("aria-label=\"Propagation omissions\"");
     expect(html).toContain("Preview and copy create no record");
     expect(html).toContain("optional advisory support");
 

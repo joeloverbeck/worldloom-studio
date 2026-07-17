@@ -658,7 +658,7 @@ describe("Propagation active owed route server contract", () => {
       mode: "proposal",
       label: "Foundational atlas Proposal"
     }));
-    const foundational = await json<{ prompt: string; promptOut: { packetIdentity: { packetHash: string; sourceManifestHash: string }; propagationContext: any } }>(
+    const foundational = await json<{ prompt: string; promptOut: { packetIdentity: { packetHash: string; bodyHash: string; sourceManifestHash: string }; evidence: { sourceManifest: any[]; omissions: any[] }; propagationContext: any } }>(
       await postJson(app, foundationalStep.step.actions.generate.href)
     );
 
@@ -694,9 +694,27 @@ describe("Propagation active owed route server contract", () => {
         severityReason: expect.stringMatching(/foundational.*fourteen-domain.*lower-severity.*proportionate/i)
       },
       relatedWorld: { aggregateBudget: 12000, perRecordCap: 2000, selectedRecords: [] },
-      sourceManifest: expect.arrayContaining([expect.stringContaining("04_domain_atlas.md")]),
+      sourceManifest: expect.arrayContaining([expect.objectContaining({
+        id: expect.stringMatching(/^prompt-evidence-[a-f0-9]{20}$/),
+        displayText: expect.stringContaining("04_domain_atlas.md"),
+        kind: "source",
+        candidateIdentity: null,
+        ruleIdentity: "compatibility.string-row",
+        aggregatePathCount: null
+      })]),
       readOnlyGuarantee: expect.stringMatching(/create no record, link, status, debt, skip, advisory artifact, disposition, flow-state, or world-file mutation/i)
     });
+    expect(foundational.promptOut.evidence.sourceManifest).toEqual(foundational.promptOut.propagationContext.sourceManifest);
+    expect(foundational.promptOut.evidence.omissions).toEqual(foundational.promptOut.propagationContext.omissions);
+    expect(foundational.promptOut.evidence.sourceManifest.every((item) => item.provenanceReferences.length === 1)).toBe(true);
+    const foundationalRepeated = await json<typeof foundational>(await postJson(app, foundationalStep.step.actions.generate.href));
+    expect(foundationalRepeated.prompt).toBe(foundational.prompt);
+    expect(foundationalRepeated.promptOut.packetIdentity).toMatchObject({
+      packetHash: foundational.promptOut.packetIdentity.packetHash,
+      bodyHash: foundational.promptOut.packetIdentity.bodyHash,
+      sourceManifestHash: foundational.promptOut.packetIdentity.sourceManifestHash
+    });
+    expect(foundationalRepeated.promptOut.evidence).toEqual(foundational.promptOut.evidence);
 
     const minorFact = await acceptedFact(app, {
       title: "A single quay bell changes pitch",
@@ -847,16 +865,16 @@ describe("Propagation active owed route server contract", () => {
           expect.objectContaining({ stableIdentity: sharedProposed.shortId, canonStatus: "proposed", nonCanon: true })
         ])
       },
-      omissions: expect.arrayContaining([
-        expect.stringContaining(superseded.shortId),
-        expect.stringContaining(missing.shortId),
-        expect.stringContaining(secondHop.shortId),
-        expect.stringContaining(irrelevant.shortId),
-        expect.stringContaining("trimmed by the 12,000-character related-world budget")
-      ]),
       advisoryCanonWarning: expect.stringMatching(/optional advisory support/i),
       readOnlyGuarantee: expect.stringMatching(/create no record, link, status, debt, skip, advisory artifact, disposition, flow-state, or world-file mutation/i)
     });
+    expect(generated.promptOut.propagationContext.omissions.map((item: { displayText: string }) => item.displayText)).toEqual(expect.arrayContaining([
+      expect.stringContaining(superseded.shortId),
+      expect.stringContaining(missing.shortId),
+      expect.stringContaining(secondHop.shortId),
+      expect.stringContaining(irrelevant.shortId),
+      expect.stringContaining("trimmed by the 12,000-character related-world budget")
+    ]));
     expect(overflowRecords.some((record) => generated.prompt.includes(`Stable identity: ${record.shortId}`))).toBe(true);
     expect(overflowRecords.some((record) => generated.prompt.includes(`${record.shortId} ${record.title}: trimmed by`))).toBe(true);
 

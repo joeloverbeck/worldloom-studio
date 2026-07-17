@@ -32,8 +32,41 @@ describe("Temporal Prompt-out in-flow review", () => {
           coverage: [{ key: "latency", label: "Latency", value: "Two seasons" }],
           selectedSource: { id: 3, shortId: "FAC-1", title: "Salt bell" },
           sourceDocuments: [{ source: "canon_fact:FAC-1", content: "Salt bell source content" }],
-          sourceManifest: ["FAC-1 Salt bell; standing accepted; relationship selected"],
-          omissions: ["Second-hop record omitted by bounded relationship rule"],
+          sourceManifest: [{
+            id: "prompt-evidence-source",
+            displayText: "FAC-1 Salt bell; standing accepted; relationship selected",
+            kind: "source",
+            candidateIdentity: "FAC-1",
+            ruleIdentity: "temporal.selected-source",
+            standing: { truthLayer: "Objective canon", canonStatus: "accepted" },
+            relationship: "selected",
+            decisionMeaning: "selected Temporal source",
+            provenanceReferences: ["canon_record:FAC-1"],
+            aggregatePathCount: null
+          }],
+          omissions: [{
+            id: "prompt-evidence-depends",
+            displayText: "Second-hop record omitted by bounded relationship rule",
+            kind: "omission",
+            candidateIdentity: "FAC-2",
+            ruleIdentity: "temporal.bounded-second-hop",
+            standing: { truthLayer: "Objective canon", canonStatus: "accepted" },
+            relationship: "depends_on",
+            decisionMeaning: "excluded from bounded Temporal context",
+            provenanceReferences: ["canon_record:FAC-1", "link:11", "link:12", "link:13", "link:14"],
+            aggregatePathCount: 4
+          }, {
+            id: "prompt-evidence-opposes",
+            displayText: "Second-hop record omitted by bounded relationship rule",
+            kind: "omission",
+            candidateIdentity: "FAC-2",
+            ruleIdentity: "temporal.bounded-second-hop",
+            standing: { truthLayer: "Objective canon", canonStatus: "accepted" },
+            relationship: "opposes",
+            decisionMeaning: "excluded from bounded Temporal context",
+            provenanceReferences: ["canon_record:FAC-1", "link:15"],
+            aggregatePathCount: null
+          }],
           outputLabels: ["useful consequence", "adopted with steward revision"],
           advisoryCanonWarning: "Optional advisory support; only Admission changes canon standing.",
           recovery: { method: "POST", href: "/api/prompt-out/steps", body: { mode: "proposal" } },
@@ -51,7 +84,12 @@ describe("Temporal Prompt-out in-flow review", () => {
     expect(screen.getByText((_, element) => element?.matches("pre[data-temporal-packet-body]") === true && element.textContent === packetBody)).toBeTruthy();
     expect(screen.getByText("canon_fact:FAC-1")).toBeTruthy();
     expect(screen.getByText("FAC-1 Salt bell; standing accepted; relationship selected")).toBeTruthy();
-    expect(screen.getByText("Second-hop record omitted by bounded relationship rule")).toBeTruthy();
+    expect(screen.getAllByText("Second-hop record omitted by bounded relationship rule")).toHaveLength(2);
+    expect(screen.getByRole("list", { name: "Temporal source manifest" })).toBeTruthy();
+    expect(screen.getByRole("list", { name: "Temporal omissions" })).toBeTruthy();
+    expect(screen.getByText("4 equivalent paths")).toBeTruthy();
+    expect(screen.getByText("Relationship: depends_on")).toBeTruthy();
+    expect(screen.getByText("Relationship: opposes")).toBeTruthy();
     expect(screen.getByText("useful consequence · adopted with steward revision")).toBeTruthy();
     expect(screen.getByText("Optional advisory support; only Admission changes canon standing.")).toBeTruthy();
     expect(screen.getByText(/temporal_timeline · flow 41 · step temporal:spatial-temporal-analysis · mode proposal/)).toBeTruthy();

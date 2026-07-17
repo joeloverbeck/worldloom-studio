@@ -1,4 +1,5 @@
 import React from "react";
+import { PromptOutEvidenceList, type PromptEvidenceItemView } from "./prompt-out-evidence-list.js";
 
 export interface TemporalPromptModeOffer {
   mode: "proposal" | "pressure";
@@ -20,8 +21,8 @@ export interface TemporalPacketContextView {
   coverage: Array<{ key: string; label: string; value: string }>;
   selectedSource: { id: number; shortId: string; title: string } | null;
   sourceDocuments: Array<{ source: string; content: string }>;
-  sourceManifest: string[];
-  omissions: string[];
+  sourceManifest: PromptEvidenceItemView[];
+  omissions: PromptEvidenceItemView[];
   outputLabels: string[];
   advisoryCanonWarning: string;
   recovery: { method: "POST"; href: string; body: Record<string, unknown> };
@@ -128,11 +129,11 @@ export function TemporalPromptOutPanel({
       </section>
       <section className="subpanel">
         <h4>Temporal source manifest</h4>
-        <ul>{(packet?.context.sourceManifest ?? ["No source manifest loaded."]).map((item) => <li key={item}>{item}</li>)}</ul>
+        <PromptOutEvidenceList label="Temporal source manifest" items={packet?.context.sourceManifest ?? []} emptyText="No source manifest loaded." />
       </section>
       <section className="subpanel">
         <h4>Temporal omissions</h4>
-        <ul>{(packet?.context.omissions ?? ["No omission list loaded."]).map((item) => <li key={item}>{item}</li>)}</ul>
+        <PromptOutEvidenceList label="Temporal omissions" items={packet?.context.omissions ?? []} emptyText="No omission list loaded." />
       </section>
       <section className="subpanel">
         <h4>Temporal output labels</h4>

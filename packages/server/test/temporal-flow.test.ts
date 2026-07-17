@@ -472,7 +472,11 @@ describe("Temporal/Timeline flow HTTP API", () => {
     expect((await link(fact.id, debt.id, "requires_follow_up", "Open Temporal debt")).status).toBe(201);
     expect((await link(fact.id, boundary.id, "preserves_boundary_for", "Protected Temporal mystery boundary")).status).toBe(201);
     expect((await link(fact.id, inactive.id, "depends_on", "Inactive historical support")).status).toBe(201);
-    expect((await link(relatedCanon.id, secondHop.id, "depends_on", "Bounded second-hop candidate")).status).toBe(201);
+    expect((await link(relatedCanon.id, secondHop.id, "depends_on", "Bounded second-hop path 1")).status).toBe(201);
+    expect((await link(debt.id, secondHop.id, "depends_on", "Bounded second-hop path 2")).status).toBe(201);
+    expect((await link(boundary.id, secondHop.id, "depends_on", "Bounded second-hop path 3")).status).toBe(201);
+    expect((await link(inactive.id, secondHop.id, "depends_on", "Bounded second-hop path 4")).status).toBe(201);
+    expect((await link(propagationReport.id, secondHop.id, "opposes", "Same display text with a distinct relationship class")).status).toBe(201);
 
     const run = await json<{ flow: { id: number }; report: null }>(await postJson(app, "/api/temporal/runs/start", { sourceType: "fact", recordId: fact.id }));
     const timelineCard = await createRecord({
@@ -570,7 +574,7 @@ describe("Temporal/Timeline flow HTTP API", () => {
     const generated = await json<{
       prompt: string;
       promptOut: {
-        packetIdentity: { packetHash: string; bodyHash: string; activeSetRevision: number };
+        packetIdentity: { packetHash: string; bodyHash: string; sourceManifestHash: string; activeSetRevision: number };
         temporalContext: {
           serverOwned: true;
           mode: "proposal" | "pressure";
@@ -589,8 +593,30 @@ describe("Temporal/Timeline flow HTTP API", () => {
           skips: Array<{ id: number }>;
           advisoryDispositions: Array<{ advisory: { id: number }; dispositions: Array<{ disposition: string; note: string }> }>;
           sourceDocuments: Array<{ source: string; content: string }>;
-          sourceManifest: string[];
-          omissions: string[];
+          sourceManifest: Array<{
+            id: string;
+            displayText: string;
+            kind: "source" | "omission";
+            candidateIdentity: string | null;
+            ruleIdentity: string;
+            standing: { truthLayer: string | null; canonStatus: string | null } | null;
+            relationship: string | null;
+            decisionMeaning: string | null;
+            provenanceReferences: string[];
+            aggregatePathCount: number | null;
+          }>;
+          omissions: Array<{
+            id: string;
+            displayText: string;
+            kind: "source" | "omission";
+            candidateIdentity: string | null;
+            ruleIdentity: string;
+            standing: { truthLayer: string | null; canonStatus: string | null } | null;
+            relationship: string | null;
+            decisionMeaning: string | null;
+            provenanceReferences: string[];
+            aggregatePathCount: number | null;
+          }>;
           outputLabels: string[];
           advisoryCanonWarning: string;
           recovery: { method: string; href: string; body: { mode: string; activeSetRevision: number } };
@@ -655,13 +681,41 @@ describe("Temporal/Timeline flow HTTP API", () => {
       "temporalMysteryBoundaries",
       "outcomeDecision"
     ]);
-    expect(generated.promptOut.temporalContext.omissions).toEqual(expect.arrayContaining([
+    expect(generated.promptOut.temporalContext.omissions.map((item) => item.displayText)).toEqual(expect.arrayContaining([
       expect.stringContaining("inactive"),
       expect.stringContaining(inactive.shortId),
       expect.stringContaining(inactiveKernel.shortId),
       expect.stringContaining("bounded second-hop"),
       expect.stringContaining(secondHop.shortId)
     ]));
+    const boundedSecondHop = generated.promptOut.temporalContext.omissions
+      .filter((item) => item.candidateIdentity === secondHop.shortId && item.ruleIdentity === "temporal.bounded-second-hop");
+    expect(boundedSecondHop).toHaveLength(2);
+    const aggregate = boundedSecondHop.find((item) => item.relationship === "depends_on")!;
+    const distinctSameText = boundedSecondHop.find((item) => item.relationship === "opposes")!;
+    expect(aggregate).toMatchObject({
+      id: expect.stringMatching(/^prompt-evidence-[a-f0-9]{20}$/),
+      kind: "omission",
+      candidateIdentity: secondHop.shortId,
+      standing: { truthLayer: "Objective canon", canonStatus: "accepted" },
+      relationship: "depends_on",
+      decisionMeaning: "excluded from bounded Temporal context",
+      aggregatePathCount: 4
+    });
+    expect(aggregate.provenanceReferences).toHaveLength(4);
+    expect([...aggregate.provenanceReferences].sort()).toEqual(aggregate.provenanceReferences);
+    expect(distinctSameText).toMatchObject({
+      id: expect.stringMatching(/^prompt-evidence-[a-f0-9]{20}$/),
+      kind: "omission",
+      candidateIdentity: secondHop.shortId,
+      relationship: "opposes",
+      aggregatePathCount: null
+    });
+    expect(distinctSameText.displayText).toBe(aggregate.displayText);
+    expect(distinctSameText.id).not.toBe(aggregate.id);
+    expect(generated.promptOut.temporalContext.sourceManifest
+      .filter((item) => item.kind === "omission" && item.candidateIdentity === secondHop.shortId)
+      .map((item) => item.id)).toEqual(boundedSecondHop.map((item) => item.id));
     expect(generated.promptOut.temporalContext.sourceDocuments.map((item) => item.source)).toEqual(expect.arrayContaining([
       expect.stringContaining(fact.shortId),
       expect.stringContaining(propagationReport.shortId),
@@ -687,8 +741,8 @@ describe("Temporal/Timeline flow HTTP API", () => {
       expect(generated.prompt).toContain(document.source);
       expect(generated.prompt).toContain(document.content);
     }
-    for (const manifestItem of generated.promptOut.temporalContext.sourceManifest) expect(generated.prompt).toContain(manifestItem);
-    for (const omission of generated.promptOut.temporalContext.omissions) expect(generated.prompt).toContain(omission);
+    for (const manifestItem of generated.promptOut.temporalContext.sourceManifest) expect(generated.prompt).toContain(manifestItem.displayText);
+    for (const omission of generated.promptOut.temporalContext.omissions) expect(generated.prompt).toContain(omission.displayText);
     for (const outputLabel of generated.promptOut.temporalContext.outputLabels) expect(generated.prompt).toContain(outputLabel);
     expect(generated.prompt).toContain(generated.promptOut.temporalContext.advisoryCanonWarning);
     expect(generated.promptOut.packetIdentity).toMatchObject({
@@ -696,6 +750,54 @@ describe("Temporal/Timeline flow HTTP API", () => {
       bodyHash: expect.stringMatching(/^[a-f0-9]{64}$/),
       activeSetRevision: step.step.packetIdentity.activeSetRevision
     });
+    const repeated = await json<typeof generated>(await postJson(app, step.step.actions.generate.href));
+    expect(repeated.prompt).toBe(generated.prompt);
+    expect(repeated.promptOut.packetIdentity).toMatchObject({
+      packetHash: generated.promptOut.packetIdentity.packetHash,
+      bodyHash: generated.promptOut.packetIdentity.bodyHash,
+      sourceManifestHash: generated.promptOut.packetIdentity.sourceManifestHash,
+      activeSetRevision: generated.promptOut.packetIdentity.activeSetRevision
+    });
+    expect(repeated.promptOut.temporalContext.sourceManifest).toEqual(generated.promptOut.temporalContext.sourceManifest);
+    expect(repeated.promptOut.temporalContext.omissions).toEqual(generated.promptOut.temporalContext.omissions);
+
+    const pressureStep = await json<{
+      step: { packetIdentity: { activeSetRevision: number }; actions: { generate: { href: string } } };
+    }>(await postJson(app, "/api/prompt-out/steps", {
+      flowKey: "temporal_timeline",
+      flowId: run.flow.id,
+      templateKey: "temporal_spatial_analyst",
+      recordId: fact.id,
+      stepKey: "temporal:spatial-temporal-analysis",
+      mode: "pressure",
+      label: "Temporal Pressure"
+    }));
+    const pressure = await json<typeof generated>(await postJson(app, pressureStep.step.actions.generate.href));
+    const pressureSecondHop = pressure.promptOut.temporalContext.omissions
+      .filter((item) => item.candidateIdentity === secondHop.shortId && item.ruleIdentity === "temporal.bounded-second-hop");
+    expect(pressure.promptOut.temporalContext.mode).toBe("pressure");
+    expect(pressureSecondHop).toEqual(boundedSecondHop);
+    expect(pressure.promptOut.temporalContext.sourceManifest
+      .filter((item) => item.kind === "omission" && item.candidateIdentity === secondHop.shortId)
+      .map((item) => item.id)).toEqual(pressureSecondHop.map((item) => item.id));
+    expect(pressure.prompt).toContain("Mode: Pressure mode");
+    for (const item of pressureSecondHop) expect(pressure.prompt).toContain(item.displayText);
+    expect(pressure.promptOut.packetIdentity).toMatchObject({
+      packetHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      bodyHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      sourceManifestHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      activeSetRevision: pressureStep.step.packetIdentity.activeSetRevision
+    });
+    const repeatedPressure = await json<typeof pressure>(await postJson(app, pressureStep.step.actions.generate.href));
+    expect(repeatedPressure.prompt).toBe(pressure.prompt);
+    expect(repeatedPressure.promptOut.packetIdentity).toMatchObject({
+      packetHash: pressure.promptOut.packetIdentity.packetHash,
+      bodyHash: pressure.promptOut.packetIdentity.bodyHash,
+      sourceManifestHash: pressure.promptOut.packetIdentity.sourceManifestHash,
+      activeSetRevision: pressure.promptOut.packetIdentity.activeSetRevision
+    });
+    expect(repeatedPressure.promptOut.temporalContext.sourceManifest).toEqual(pressure.promptOut.temporalContext.sourceManifest);
+    expect(repeatedPressure.promptOut.temporalContext.omissions).toEqual(pressure.promptOut.temporalContext.omissions);
     const after = {
       records: await json(await app.request("/api/records")),
       links: await json(await app.request("/api/links")),
