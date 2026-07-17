@@ -33,6 +33,7 @@ This spec defines Worldloom Studio's Constraint Composition guided flow for `08_
 11. **Governed skips.** Offered instruments and steps may be skipped. Major-or-higher skipped constraint work requires a reason and preserves or creates canon debt when unresolved work remains.
 12. **Read-side trail.** Current Canon, Audit Trail, record detail, and export surfaces show or link relevant reports, constraint cards, proposals, debt, advisory artifacts, dispositions, skip records, and explicit-use links.
 13. **No context or ADR update.** No root `CONTEXT.md` or ADR change is owed unless implementation discovery changes the boundary.
+14. **Source-selected guided-flow run entry.** Constraint run entry consumes the shared server-owned contract in `docs/specs/workflow-map-and-navigation.md`, downstream of methodology `docs/worldbuilding-system/08_constraint_composition.md`, `docs/worldbuilding-system/09_temporal_and_timeline_protocol.md`, and `docs/worldbuilding-system/12_institutional_economic_and_suppression_protocol.md`. Fact, capability, constraint-card, canon-debt, selected-material, record-section, and pass-report modes remain unchanged. Record-backed entry requires current short ID, title, record type, canon status, stable numeric id, requested source type, validation state, and any obligation/report/destination binding; record-section entry also displays its heading and pass-report resume displays report identity. Empty, resolving, resolved, missing, incompatible, unavailable-standing, stale-binding, and mismatched-binding states retain the input and render the server blocker, remediation, substance rule, and action availability. Selected material keeps title/body identity without fabricated record or Conditional-pass metadata. Start/resume revalidates and repeats the same stable identity, refreshes mutable prose only for that id, refuses discontinuity or retargeting, and preserves current/next/resume plus fresh-map safe return without read-side mutation.
 
 ## Step Map
 
@@ -61,6 +62,8 @@ Each meaningful browser step exposes:
 - Prompt-out role, prompt preview, source manifest, omissions, disposition state, and advisory/canon warning when available;
 - write intent for coverage, cards, proposals, debt, advisory use, skips, close, and explicit non-mutation;
 - next step, safe exit/resume, and read-side trail links.
+
+At run entry, package paths are provenance rather than the operating instruction. App-owned doctrine explains which source is selected, why it is valid for Constraint Composition, why a bound Conditional pass is owed, and why the numeric id is supporting continuity provenance. All record identity and validity fields are required for record-backed modes; the section heading and selected-material fields retain their existing mode-specific classification; governed Conditional-pass deferral remains the existing skippable path; no new severity-dependent authoring field is introduced.
 
 ## Prompt-Out Requirements
 
@@ -113,5 +116,6 @@ Touches `docs/principles/README.md` and affirms non-contradiction with:
 - `guided-workflow-usability.md` W-8: the browser presents decision points, not generic CRUD.
 - `data-principles.md` P-6/W-5/W-6/T-3/T-4/T-5/T-6: the local world file remains canonical; reports are append-only; provenance and typed links carry the trail.
 - ADRs 0001-0009: SQLite remains canonical, the localhost/browser boundary is unchanged, branch/collaboration remains closed in UI, the TypeScript/Hono/React stack remains, GitHub gates are unchanged, Admission owns canon intake, Prompt-out owns advisory mechanics, flow-owned persistence is local to the flow, and browser workflow state renders server-owned policy.
+- `workflow-principles.md` P-3, `guided-workflow-usability.md` W-9/W-10, `data-principles.md` T-3, ADR 0009, and PRD #401: source identity and validity stay server-owned, mutable prose is never identity, the docs-naive decision surface remains map-oriented, and no generalized picker or router is introduced.
 
 No deliberate exceptions.

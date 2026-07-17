@@ -6,6 +6,11 @@ import {
   conditionalPassBindingForFlow,
   coverMatchingConditionalPassObligation
 } from "./conditional-pass-obligations.js";
+import {
+  requireResolvedSourceSelection,
+  resolveGuidedFlowSourceSelection,
+  type ResolveSourceSelectionInput
+} from "./guided-flow-source-selection.js";
 import * as PromptOut from "./prompt-out.js";
 import type { AdmissionQueueRow, RecordRow, WorldFile } from "./world-file.js";
 
@@ -246,10 +251,19 @@ const findExistingRun = (
     WHERE f.flow_key = @flowKey
       AND f.state = 'in_progress'
       AND s.source_type = @sourceType
-      AND COALESCE(s.source_record_id, 0) = COALESCE(@sourceRecordId, 0)
-      AND COALESCE(s.source_section_heading, '') = COALESCE(@sourceSectionHeading, '')
-      AND s.material_title = @materialTitle
-      AND s.material_body = @materialBody
+      AND (
+        (
+          @sourceRecordId IS NOT NULL
+          AND s.source_record_id = @sourceRecordId
+          AND COALESCE(s.source_section_heading, '') = COALESCE(@sourceSectionHeading, '')
+        )
+        OR (
+          @sourceRecordId IS NULL
+          AND s.source_record_id IS NULL
+          AND s.material_title = @materialTitle
+          AND s.material_body = @materialBody
+        )
+      )
     ORDER BY s.flow_id DESC
     LIMIT 1
   `).get({
@@ -262,6 +276,32 @@ const findExistingRun = (
   }) as { flow_id: number } | undefined;
   return row?.flow_id ?? null;
 };
+
+const passReportRun = (world: WorldFile, reportRecordId: number) => world.db.prepare(`
+  SELECT s.flow_id, s.source_record_id, f.state
+  FROM stage12_run_sources s
+  JOIN flow_instances f ON f.id = s.flow_id
+  WHERE s.pass_report_record_id = ?
+  ORDER BY s.flow_id DESC
+  LIMIT 1
+`).get(reportRecordId) as { flow_id: number; source_record_id: number | null; state: string } | undefined;
+
+const storedRunForReport = (world: WorldFile, report: RecordRow) => {
+  const row = passReportRun(world, report.id);
+  return row?.state === "in_progress"
+    ? { flowId: row.flow_id, sourceRecordId: row.source_record_id }
+    : null;
+};
+
+const conditionalPassBindingForFact = (world: WorldFile, fact: RecordRow) => {
+  const source = sourceSummaryFor(world, { sourceType: "fact", recordId: fact.id });
+  const flowId = findExistingRun(world, "fact", source);
+  if (flowId == null) return null;
+  return conditionalPassBindingForFlow(world, flowId);
+};
+
+export const resolveStage12SourceSelection = (world: WorldFile, input: ResolveSourceSelectionInput) =>
+  resolveGuidedFlowSourceSelection(world, "institutional_economic_suppression", input, { storedRunForReport, conditionalPassBindingForFact });
 
 const stage12MethodCardForStep = (stepKey: string) => {
   if (stepKey.includes("entry")) return methodCard("stage12.entry");
@@ -413,6 +453,17 @@ export type StartStage12RunInput =
 export const getStage12Run = (world: WorldFile, flowId: number) => {
   const flow = readFlow(world, flowId);
   const source = readSource(world, flowId);
+  const binding = conditionalPassBindingForFlow(world, flowId);
+  const sourceSelection = resolveStage12SourceSelection(world, {
+    sourceType: source.sourceType,
+    ...(source.sourceType === "material"
+      ? { materialTitle: source.materialTitle, materialBody: source.materialBody }
+      : { recordId: source.sourceRecordId ?? undefined, sectionHeading: source.sourceSectionHeading ?? undefined }),
+    ...(binding == null ? {} : {
+      conditionalPassObligationId: binding.obligationId,
+      propagationReportRecordId: binding.propagationReportRecordId
+    })
+  });
   return {
     flow,
     report: world.getRecord(source.passReportRecordId),
@@ -428,25 +479,20 @@ export const getStage12Run = (world: WorldFile, flowId: number) => {
     skips: skipRows(world, flowId),
     closeReadiness: closeReadiness(world, flowId),
     conditionalPassBinding: conditionalPassBindingForFlow(world, flowId),
+    sourceSelection,
     decisionPoint: stage12DecisionPoint(world, flowId)
   };
 };
 
 export const startStage12Run = (world: WorldFile, input: StartStage12RunInput) => {
+  const approvedSelection = requireResolvedSourceSelection(
+    resolveStage12SourceSelection(world, input)
+  );
   if (input.sourceType === "pass_report") {
-    const report = world.getRecord(input.reportRecordId);
-    if (report.recordTypeKey !== "pass_report") throw new Error("stage-12 resume requires a pass_report");
-    const row = world.db.prepare(`
-      SELECT s.flow_id, f.state
-      FROM stage12_run_sources s
-      JOIN flow_instances f ON f.id = s.flow_id
-      WHERE s.pass_report_record_id = ?
-      ORDER BY s.flow_id DESC
-      LIMIT 1
-    `).get(report.id) as { flow_id: number; state: string } | undefined;
+    const row = passReportRun(world, input.reportRecordId);
     if (!row) throw new Error("stage-12 pass report is not owned by an in-progress stage-12 run");
     if (row.state !== "in_progress") throw new Error("stage-12 pass report is already closed");
-    return getStage12Run(world, row.flow_id);
+    return { ...getStage12Run(world, row.flow_id), sourceSelection: approvedSelection };
   }
 
   const source = sourceSummaryFor(world, input);

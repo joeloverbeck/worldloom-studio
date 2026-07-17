@@ -1,4 +1,5 @@
 import type { RecordRow, WorldFile } from "./world-file.js";
+import { resolveGuidedFlowSourceSelection } from "./guided-flow-source-selection.js";
 
 export type ConditionalPassKey = "temporal_timeline" | "constraint_composition" | "institutional_economic_suppression";
 export type ConditionalPassDisposition = "outstanding" | "covered" | "deferred";
@@ -117,6 +118,12 @@ const toPublic = (world: WorldFile, row: ObligationRow) => {
   const sourceFact = world.getRecord(row.source_fact_record_id);
   const propagationReport = world.getRecord(row.propagation_report_record_id);
   const coveringEvidence = row.covering_report_record_id == null ? null : world.getRecord(row.covering_report_record_id);
+  const sourceSelection = resolveGuidedFlowSourceSelection(world, row.pass_key, {
+    sourceType: "fact",
+    recordId: sourceFact.id,
+    conditionalPassObligationId: row.id,
+    propagationReportRecordId: propagationReport.id
+  });
   const fieldClassifications = {
     required: row.disposition === "covered" ? [] : ["reason"],
     optional: [],
@@ -175,6 +182,7 @@ const toPublic = (world: WorldFile, row: ObligationRow) => {
     disposition: row.disposition,
     rationale: row.rationale,
     coveringEvidence,
+    sourceSelection,
     doctrine: "The post-Propagation Conditional-pass handoff keeps outstanding work owed, makes deferral and reinstatement explicit steward-governed actions, permits completed matching evidence to cover outstanding or deferred work, preserves immutable history, and keeps covered obligations terminal; Admission remains available.",
     packageSources: [...CONDITIONAL_PASS_PACKAGE_SOURCES],
     fieldClassifications,

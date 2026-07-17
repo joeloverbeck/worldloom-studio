@@ -1,7 +1,12 @@
 import * as TemporalFlow from "../temporal-flow.js";
+import type { ResolveSourceSelectionInput } from "../guided-flow-source-selection.js";
 import { readJson, tryRoute, withWorld, type RouteApp, type RouteDependencies } from "./route-support.js";
 
 export const registerTemporalRoutes = (app: RouteApp, dependencies: RouteDependencies): void => {
+  app.post("/api/temporal/source-selection/resolve", async (c) => withWorld(c, dependencies, async (world) =>
+    c.json(TemporalFlow.resolveTemporalSourceSelection(world, await readJson<ResolveSourceSelectionInput>(c)))
+  ));
+
   app.post("/api/temporal/runs/start", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () =>
     c.json(TemporalFlow.startTemporalRun(world, await readJson<TemporalFlow.StartTemporalRunInput>(c)), 201)
   )));

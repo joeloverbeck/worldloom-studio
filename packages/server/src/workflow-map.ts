@@ -4,9 +4,12 @@ import * as CanonDebt from "./canon-debt.js";
 import * as ContradictionFlow from "./contradiction-flow.js";
 import * as CreationCoverage from "./creation-coverage.js";
 import * as ConditionalPassObligations from "./conditional-pass-obligations.js";
+import { resolveConstraintSourceSelection } from "./constraint-composition-flow.js";
+import { resolveStage12SourceSelection } from "./institutional-flow.js";
 import * as MinimalViableWorld from "./minimal-viable-world.js";
 import { workflowMapMethodCards } from "./method-cards.js";
 import * as PropagationFlow from "./propagation-flow.js";
+import { resolveTemporalSourceSelection } from "./temporal-flow.js";
 import type { FlowInstanceRow, RecordRow, WorldFile } from "./world-file.js";
 
 const flowDestination = (flowKey: string): string => {
@@ -82,6 +85,21 @@ const destinationState = (
   return stageStates.get(key) ?? "not_yet_earned";
 };
 
+const authoritativeConditionalPassSourceSelection = (
+  world: WorldFile,
+  obligation: ConditionalPassObligations.ConditionalPassObligation
+) => {
+  const input = obligation.destination.body;
+  switch (obligation.passKey) {
+    case "temporal_timeline":
+      return resolveTemporalSourceSelection(world, input);
+    case "constraint_composition":
+      return resolveConstraintSourceSelection(world, input);
+    case "institutional_economic_suppression":
+      return resolveStage12SourceSelection(world, input);
+  }
+};
+
 const destinations = (
   activeDestination: string | null,
   owedDestinations: Set<string>,
@@ -121,7 +139,10 @@ export const workflowMap = (world: WorldFile): WorkflowMapPayload => {
   const owedBoundaries = ContradictionFlow.owedBoundariesQueue(world);
   const openCanonDebt = CanonDebt.listCanonDebt(world, true);
   const skipCount = records.filter((record) => record.recordTypeKey === "skip_record").length;
-  const conditionalPassObligations = ConditionalPassObligations.listConditionalPassObligations(world);
+  const conditionalPassObligations = ConditionalPassObligations.listConditionalPassObligations(world).map((obligation) => ({
+    ...obligation,
+    sourceSelection: authoritativeConditionalPassSourceSelection(world, obligation)
+  }));
   const outstandingConditionalPasses = conditionalPassObligations.filter((obligation) => obligation.disposition === "outstanding");
   const firstOutstandingConditionalPass = outstandingConditionalPasses[0] ?? null;
   const minimalViableWorldOwed = MinimalViableWorld.owedQueueCount(world);

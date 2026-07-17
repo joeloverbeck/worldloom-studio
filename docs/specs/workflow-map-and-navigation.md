@@ -120,6 +120,35 @@ Covered obligations are terminal in this lifecycle. They expose neither deferral
 
 Admission remains visible, active when queued, truthfully counted, and directly navigable. After a successful transition, the browser waits for a fresh workflow-map response before presenting outstanding and governed counts, stable source/report/ordinal order, Conditional-pass stage and destination state, primary next decision, routeability, current/next/resume state, safe return, and Admission orientation. When every obligation for a handoff is `covered` by matching completed pass evidence or explicitly `deferred` with a steward rationale, a fresh read may elevate Admission under the existing ordering; governed obligations remain visible. Map reads and navigation never emit, reconcile, cover, defer, reinstate, or otherwise mutate obligations. Canon-debt title/body keyword matching is not a source of Conditional-pass or Temporal/Timeline state.
 
+### Source-selected guided-flow run entry
+
+**Source-selected guided-flow run entry** is the shared decision-point contract for the existing Temporal/Timeline, Constraint Composition, and Institutional / Economic / Suppression destinations. It is downstream of methodology `08_constraint_composition.md`, `09_temporal_and_timeline_protocol.md`, and `12_institutional_economic_and_suppression_protocol.md`. The decision begins when the steward follows a server-returned Conditional-pass destination or enters a record-backed source directly, and ends when start or resume succeeds against the same resolved source or the steward returns safely without starting.
+
+The server-owned source-selection model classifies stable record id, human short ID, title, record type, canon status, requested source type, and validation state as required for record-backed entry. Conditional-pass entry additionally requires pass identity, obligation identity, final Propagation-report identity, destination identity, current disposition, and binding validity. A record-section heading and selected-material title/body remain optional or mode-specific under their existing flow contracts. Governed Conditional-pass deferral remains the existing skippable path. Source selection introduces no new severity-dependent authoring field.
+
+The entry surface carries app-owned doctrine explaining which source is selected, why its record type and standing are valid for this flow, why the Conditional pass is owed when applicable, and why the stable numeric id remains continuity provenance rather than the only human label. Package paths are provenance; this doctrine is the operating instruction. Read-side provenance links the selected record, source fact, Conditional-pass obligation, final Propagation report, destination, and stored run identity without adding a read-side write.
+
+The server returns these deterministic pre-start validation states:
+
+- `empty`: no record-backed id has been entered; remediation asks for an id supported by the selected flow mode and start/resume is unavailable;
+- `resolving`: the entered id and type are preserved while current server identity and validity are being read; start/resume is unavailable;
+- `resolved`: record identity, compatibility, standing, and any Conditional-pass binding are current; start/resume is available;
+- `missing`: no current record has the entered stable id; remediation asks the steward to correct the preserved id or choose selected material;
+- `incompatible_source_type`: the record exists but its type is not allowed by the requested flow source mode; remediation names the expected type or supported mode;
+- `unavailable_standing`: the record exists but its current canon standing cannot enter through that source mode; remediation names the applicable standing rule;
+- `stale_binding`: the source or route binding was current when displayed but its disposition or stored run binding has changed; remediation requires a fresh Workflow-map or run response;
+- `mismatched_binding`: the obligation, source fact, final Propagation report, destination pass, or existing run identity do not describe one governed selection; remediation requires the matching server-returned obligation and source.
+
+Every non-resolved state returns an exact adjacent blocker, remediation, the applicable substance validation, preserved requested source type and entered id, and unavailable start/resume. The browser may show `resolving` while the read is in flight, but it does not infer a different validation state. A later response replaces the displayed state only when it carries the current server result.
+
+Workflow-map navigation initializes the model from the existing obligation-owned source fact, final Propagation report, pass identity, destination, and route body. Direct numeric entry resolves through the same read-only flow-aware contract. Equivalent stable selections converge on equivalent resolved identity; browser-cached record collections cannot establish compatibility, standing, binding, equivalence, remediation, or routing.
+
+Start and resume revalidate the stable record and any Conditional-pass binding inside the owning server action. The loaded run repeats the authoritative source-selection identity. Mutable title or other descriptive fields may refresh while the stable id remains unchanged. An existing run resumes with its stored source identity; a different entered id, obligation, report, or pass cannot silently retarget or duplicate it. A true identity discontinuity is refused and rendered as a blocker rather than adopted by the browser.
+
+Resolution, map navigation, safe return, and rejected start/resume attempts create or change no run, revision, report, obligation transition, record, link, debt, skip, advisory artifact, Admission state, canon standing, or unrelated flow state. Only a separately accepted existing start/resume action may write that flow's already-specified state. Safe return waits for a fresh server map before rendering current, next, resume, obligation, and Admission orientation.
+
+Existing applicability stays flow-owned. Temporal/Timeline retains fact, capability, canon-debt, selected-material, and pass-report entry. Constraint Composition retains fact, capability, constraint-card, canon-debt, selected-material, record-section, and pass-report entry. Institutional / Economic / Suppression retains canon fact, under-review fact, canon debt, selected material, record section, and pass report. Selected material keeps title/body identity and receives no fabricated record id, record type, canon status, or Conditional-pass provenance.
+
 ## Destinations
 
 The map owns destination entry for:
@@ -204,4 +233,4 @@ A browser workflow slice that changes navigation must show:
 
 ## Principles
 
-Touches `docs/worldbuilding-system/05_creation_protocol.md`, `docs/worldbuilding-system/06_canon_fact_admission_protocol.md`, `docs/worldbuilding-system/09_temporal_and_timeline_protocol.md`, `docs/worldbuilding-system/20_ai_assisted_workflow.md`, `docs/specs/creation-flow.md`, `docs/specs/temporal-timeline-flow.md`, `docs/specs/prompt-out-context-assembly.md`, `docs/specs/browser-visible-guidance-acceptance.md`, `guided-workflow-usability.md` W-8, `workflow-principles.md` P-5/W-2/W-3/W-4/W-7, `data-principles.md` P-6/W-5/W-6, `charter.md` v1 scope and T-8, `domain-fidelity.md` P-1/T-2, ADR 0007, ADR 0009, PRD #150, PRD #158, PRD #165, and PRD #201. It affirms non-contradiction.
+Touches `docs/worldbuilding-system/05_creation_protocol.md`, `docs/worldbuilding-system/06_canon_fact_admission_protocol.md`, `docs/worldbuilding-system/08_constraint_composition.md`, `docs/worldbuilding-system/09_temporal_and_timeline_protocol.md`, `docs/worldbuilding-system/12_institutional_economic_and_suppression_protocol.md`, `docs/worldbuilding-system/20_ai_assisted_workflow.md`, `docs/specs/creation-flow.md`, `docs/specs/temporal-timeline-flow.md`, `docs/specs/prompt-out-context-assembly.md`, `docs/specs/browser-visible-guidance-acceptance.md`, `guided-workflow-usability.md` W-8/W-9/W-10, `workflow-principles.md` P-3/P-5/W-2/W-3/W-4/W-7, `data-principles.md` P-6/W-5/W-6/T-3, `charter.md` v1 scope and T-8, `domain-fidelity.md` P-1/T-2, ADR 0007, ADR 0009, PRD #150, PRD #158, PRD #165, PRD #201, and PRD #401. It affirms non-contradiction and takes no deliberate exception.

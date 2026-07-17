@@ -21,6 +21,7 @@ This spec defines Worldloom Studio's stage-12 guided flow: `12_institutional_eco
 13. **Browser consumer.** The browser provides entry/resume, source display, doctrine/checklist, coverage editors, linked-card controls, Prompt-out/advisory controls, proposal/debt/skip controls, server-returned blockers, and close wiring. It does not duplicate completion, advisory, skip, Admission, or canon-mutation policy.
 14. **No broader framework.** This flow may add the smallest `pass_report` lifecycle support it needs. It does not introduce a generic all-specialized-passes framework.
 15. **No context or ADR update.** No new `CONTEXT.md` or ADR update is owed unless implementation discovery changes the boundary.
+16. **Source-selected guided-flow run entry.** Stage-12 run entry consumes the shared server-owned contract in `docs/specs/workflow-map-and-navigation.md`, downstream of methodology `docs/worldbuilding-system/08_constraint_composition.md`, `docs/worldbuilding-system/09_temporal_and_timeline_protocol.md`, and `docs/worldbuilding-system/12_institutional_economic_and_suppression_protocol.md`. Canon-fact, under-review-fact, canon-debt, selected-material, record-section, and pass-report modes remain unchanged. Record-backed entry requires current short ID, title, record type, canon status, stable numeric id, requested source type, validation state, and any obligation/report/destination binding; record-section entry also displays its heading and pass-report resume displays report identity. Empty, resolving, resolved, missing, incompatible, unavailable-standing, stale-binding, and mismatched-binding states retain the input and render the server blocker, remediation, substance rule, and action availability. Selected material keeps title/body identity without fabricated record or Conditional-pass metadata. Start/resume revalidates and repeats the same stable identity, refreshes mutable prose only for that id, refuses discontinuity or retargeting, and preserves current/next/resume plus fresh-map safe return without read-side mutation.
 
 ## Step Map
 
@@ -39,6 +40,8 @@ This flow must satisfy `guided-workflow-usability.md` W-8 and `guided-flow-spec-
 - **Coverage slots:** action arena, rules-in-use, transaction cost, surplus capture, suppression residue, counter-institution, synthesis sentence, daily-life residue, and power conflict each show the local decision, checklist source, required steward-authored substance, prompt-out availability, and server-returned blockers.
 - **Outcome routing:** proposal, card, debt, skip, and close decisions show what will be written, which links will be created, which items re-enter Admission, and which consequences stay unresolved.
 - **Close/result:** the browser previews the append-only `pass_report` sections, linked cards, Admission proposals, canon debt, skip records, advisory-use links, and Canon Workbench/Audit Trail visibility.
+
+At run entry, package paths are provenance rather than the operating instruction. App-owned doctrine explains which source is selected, why it is valid for Stage 12, why a bound Conditional pass is owed, and why the numeric id is supporting continuity provenance. All record identity and validity fields are required for record-backed modes; the section heading and selected-material fields retain their existing mode-specific classification; governed Conditional-pass deferral remains the existing skippable path; no new severity-dependent authoring field is introduced.
 
 ## Existing Types and Links
 
@@ -68,5 +71,6 @@ Touches `docs/principles/README.md` and affirms non-contradiction with:
 - `data-principles.md` P-6/W-5/W-6/T-3/T-4/T-5: the world file remains canonical; records, links, provenance, and report sections preserve the audit trail.
 - `charter.md` P-3/P-4/T-8: the app clerks consequence and governance rather than replacing the methodology with generic project management.
 - ADRs 0001-0009: SQLite remains canonical, browser storage is non-canonical, the stack and GitHub gates are unchanged, Admission owns canon intake, Prompt-out owns advisory mechanics, stage-12 SQL lives with the flow module, and the browser presents a guided decision surface.
+- `workflow-principles.md` P-3, `guided-workflow-usability.md` W-9/W-10, `data-principles.md` T-3, ADR 0009, and PRD #401: source identity and validity stay server-owned, mutable prose is never identity, the docs-naive decision surface remains map-oriented, and no generalized picker or router is introduced.
 
 No deliberate exceptions.

@@ -1,7 +1,12 @@
 import * as ConstraintFlow from "../constraint-composition-flow.js";
+import type { ResolveSourceSelectionInput } from "../guided-flow-source-selection.js";
 import { readJson, tryRoute, withWorld, type RouteApp, type RouteDependencies } from "./route-support.js";
 
 export const registerConstraintCompositionRoutes = (app: RouteApp, dependencies: RouteDependencies): void => {
+  app.post("/api/constraint-composition/source-selection/resolve", async (c) => withWorld(c, dependencies, async (world) =>
+    c.json(ConstraintFlow.resolveConstraintSourceSelection(world, await readJson<ResolveSourceSelectionInput>(c)))
+  ));
+
   app.post("/api/constraint-composition/runs/start", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () =>
     c.json(ConstraintFlow.startConstraintRun(world, await readJson<ConstraintFlow.StartConstraintRunInput>(c)), 201)
   )));

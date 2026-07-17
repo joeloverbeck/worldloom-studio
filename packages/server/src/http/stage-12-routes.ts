@@ -1,7 +1,12 @@
 import * as InstitutionalFlow from "../institutional-flow.js";
+import type { ResolveSourceSelectionInput } from "../guided-flow-source-selection.js";
 import { readJson, tryRoute, withWorld, type RouteApp, type RouteDependencies } from "./route-support.js";
 
 export const registerStage12Routes = (app: RouteApp, dependencies: RouteDependencies): void => {
+  app.post("/api/institutional/source-selection/resolve", async (c) => withWorld(c, dependencies, async (world) =>
+    c.json(InstitutionalFlow.resolveStage12SourceSelection(world, await readJson<ResolveSourceSelectionInput>(c)))
+  ));
+
   app.post("/api/institutional/runs/start", async (c) => withWorld(c, dependencies, (world) => tryRoute(c, async () =>
     c.json(InstitutionalFlow.startStage12Run(world, await readJson<InstitutionalFlow.StartStage12RunInput>(c)), 201)
   )));

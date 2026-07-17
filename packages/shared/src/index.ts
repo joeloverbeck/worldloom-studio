@@ -74,6 +74,86 @@ export interface WorkflowMapDestination {
 export type ConditionalPassKey = "temporal_timeline" | "constraint_composition" | "institutional_economic_suppression";
 export type ConditionalPassDisposition = "outstanding" | "covered" | "deferred";
 
+export type SourceSelectionValidationState =
+  | "empty"
+  | "resolving"
+  | "resolved"
+  | "missing"
+  | "incompatible_source_type"
+  | "unavailable_standing"
+  | "stale_binding"
+  | "mismatched_binding";
+
+export interface SourceSelectionRecordIdentity {
+  stableRecordId: number;
+  shortId: string;
+  title: string;
+  recordTypeKey: string;
+  canonStatus: string | null;
+  truthLayer: string | null;
+}
+
+export interface SourceSelectionBindingIdentity {
+  valid: true;
+  passKey: ConditionalPassKey;
+  passLabel: string;
+  obligation: SourceSelectionRecordIdentity;
+  sourceFact: SourceSelectionRecordIdentity;
+  propagationReport: SourceSelectionRecordIdentity;
+  destinationKey: string;
+  disposition: "outstanding";
+  doctrine: string;
+}
+
+export interface GuidedFlowSourceSelection {
+  contract: "Source-selected guided-flow run entry";
+  destination: {
+    passKey: ConditionalPassKey;
+    destinationKey: string;
+    label: string;
+    packageSources: string[];
+  };
+  request: {
+    sourceType: string;
+    recordId: number | null;
+    sectionHeading: string | null;
+    materialTitle: string;
+    materialBody: string;
+  };
+  validation: {
+    state: SourceSelectionValidationState;
+    valid: boolean;
+    blocker: string | null;
+    remediation: string | null;
+    substanceRule: string;
+  };
+  identity: SourceSelectionRecordIdentity | null;
+  selectedMaterial: { title: string; body: string } | null;
+  binding: SourceSelectionBindingIdentity | null;
+  storedRunIdentity: SourceSelectionRecordIdentity | null;
+  doctrine: {
+    selectedSource: string;
+    validity: string;
+    conditionalPassReason: string | null;
+    stableIdentity: string;
+  };
+  fieldClassifications: {
+    required: string[];
+    optional: string[];
+    skippable: string[];
+    severityDependent: string[];
+  };
+  orientation: {
+    current: string;
+    next: string;
+    resume: string;
+    safeReturnHref: "/api/workflow-map";
+  };
+  action: {
+    startOrResumeAvailable: boolean;
+  };
+}
+
 export interface WorkflowMapRecordRef {
   id: number;
   shortId: string;
@@ -94,6 +174,7 @@ export interface WorkflowMapConditionalPassObligation {
   disposition: ConditionalPassDisposition;
   rationale: string | null;
   coveringEvidence: WorkflowMapRecordRef | null;
+  sourceSelection: GuidedFlowSourceSelection;
   doctrine: string;
   packageSources: string[];
   fieldClassifications: {

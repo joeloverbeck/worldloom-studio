@@ -6,6 +6,11 @@ import {
   conditionalPassBindingForFlow,
   coverMatchingConditionalPassObligation
 } from "./conditional-pass-obligations.js";
+import {
+  requireResolvedSourceSelection,
+  resolveGuidedFlowSourceSelection,
+  type ResolveSourceSelectionInput
+} from "./guided-flow-source-selection.js";
 import * as PromptOut from "./prompt-out.js";
 import * as TemporalStore from "./temporal-store.js";
 import type { AdmissionQueueRow, RecordRow, SectionRow, WorldFile } from "./world-file.js";
@@ -190,6 +195,21 @@ const sourceForRun = (world: WorldFile, flowId: number) => {
   return staged ? sourceFromRun(staged) : sourceFromReport(readReport(world, flowId));
 };
 
+const sourceSelectionForRun = (world: WorldFile, flowId: number) => {
+  const source = sourceForRun(world, flowId);
+  const binding = conditionalPassBindingForFlow(world, flowId);
+  return resolveTemporalSourceSelection(world, {
+    sourceType: source.sourceType,
+    ...(source.sourceType === "material"
+      ? { materialTitle: source.materialTitle, materialBody: source.materialBody }
+      : { recordId: source.sourceRecordId ?? undefined }),
+    ...(binding == null ? {} : {
+      conditionalPassObligationId: binding.obligationId,
+      propagationReportRecordId: binding.propagationReportRecordId
+    })
+  });
+};
+
 const coverageForRun = (world: WorldFile, flowId: number): TemporalCoverage | null => {
   const staged = TemporalStore.findRun(world, flowId);
   if (staged) return TemporalStore.activeRevision(world, flowId)?.values ?? null;
@@ -206,6 +226,21 @@ const findRunForReport = (world: WorldFile, reportRecordId: number) =>
   TemporalStore.listOpenRuns(world).find((run) => run.retained_prior_report_record_id === reportRecordId || run.final_report_record_id === reportRecordId)?.flow_id
   ?? inProgressTemporalFlows(world).find((flow) => reportIdFromStep(String(flow.current_step)) === reportRecordId)?.id
   ?? null;
+
+const storedRunForReport = (world: WorldFile, report: RecordRow) => {
+  const flowId = findRunForReport(world, report.id);
+  if (flowId == null) return null;
+  return { flowId, sourceRecordId: sourceForRun(world, flowId).sourceRecordId };
+};
+
+const conditionalPassBindingForFact = (world: WorldFile, fact: RecordRow) => {
+  const flowId = findExistingRun(world, sourceSummaryFor(world, { sourceType: "fact", recordId: fact.id }));
+  if (flowId == null) return null;
+  return conditionalPassBindingForFlow(world, flowId);
+};
+
+export const resolveTemporalSourceSelection = (world: WorldFile, input: ResolveSourceSelectionInput) =>
+  resolveGuidedFlowSourceSelection(world, "temporal_timeline", input, { storedRunForReport, conditionalPassBindingForFact });
 
 const temporalMethodCardForStep = (stepKey: string) => {
   if (stepKey.includes("questions")) return methodCard("temporal.questions");
@@ -248,25 +283,31 @@ const sourceSummaryFor = (world: WorldFile, input: Exclude<StartTemporalRunInput
 };
 
 const findExistingRun = (world: WorldFile, source: ReturnType<typeof sourceSummaryFor>): number | null => {
+  const matchesStableSource = (candidate: {
+    source_type: string;
+    source_record_id: number | null;
+    material_title: string;
+    material_body: string;
+  }) => candidate.source_type === source.sourceType
+    && (source.sourceRecordId == null
+      ? candidate.source_record_id == null
+        && candidate.material_title === source.materialTitle
+        && candidate.material_body === source.materialBody
+      : candidate.source_record_id === source.sourceRecordId);
   for (const run of TemporalStore.listOpenRuns(world)) {
-    if (
-      run.source_type === source.sourceType
-      && run.source_record_id === source.sourceRecordId
-      && run.material_title === source.materialTitle
-      && run.material_body === source.materialBody
-    ) return run.flow_id;
+    if (matchesStableSource(run)) return run.flow_id;
   }
   for (const flow of inProgressTemporalFlows(world)) {
     if (TemporalStore.findRun(world, Number(flow.id))) continue;
     const reportId = reportIdFromStep(String(flow.current_step));
     if (reportId == null) continue;
     const current = sourceFromReport(world.getRecord(reportId));
-    if (
-      current.sourceType === source.sourceType
-      && current.sourceRecordId === source.sourceRecordId
-      && current.materialTitle === source.materialTitle
-      && current.materialBody === source.materialBody
-    ) return Number(flow.id);
+    if (matchesStableSource({
+      source_type: current.sourceType,
+      source_record_id: current.sourceRecordId,
+      material_title: current.materialTitle,
+      material_body: current.materialBody
+    })) return Number(flow.id);
   }
   return null;
 };
@@ -597,6 +638,7 @@ export const getTemporalRun = (world: WorldFile, flowId: number) => {
     conditionalPassBinding: conditionalPassBindingForFlow(world, flowId),
     revisionContract: revisionDecisionContract(world, flowId),
     reportRelationship: reportRelationship(world, flowId),
+    sourceSelection: sourceSelectionForRun(world, flowId),
     promptOut: promptOutState(world, flowId),
     readSideTrail: readSideTrail(world, flowId),
     decisionPoint: temporalDecisionPoint(world, flowId)
@@ -604,12 +646,13 @@ export const getTemporalRun = (world: WorldFile, flowId: number) => {
 };
 
 export const startTemporalRun = (world: WorldFile, input: StartTemporalRunInput) => {
+  const approvedSelection = requireResolvedSourceSelection(
+    resolveTemporalSourceSelection(world, input)
+  );
   if (input.sourceType === "pass_report") {
-    const report = world.getRecord(input.reportRecordId);
-    if (report.recordTypeKey !== "pass_report") throw new Error("Temporal resume requires a pass_report");
-    const flowId = findRunForReport(world, report.id);
+    const flowId = findRunForReport(world, input.reportRecordId);
     if (flowId == null) throw new Error("Temporal pass report is not owned by an in-progress run");
-    return getTemporalRun(world, flowId);
+    return { ...getTemporalRun(world, flowId), sourceSelection: approvedSelection };
   }
 
   const source = sourceSummaryFor(world, input);

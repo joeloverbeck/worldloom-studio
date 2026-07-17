@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { ConditionalPassKey, HealthPayload, LinkTypeDefinition, MethodCard, PromptEvidenceItem, RecordTypeDefinition, WorkflowMapConditionalPassObligation, WorkflowMapPayload } from "@worldloom/shared";
+import type { ConditionalPassKey, GuidedFlowSourceSelection, HealthPayload, LinkTypeDefinition, MethodCard, PromptEvidenceItem, RecordTypeDefinition, WorkflowMapConditionalPassObligation, WorkflowMapPayload } from "@worldloom/shared";
 import {
   PropagationWorkspace,
   type ConsequenceRevisionInput,
@@ -17,6 +17,13 @@ import {
   type TemporalPromptModeOffer
 } from "./temporal-prompt-out-panel.js";
 import { PromptOutEvidenceList } from "./prompt-out-evidence-list.js";
+import {
+  SourceSelectionEntry,
+  sourceIdentityDiscontinuity,
+  sourceSelectionDraftFromSelection,
+  type SourceIdentityDiscontinuity,
+  type SourceSelectionDraft
+} from "./source-selection-entry.js";
 import {
   TEMPORAL_COVERAGE_KEYS,
   TemporalRevisionWorkspace,
@@ -408,6 +415,7 @@ interface Stage12Run {
   skips: Array<{ id: number; stepKey: string; record: RecordRow; debt: RecordRow | null }>;
   closeReadiness: { status: string; blockers: Stage12CloseBlocker[] };
   conditionalPassBinding: ConditionalPassBinding | null;
+  sourceSelection: GuidedFlowSourceSelection;
   decisionPoint?: DecisionPointEnvelope;
 }
 
@@ -452,6 +460,7 @@ interface ConstraintRun {
   closeReadiness: { status: string; blockers: ConstraintCloseBlocker[] };
   closePreview: { state: string; outcomeState: string; beforeCompletion: string[]; afterCompletion: string[] };
   conditionalPassBinding: ConditionalPassBinding | null;
+  sourceSelection: GuidedFlowSourceSelection;
   promptOut: { available: boolean; templateKey: string; stepKey: string; coldUseEvidence: string; sourceRecordId: number | null };
   readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
   decisionPoint?: { sharedContract: { methodCard?: MethodCard } };
@@ -516,6 +525,7 @@ interface TemporalRun {
   closeReadiness: { status: string; blockers: TemporalCloseBlocker[] };
   closePreview: TemporalFinalizationPreview;
   conditionalPassBinding: ConditionalPassBinding | null;
+  sourceSelection: GuidedFlowSourceSelection;
   reportRelationship: { type: "final" | "correction"; retainedPriorReportRecordId: number | null };
   promptOut: { available: boolean; templateKey: string; stepKey: string; coldUseEvidence: string; sourceRecordId: number | null };
   readSideTrail: Array<{ label: string; href: string; recordId?: number }>;
@@ -2335,6 +2345,9 @@ function App({
   const [stage12SourceSection, setStage12SourceSection] = useState("");
   const [stage12MaterialTitle, setStage12MaterialTitle] = useState("");
   const [stage12MaterialBody, setStage12MaterialBody] = useState("");
+  const [stage12SourceSelection, setStage12SourceSelection] = useState<GuidedFlowSourceSelection | null>(null);
+  const [stage12SourceDiscontinuity, setStage12SourceDiscontinuity] = useState<SourceIdentityDiscontinuity | null>(null);
+  const [stage12SourceResolving, setStage12SourceResolving] = useState(false);
   const [stage12LensKey, setStage12LensKey] = useState("action_arena");
   const [stage12CoverageBody, setStage12CoverageBody] = useState("");
   const [stage12CardType, setStage12CardType] = useState<"action_arena" | "institution" | "counter_institution">("action_arena");
@@ -2350,6 +2363,9 @@ function App({
   const [constraintSourceSection, setConstraintSourceSection] = useState("");
   const [constraintMaterialTitle, setConstraintMaterialTitle] = useState("");
   const [constraintMaterialBody, setConstraintMaterialBody] = useState("");
+  const [constraintSourceSelection, setConstraintSourceSelection] = useState<GuidedFlowSourceSelection | null>(null);
+  const [constraintSourceDiscontinuity, setConstraintSourceDiscontinuity] = useState<SourceIdentityDiscontinuity | null>(null);
+  const [constraintSourceResolving, setConstraintSourceResolving] = useState(false);
   const [constraintSubject, setConstraintSubject] = useState("");
   const [constraintInventory, setConstraintInventory] = useState(emptyConstraintInventory);
   const [constraintCompositionType, setConstraintCompositionType] = useState("stacking");
@@ -2374,6 +2390,9 @@ function App({
   );
   const [temporalMaterialTitle, setTemporalMaterialTitle] = useState("");
   const [temporalMaterialBody, setTemporalMaterialBody] = useState("");
+  const [temporalSourceSelection, setTemporalSourceSelection] = useState<GuidedFlowSourceSelection | null>(initialTemporalRun?.sourceSelection ?? null);
+  const [temporalSourceDiscontinuity, setTemporalSourceDiscontinuity] = useState<SourceIdentityDiscontinuity | null>(null);
+  const [temporalSourceResolving, setTemporalSourceResolving] = useState(false);
   const [temporalSubject, setTemporalSubject] = useState(initialTemporalRun?.source.auditedSubject ?? "");
   const [temporalCoverage, setTemporalCoverage] = useState<TemporalCoverage>(initialTemporalRun?.coverage ?? emptyTemporalCoverage);
   const [temporalFinalizationPreview, setTemporalFinalizationPreview] = useState<TemporalFinalizationPreview | null>(initialTemporalRun?.closePreview ?? null);
@@ -3396,6 +3415,12 @@ function App({
     });
   };
 
+  const authoritativeSourceSelectionFrom = (error: unknown): GuidedFlowSourceSelection | null => {
+    if (!(error instanceof ApiError)) return null;
+    const payload = error.payload as { authoritativeState?: GuidedFlowSourceSelection };
+    return payload.authoritativeState ?? null;
+  };
+
   const followConditionalPass = async (obligation: WorkflowMapConditionalPassObligation) => {
     const sourceId = String(obligation.destination.body.recordId);
     updateConditionalPassRouteBinding(obligation.passKey, {
@@ -3405,12 +3430,18 @@ function App({
     if (obligation.passKey === "temporal_timeline") {
       setTemporalSourceType("fact");
       setTemporalSourceRecordId(sourceId);
+      setTemporalSourceSelection(obligation.sourceSelection);
+      setTemporalSourceDiscontinuity(null);
     } else if (obligation.passKey === "constraint_composition") {
       setConstraintSourceType("fact");
       setConstraintSourceRecordId(sourceId);
+      setConstraintSourceSelection(obligation.sourceSelection);
+      setConstraintSourceDiscontinuity(null);
     } else {
       setStage12SourceType("fact");
       setStage12SourceRecordId(sourceId);
+      setStage12SourceSelection(obligation.sourceSelection);
+      setStage12SourceDiscontinuity(null);
     }
     await navigateWorkflow(obligation.destination.destinationKey);
   };
@@ -5095,10 +5126,17 @@ function App({
   };
 
   const applyStage12Run = (payload: Stage12Run) => {
+    const sourceDraft = sourceSelectionDraftFromSelection(payload.sourceSelection);
     setStage12Run(payload);
+    setStage12SourceSelection(payload.sourceSelection);
+    setStage12SourceDiscontinuity(null);
     setStage12FlowId(payload.flow.id);
     setStage12LensKey(payload.doctrine.lenses[0]?.key ?? "action_arena");
-    if (payload.source.sourceRecordId != null) setStage12SourceRecordId(String(payload.source.sourceRecordId));
+    setStage12SourceType(sourceDraft.sourceType as typeof stage12SourceType);
+    setStage12SourceRecordId(sourceDraft.recordId);
+    setStage12SourceSection(sourceDraft.sectionHeading);
+    setStage12MaterialTitle(sourceDraft.materialTitle);
+    setStage12MaterialBody(sourceDraft.materialBody);
     updateConditionalPassRouteBinding("institutional_economic_suppression", payload.conditionalPassBinding);
   };
 
@@ -5127,14 +5165,41 @@ function App({
   };
 
   const startStage12Run = async () => {
-    const payload = await api<Stage12Run>("/api/institutional/runs/start", {
-      method: "POST",
-      body: JSON.stringify(stage12StartPayload())
-    });
-    applyStage12Run(payload);
-    setPromptFlowKey("institutional_economic_suppression");
-    setPromptTemplateKey("institution_economy_analyst");
-    await loadWorldData();
+    try {
+      const payload = await api<Stage12Run>("/api/institutional/runs/start", {
+        method: "POST",
+        body: JSON.stringify(stage12StartPayload())
+      });
+      const discontinuity = sourceIdentityDiscontinuity(stage12SourceSelection, payload.sourceSelection);
+      if (discontinuity) {
+        setStage12SourceDiscontinuity(discontinuity);
+        setMessage(`Stage-12 start or resume returned a different ${discontinuity.continuityKind}: ${discontinuity.returnedHumanLabel}; approved ${discontinuity.approvedHumanLabel} remains displayed.`);
+        return;
+      }
+      applyStage12Run(payload);
+      setPromptFlowKey("institutional_economic_suppression");
+      setPromptTemplateKey("institution_economy_analyst");
+      await loadWorldData();
+    } catch (error) {
+      const authoritative = authoritativeSourceSelectionFrom(error);
+      if (authoritative) setStage12SourceSelection(authoritative);
+      setMessage(apiErrorMessage(error));
+    }
+  };
+
+  const resolveStage12Source = async () => {
+    setStage12SourceResolving(true);
+    setStage12SourceDiscontinuity(null);
+    try {
+      setStage12SourceSelection(await api<GuidedFlowSourceSelection>("/api/institutional/source-selection/resolve", {
+        method: "POST",
+        body: JSON.stringify(stage12StartPayload())
+      }));
+    } catch (error) {
+      setMessage(apiErrorMessage(error));
+    } finally {
+      setStage12SourceResolving(false);
+    }
   };
 
   const saveStage12Coverage = async () => {
@@ -5227,9 +5292,16 @@ function App({
   };
 
   const applyConstraintRun = (payload: ConstraintRun) => {
+    const sourceDraft = sourceSelectionDraftFromSelection(payload.sourceSelection);
     setConstraintRun(payload);
+    setConstraintSourceSelection(payload.sourceSelection);
+    setConstraintSourceDiscontinuity(null);
     setConstraintFlowId(payload.flow.id);
-    if (payload.source.sourceRecordId != null) setConstraintSourceRecordId(String(payload.source.sourceRecordId));
+    setConstraintSourceType(sourceDraft.sourceType as typeof constraintSourceType);
+    setConstraintSourceRecordId(sourceDraft.recordId);
+    setConstraintSourceSection(sourceDraft.sectionHeading);
+    setConstraintMaterialTitle(sourceDraft.materialTitle);
+    setConstraintMaterialBody(sourceDraft.materialBody);
     updateConditionalPassRouteBinding("constraint_composition", payload.conditionalPassBinding);
     setConstraintSubject(payload.source.constrainedSubject);
     if (payload.inventory[0] && !constraintInventoryId) setConstraintInventoryId(String(payload.inventory[0].id));
@@ -5271,15 +5343,42 @@ function App({
   };
 
   const startConstraintRun = async () => {
-    const payload = await api<ConstraintRun>("/api/constraint-composition/runs/start", {
-      method: "POST",
-      body: JSON.stringify(constraintStartPayload())
-    });
-    applyConstraintRun(payload);
-    setPromptFlowKey("constraint_composition");
-    setPromptTemplateKey("constraint_challenger");
-    if (payload.promptOut.sourceRecordId != null) setPromptRecordId(String(payload.promptOut.sourceRecordId));
-    await loadWorldData();
+    try {
+      const payload = await api<ConstraintRun>("/api/constraint-composition/runs/start", {
+        method: "POST",
+        body: JSON.stringify(constraintStartPayload())
+      });
+      const discontinuity = sourceIdentityDiscontinuity(constraintSourceSelection, payload.sourceSelection);
+      if (discontinuity) {
+        setConstraintSourceDiscontinuity(discontinuity);
+        setMessage(`Constraint Composition start or resume returned a different ${discontinuity.continuityKind}: ${discontinuity.returnedHumanLabel}; approved ${discontinuity.approvedHumanLabel} remains displayed.`);
+        return;
+      }
+      applyConstraintRun(payload);
+      setPromptFlowKey("constraint_composition");
+      setPromptTemplateKey("constraint_challenger");
+      if (payload.promptOut.sourceRecordId != null) setPromptRecordId(String(payload.promptOut.sourceRecordId));
+      await loadWorldData();
+    } catch (error) {
+      const authoritative = authoritativeSourceSelectionFrom(error);
+      if (authoritative) setConstraintSourceSelection(authoritative);
+      setMessage(apiErrorMessage(error));
+    }
+  };
+
+  const resolveConstraintSource = async () => {
+    setConstraintSourceResolving(true);
+    setConstraintSourceDiscontinuity(null);
+    try {
+      setConstraintSourceSelection(await api<GuidedFlowSourceSelection>("/api/constraint-composition/source-selection/resolve", {
+        method: "POST",
+        body: JSON.stringify(constraintStartPayload())
+      }));
+    } catch (error) {
+      setMessage(apiErrorMessage(error));
+    } finally {
+      setConstraintSourceResolving(false);
+    }
   };
 
   const saveConstraintInventory = async () => {
@@ -5408,9 +5507,15 @@ function App({
   };
 
   const applyTemporalRun = (payload: TemporalRun) => {
+    const sourceDraft = sourceSelectionDraftFromSelection(payload.sourceSelection);
     setTemporalRun(payload);
+    setTemporalSourceSelection(payload.sourceSelection);
+    setTemporalSourceDiscontinuity(null);
     setTemporalFlowId(payload.flow.id);
-    if (payload.source.sourceRecordId != null) setTemporalSourceRecordId(String(payload.source.sourceRecordId));
+    setTemporalSourceType(sourceDraft.sourceType as typeof temporalSourceType);
+    setTemporalSourceRecordId(sourceDraft.recordId);
+    setTemporalMaterialTitle(sourceDraft.materialTitle);
+    setTemporalMaterialBody(sourceDraft.materialBody);
     updateConditionalPassRouteBinding("temporal_timeline", payload.conditionalPassBinding);
     setTemporalSubject(payload.source.auditedSubject);
     const attempted = payload.revisionContract.draftState.attemptedInput;
@@ -5501,15 +5606,42 @@ function App({
   };
 
   const startTemporalRun = async () => {
-    const payload = await api<TemporalRun>("/api/temporal/runs/start", {
-      method: "POST",
-      body: JSON.stringify(temporalStartPayload())
-    });
-    applyTemporalRun(payload);
-    setPromptFlowKey("temporal_timeline");
-    setPromptTemplateKey("temporal_spatial_analyst");
-    if (payload.promptOut.sourceRecordId != null) setPromptRecordId(String(payload.promptOut.sourceRecordId));
-    await loadWorldData();
+    try {
+      const payload = await api<TemporalRun>("/api/temporal/runs/start", {
+        method: "POST",
+        body: JSON.stringify(temporalStartPayload())
+      });
+      const discontinuity = sourceIdentityDiscontinuity(temporalSourceSelection, payload.sourceSelection);
+      if (discontinuity) {
+        setTemporalSourceDiscontinuity(discontinuity);
+        setMessage(`Temporal start or resume returned a different ${discontinuity.continuityKind}: ${discontinuity.returnedHumanLabel}; approved ${discontinuity.approvedHumanLabel} remains displayed.`);
+        return;
+      }
+      applyTemporalRun(payload);
+      setPromptFlowKey("temporal_timeline");
+      setPromptTemplateKey("temporal_spatial_analyst");
+      if (payload.promptOut.sourceRecordId != null) setPromptRecordId(String(payload.promptOut.sourceRecordId));
+      await loadWorldData();
+    } catch (error) {
+      const authoritative = authoritativeSourceSelectionFrom(error);
+      if (authoritative) setTemporalSourceSelection(authoritative);
+      setMessage(apiErrorMessage(error));
+    }
+  };
+
+  const resolveTemporalSource = async () => {
+    setTemporalSourceResolving(true);
+    setTemporalSourceDiscontinuity(null);
+    try {
+      setTemporalSourceSelection(await api<GuidedFlowSourceSelection>("/api/temporal/source-selection/resolve", {
+        method: "POST",
+        body: JSON.stringify(temporalStartPayload())
+      }));
+    } catch (error) {
+      setMessage(apiErrorMessage(error));
+    } finally {
+      setTemporalSourceResolving(false);
+    }
   };
 
   const saveTemporalCoverage = async () => {
@@ -6197,6 +6329,125 @@ function App({
     </section>
   );
 
+  const updateTemporalSourceDraft = (draft: SourceSelectionDraft) => {
+    setTemporalSourceType(draft.sourceType as typeof temporalSourceType);
+    setTemporalSourceRecordId(draft.recordId);
+    setTemporalMaterialTitle(draft.materialTitle);
+    setTemporalMaterialBody(draft.materialBody);
+    setTemporalSourceSelection(null);
+    setTemporalSourceDiscontinuity(null);
+  };
+
+  const temporalSourceEntry = (
+    <SourceSelectionEntry
+      idPrefix="temporal-source-selection"
+      draft={{
+        sourceType: temporalSourceType,
+        recordId: temporalSourceRecordId,
+        sectionHeading: "",
+        materialTitle: temporalMaterialTitle,
+        materialBody: temporalMaterialBody
+      }}
+      sourceModes={[
+        { value: "fact", label: "fact" },
+        { value: "capability", label: "capability" },
+        { value: "canon_debt", label: "canon debt" },
+        { value: "material", label: "selected material" },
+        { value: "pass_report", label: "pass report" }
+      ]}
+      selection={temporalSourceSelection}
+      discontinuity={temporalSourceDiscontinuity}
+      resolving={temporalSourceResolving}
+      disabled={!openWorld}
+      startLabel="Start or Resume Temporal"
+      onDraftChange={updateTemporalSourceDraft}
+      onResolve={resolveTemporalSource}
+      onStart={startTemporalRun}
+      onSafeReturn={() => navigateWorkflow("map")}
+    />
+  );
+
+  const updateConstraintSourceDraft = (draft: SourceSelectionDraft) => {
+    setConstraintSourceType(draft.sourceType as typeof constraintSourceType);
+    setConstraintSourceRecordId(draft.recordId);
+    setConstraintSourceSection(draft.sectionHeading);
+    setConstraintMaterialTitle(draft.materialTitle);
+    setConstraintMaterialBody(draft.materialBody);
+    setConstraintSourceSelection(null);
+    setConstraintSourceDiscontinuity(null);
+  };
+
+  const constraintSourceEntry = (
+    <SourceSelectionEntry
+      idPrefix="constraint-source-selection"
+      draft={{
+        sourceType: constraintSourceType,
+        recordId: constraintSourceRecordId,
+        sectionHeading: constraintSourceSection,
+        materialTitle: constraintMaterialTitle,
+        materialBody: constraintMaterialBody
+      }}
+      sourceModes={[
+        { value: "fact", label: "fact" },
+        { value: "capability", label: "capability" },
+        { value: "constraint_card", label: "constraint card" },
+        { value: "canon_debt", label: "canon debt" },
+        { value: "material", label: "selected material" },
+        { value: "record_section", label: "record section" },
+        { value: "pass_report", label: "pass report" }
+      ]}
+      selection={constraintSourceSelection}
+      discontinuity={constraintSourceDiscontinuity}
+      resolving={constraintSourceResolving}
+      disabled={!openWorld}
+      startLabel="Start or Resume Constraint Composition"
+      onDraftChange={updateConstraintSourceDraft}
+      onResolve={resolveConstraintSource}
+      onStart={startConstraintRun}
+      onSafeReturn={() => navigateWorkflow("map")}
+    />
+  );
+
+  const updateStage12SourceDraft = (draft: SourceSelectionDraft) => {
+    setStage12SourceType(draft.sourceType as typeof stage12SourceType);
+    setStage12SourceRecordId(draft.recordId);
+    setStage12SourceSection(draft.sectionHeading);
+    setStage12MaterialTitle(draft.materialTitle);
+    setStage12MaterialBody(draft.materialBody);
+    setStage12SourceSelection(null);
+    setStage12SourceDiscontinuity(null);
+  };
+
+  const stage12SourceEntry = (
+    <SourceSelectionEntry
+      idPrefix="stage12-source-selection"
+      draft={{
+        sourceType: stage12SourceType,
+        recordId: stage12SourceRecordId,
+        sectionHeading: stage12SourceSection,
+        materialTitle: stage12MaterialTitle,
+        materialBody: stage12MaterialBody
+      }}
+      sourceModes={[
+        { value: "fact", label: "fact" },
+        { value: "under_review_fact", label: "under-review fact" },
+        { value: "canon_debt", label: "canon debt" },
+        { value: "material", label: "selected material" },
+        { value: "record_section", label: "record section" },
+        { value: "pass_report", label: "pass report" }
+      ]}
+      selection={stage12SourceSelection}
+      discontinuity={stage12SourceDiscontinuity}
+      resolving={stage12SourceResolving}
+      disabled={!openWorld}
+      startLabel="Start or Resume Stage-12"
+      onDraftChange={updateStage12SourceDraft}
+      onResolve={resolveStage12Source}
+      onStart={startStage12Run}
+      onSafeReturn={() => navigateWorkflow("map")}
+    />
+  );
+
   const temporalPanel = (
     <div className="panel">
       <h2>Temporal/Timeline flow</h2>
@@ -6209,24 +6460,12 @@ function App({
           <span>{temporalRun?.doctrine.triggerRecommendation ?? "Run `09` for Level 2+ facts with first appearance, discovery, public knowledge, institutional reaction, branch divergence, retcon, prophecy, inheritance, war, migration, law, aging, or evidence implications."}</span>
           <span>{temporalRun?.doctrine.completionRule ?? "Complete Temporal/Timeline work by recording sequence, latency, date facets, residue, mystery boundaries, and an explicit outcome."}</span>
         </div>
+        {temporalSourceEntry}
         <div className="grid">
-          <label>Source type<select value={temporalSourceType} onChange={(event) => setTemporalSourceType(event.target.value as typeof temporalSourceType)}>
-            <option value="fact">fact</option>
-            <option value="capability">capability</option>
-            <option value="canon_debt">canon debt</option>
-            <option value="material">selected material</option>
-            <option value="pass_report">pass report</option>
-          </select></label>
-          <label>Source or report id<input value={temporalSourceRecordId} onChange={(event) => setTemporalSourceRecordId(event.target.value)} /></label>
           <label>Flow id<input value={temporalFlowId ?? ""} onChange={(event) => setTemporalFlowId(event.target.value ? Number(event.target.value) : null)} /></label>
-        </div>
-        <div className="grid">
-          <label>Material title<input value={temporalMaterialTitle} onChange={(event) => setTemporalMaterialTitle(event.target.value)} /></label>
-          <label>Material body<textarea rows={2} value={temporalMaterialBody} onChange={(event) => setTemporalMaterialBody(event.target.value)} /></label>
           <label>Audited subject<input value={temporalSubject} onChange={(event) => setTemporalSubject(event.target.value)} /></label>
         </div>
         <div className="row">
-          <button onClick={startTemporalRun} disabled={!openWorld || (temporalSourceType !== "material" && !temporalSourceRecordId) || (temporalSourceType === "material" && (!temporalMaterialTitle.trim() || !temporalMaterialBody.trim()))}>Start or Resume Temporal</button>
           <button onClick={() => void refreshTemporalRun()} disabled={!openWorld || temporalFlowId == null}>Refresh Temporal</button>
         </div>
       </section>
@@ -7327,6 +7566,12 @@ function App({
           <h2>Constraint composition flow</h2>
           <p>Compose constraints where facts apply.</p>
           <MethodCardPanel card={constraintRun?.decisionPoint?.sharedContract.methodCard} />
+          {constraintSourceEntry}
+          <div className="grid">
+            <label>Flow id<input value={constraintFlowId ?? ""} onChange={(event) => setConstraintFlowId(event.target.value ? Number(event.target.value) : null)} /></label>
+            <label>Constrained subject<input value={constraintSubject} onChange={(event) => setConstraintSubject(event.target.value)} /></label>
+          </div>
+          <button onClick={() => void refreshConstraintRun()} disabled={!openWorld || constraintFlowId == null}>Refresh Constraint Run</button>
         </section>
       ),
       temporal: temporalPanel,
@@ -7336,20 +7581,9 @@ function App({
           <p>Run conditional institutional, economic, and suppression passes.</p>
           <MethodCardPanel card={stage12Run?.methodCard} />
           <DecisionContractPanel title="Stage-12 decision contract" contract={stage12Run?.decisionPoint?.sharedContract} />
-          <div className="grid">
-            <label>Source type<select value={stage12SourceType} onChange={(event) => setStage12SourceType(event.target.value as typeof stage12SourceType)}>
-              <option value="fact">fact</option>
-              <option value="under_review_fact">under-review fact</option>
-              <option value="canon_debt">canon debt</option>
-              <option value="material">selected material</option>
-              <option value="record_section">record section</option>
-              <option value="pass_report">pass report</option>
-            </select></label>
-            <label>Source or report id<input value={stage12SourceRecordId} onChange={(event) => setStage12SourceRecordId(event.target.value)} /></label>
-            <label>Flow id<input value={stage12FlowId ?? ""} onChange={(event) => setStage12FlowId(event.target.value ? Number(event.target.value) : null)} /></label>
-          </div>
+          {stage12SourceEntry}
           <div className="row">
-            <button onClick={startStage12Run} disabled={!openWorld || (stage12SourceType !== "material" && !stage12SourceRecordId) || (stage12SourceType === "material" && (!stage12MaterialTitle.trim() || !stage12MaterialBody.trim()))}>Start or Resume Stage-12</button>
+            <label>Flow id<input value={stage12FlowId ?? ""} onChange={(event) => setStage12FlowId(event.target.value ? Number(event.target.value) : null)} /></label>
             <button onClick={() => void refreshStage12Run()} disabled={!openWorld || stage12FlowId == null}>Refresh Stage-12</button>
             <button onClick={closeStage12Run} disabled={!openWorld || stage12FlowId == null}>Close Stage-12 Run</button>
           </div>
@@ -7927,25 +8161,9 @@ function App({
               <span>{stage12Run?.methodCard?.operativeRule ?? "Start or resume a stage-12 run to load server-returned method guidance."}</span>
               <span>{stage12Run?.doctrine.completionRule ?? "The server owns close readiness and coverage policy."}</span>
             </div>
-            <div className="grid">
-              <label>Source type<select value={stage12SourceType} onChange={(event) => setStage12SourceType(event.target.value as typeof stage12SourceType)}>
-                <option value="fact">fact</option>
-                <option value="under_review_fact">under-review fact</option>
-                <option value="canon_debt">canon debt</option>
-                <option value="material">selected material</option>
-                <option value="record_section">record section</option>
-                <option value="pass_report">pass report</option>
-              </select></label>
-              <label>Source or report id<input value={stage12SourceRecordId} onChange={(event) => setStage12SourceRecordId(event.target.value)} /></label>
-              <label>Section heading<input value={stage12SourceSection} onChange={(event) => setStage12SourceSection(event.target.value)} /></label>
-              <label>Flow id<input value={stage12FlowId ?? ""} onChange={(event) => setStage12FlowId(event.target.value ? Number(event.target.value) : null)} /></label>
-            </div>
-            <div className="grid">
-              <label>Material title<input value={stage12MaterialTitle} onChange={(event) => setStage12MaterialTitle(event.target.value)} /></label>
-              <label>Material body<textarea rows={2} value={stage12MaterialBody} onChange={(event) => setStage12MaterialBody(event.target.value)} /></label>
-            </div>
+            {stage12SourceEntry}
             <div className="row">
-              <button onClick={startStage12Run} disabled={!openWorld || (stage12SourceType !== "material" && !stage12SourceRecordId) || (stage12SourceType === "material" && (!stage12MaterialTitle.trim() || !stage12MaterialBody.trim()))}>Start or Resume Stage-12</button>
+              <label>Flow id<input value={stage12FlowId ?? ""} onChange={(event) => setStage12FlowId(event.target.value ? Number(event.target.value) : null)} /></label>
               <button onClick={() => void refreshStage12Run()} disabled={!openWorld || stage12FlowId == null}>Refresh Stage-12</button>
               <button onClick={closeStage12Run} disabled={!openWorld || stage12FlowId == null}>Close Stage-12 Run</button>
             </div>
@@ -8055,27 +8273,12 @@ function App({
                 <span>{constraintRun?.decisionPoint?.sharedContract.methodCard?.operativeRule ?? "Start or resume a run to load server-returned method guidance."}</span>
                 <span>{constraintRun?.doctrine.completionRule ?? "The server owns constraint budget, loopholes, enforcement, residue, and close readiness."}</span>
               </div>
+              {constraintSourceEntry}
               <div className="grid">
-                <label>Source type<select value={constraintSourceType} onChange={(event) => setConstraintSourceType(event.target.value as typeof constraintSourceType)}>
-                  <option value="fact">fact</option>
-                  <option value="capability">capability</option>
-                  <option value="constraint_card">constraint card</option>
-                  <option value="canon_debt">canon debt</option>
-                  <option value="material">selected material</option>
-                  <option value="record_section">record section</option>
-                  <option value="pass_report">pass report</option>
-                </select></label>
-                <label>Source or report id<input value={constraintSourceRecordId} onChange={(event) => setConstraintSourceRecordId(event.target.value)} /></label>
-                <label>Section heading<input value={constraintSourceSection} onChange={(event) => setConstraintSourceSection(event.target.value)} /></label>
                 <label>Flow id<input value={constraintFlowId ?? ""} onChange={(event) => setConstraintFlowId(event.target.value ? Number(event.target.value) : null)} /></label>
-              </div>
-              <div className="grid">
-                <label>Material title<input value={constraintMaterialTitle} onChange={(event) => setConstraintMaterialTitle(event.target.value)} /></label>
-                <label>Material body<textarea rows={2} value={constraintMaterialBody} onChange={(event) => setConstraintMaterialBody(event.target.value)} /></label>
                 <label>Constrained subject<input value={constraintSubject} onChange={(event) => setConstraintSubject(event.target.value)} /></label>
               </div>
               <div className="row">
-                <button onClick={startConstraintRun} disabled={!openWorld || (constraintSourceType !== "material" && !constraintSourceRecordId) || (constraintSourceType === "material" && (!constraintMaterialTitle.trim() || !constraintMaterialBody.trim()))}>Start or Resume Constraint Composition</button>
                 <button onClick={() => void refreshConstraintRun()} disabled={!openWorld || constraintFlowId == null}>Refresh Constraint Run</button>
                 <button onClick={closeConstraintRun} disabled={!openWorld || constraintFlowId == null}>Close Constraint Run</button>
               </div>
