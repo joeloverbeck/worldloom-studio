@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import type { PromptEvidenceItem } from "@worldloom/shared";
 import { createApp } from "../src/app.js";
 import { WorldFile } from "../src/world-file.js";
 
@@ -593,30 +594,8 @@ describe("Temporal/Timeline flow HTTP API", () => {
           skips: Array<{ id: number }>;
           advisoryDispositions: Array<{ advisory: { id: number }; dispositions: Array<{ disposition: string; note: string }> }>;
           sourceDocuments: Array<{ source: string; content: string }>;
-          sourceManifest: Array<{
-            id: string;
-            displayText: string;
-            kind: "source" | "omission";
-            candidateIdentity: string | null;
-            ruleIdentity: string;
-            standing: { truthLayer: string | null; canonStatus: string | null } | null;
-            relationship: string | null;
-            decisionMeaning: string | null;
-            provenanceReferences: string[];
-            aggregatePathCount: number | null;
-          }>;
-          omissions: Array<{
-            id: string;
-            displayText: string;
-            kind: "source" | "omission";
-            candidateIdentity: string | null;
-            ruleIdentity: string;
-            standing: { truthLayer: string | null; canonStatus: string | null } | null;
-            relationship: string | null;
-            decisionMeaning: string | null;
-            provenanceReferences: string[];
-            aggregatePathCount: number | null;
-          }>;
+          sourceManifest: PromptEvidenceItem[];
+          omissions: PromptEvidenceItem[];
           outputLabels: string[];
           advisoryCanonWarning: string;
           recovery: { method: string; href: string; body: { mode: string; activeSetRevision: number } };
