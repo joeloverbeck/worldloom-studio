@@ -4,14 +4,15 @@ import React from "react";
 import { readFileSync } from "node:fs";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PromptOutEvidenceList, type PromptEvidenceItemView } from "./prompt-out-evidence-list";
+import type { PromptEvidenceItem } from "@worldloom/shared";
+import { PromptOutEvidenceList } from "./prompt-out-evidence-list";
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
 
-const sameDisplayItems: PromptEvidenceItemView[] = [
+const sameDisplayItems: PromptEvidenceItem[] = [
   {
     id: "prompt-evidence-depends",
     displayText: "FAC-2 Clock tower excluded from bounded Temporal context",

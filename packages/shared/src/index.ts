@@ -28,6 +28,19 @@ export interface HealthPayload {
   version: string;
 }
 
+export interface PromptEvidenceItem {
+  id: string;
+  displayText: string;
+  kind: "source" | "omission";
+  candidateIdentity: string | null;
+  ruleIdentity: string;
+  standing: { truthLayer: string | null; canonStatus: string | null } | null;
+  relationship: string | null;
+  decisionMeaning: string | null;
+  provenanceReferences: string[];
+  aggregatePathCount: number | null;
+}
+
 export type WorkflowMapStageState = "done" | "active" | "owed" | "blocked" | "not_yet_earned";
 export type WorkflowMapDestinationKind = "guided-flow" | "read-side" | "substrate";
 export type WorkflowMapDestinationState = "done" | "active" | "available" | "owed" | "blocked" | "not_yet_earned";

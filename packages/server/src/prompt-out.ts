@@ -7,7 +7,7 @@ import * as PropagationStore from "./propagation-store.js";
 import * as TemporalStore from "./temporal-store.js";
 import { foundationalProposalDoctrine, foundationalProposalManifest, foundationalProposalOmissions, propagationPacketCompleteness, propagationRelatedWorldContext, PROPAGATION_ATLAS_DOMAINS, PROPAGATION_RELATED_WORLD_BUDGET, type PropagationPacketCompleteness, type PropagationRelatedWorldContext, type PropagationRelatedWorldRecord } from "./propagation-prompt-context.js";
 import type { PromptMode } from "./decision-point-contract.js";
-import type { MethodCard } from "@worldloom/shared";
+import type { MethodCard, PromptEvidenceItem } from "@worldloom/shared";
 import type { RecordInput, RecordRow, WorldFile } from "./world-file.js";
 import { createHash } from "node:crypto";
 
@@ -111,19 +111,6 @@ export interface PromptPacketIdentity {
   packetHash: string | null;
   bodyHash: string | null;
   sourceManifestHash: string | null;
-}
-
-export interface PromptEvidenceItem {
-  id: string;
-  displayText: string;
-  kind: "source" | "omission";
-  candidateIdentity: string | null;
-  ruleIdentity: string;
-  standing: { truthLayer: string | null; canonStatus: string | null } | null;
-  relationship: string | null;
-  decisionMeaning: string | null;
-  provenanceReferences: string[];
-  aggregatePathCount: number | null;
 }
 
 interface PromptEvidenceDraft extends Omit<PromptEvidenceItem, "id" | "provenanceReferences" | "aggregatePathCount"> {

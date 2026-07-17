@@ -1,17 +1,5 @@
 import React from "react";
-
-export interface PromptEvidenceItemView {
-  id: string;
-  displayText: string;
-  kind: "source" | "omission";
-  candidateIdentity: string | null;
-  ruleIdentity: string;
-  standing: { truthLayer: string | null; canonStatus: string | null } | null;
-  relationship: string | null;
-  decisionMeaning: string | null;
-  provenanceReferences: string[];
-  aggregatePathCount: number | null;
-}
+import type { PromptEvidenceItem } from "@worldloom/shared";
 
 export function PromptOutEvidenceList({
   label,
@@ -19,7 +7,7 @@ export function PromptOutEvidenceList({
   emptyText
 }: {
   label: string;
-  items: PromptEvidenceItemView[];
+  items: PromptEvidenceItem[];
   emptyText: string;
 }) {
   return (

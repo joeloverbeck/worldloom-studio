@@ -1,5 +1,6 @@
 import React from "react";
-import { PromptOutEvidenceList, type PromptEvidenceItemView } from "./prompt-out-evidence-list.js";
+import type { PromptEvidenceItem } from "@worldloom/shared";
+import { PromptOutEvidenceList } from "./prompt-out-evidence-list.js";
 
 export interface TemporalPromptModeOffer {
   mode: "proposal" | "pressure";
@@ -21,8 +22,8 @@ export interface TemporalPacketContextView {
   coverage: Array<{ key: string; label: string; value: string }>;
   selectedSource: { id: number; shortId: string; title: string } | null;
   sourceDocuments: Array<{ source: string; content: string }>;
-  sourceManifest: PromptEvidenceItemView[];
-  omissions: PromptEvidenceItemView[];
+  sourceManifest: PromptEvidenceItem[];
+  omissions: PromptEvidenceItem[];
   outputLabels: string[];
   advisoryCanonWarning: string;
   recovery: { method: "POST"; href: string; body: Record<string, unknown> };

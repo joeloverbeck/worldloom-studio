@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { ConditionalPassKey, HealthPayload, LinkTypeDefinition, MethodCard, RecordTypeDefinition, WorkflowMapConditionalPassObligation, WorkflowMapPayload } from "@worldloom/shared";
+import type { ConditionalPassKey, HealthPayload, LinkTypeDefinition, MethodCard, PromptEvidenceItem, RecordTypeDefinition, WorkflowMapConditionalPassObligation, WorkflowMapPayload } from "@worldloom/shared";
 import {
   PropagationWorkspace,
   type ConsequenceRevisionInput,
@@ -16,7 +16,7 @@ import {
   type TemporalPromptError,
   type TemporalPromptModeOffer
 } from "./temporal-prompt-out-panel.js";
-import { PromptOutEvidenceList, type PromptEvidenceItemView } from "./prompt-out-evidence-list.js";
+import { PromptOutEvidenceList } from "./prompt-out-evidence-list.js";
 import {
   TEMPORAL_COVERAGE_KEYS,
   TemporalRevisionWorkspace,
@@ -1358,8 +1358,8 @@ export interface PropagationPacketContextPreview {
       nonCanon: boolean;
     }>;
   };
-  sourceManifest: PromptEvidenceItemView[];
-  omissions: PromptEvidenceItemView[];
+  sourceManifest: PromptEvidenceItem[];
+  omissions: PromptEvidenceItem[];
   advisoryCanonWarning: string;
   readOnlyGuarantee: string;
 }
