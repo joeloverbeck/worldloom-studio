@@ -87,6 +87,7 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     "partial-red / red-first skip reasons",
     "evidence-only rows",
     "proof server preflight",
+    "proof-process finalization",
     "existing-test contract-change rows"
   ];
   const equivalentFieldLabels = [
@@ -127,6 +128,7 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     "Evidence-only rows freshness:",
     "Evidence-only proof server preflight:",
     "Evidence-only backend process currentness:",
+    "Proof-process finalization:",
     "Evidence identity refresh:",
     "Current evidence identities:",
     "Historical red identities retained:",
@@ -466,6 +468,31 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     return "must state configured API/UI ports, owner-check result, unrelated pre-existing owners, configured-ports-free or isolated proof-owned ports with aligned proxy/API base, and cleanup ownership, or a justified N/A/blocked reason";
   };
 
+  const validateProofProcessFinalizationValue = (value) => {
+    const normalized = value.replace(/\s+/g, " ").trim();
+    if (!normalized) return "is empty";
+    if (/^<.*>$/.test(normalized)) return "is unresolved placeholder";
+    if (/^N\/A\b.+\bbecause\b.+\bno proof-owned process or session was started\b/i.test(normalized)) {
+      return "";
+    }
+    if (/^blocked\b/i.test(normalized)) return "is blocked";
+
+    const requirements = [
+      [/stdout\/stderr/i, "stdout/stderr drain"],
+      [/browser[- ]console/i, "browser-console drain"],
+      [/\b(?:stopped|intentionally retained)\b/i, "stopped or intentionally-retained disposition"],
+      [/no HMR errors/i, "no HMR errors result"],
+      [/no stale-process errors/i, "no stale-process errors result"],
+      [/no unexplained errors/i, "no unexplained errors result"]
+    ];
+    const missing = requirements.filter(([pattern]) => !pattern.test(normalized)).map(([, label]) => label);
+    if (missing.length) return `is missing ${missing.join(", ")}`;
+    if (/intentionally retained/i.test(normalized) && !/\bbecause\b/i.test(normalized)) {
+      return "requires a reason after intentionally retained";
+    }
+    return "";
+  };
+
   const validatePreRedRecoveryStatusValue = (value) => {
     const normalized = value.replace(/\s+/g, " ").trim();
     if (!normalized) return "is empty";
@@ -524,11 +551,25 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     return namesProofSurface && namesObservedResult;
   };
 
+  const hasConcreteReviewFixGreenEvidence = (cell) => {
+    const normalized = cell.replace(/\s+/g, " ").trim();
+    if (!normalized || /^<.*>$/.test(normalized) || /^N\/A\b/i.test(normalized)) return false;
+
+    const namesObservedResult = /\b(pass(?:ed|ing)?|exit(?:ed)?(?:\s+code)?\s+0|observed|received|rendered|returned|verified|confirmed|assert(?:ed|ion)?|HTTP\s+\d{3})\b/i.test(
+      normalized
+    );
+    const namesConcreteBrowserOrArtifact =
+      /\b(?:browser|Playwright|route|action|request|response|HTTP|DOM|page|artifact|screenshot)\b/i.test(normalized) &&
+      concreteProofAnchor.test(normalized);
+
+    return namesObservedResult && (hasBacktickedExecutableCommand(normalized) || namesConcreteBrowserOrArtifact);
+  };
+
   const evidenceField = (evidence, label, nextLabels) => {
     const next = nextLabels.map((nextLabel) => nextLabel.replace(" ", "\\s+")).join("|");
     return evidence.match(new RegExp(`${label.replace(" ", "\\s+")}:\\s*(.*?)(?=;\\s*(?:${next}):|$)`, "i"))?.[1].trim() ?? "";
   };
-  const circularAcceptanceReference = /\b(?:(?:every|all)\s+exact(?:\s+named)?\b[^;]*\b(?:in|from|of)\s+(?:the\s+)?(?:issue\s+)?(?:criteria|criterion|checkbox|requirement)|exact named (?:items?|atoms?|contracts?|clauses?|surfaces?) in (?:this|the) (?:criterion|criteria|checkbox|requirement)|(?:criterion|checkbox|requirement) (?:above|as written|itself)|(?:all|every) (?:named|listed) (?:items?|atoms?|surfaces?))\b/i;
+  const circularAcceptanceReference = /\b(?:(?:every|all)\s+exact(?:\s+named)?\b[^;]*\b(?:in|from|of)\s+(?:the\s+)?(?:issue\s+)?(?:criteria|criterion|checkbox|requirement)|exact named (?:items?|atoms?|contracts?|clauses?|surfaces?) in (?:this|the) (?:criterion|criteria|checkbox|requirement)|exact adjacent(?:\s+#\d+)?\s+(?:audit\s+)?rows?\s+(?:above|below)|inherited from (?:cited\s+)?(?:child|adjacent|audit) rows?|(?:criterion|checkbox|requirement) (?:above|as written|itself)|(?:all|every) (?:named|listed) (?:items?|atoms?|surfaces?))\b/i;
   const concreteProofAnchor = /(?:https?:\/\/\S+|#\d+\b|\b(?:pnpm|npm|npx|node|cargo|git|gh|curl|bash)\s+[^;]+|(?:^|[\s`(])\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]+|\b(?:[A-Za-z0-9_.-]+\/)+[A-Za-z0-9_.-]+\b|\b[A-Za-z0-9_.-]+\.(?:test|spec)\.[cm]?[jt]sx?\b|\b[A-Za-z0-9_.-]+\.(?:md|json|html|sql|sqlite|wasm|png)\b)/i;
 
   const hasExactAcceptanceReference = (cell, refs) =>
@@ -972,6 +1013,12 @@ export const validateTddCloseoutBody = (body, options = {}) => {
     errors.push(`Evidence-only proof server preflight ${proofServerPreflightError}`);
   }
 
+  const proofProcessFinalizationValue = extractFieldValue("Proof-process finalization");
+  const proofProcessFinalizationError = validateProofProcessFinalizationValue(proofProcessFinalizationValue);
+  if (proofProcessFinalizationError) {
+    errors.push(`Proof-process finalization ${proofProcessFinalizationError}`);
+  }
+
   const gateClaimsExistingTestsListed =
     /existing-test contract-change rows\s+(?!none\b)[^.;]+/i.test(gateLine);
   const gateClaimsExistingTestsNone =
@@ -1035,11 +1082,11 @@ export const validateTddCloseoutBody = (body, options = {}) => {
       errors.push(`${labelPrefix} missing Browser/manual evidence freshness:`);
     }
 
-    const browserFreshnessValue =
-      extractFieldValuesFrom(text, "Browser/manual evidence freshness")[0] ||
-      extractFieldValuesFrom(text, "Browser/manual freshness")[0] ||
-      "";
-    if (browserFreshnessValue) {
+    const browserFreshnessValues = [
+      ...extractFieldValuesFrom(text, "Browser/manual evidence freshness"),
+      ...extractFieldValuesFrom(text, "Browser/manual freshness")
+    ];
+    for (const browserFreshnessValue of browserFreshnessValues) {
       const browserFreshnessError = validateFreshnessValue(browserFreshnessValue);
       if (browserFreshnessError) {
         errors.push(`${labelPrefix} Browser/manual evidence freshness ${browserFreshnessError}`);
@@ -1051,9 +1098,27 @@ export const validateTddCloseoutBody = (body, options = {}) => {
       validateBackendCurrentnessValues(`${labelPrefix} Backend process currentness`, reviewBackendCurrentnessValues);
     }
 
-    const intendedRedValue = extractFieldValuesFrom(text, "Intended red command/failure")[0] ?? "";
-    const usesTransientBrowserRed =
-      /\b(?:Playwright|browser|run-code|waitForResponse|page\.|manual probe|manual assertion)\b/i.test(intendedRedValue);
+    const intendedRedValues = extractFieldValuesFrom(text, "Intended red command/failure");
+    for (const intendedRedValue of intendedRedValues) {
+      if (!hasConcreteRedEvidence(intendedRedValue)) {
+        errors.push(
+          `${labelPrefix} Intended red command/failure must include an exact backticked executable command plus an observed failure, or a governed N/A/skip/partial-red/coverage/shared-command reason`
+        );
+      }
+    }
+
+    const greenValues = extractFieldValuesFrom(text, "Green command/evidence");
+    for (const greenValue of greenValues) {
+      if (!hasConcreteReviewFixGreenEvidence(greenValue)) {
+        errors.push(
+          `${labelPrefix} Green command/evidence must include an exact backticked executable command plus an observed passing result, or a concrete browser/artifact anchor plus an observed result`
+        );
+      }
+    }
+
+    const usesTransientBrowserRed = intendedRedValues.some((intendedRedValue) =>
+      /\b(?:Playwright|browser|run-code|waitForResponse|page\.|manual probe|manual assertion)\b/i.test(intendedRedValue)
+    );
     if (usesTransientBrowserRed) {
       const regressionDurabilityValue = extractFieldValuesFrom(text, "Regression durability")[0] ?? "";
       const regressionDurabilityError = validateRegressionDurabilityValue(regressionDurabilityValue);

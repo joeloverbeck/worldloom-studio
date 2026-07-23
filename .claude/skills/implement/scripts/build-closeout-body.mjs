@@ -9,7 +9,7 @@ import { buildAuditScaffold } from "./build-acceptance-manifest.mjs";
 export const DEFAULT_CLOSEOUT_BODY_MAX_BYTES = 65_536;
 export const DEFAULT_CLOSEOUT_EVIDENCE_HEADROOM_BYTES = 16_384;
 
-const usage = `Usage: node .claude/skills/implement/scripts/build-closeout-body.mjs <manifest.json> --output <body.md> --parent <issue> --review <normal|fallback> [--audit-input <audit.md>] [--immediate-fix] [--tdd-parent-rollup] [--browser] [--principles] [--local-only] [--fixed-child <none|pending|final>] [--max-bytes <positive integer>] [--size-plan] [--require-headroom]`;
+const usage = `Usage: node .claude/skills/implement/scripts/build-closeout-body.mjs <manifest.json> --output <body.md> --parent <issue> --review <normal|fallback> [--audit-input <audit.md>] [--values-input <values.json>] [--immediate-fix] [--tdd-parent-rollup] [--browser] [--principles] [--local-only] [--fixed-child <none|pending|final>] [--max-bytes <positive integer>] [--size-plan] [--require-headroom]`;
 
 export const assertCloseoutBodySize = (body, maxBytes = DEFAULT_CLOSEOUT_BODY_MAX_BYTES) => {
   if (!Number.isInteger(maxBytes) || maxBytes <= 0) {
@@ -95,7 +95,104 @@ export const validateAuditInput = (manifest, audit) => {
     }
   }
 
-  return audit.trim();
+  return audit;
+};
+
+const closeoutValuePattern = /<[^>\n]{1,500}>/g;
+
+const splitCloseoutBodyAtAudit = (body, audit) => {
+  const heading = "## Acceptance audit\n\n";
+  const headingIndex = body.indexOf(heading);
+  if (headingIndex < 0) throw new Error("closeout body is missing the acceptance audit heading");
+
+  const auditStart = headingIndex + heading.length;
+  const auditEnd = auditStart + audit.length;
+  if (body.slice(auditStart, auditEnd) !== audit) {
+    throw new Error("closeout body does not contain the exact validated audit at the audit heading");
+  }
+
+  return {
+    beforeAudit: body.slice(0, auditStart),
+    audit,
+    afterAudit: body.slice(auditEnd)
+  };
+};
+
+const placeholdersIn = (value) => value.match(closeoutValuePattern) ?? [];
+
+const uniquifyCloseoutBodyValueKeys = (body, audit) => {
+  const { beforeAudit, afterAudit } = splitCloseoutBodyAtAudit(body, audit);
+  const counts = new Map();
+  for (const key of [...placeholdersIn(beforeAudit), ...placeholdersIn(afterAudit)]) {
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const seen = new Map();
+  const uniquify = (segment) => segment.replace(closeoutValuePattern, (key) => {
+    const total = counts.get(key) ?? 1;
+    if (total === 1) return key;
+    const ordinal = (seen.get(key) ?? 0) + 1;
+    seen.set(key, ordinal);
+    return `${key.slice(0, -1)} [${ordinal} of ${total}]>`;
+  });
+
+  return `${uniquify(beforeAudit)}${audit}${uniquify(afterAudit)}`;
+};
+
+export const listCloseoutBodyValueKeys = (body, audit) => {
+  const { beforeAudit, afterAudit } = splitCloseoutBodyAtAudit(body, audit);
+  return [...new Set([...placeholdersIn(beforeAudit), ...placeholdersIn(afterAudit)])].sort();
+};
+
+const requireCloseoutValuesInput = (valuesInput) => {
+  if (!valuesInput || typeof valuesInput !== "object" || Array.isArray(valuesInput)) {
+    throw new Error("values input must be an object");
+  }
+  const unknownTopLevelKeys = Object.keys(valuesInput)
+    .filter((key) => !["version", "values"].includes(key))
+    .sort();
+  if (unknownTopLevelKeys.length) {
+    throw new Error(`values input contains unknown top-level keys: ${unknownTopLevelKeys.join(", ")}`);
+  }
+  if (valuesInput.version !== 1) throw new Error("values input version must be 1");
+  if (!valuesInput.values || typeof valuesInput.values !== "object" || Array.isArray(valuesInput.values)) {
+    throw new Error("values input values must be an object");
+  }
+
+  for (const [key, value] of Object.entries(valuesInput.values)) {
+    if (typeof value !== "string" || !value.trim()) {
+      throw new Error(`values input replacement ${key} must be a non-empty string`);
+    }
+  }
+
+  return valuesInput.values;
+};
+
+export const hydrateCloseoutBody = (body, audit, valuesInput) => {
+  const values = requireCloseoutValuesInput(valuesInput);
+  const expectedKeys = listCloseoutBodyValueKeys(body, audit);
+  const providedKeys = Object.keys(values);
+  const unknownKeys = providedKeys.filter((key) => !expectedKeys.includes(key)).sort();
+  if (unknownKeys.length) {
+    throw new Error(`values input contains unknown replacements: ${unknownKeys.join(", ")}`);
+  }
+  const missingKeys = expectedKeys.filter((key) => !Object.hasOwn(values, key));
+  if (missingKeys.length) {
+    throw new Error(`values input is missing replacements for: ${missingKeys.join(", ")}`);
+  }
+
+  const replaceValues = (segment) => segment.replace(closeoutValuePattern, (key) => values[key]);
+  const { beforeAudit, afterAudit } = splitCloseoutBodyAtAudit(body, audit);
+  const hydrated = `${replaceValues(beforeAudit)}${audit}${replaceValues(afterAudit)}`
+    .replace(
+      "Scaffold status: incomplete — replace every angle-bracket placeholder and validate before publication.",
+      "Scaffold status: hydrated from --values-input; validate before publication."
+    );
+  const unresolved = listCloseoutBodyValueKeys(hydrated, audit);
+  if (unresolved.length) {
+    throw new Error(`values input left unresolved replacements: ${unresolved.join(", ")}`);
+  }
+
+  return hydrated;
 };
 
 const acceptanceIds = (issue) => issue.checks.map((check) => check.id).join(", ");
@@ -132,10 +229,11 @@ TDD closeout preflight:
 - Evidence-only browser console state: <state or N/A>
 - Evidence-only proof server preflight: <configured ports/owner-check/isolation/proxy/cleanup proof or N/A>
 - Evidence-only backend process currentness: <currentness proof or N/A>
+- Proof-process finalization: <stdout/stderr and browser console drained after the final assertion; proof-owned processes/sessions stopped or intentionally retained with reason; no HMR errors; no stale-process errors; no unexplained errors, or N/A because no proof-owned process or session was started>
 - Evidence identity refresh: <same-sink identity block inspected>
 - Existing-test contract-change rows: <none or listed>
 
-TDD evidence gate passed: durable sink <stable issue reference>; compact table/header <present after structural check>; seams accounted for <all listed>; CONTEXT.md status <present, absent, or N/A>; ADRs/principles/docs status <present or N/A>; sequence evidence <present or N/A>; evidence identities <present>; partial-red / red-first skip reasons <none or listed>; evidence-only rows <none or listed>; proof server preflight <present or N/A>; existing-test contract-change rows <none or listed>.`;
+TDD evidence gate passed: durable sink <stable issue reference>; compact table/header <present after structural check>; seams accounted for <all listed>; CONTEXT.md status <present, absent, or N/A>; ADRs/principles/docs status <present or N/A>; sequence evidence <present or N/A>; evidence identities <present>; partial-red / red-first skip reasons <none or listed>; evidence-only rows <none or listed>; proof server preflight <present or N/A>; proof-process finalization <present or N/A>; existing-test contract-change rows <none or listed>.`;
 };
 
 const reviewRows = (manifest) => manifest.issues.map(
@@ -193,7 +291,7 @@ Review subagent cleanup: Standards <disposition>; Spec <disposition>
 
 Sources reviewed: <standards sources and smell baseline>
 
-Findings: <none or findings>
+Findings: <none or terminal Standards findings only>
 
 ## Spec
 
@@ -203,7 +301,7 @@ Sources reviewed: <issues, PRD, principles, ADRs, and specs>
 |---|---|---|---|
 ${reviewRows(manifest)}
 
-Findings: <none or findings>
+Findings: <none or terminal Spec findings only>
 
 Axis summary: Standards <count/worst>, Spec <count/worst>
 
@@ -311,8 +409,11 @@ const renderCloseoutBodyScaffold = (manifest, options) => {
   const principlesLine = principles
     ? "Principles/ADR conformance: <no deliberate exceptions or approved exception>."
     : "Principles/ADR conformance: N/A because no in-scope issue has a Principles section.";
+  const proofProcessFinalization = browser
+    ? "<stdout/stderr and browser console drained after the final assertion; proof-owned processes/sessions stopped or intentionally retained with reason; no HMR errors; no stale-process errors; no unexplained errors, or N/A because no proof-owned process or session was started>"
+    : "N/A because no proof-owned process or session was started";
 
-  const body = `Implementation closeout for #${parentIssue}
+  const rawBody = `Implementation closeout for #${parentIssue}
 
 Scaffold status: incomplete — replace every angle-bracket placeholder and validate before publication.
 
@@ -362,21 +463,30 @@ Closeout preflight:
 - Browser console state: <state or N/A>
 - Browser evidence freshness: <rerun, not affected, blocked, or N/A>
 - Final post-commit freshness delta: <delta and disposition>
+- Proof-process finalization: ${proofProcessFinalization}
 - Child states verified: <exact states or N/A>
 
 Closeout gate passed: audit sink <stable issue reference>; review evidence <line or reference>; TDD evidence <present or N/A>; final SHA <sha>; Principles/ADR conformance <present or N/A>; Local-only SHA sentence <full explanatory sentence present or N/A>; child states verified <yes or N/A>; browser evidence <present, N/A, or blocked>.
 
-Closeout body check passed: audit table columns exact; every acceptance checkbox or conformance check named; every satisfied Evidence cell contains atoms/proof surfaces/sequence; every status literal satisfied/blocked/not done; final SHA present; verification evidence present; TDD evidence present or N/A; review evidence present; evidence identity refresh and superseded-token sweep present; Principles/ADR conformance string present or N/A; full Local-only SHA explanatory sentence present or N/A; browser evidence present/N/A/blocked; browser console state recorded when browser evidence is present or N/A/blocked; final browser/manual freshness delta present/N/A; exact fixed child inline comment inspected <yes or N/A>.
+Closeout body check passed: audit table columns exact; every acceptance checkbox or conformance check named; every satisfied Evidence cell contains atoms/proof surfaces/sequence; every status literal satisfied/blocked/not done; final SHA present; verification evidence present; TDD evidence present or N/A; review evidence present; review Findings lines axis-local; evidence identity refresh and superseded-token sweep present; Principles/ADR conformance string present or N/A; full Local-only SHA explanatory sentence present or N/A; browser evidence present/N/A/blocked; browser console state recorded when browser evidence is present or N/A/blocked; final browser/manual freshness delta present/N/A; proof-process finalization present/N/A/blocked; exact fixed child inline comment inspected <yes or N/A>.
 `;
+
+  const body = uniquifyCloseoutBodyValueKeys(rawBody, auditText);
 
   return { body, auditText, maxBytes };
 };
 
 export const buildCloseoutBodyPlan = (manifest, options) => {
   const rendered = renderCloseoutBodyScaffold(manifest, options);
+  if (options.valuesInput !== undefined && options.audit === undefined) {
+    throw new Error("values input requires an explicit completed audit input");
+  }
+  const body = options.valuesInput === undefined
+    ? rendered.body
+    : hydrateCloseoutBody(rendered.body, rendered.auditText, options.valuesInput);
   return {
-    body: rendered.body,
-    sizePlan: buildCloseoutBodySizePlan(rendered.body, rendered.auditText, rendered.maxBytes)
+    body,
+    sizePlan: buildCloseoutBodySizePlan(body, rendered.auditText, rendered.maxBytes)
   };
 };
 
@@ -389,7 +499,7 @@ const isCli = process.argv[1] && import.meta.url === pathToFileURL(resolve(proce
 
 if (isCli) {
   const args = process.argv.slice(2);
-  const valueFlags = ["--output", "--audit-input", "--parent", "--review", "--fixed-child", "--max-bytes"];
+  const valueFlags = ["--output", "--audit-input", "--values-input", "--parent", "--review", "--fixed-child", "--max-bytes"];
   const valueFor = (flag) => {
     const index = args.indexOf(flag);
     return index < 0 ? undefined : args[index + 1];
@@ -421,6 +531,11 @@ if (isCli) {
       const value = valueFor("--audit-input");
       if (!value || value.startsWith("--")) throw new Error("--audit-input requires a path");
     }
+    if (args.includes("--values-input")) {
+      const value = valueFor("--values-input");
+      if (!value || value.startsWith("--")) throw new Error("--values-input requires a path");
+      if (!args.includes("--audit-input")) throw new Error("--values-input requires --audit-input");
+    }
     if (args.includes("--fixed-child") && (!fixedChildMode || fixedChildMode.startsWith("--"))) {
       throw new Error("--fixed-child requires a value");
     }
@@ -431,9 +546,11 @@ if (isCli) {
 
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
     const auditPath = valueFor("--audit-input");
+    const valuesPath = valueFor("--values-input");
     const { body, sizePlan } = buildCloseoutBodyPlan(manifest, {
       parentIssue: Number(parentText),
       audit: auditPath ? readFileSync(auditPath, "utf8") : undefined,
+      valuesInput: valuesPath ? JSON.parse(readFileSync(valuesPath, "utf8")) : undefined,
       reviewMode,
       immediateFix: args.includes("--immediate-fix"),
       tddParentRollup: args.includes("--tdd-parent-rollup"),

@@ -91,6 +91,7 @@ TDD closeout preflight:
 - Evidence-only rows freshness: none
 - Evidence-only proof server preflight: N/A because no browser/manual evidence-only rows
 - Evidence-only backend process currentness: N/A because no browser/manual evidence-only rows
+- Proof-process finalization: N/A because no proof-owned process or session was started
 - Evidence identity refresh: same-sink current/historical-red/superseded identity block inspected
 - Existing-test contract-change rows: none
 
@@ -100,7 +101,7 @@ Evidence identity refresh:
 - Superseded evidence identities: ${superseded}
 - Superseded-token sweep: ${sweep}
 
-TDD evidence gate passed: durable sink test fixture; compact table/header present after structural check; seams accounted for all listed; CONTEXT.md status present; ADRs/principles/docs status present; sequence evidence present; evidence identities present; partial-red / red-first skip reasons none; evidence-only rows none; proof server preflight N/A; existing-test contract-change rows none.
+TDD evidence gate passed: durable sink test fixture; compact table/header present after structural check; seams accounted for all listed; CONTEXT.md status present; ADRs/principles/docs status present; sequence evidence present; evidence identities present; partial-red / red-first skip reasons none; evidence-only rows none; proof server preflight N/A; proof-process finalization N/A; existing-test contract-change rows none.
 `;
 
 const browserEvidenceBodyWith = (backendCurrentness) =>
@@ -117,13 +118,17 @@ const browserEvidenceBodyWith = (backendCurrentness) =>
     .replace(
       "- Evidence-only proof server preflight: N/A because no browser/manual evidence-only rows",
       "- Evidence-only proof server preflight: configured API/UI ports 4173 and 5173; owner-check result occupied; unrelated pre-existing owners PID 100 and PID 101; isolated proof-owned ports 4174 and 5174 with proxy aligned; cleanup ownership proof PIDs only"
+    )
+    .replace(
+      "- Proof-process finalization: N/A because no proof-owned process or session was started",
+      "- Proof-process finalization: stdout/stderr drained after the final assertion; browser console drained; proof-owned server and browser session stopped; no HMR errors; no stale-process errors; no unexplained errors"
     );
 
 const reviewFixBodyWith = (freshnessLabel) => `${bodyWith()}
 TDD review-fix addendum:
 - Finding: closeout citation wording
 - Intended red command/failure: red-first skipped because Standards-only/conformance-only fix did not change behavior
-- Green command/evidence: validator passed
+- Green command/evidence: \`node .claude/skills/tdd/scripts/validate-tdd-closeout-body.test.mjs\` passed: 1 focused test; exit 0
 - Updated TDD table row: #1 red-first public workflow
 - Regression durability: N/A because the intended red was not a transient browser/manual probe
 - ${freshnessLabel}: N/A because no UI/routes/browser-consumed API/fixtures/action path changed
@@ -373,15 +378,22 @@ test("rejects an empty sequence value", () => {
   assert.ok(validateTddCloseoutBody(body).some((error) => error.includes("empty sequence: value")));
 });
 
-test("rejects the circular atom wording from the published session closeout", () => {
-  const body = bodyWith({
-    acceptance:
-      "AC1 exact workflow; atoms: every exact named contract and authority in the issue criteria; proof surfaces: production browser; sequence: Proposal -> staging -> Pressure observed in one browser session"
-  });
+test("rejects circular atom wording from published session closeouts", () => {
+  for (const atoms of [
+    "every exact named contract and authority in the issue criteria",
+    "exact adjacent #397 audit rows below",
+    "inherited from cited child rows"
+  ]) {
+    const body = bodyWith({
+      acceptance:
+        `AC1 exact workflow; atoms: ${atoms}; proof surfaces: production browser; sequence: Proposal -> staging -> Pressure observed in one browser session`
+    });
 
-  assert.ok(
-    validateTddCloseoutBody(body).some((error) => error.includes("uses a circular atom or proof-surface reference"))
-  );
+    assert.ok(
+      validateTddCloseoutBody(body).some((error) => error.includes("uses a circular atom or proof-surface reference")),
+      atoms
+    );
+  }
 });
 
 test("rejects an unanchored proof surface without matching concrete green evidence", () => {
@@ -441,6 +453,21 @@ test("accepts slash ownership and a domain-qualified expected API field probe", 
   );
 
   assert.deepEqual(validateTddCloseoutBody(body), []);
+});
+
+test("browser evidence requires finalized proof-process output before mutation", () => {
+  const body = browserEvidenceBodyWith(
+    "server command pnpm dev; watch/reload mode active; process/port ownership PID 23056 on ports 5173 and 4173; restart/reload proof server restarted; expected Propagation API field probe returned blockers"
+  );
+  const missing = body.replace(/^- Proof-process finalization:.*\n/m, "");
+  const blocked = body.replace(
+    /^- Proof-process finalization:.*$/m,
+    "- Proof-process finalization: blocked because HMR output remains unexplained"
+  );
+
+  assert.deepEqual(validateTddCloseoutBody(body), []);
+  assert.ok(validateTddCloseoutBody(missing).some((error) => error.includes("Proof-process finalization")));
+  assert.ok(validateTddCloseoutBody(blocked).some((error) => error.includes("Proof-process finalization is blocked")));
 });
 
 test("still rejects backend currentness without an expected API probe", () => {
@@ -520,6 +547,82 @@ test("accepts the shared browser/manual evidence freshness review-fix label", ()
 
 test("continues to accept the legacy browser/manual freshness review-fix label", () => {
   assert.deepEqual(validateTddCloseoutBody(reviewFixBodyWith("Browser/manual freshness")), []);
+});
+
+test("rejects prose-only intended red evidence in a review-fix addendum", () => {
+  const body = reviewFixBodyWith("Browser/manual evidence freshness").replace(
+    "red-first skipped because Standards-only/conformance-only fix did not change behavior",
+    "focused web tests failed on the review finding"
+  );
+
+  assert.ok(
+    validateTddCloseoutBody(body).some((error) =>
+      error.includes("review-fix addendum Intended red command/failure must include")
+    )
+  );
+});
+
+test("rejects prose-only green evidence in a review-fix addendum", () => {
+  const body = reviewFixBodyWith("Browser/manual evidence freshness").replace(
+    "`node .claude/skills/tdd/scripts/validate-tdd-closeout-body.test.mjs` passed: 1 focused test; exit 0",
+    "validator passed"
+  );
+
+  assert.ok(
+    validateTddCloseoutBody(body).some((error) =>
+      error.includes("review-fix addendum Green command/evidence must include")
+    )
+  );
+});
+
+test("validates every review-fix addendum independently", () => {
+  const body = `${reviewFixBodyWith("Browser/manual evidence freshness")}
+TDD review-fix addendum:
+- Finding: second review finding
+- Intended red command/failure: focused web tests failed on the second finding
+- Green command/evidence: \`node --test focused-review.test.mjs\` passed: 2 tests; exit 0
+- Updated TDD table row: #1 second review fix
+- Regression durability: N/A because the intended red was not a transient browser/manual probe
+- Browser/manual evidence freshness: N/A because no UI/routes/browser-consumed API/fixtures/action path changed
+- Backend process currentness: N/A because no browser/manual proof was used
+- Evidence identity refresh: same-sink current/historical-red/superseded identity block inspected
+`;
+
+  const errors = validateTddCloseoutBody(body);
+  assert.equal(
+    errors.filter((error) => error.includes("Intended red command/failure must include")).length,
+    1
+  );
+});
+
+test("validates every repeated equivalent review-fix field independently", () => {
+  const body = `${bodyWith()}
+TDD/review-fix evidence:
+- Finding: first equivalent review fix
+- Intended red command/failure: red-first skipped because Standards-only/conformance-only fix did not change behavior
+- Green command/evidence: \`node --test first-review.test.mjs\` passed: 1 test; exit 0
+- Updated TDD table row: #1 first equivalent review fix
+- Browser/manual evidence freshness: N/A because no UI/routes/browser-consumed API/fixtures/action path changed
+- Backend process currentness: N/A because no browser/manual proof was used
+- Evidence identity refresh: same-sink current/historical-red/superseded identity block inspected
+- Finding: second equivalent review fix
+- Intended red command/failure: focused tests failed on the second equivalent fix
+- Green command/evidence: validator passed
+- Updated TDD table row: #1 second equivalent review fix
+- Browser/manual evidence freshness: N/A because no UI/routes/browser-consumed API/fixtures/action path changed
+- Backend process currentness: N/A because no browser/manual proof was used
+- Evidence identity refresh: same-sink current/historical-red/superseded identity block inspected
+`;
+
+  const errors = validateTddCloseoutBody(body);
+  assert.equal(
+    errors.filter((error) => error.includes("Intended red command/failure must include")).length,
+    1
+  );
+  assert.equal(
+    errors.filter((error) => error.includes("Green command/evidence must include")).length,
+    1
+  );
 });
 
 test("rejects a prose-only review-fix addendum heading", () => {
@@ -613,6 +716,7 @@ test("guidance carries sink, snapshot, exactness, and shared closeout contracts"
   assert.match(skill, /Published current evidence survives cleanup truthfully/);
   assert.match(skill, /Authority-sensitive fixture identity stays explicit/);
   assert.match(skill, /Before starting or attaching to any proof server/);
+  assert.match(skill, /After the final browser\/manual assertion and before the first tracker mutation/);
   assert.match(testsGuide, /SQLite `.backup`/);
   assert.match(closeout, /copied stateful fixture snapshot method\/source and expected-state probe/);
   assert.match(closeout, /Nested-validator angle-token check/);
@@ -625,6 +729,8 @@ test("guidance carries sink, snapshot, exactness, and shared closeout contracts"
   assert.match(closeout, /every exact named contract in the issue criteria/);
   assert.match(closeout, /fixture paths withheld because/);
   assert.match(closeout, /Evidence-only proof server preflight:/);
+  assert.match(closeout, /Proof-process finalization:/);
+  assert.match(closeout, /verify-split-tdd-closeout-family\.mjs/);
   assert.match(closeout, /--expected-final-sha "\$\(git rev-parse HEAD\)"/);
   assert.match(closeout, /--acceptance-manifest <path>/);
   assert.match(closeout, /--size-plan --require-headroom/);

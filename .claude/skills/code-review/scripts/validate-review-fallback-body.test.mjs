@@ -165,6 +165,7 @@ TDD closeout preflight:
 - Evidence-only rows freshness: none
 - Evidence-only proof server preflight: N/A because no browser/manual evidence-only rows
 - Evidence-only backend process currentness: N/A because no browser/manual evidence-only rows
+- Proof-process finalization: N/A because no proof-owned process or session was started
 - Evidence identity refresh: same-sink current/historical-red/superseded identity block inspected
 - Existing-test contract-change rows: none
 
@@ -174,7 +175,7 @@ Evidence identity refresh:
 - Superseded evidence identities: fixture paths none; browser sessions none; packet paths/hashes none; active revisions none; artifacts none
 - Superseded-token sweep: N/A because every superseded category is none
 
-TDD evidence gate passed: durable sink issue #355 closeout comment; compact table/header present after structural check; seams accounted for all listed; CONTEXT.md status present; ADRs/principles/docs status present; sequence evidence present; evidence identities present; partial-red / red-first skip reasons none; evidence-only rows none; proof server preflight N/A; existing-test contract-change rows none.
+TDD evidence gate passed: durable sink issue #355 closeout comment; compact table/header present after structural check; seams accounted for all listed; CONTEXT.md status present; ADRs/principles/docs status present; sequence evidence present; evidence identities present; partial-red / red-first skip reasons none; evidence-only rows none; proof server preflight N/A; proof-process finalization N/A; existing-test contract-change rows none.
 `;
 
 const fallbackWithCurrentTdd = `${baseBody

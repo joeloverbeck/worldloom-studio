@@ -23,6 +23,7 @@ and one entry per published issue. Single-issue options:
   --expect-stories             Require the user-story coverage section.
   --placeholder-re <pattern>   Placeholder regex; defaults to #SLICE|PLACEHOLDER.
   --forbid-pattern <pattern>   Reject a run-specific regex; repeat as needed.
+  --summary                    Print compact pass/fail output instead of the full report.
 
 See references/publication-protocol.md.`;
 
@@ -364,6 +365,64 @@ export const verifyPublishedFamily = ({
   };
 };
 
+const failedCheckNames = (checks) => Object.entries(checks ?? {})
+  .filter(([, passed]) => !passed)
+  .map(([name]) => name);
+
+const summarizeFailedReports = (reports) => reports
+  .map((report) => ({
+    failedChecks: failedCheckNames(report.checks),
+    ...(report.number != null ? { number: report.number } : {}),
+    ...(report.slice != null ? { slice: report.slice } : {}),
+    ...(report.title != null ? { title: report.title } : {}),
+  }))
+  .filter((report) => report.failedChecks.length > 0);
+
+export const summarizePublishedReport = (report) => {
+  const summary = {
+    failedChecks: report.failedChecks,
+    mode: report.mode,
+    passed: report.failedChecks.length === 0,
+  };
+  if (report.mode === "published-child") {
+    summary.number = report.number;
+    summary.title = report.title;
+    summary.url = report.url;
+    return summary;
+  }
+
+  summary.approvedCount = report.approvedCount;
+  summary.childCount = report.children.length;
+  summary.failedChildren = summarizeFailedReports(report.children);
+
+  const relationship = report.parent ?? report.source;
+  const relationshipFailedChecks = failedCheckNames(relationship?.checks);
+  if (relationshipFailedChecks.length > 0) {
+    summary.relationshipFailure = {
+      failedChecks: relationshipFailedChecks,
+      number: relationship?.number,
+    };
+  }
+
+  const workingLedgerFailedChecks = failedCheckNames(report.workingPublicationLedger?.checks);
+  if (workingLedgerFailedChecks.length > 0) {
+    summary.workingLedgerFailure = { failedChecks: workingLedgerFailedChecks };
+  }
+
+  if (report.checks?.checklistVerified === false) {
+    const checklist = report.checklistReport ?? {};
+    summary.checklistFailure = {
+      failedChecks: checklist.failedChecks ?? [],
+      failedSlices: summarizeFailedReports([
+        ...(checklist.affected ?? []),
+        ...(checklist.unaffected ?? []),
+      ]),
+      error: checklist.stderr?.trim() || undefined,
+    };
+  }
+  return summary;
+};
+
 const fetchIssue = (number, includeComments = false) => {
   const fields = includeComments
     ? "number,title,body,labels,state,url,comments"
@@ -499,7 +558,9 @@ const runChecklistValidation = (manifest) => {
 };
 
 const main = () => {
-  const argv = process.argv.slice(2);
+  const rawArgv = process.argv.slice(2);
+  const summaryOutput = rawArgv.includes("--summary");
+  const argv = rawArgv.filter((argument) => argument !== "--summary");
   if (argv.length === 0 || argv.includes("--help")) {
     console.log(usage);
     process.exit(argv.includes("--help") ? 0 : 2);
@@ -521,7 +582,12 @@ const main = () => {
       const failedChecks = Object.entries(report.checks)
         .filter(([, passed]) => !passed)
         .map(([name]) => name);
-      console.log(JSON.stringify({ mode: "published-child", ...report, failedChecks }, null, 2));
+      const publishedReport = { mode: "published-child", ...report, failedChecks };
+      console.log(JSON.stringify(
+        summaryOutput ? summarizePublishedReport(publishedReport) : publishedReport,
+        null,
+        2,
+      ));
       if (failedChecks.length > 0) process.exit(1);
       return;
     }
@@ -555,7 +621,7 @@ const main = () => {
       workingLedger,
     });
     report.checklistReport = checklist.report;
-    console.log(JSON.stringify(report, null, 2));
+    console.log(JSON.stringify(summaryOutput ? summarizePublishedReport(report) : report, null, 2));
     if (report.failedChecks.length > 0) process.exit(1);
   } catch (error) {
     console.error(JSON.stringify({ error: error.message, mode: "published-family" }, null, 2));

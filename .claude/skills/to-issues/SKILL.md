@@ -194,6 +194,6 @@ Execution spine:
 4. Publish in dependency order and verify each returned issue before continuing.
 5. In child mode, validate and post the approved parent ledger or apply its approved fallback; in standalone-source mode, verify the approved source relationship in the issue body.
 6. Run the live published-family verifier against the staged bodies and complete run sheet.
-7. Remove every temporary artifact, prove cleanup, inspect final worktree status, and report the verified family.
+7. Remove every temporary artifact, prove cleanup, inspect final worktree status, and report the verified family using the protocol's per-issue Final Response Blocker table plus its explicit ledger, cleanup, and worktree lines.
 
 Completion criterion: the approved-created count matches; every published issue and blocker is live-verified; the approved parent/ledger or standalone-source relationship is verified; checklist, placeholder/path, and cleanup gates pass; and the final response contains the proof required by the publication protocol.

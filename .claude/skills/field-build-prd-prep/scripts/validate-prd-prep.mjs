@@ -136,18 +136,30 @@ const appSeedIdentities = (source) => {
   });
 };
 
-const regressionIdentities = (source) => {
+const regressionCoverage = (source) => {
   const regressionSection = sectionBody(source, /^## Regression of prior findings\s*$/i);
   const identities = new Map();
+  const unparsed = [];
   for (const line of regressionSection.split(/\r?\n/)) {
     const trimmed = line.trim();
     const candidate = trimmed.startsWith("|")
       ? tableCells(line)[0] ?? ""
       : trimmed.match(/^(?:[-*+]|\d+\.)\s+(.+)$/)?.[1] ?? "";
-    const match = candidate.match(/\b(field build\s+\d+\s+[prfmqv]-\d+)\b/i);
-    if (match) identities.set(normalize(match[1]), match[1]);
+    if (!candidate) continue;
+
+    const matches = [...candidate.matchAll(/\b(?:field build\s+|fb)(\d+)\s+([prfmqv]-\d+(?:\s*\/\s*[prfmqv]-\d+)*)\b/gi)];
+    for (const match of matches) {
+      for (const findingId of match[2].split("/").map((value) => value.trim().toUpperCase())) {
+        const identity = `Field Build ${match[1]} ${findingId}`;
+        identities.set(normalize(identity), identity);
+      }
+    }
+
+    if (matches.length === 0 && /\b(?:field build\s+\d+|fb\d+|[prfmqv]-\d+)\b/i.test(candidate)) {
+      unparsed.push(candidate);
+    }
   }
-  return [...identities.values()];
+  return { identities: [...identities.values()], unparsed };
 };
 
 const frontierIdentities = (source) => {
@@ -194,9 +206,13 @@ export const validatePrdPrep = ({ source, artifact }) => {
   const rows = evidenceRows(artifact, errors);
   const findings = findingIdentities(source);
   const appSeeds = appSeedIdentities(source);
-  const regressions = regressionIdentities(source);
+  const regression = regressionCoverage(source);
+  const regressions = regression.identities;
   const frontierItems = frontierIdentities(source);
 
+  for (const candidate of regression.unparsed) {
+    errors.push(`unparsed regression identity: ${candidate}`);
+  }
   for (const finding of findings) {
     const prefix = normalize(finding.id);
     requireOneRow(errors, rows, `finding ${finding.id}`, (row) => row.normalizedLabel === prefix || row.normalizedLabel.startsWith(`${prefix} `));

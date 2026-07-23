@@ -377,6 +377,96 @@ test("emit-preflight prints the exact validated preflight block and gate line", 
   assert.equal(result.stdout, expected);
 });
 
+test("browser closeout requires finalized proof-process output before mutation", () => {
+  const manifest = buildAcceptanceManifest(issueInput);
+  const rows = [
+    `| #359 | AC1 - First exact behavior | ${evidence} | satisfied |`,
+    `| #359 | AC2 - Second exact behavior with a continuation | ${evidence} | satisfied |`,
+    `| #359 | Principles - Principles/ADR conformance for #359 | ${evidence} | satisfied |`
+  ];
+  const browserBody = closeoutBody(rows)
+    .replace(
+      "Browser evidence: N/A because process-only work changed no browser-consumed surface\nConsole state: N/A because browser evidence is N/A\nFinal freshness delta: N/A because browser evidence is N/A",
+      "Browser evidence: route /worlds/alpha; action opened guided flow; outcome stable evidence row\nConsole state: 0 errors and 0 warnings\nFinal freshness delta: browser smoke rerun passed on final tree"
+    )
+    .replace(
+      `- Final SHA: ${expectedFinalSha}`,
+      `- Final SHA: ${expectedFinalSha}\n- Proof-process finalization: stdout/stderr drained after the final assertion; browser console drained; proof-owned dev server and browser session stopped; no HMR errors; no stale-process errors; no unexplained errors`
+    )
+    .replace(
+      "Closeout body check passed: exact fields inspected.",
+      "Closeout body check passed: exact fields inspected; proof-process finalization present/N/A/blocked."
+    );
+
+  const passed = runValidator(browserBody, manifest, ["--closing", "--browser"]);
+  const missing = runValidator(
+    browserBody.replace(/^- Proof-process finalization:.*\n/m, ""),
+    manifest,
+    ["--closing", "--browser"]
+  );
+  const blocked = runValidator(
+    browserBody.replace(/^- Proof-process finalization:.*$/m, "- Proof-process finalization: blocked because HMR output is unresolved"),
+    manifest,
+    ["--closing", "--browser"]
+  );
+
+  assert.equal(passed.status, 0, passed.stderr);
+  assert.equal(missing.status, 1);
+  assert.match(missing.stderr, /missing Proof-process finalization/);
+  assert.equal(blocked.status, 1);
+  assert.match(blocked.stderr, /Proof-process finalization is blocked/);
+});
+
+test("normal closeout Findings lines remain terminal and axis-local", () => {
+  const manifest = buildAcceptanceManifest(issueInput);
+  const rows = [
+    `| #359 | AC1 - First exact behavior | ${evidence} | satisfied |`,
+    `| #359 | AC2 - Second exact behavior with a continuation | ${evidence} | satisfied |`,
+    `| #359 | Principles - Principles/ADR conformance for #359 | ${evidence} | satisfied |`
+  ];
+  const axisBlock = `Review: code-review against abcdef0; outcome no findings; verification rerun node --test.
+
+## Standards
+
+Sources reviewed: AGENTS.md
+Findings: none
+
+## Spec
+
+Sources reviewed: issue #359
+Findings: none
+
+Axis summary: Standards 0/none, Spec 0/none`;
+  const axisBody = closeoutBody(rows)
+    .replace(
+      "Review: code-review against abcdef0; outcome no findings; verification rerun node --test.",
+      axisBlock
+    )
+    .replace(
+      "Closeout body check passed: exact fields inspected.",
+      "Closeout body check passed: exact fields inspected; review Findings lines axis-local."
+    );
+
+  const passed = runValidator(axisBody, manifest);
+  const contaminated = runValidator(
+    axisBody.replace(
+      "Sources reviewed: issue #359\nFindings: none",
+      "Sources reviewed: issue #359\nFindings: none in final review; two earlier Standards findings were fixed"
+    ),
+    manifest
+  );
+  const inconsistentCount = runValidator(
+    axisBody.replace("Axis summary: Standards 0/none, Spec 0/none", "Axis summary: Standards 1/medium, Spec 0/none"),
+    manifest
+  );
+
+  assert.equal(passed.status, 0, passed.stderr);
+  assert.equal(contaminated.status, 1);
+  assert.match(contaminated.stderr, /Spec Findings must be exactly "none" when Axis summary reports zero/);
+  assert.equal(inconsistentCount.status, 1);
+  assert.match(inconsistentCount.stderr, /Standards Findings cannot be none when Axis summary reports 1/);
+});
+
 test("audit-only validator accepts a review-ready audit without closeout fields", () => {
   const manifest = buildAcceptanceManifest(issueInput);
   const result = runValidator(
@@ -701,6 +791,7 @@ test("normal-review template and validator matrix use the normal contract", () =
   const gates = readFileSync(resolve(skillRoot, "references/tracker-closeout-gates.md"), "utf8");
 
   assert.match(template, /The review portion above is the normal `code-review` path/);
+  assert.match(template, /Each section's `Findings:` line is terminal and axis-local/);
   assert.doesNotMatch(template, /Review fallback: <fallback line, or N\/A because code-review ran normally>/);
   assert.match(template, /## Standards[\s\S]+## Spec/);
   assert.match(template, /\| Issue \| Acceptance source \| Evidence reviewed \| Findings\/residuals \|/);
@@ -735,6 +826,7 @@ test("implementation guidance carries the audited staging, exactness, and siblin
   assert.match(evidenceGuide, /publish only rows whose represented\s+SHA\/tree is the final SHA/);
   assert.match(evidenceGuide, /published current artifact is not safe to remove until closeout is complete/);
   assert.match(evidenceGuide, /Before starting or attaching to any proof server, inspect the configured API\/UI ports/);
+  assert.match(evidenceGuide, /Immediately before the first tracker mutation, finalize every proof-owned browser session/);
   assert.match(evidenceGuide, /fixture paths withheld because <authority and reason>/);
   assert.match(scopeGuide, /save one canonical ordered JSON snapshot/);
   assert.match(scopeGuide, /capture-github-issues\.mjs <issue\.\.\.> --output \/tmp\/worldloom-issues\.json/);
@@ -753,12 +845,17 @@ test("implementation guidance carries the audited staging, exactness, and siblin
   assert.match(template, /65,536-byte maximum/);
   assert.match(template, /wc -c "\$body"/);
   assert.match(template, /Do not recover space with circular evidence/);
+  assert.match(template, /verify-split-closeout-family\.mjs/);
+  assert.match(template, /chunk-first branch overrides the parent-first 4\+ child default/);
   assert.match(template, /Authority-sensitive alternative when local fixture paths must not be published/);
   assert.match(reviewGuide, /no hits outside classified identity\/history lines and no active-proof hits/);
   assert.doesNotMatch(template, /Durable sink\/body inspected: <inspected body file path/);
   assert.match(gates, /Working pre-review audit/);
   assert.match(gates, /--audit-only --acceptance-manifest/);
   assert.match(gates, /Never drop `--expected-final-sha` from a closing validation/);
+  assert.match(gates, /`--browser` when browser\/manual proof was used/);
+  assert.match(gates, /Proof-process finalization:/);
+  assert.match(gates, /verify-split-closeout-family\.mjs/);
   assert.match(gates, /copy the emitted `Closeout preflight:` block plus `Closeout gate passed:` line verbatim/);
   assert.match(gates, /two or more sibling issues with no parent PRD/);
   assert.match(gates, /nested validator may classify the entire cell as unresolved/);
@@ -767,7 +864,10 @@ test("implementation guidance carries the audited staging, exactness, and siblin
   assert.match(gates, /exact stored-body verification with `verify-github-comment-body\.mjs`/);
   assert.match(childGuide, /verify-github-comment-body\.mjs <parent-comment-url> <parent-body>/);
   assert.match(childGuide, /verify-github-comment-body\.mjs <child-comment-url> <child-body>/);
+  assert.match(childGuide, /## Oversized split-audit exception/);
+  assert.match(childGuide, /chunk-first workflow.*overrides the parent-first default/);
   assert.match(skill, /published `Current evidence identities:` inventory is not safe to remove/);
+  assert.match(skill, /finalize it before the first tracker mutation/);
 });
 
 test("documented normal-review fields satisfy the normal-review validator", () => {

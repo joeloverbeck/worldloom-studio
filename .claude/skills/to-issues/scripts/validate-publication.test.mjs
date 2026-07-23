@@ -3,7 +3,11 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { validateChild, validateRunSheet } from "./validate-publication.mjs";
+import {
+  summarizeValidationReport,
+  validateChild,
+  validateRunSheet,
+} from "./validate-publication.mjs";
 
 const checklistItems = [
   "package source cited",
@@ -18,6 +22,10 @@ const checklistItems = [
   "read-side audit or provenance link",
   "cognitive walkthrough scenario",
 ];
+
+const acceptanceTextForChecklistItem = (item) => item === "blockers/substance validation"
+  ? "Server blockers refuse incomplete work."
+  : `${item}.`;
 
 const issueBody = (blocker = "None - can start immediately") => `
 ## Parent
@@ -47,11 +55,11 @@ No exception.
 
 const checklistIssueBody = () => issueBody().replace(
   "- [ ] Observable behavior.",
-  checklistItems.map((item) => `- [ ] ${item}.`).join("\n"),
+  checklistItems.map((item) => `- [ ] ${acceptanceTextForChecklistItem(item)}`).join("\n"),
 );
 
 const checklistRows = (slice) => checklistItems
-  .map((item, index) => `| ${slice} | ${item} | AC ${index + 1} - "${item}." | - |`)
+  .map((item, index) => `| ${slice} | ${item} | AC ${index + 1} - "${acceptanceTextForChecklistItem(item)}" | - |`)
   .join("\n");
 
 const options = (overrides = {}) => ({
@@ -196,6 +204,36 @@ ${rows}
   }
 });
 
+test("run-sheet mode accepts JSON-style escaped quotes inside an excerpt", () => {
+  const directory = mkdtempSync(join(tmpdir(), "to-issues-validator-"));
+  try {
+    const bodyA = join(directory, "a.md");
+    writeFileSync(bodyA, checklistIssueBody().replace(
+      "package source cited.",
+      'package source cites the "World Loom" package.',
+    ));
+    const rows = checklistRows("Slice A").replace(
+      'AC 1 - "package source cited."',
+      'AC 1 - "package source cites the \\"World Loom\\" package."',
+    );
+
+    const report = validateRunSheet([
+      "| Slice | Checklist item | Covered by final AC mapping | N/A reason |",
+      "|---|---|---|---|",
+      rows,
+    ].join("\n"), options({ sliceBodies: [{ slice: "Slice A", path: bodyA }] }));
+
+    assert.equal(report.affected[0].checks.hasCoverageOrNa, true);
+    assert.equal(report.affected[0].checks.hasMatchingAcceptanceExcerpts, true);
+    assert.equal(
+      report.affected[0].resolvedCoverage[0].excerpt,
+      'package source cites the "World Loom" package.',
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("run-sheet mode rejects a bare AC ordinal without a verbatim excerpt", () => {
   const directory = mkdtempSync(join(tmpdir(), "to-issues-validator-"));
   try {
@@ -249,27 +287,27 @@ ${rows}
   }
 });
 
-test("run-sheet mode accepts repo-native governed-deferral and incomplete-work language", () => {
+test("run-sheet mode accepts governed-skip, plural-test, and incomplete-work language", () => {
   const directory = mkdtempSync(join(tmpdir(), "to-issues-validator-"));
   try {
     const bodyA = join(directory, "a.md");
     writeFileSync(bodyA, checklistIssueBody()
       .replace(
-        "skip path and reason storage.",
-        "Governed deferral requires a rationale and records it in immutable history.",
+        "prompt packet preview, source manifest, and cold external LLM test.",
+        "Prompt packet preview and source manifest drive cold external LLM tests.",
       )
       .replace(
-        "blockers/substance validation.",
-        "Server blockers refuse incomplete specialized work and return remediation.",
+        "skip path and reason storage.",
+        "A governed skip retains its reason in immutable history.",
       ));
     const rows = checklistRows("Slice A")
       .replace(
-        'AC 7 - "skip path and reason storage."',
-        'AC 7 - "Governed deferral requires a rationale and records it in immutable history."',
+        'AC 5 - "prompt packet preview, source manifest, and cold external LLM test."',
+        'AC 5 - "Prompt packet preview and source manifest drive cold external LLM tests."',
       )
       .replace(
-        'AC 8 - "blockers/substance validation."',
-        'AC 8 - "Server blockers refuse incomplete specialized work and return remediation."',
+        'AC 7 - "skip path and reason storage."',
+        'AC 7 - "A governed skip retains its reason in immutable history."',
       );
 
     const report = validateRunSheet(`
@@ -320,12 +358,68 @@ test("run-sheet mode still requires incomplete-work or substance validation", ()
   try {
     const bodyA = join(directory, "a.md");
     writeFileSync(bodyA, checklistIssueBody().replace(
-      "blockers/substance validation.",
+      "Server blockers refuse incomplete work.",
       "Server blockers return exact remediation.",
     ));
     const rows = checklistRows("Slice A").replace(
-      'AC 8 - "blockers/substance validation."',
+      'AC 8 - "Server blockers refuse incomplete work."',
       'AC 8 - "Server blockers return exact remediation."',
+    );
+
+    const report = validateRunSheet(`
+| Slice | Checklist item | Covered by final AC mapping | N/A reason |
+|---|---|---|---|
+${rows}
+`, options({ sliceBodies: [{ slice: "Slice A", path: bodyA }] }));
+
+    assert.deepEqual(report.affected[0].missingCompositeComponents, [{
+      item: "blockers/substance validation",
+      missing: ["substance validation"],
+    }]);
+    assert.equal(report.checks.affectedSlicesPass, false);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("run-sheet mode accepts concrete source-selection validity as substance validation", () => {
+  const directory = mkdtempSync(join(tmpdir(), "to-issues-validator-"));
+  try {
+    const bodyA = join(directory, "a.md");
+    const criterion = "The contract defines missing, incompatible source type, unavailable standing, stale binding, and mismatched obligation states with exact adjacent blockers, remediation, and preserved correction input.";
+    writeFileSync(bodyA, checklistIssueBody().replace(
+      "Server blockers refuse incomplete work.",
+      criterion,
+    ));
+    const rows = checklistRows("Slice A").replace(
+      'AC 8 - "Server blockers refuse incomplete work."',
+      `AC 8 - "${criterion}"`,
+    );
+
+    const report = validateRunSheet(`
+| Slice | Checklist item | Covered by final AC mapping | N/A reason |
+|---|---|---|---|
+${rows}
+`, options({ sliceBodies: [{ slice: "Slice A", path: bodyA }] }));
+
+    assert.deepEqual(report.affected[0].missingCompositeComponents, []);
+    assert.equal(report.checks.affectedSlicesPass, true);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("run-sheet mode rejects a label-only substance-validation claim", () => {
+  const directory = mkdtempSync(join(tmpdir(), "to-issues-validator-"));
+  try {
+    const bodyA = join(directory, "a.md");
+    writeFileSync(bodyA, checklistIssueBody().replace(
+      "Server blockers refuse incomplete work.",
+      "Server blockers return remediation; each state names the applicable substance validation.",
+    ));
+    const rows = checklistRows("Slice A").replace(
+      'AC 8 - "Server blockers refuse incomplete work."',
+      'AC 8 - "Server blockers return remediation; each state names the applicable substance validation."',
     );
 
     const report = validateRunSheet(`
@@ -436,6 +530,61 @@ test("child validation rejects a mismatched standalone source relationship", () 
   }));
 
   assert.equal(report.checks.hasSourceRelationship, false);
+});
+
+test("summary output keeps a successful run-sheet report compact", () => {
+  const summary = summarizeValidationReport({
+    affected: [{ checks: { passes: true }, slice: "Slice A" }],
+    failedChecks: [],
+    inputFile: "run-sheet.md",
+    mode: "run-sheet",
+    rowCount: 44,
+    selectedRowCount: 44,
+    unaffected: [],
+  });
+
+  assert.deepEqual(summary, {
+    failedChecks: [],
+    failedSlices: [],
+    inputFile: "run-sheet.md",
+    mode: "run-sheet",
+    passed: true,
+    rowCount: 44,
+    selectedRowCount: 44,
+  });
+});
+
+test("summary output retains failing run-sheet details", () => {
+  const summary = summarizeValidationReport({
+    affected: [{
+      checks: { hasCompleteCompositeCoverage: false },
+      invalidCoverage: [],
+      invalidExcerpts: [],
+      invalidOrdinals: [],
+      missingCompositeComponents: [{ item: "skip path and reason storage", missing: ["skip path"] }],
+      missingItems: [],
+      slice: "Slice A",
+      unexpectedItems: [],
+    }],
+    failedChecks: ["affectedSlicesPass"],
+    inputFile: "run-sheet.md",
+    mode: "run-sheet",
+    rowCount: 11,
+    selectedRowCount: 11,
+    unaffected: [],
+  });
+
+  assert.equal(summary.passed, false);
+  assert.deepEqual(summary.failedSlices, [{
+    failedChecks: ["hasCompleteCompositeCoverage"],
+    invalidCoverage: [],
+    invalidExcerpts: [],
+    invalidOrdinals: [],
+    missingCompositeComponents: [{ item: "skip path and reason storage", missing: ["skip path"] }],
+    missingItems: [],
+    slice: "Slice A",
+    unexpectedItems: [],
+  }]);
 });
 
 function readFile(path) {

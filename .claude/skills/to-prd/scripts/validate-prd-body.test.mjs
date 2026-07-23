@@ -105,6 +105,7 @@ test("loads checklist and source policy from a reusable policy file", () => {
       expectChecklist: true,
       approvedSources: ["CONTEXT.md"],
       disallowedSources: ["reports/local-prep.md"],
+      publicationRefSources: [],
     }));
     const body = bodyWithChecklist(checklistItems).replace(
       "Publication provenance was ratified in this session.",
@@ -118,6 +119,101 @@ test("loads checklist and source policy from a reusable policy file", () => {
     assert.equal(result.report.expectsChecklist, true);
     assert.deepEqual(result.report.approvedDurableSourcePaths, ["CONTEXT.md"]);
     assert.deepEqual(result.report.disallowedLocalSources, ["reports/local-prep.md"]);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("accepts and separately reports a cited publication-ref source", () => {
+  const directory = mkdtempSync(join(tmpdir(), "worldloom-prd-policy-"));
+  const policyFile = join(directory, "policy.json");
+  try {
+    writeFileSync(policyFile, JSON.stringify({
+      expectChecklist: true,
+      approvedSources: [],
+      disallowedSources: [],
+      publicationRefSources: [{
+        path: "docs/specs/example.md",
+        anchors: ["## Entry Contract", "## Handoff Contract"],
+      }],
+    }));
+    const body = bodyWithChecklist(checklistItems).replace(
+      "Publication provenance was ratified in this session.",
+      "Publication-ref provenance from docs/specs/example.md was ratified in this session.",
+    );
+
+    const result = runValidator(body, ["--stdin", "--policy-file", policyFile]);
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(result.report.approvedDurableSourcePaths, []);
+    assert.deepEqual(result.report.publicationRefSources, [{
+      path: "docs/specs/example.md",
+      anchors: ["## Entry Contract", "## Handoff Contract"],
+    }]);
+    assert.deepEqual(result.report.unusedPublicationRefSources, []);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects publication-ref sources without exact Markdown heading anchors", () => {
+  const directory = mkdtempSync(join(tmpdir(), "worldloom-prd-policy-"));
+  const policyFile = join(directory, "policy.json");
+  try {
+    writeFileSync(policyFile, JSON.stringify({
+      expectChecklist: true,
+      approvedSources: [],
+      disallowedSources: [],
+      publicationRefSources: [{ path: "docs/specs/example.md", anchors: ["Entry Contract"] }],
+    }));
+
+    const result = runValidator(bodyWithChecklist(checklistItems), ["--stdin", "--policy-file", policyFile]);
+
+    assert.equal(result.status, 2);
+    assert.match(result.stderr, /one or more exact Markdown heading anchors/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects publication-ref sources that overlap another source-policy class", () => {
+  const directory = mkdtempSync(join(tmpdir(), "worldloom-prd-policy-"));
+  const policyFile = join(directory, "policy.json");
+  try {
+    writeFileSync(policyFile, JSON.stringify({
+      expectChecklist: true,
+      approvedSources: ["docs/specs/example.md"],
+      disallowedSources: [],
+      publicationRefSources: [{ path: "docs/specs/example.md", anchors: ["## Entry Contract"] }],
+    }));
+
+    const result = runValidator(bodyWithChecklist(checklistItems), ["--stdin", "--policy-file", policyFile]);
+
+    assert.equal(result.status, 2);
+    assert.match(result.stderr, /must not overlap approvedSources or disallowedSources/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects a publication-ref policy entry that the body does not cite", () => {
+  const directory = mkdtempSync(join(tmpdir(), "worldloom-prd-policy-"));
+  const policyFile = join(directory, "policy.json");
+  try {
+    writeFileSync(policyFile, JSON.stringify({
+      expectChecklist: true,
+      approvedSources: [],
+      disallowedSources: [],
+      publicationRefSources: [{ path: "docs/specs/example.md", anchors: ["## Entry Contract"] }],
+    }));
+
+    const result = runValidator(bodyWithChecklist(checklistItems), ["--stdin", "--policy-file", policyFile]);
+
+    assert.equal(result.status, 1);
+    assert.deepEqual(result.report.failures, ["hasNoUnusedPublicationRefSources"]);
+    assert.deepEqual(result.report.unusedPublicationRefSources, [
+      { path: "docs/specs/example.md", anchors: ["## Entry Contract"] },
+    ]);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

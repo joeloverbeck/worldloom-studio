@@ -7,6 +7,7 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 
 import { buildAcceptanceManifest, buildAuditScaffold } from "./build-acceptance-manifest.mjs";
+import { validateTddCloseoutBody } from "../../tdd/scripts/validate-tdd-closeout-body.mjs";
 import {
   DEFAULT_CLOSEOUT_BODY_MAX_BYTES,
   DEFAULT_CLOSEOUT_EVIDENCE_HEADROOM_BYTES,
@@ -14,6 +15,7 @@ import {
   buildCloseoutBodyPlan,
   buildCloseoutBodyScaffold,
   buildCloseoutBodySizePlan,
+  listCloseoutBodyValueKeys,
   validateAuditInput
 } from "./build-closeout-body.mjs";
 
@@ -42,6 +44,22 @@ const manifest = buildAcceptanceManifest([
   }
 ]);
 
+const completedAudit = () => buildAuditScaffold(manifest)
+  .replaceAll("atoms: TODO", "atoms: exact")
+  .replaceAll("proof surfaces: TODO", "proof surfaces: focused test")
+  .replaceAll(
+    "sequence: TODO or N/A because criterion is not sequence-sensitive",
+    "sequence: N/A because criterion is not sequence-sensitive"
+  )
+  .replaceAll("| not done |", "| satisfied |");
+
+const valuesForScaffold = (body, audit) => ({
+  version: 1,
+  values: Object.fromEntries(
+    listCloseoutBodyValueKeys(body, audit).map((key, index) => [key, `filled value ${index + 1}`])
+  )
+});
+
 test("buildCloseoutBodyScaffold emits selected normal-review closeout fields", () => {
   const body = buildCloseoutBodyScaffold(manifest, {
     parentIssue: 364,
@@ -56,10 +74,12 @@ test("buildCloseoutBodyScaffold emits selected normal-review closeout fields", (
 
   assert.match(body, /^Implementation closeout for #364/m);
   assert.match(body, /Scaffold status: incomplete/);
-  assert.match(body, /Local-only SHA: <final SHA> is not remote-reachable/);
+  assert.match(body, /Local-only SHA: <final SHA \[\d+ of \d+\]> is not remote-reachable/);
   assert.match(body, /TDD closeout preflight:/);
   assert.match(body, /Evidence-only proof server preflight:/);
-  assert.match(body, /proof server preflight <present or N\/A>/);
+  assert.match(body, /proof server preflight <present or N\/A \[\d+ of \d+\]>/);
+  assert.equal(body.match(/^- Proof-process finalization:/gm)?.length, 2);
+  assert.match(body, /proof-process finalization <present or N\/A \[\d+ of \d+\]>/);
   assert.match(body, /Review: code-review against <resolved fixed point>/);
   assert.match(body, /outcome findings fixed/);
   for (const label of [
@@ -79,11 +99,16 @@ test("buildCloseoutBodyScaffold emits selected normal-review closeout fields", (
     assert.match(body, new RegExp(label));
   }
   assert.match(body, /## Standards[\s\S]+## Spec/);
+  assert.match(body, /Findings: <none or terminal Standards findings only>/);
+  assert.match(body, /Findings: <none or terminal Spec findings only>/);
   assert.match(body, /Browser evidence:\n- Route\/action\/outcome:/);
+  assert.match(body, /- Proof-process finalization: <stdout\/stderr and browser console drained/);
+  assert.match(body, /review Findings lines axis-local/);
+  assert.match(body, /proof-process finalization present\/N\/A\/blocked/);
   assert.match(body, /no hits outside classified identity\/history lines and no active-proof hits/);
   assert.match(body, /fixture paths <path 1 \| path 2 \| none/);
   assert.match(body, /every normalized exact superseded value individually/);
-  assert.match(body, /Fixed child inline close comment: Completed by <final SHA>\. Evidence: this parent rollup comment URL/);
+  assert.match(body, /Fixed child inline close comment: Completed by <final SHA \[\d+ of \d+\]>\. Evidence: this parent rollup comment URL/);
   assert.match(body, /\| #364 \| AC1 - Parent behavior \|/);
   assert.match(body, /\| #368 \| AC1 - Replay the production route \|/);
   assert.doesNotMatch(body, /\| satisfied \|/);
@@ -187,22 +212,161 @@ test("buildCloseoutBodyScaffold emits immediate-fix fallback fields", () => {
 });
 
 test("buildCloseoutBodyScaffold preserves a completed exact audit input", () => {
-  const audit = buildAuditScaffold(manifest)
-    .replaceAll("atoms: TODO", "atoms: exact")
-    .replaceAll("proof surfaces: TODO", "proof surfaces: focused test")
-    .replaceAll(
-      "sequence: TODO or N/A because criterion is not sequence-sensitive",
-      "sequence: N/A because criterion is not sequence-sensitive"
-    )
-    .replaceAll("| not done |", "| satisfied |");
+  const audit = `\n${completedAudit()}\n`;
   const body = buildCloseoutBodyScaffold(manifest, {
     parentIssue: 364,
     audit,
     reviewMode: "normal"
   });
 
+  assert.equal(body.split(audit).length - 1, 1);
+  assert.equal(validateAuditInput(manifest, audit), audit);
+});
+
+test("values input exposes a unique key for every repeated placeholder occurrence", () => {
+  const audit = completedAudit();
+  const options = {
+    parentIssue: 364,
+    audit,
+    reviewMode: "normal",
+    tddParentRollup: true
+  };
+  const scaffold = buildCloseoutBodyScaffold(manifest, options);
+  const keys = listCloseoutBodyValueKeys(scaffold, audit);
+  const seamKeys = keys.filter((key) => /^<seam \[\d+ of 2\]>$/.test(key));
+  assert.equal(seamKeys.length, 2);
+  assert.equal(new Set(scaffold.match(/<[^>\n]{1,500}>/g) ?? []).size, keys.length);
+
+  const valuesInput = valuesForScaffold(scaffold, audit);
+  valuesInput.values[seamKeys[0]] = "parent public seam";
+  valuesInput.values[seamKeys[1]] = "child public seam";
+  const body = buildCloseoutBodyScaffold(manifest, { ...options, valuesInput });
+
+  assert.match(body, /parent public seam/);
+  assert.match(body, /child public seam/);
+});
+
+test("generated TDD scaffold exposes fillable proof-process fields to nested validation", () => {
+  const scaffold = buildCloseoutBodyScaffold(manifest, {
+    parentIssue: 364,
+    reviewMode: "normal",
+    tddParentRollup: true
+  });
+  const body = scaffold
+    .replaceAll(
+      /- Proof-process finalization: <[^>]+>/g,
+      "- Proof-process finalization: N/A because no proof-owned process or session was started"
+    )
+    .replace(
+      /proof-process finalization <[^>]+>/,
+      "proof-process finalization N/A"
+    );
+  const errors = validateTddCloseoutBody(body, {
+    flags: ["--parent-rollup"],
+    acceptanceManifest: manifest
+  });
+
+  assert.deepEqual(
+    errors.filter((error) => error.toLowerCase().includes("proof-process finalization")),
+    []
+  );
+});
+
+test("values input hydrates every non-audit placeholder and preserves the exact audit", () => {
+  const audit = completedAudit();
+  const options = {
+    parentIssue: 364,
+    audit,
+    reviewMode: "normal",
+    immediateFix: true,
+    tddParentRollup: true,
+    browser: true,
+    principles: true,
+    localOnly: true,
+    fixedChildMode: "pending"
+  };
+  const scaffold = buildCloseoutBodyScaffold(manifest, options);
+  const valuesInput = valuesForScaffold(scaffold, audit.trim());
+  const body = buildCloseoutBodyScaffold(manifest, { ...options, valuesInput });
+
+  assert.match(body, /Scaffold status: hydrated from --values-input; validate before publication\./);
+  assert.doesNotMatch(body, /Scaffold status: incomplete/);
+  assert.deepEqual(listCloseoutBodyValueKeys(body, audit.trim()), []);
   assert.equal(body.split(audit.trim()).length - 1, 1);
-  assert.equal(validateAuditInput(manifest, audit), audit.trim());
+});
+
+test("values input rejects missing, unknown, and invalid structured values", () => {
+  const audit = completedAudit();
+  const options = { parentIssue: 364, audit, reviewMode: "normal" };
+  const scaffold = buildCloseoutBodyScaffold(manifest, options);
+  const complete = valuesForScaffold(scaffold, audit.trim());
+
+  assert.throws(
+    () => buildCloseoutBodyScaffold(manifest, {
+      ...options,
+      valuesInput: { version: 1, values: {} }
+    }),
+    /values input is missing replacements for:/
+  );
+  assert.throws(
+    () => buildCloseoutBodyScaffold(manifest, {
+      ...options,
+      valuesInput: {
+        ...complete,
+        values: { ...complete.values, "<unknown closeout field>": "unexpected" }
+      }
+    }),
+    /values input contains unknown replacements: <unknown closeout field>/
+  );
+  assert.throws(
+    () => buildCloseoutBodyScaffold(manifest, {
+      ...options,
+      valuesInput: { version: 2, values: complete.values }
+    }),
+    /values input version must be 1/
+  );
+  assert.throws(
+    () => buildCloseoutBodyScaffold(manifest, {
+      ...options,
+      valuesInput: { version: 1, values: complete.values, extra: true }
+    }),
+    /values input contains unknown top-level keys: extra/
+  );
+  const [firstKey] = Object.keys(complete.values);
+  assert.throws(
+    () => buildCloseoutBodyScaffold(manifest, {
+      ...options,
+      valuesInput: {
+        ...complete,
+        values: { ...complete.values, [firstKey]: " " }
+      }
+    }),
+    /must be a non-empty string/
+  );
+  const keysByLength = Object.keys(complete.values).toSorted(
+    (left, right) => right.length - left.length
+  );
+  assert.throws(
+    () => buildCloseoutBodyScaffold(manifest, {
+      ...options,
+      valuesInput: {
+        ...complete,
+        values: {
+          ...complete.values,
+          [keysByLength[0]]: keysByLength.at(-1)
+        }
+      }
+    }),
+    /values input left unresolved replacements:/
+  );
+  assert.throws(
+    () => buildCloseoutBodyScaffold(manifest, {
+      parentIssue: 364,
+      reviewMode: "normal",
+      valuesInput: complete
+    }),
+    /values input requires an explicit completed audit input/
+  );
 });
 
 test("validateAuditInput rejects missing exact manifest coverage", () => {
@@ -240,7 +404,7 @@ test("closeout size plan reports scaffold, audit, and evidence headroom", () => 
   });
 
   assert.equal(sizePlan.scaffoldBytes, Buffer.byteLength(body, "utf8"));
-  assert.equal(sizePlan.auditBytes, Buffer.byteLength(audit.trim(), "utf8"));
+  assert.equal(sizePlan.auditBytes, Buffer.byteLength(audit, "utf8"));
   assert.equal(
     sizePlan.remainingBytes,
     DEFAULT_CLOSEOUT_BODY_MAX_BYTES - sizePlan.scaffoldBytes
@@ -278,6 +442,7 @@ test("buildCloseoutBodyScaffold emits fallback and explicit N/A branches", () =>
   assert.match(body, /Backend process currentness:/);
   assert.match(body, /TDD evidence: N\/A because no tdd skill was invoked/);
   assert.match(body, /Browser evidence: N\/A because <reason no browser\/manual evidence applies>/);
+  assert.match(body, /Proof-process finalization: N\/A because no proof-owned process or session was started/);
   assert.match(body, /Principles\/ADR conformance: N\/A because no in-scope issue has a Principles section/);
   assert.match(body, /Fixed child inline close comment: N\/A because no fixed-template child closeout applies/);
 });
@@ -318,6 +483,48 @@ test("closeout scaffold CLI writes a deterministic body", () => {
   assert.equal(first.status, 0, first.stderr);
   assert.equal(second.status, 0, second.stderr);
   assert.equal(secondBody, firstBody);
+});
+
+test("closeout scaffold CLI hydrates structured values deterministically", () => {
+  const directory = mkdtempSync(join(tmpdir(), "implement-closeout-values-test-"));
+  const manifestPath = join(directory, "manifest.json");
+  const auditPath = join(directory, "audit.md");
+  const valuesPath = join(directory, "values.json");
+  const outputPath = join(directory, "closeout.md");
+  const audit = completedAudit();
+  const scaffold = buildCloseoutBodyScaffold(manifest, {
+    parentIssue: 364,
+    audit,
+    reviewMode: "normal"
+  });
+  writeFileSync(manifestPath, JSON.stringify(manifest));
+  writeFileSync(auditPath, audit);
+  writeFileSync(valuesPath, JSON.stringify(valuesForScaffold(scaffold, audit.trim())));
+
+  const result = spawnSync(
+    process.execPath,
+    [
+      builder,
+      manifestPath,
+      "--audit-input",
+      auditPath,
+      "--values-input",
+      valuesPath,
+      "--output",
+      outputPath,
+      "--parent",
+      "364",
+      "--review",
+      "normal"
+    ],
+    { encoding: "utf8" }
+  );
+  const body = existsSync(outputPath) ? readFileSync(outputPath, "utf8") : "";
+  rmSync(directory, { recursive: true, force: true });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(body, /Scaffold status: hydrated from --values-input/);
+  assert.equal(body.split(audit.trim()).length - 1, 1);
 });
 
 test("closeout scaffold CLI refuses an oversized output", () => {

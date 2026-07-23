@@ -46,7 +46,7 @@ function parsePolicyFile(policyFile) {
     failUsage("Validator policy must be a JSON object.");
   }
 
-  const allowedKeys = new Set(["expectChecklist", "approvedSources", "disallowedSources"]);
+  const allowedKeys = new Set(["expectChecklist", "approvedSources", "disallowedSources", "publicationRefSources"]);
   const unknownKeys = Object.keys(policy).filter((key) => !allowedKeys.has(key));
   if (unknownKeys.length > 0) {
     failUsage(`Unknown validator policy field(s): ${unknownKeys.join(", ")}`);
@@ -61,10 +61,52 @@ function parsePolicyFile(policyFile) {
     }
   }
 
+  const publicationRefSources = policy.publicationRefSources ?? [];
+  if (!Array.isArray(publicationRefSources)) {
+    failUsage("Validator policy publicationRefSources must be an array.");
+  }
+  for (const entry of publicationRefSources) {
+    if (entry == null || typeof entry !== "object" || Array.isArray(entry)) {
+      failUsage("Each publicationRefSources entry must be an object with path and anchors.");
+    }
+    const unknownEntryKeys = Object.keys(entry).filter((key) => !["path", "anchors"].includes(key));
+    if (unknownEntryKeys.length > 0) {
+      failUsage(`Unknown publicationRefSources field(s): ${unknownEntryKeys.join(", ")}`);
+    }
+    if (typeof entry.path !== "string" || entry.path.length === 0) {
+      failUsage("Each publicationRefSources entry needs a non-empty path.");
+    }
+    if (
+      !Array.isArray(entry.anchors) ||
+      entry.anchors.length === 0 ||
+      entry.anchors.some((anchor) => typeof anchor !== "string" || !/^#{1,6} \S/.test(anchor))
+    ) {
+      failUsage("Each publicationRefSources entry needs one or more exact Markdown heading anchors.");
+    }
+    if (unique(entry.anchors).length !== entry.anchors.length) {
+      failUsage(`publicationRefSources anchors must be unique within ${entry.path}.`);
+    }
+  }
+
+  const normalizedPublicationRefSources = publicationRefSources
+    .map((entry) => ({ path: entry.path, anchors: unique(entry.anchors) }))
+    .sort((left, right) => left.path.localeCompare(right.path));
+  if (unique(normalizedPublicationRefSources.map((entry) => entry.path)).length !== normalizedPublicationRefSources.length) {
+    failUsage("Validator policy publicationRefSources paths must be unique.");
+  }
+  const ordinaryPolicyPaths = new Set([...policy.approvedSources, ...policy.disallowedSources]);
+  const overlappingPaths = normalizedPublicationRefSources
+    .map((entry) => entry.path)
+    .filter((path) => ordinaryPolicyPaths.has(path));
+  if (overlappingPaths.length > 0) {
+    failUsage(`publicationRefSources must not overlap approvedSources or disallowedSources: ${overlappingPaths.join(", ")}`);
+  }
+
   return {
     approvedSources: unique(policy.approvedSources),
     disallowedSources: unique(policy.disallowedSources),
     expectChecklist: policy.expectChecklist,
+    publicationRefSources: normalizedPublicationRefSources,
   };
 }
 
@@ -77,6 +119,7 @@ function parseArgs(argv) {
     extractSources: false,
     inlinePolicyProvided: false,
     policyFile: null,
+    publicationRefSources: [],
     stdin: false,
   };
 
@@ -193,9 +236,15 @@ const checklistMissing = options.expectChecklist
     )
   : [];
 const unexpectedLocalSourcePaths = inspection.localSourcePaths.filter(
-  (path) => !options.approvedSources.includes(path),
+  (path) =>
+    !options.approvedSources.includes(path) &&
+    !options.publicationRefSources.some((entry) => entry.path === path),
 );
 const leakedDisallowedLocalSources = options.disallowedSources.filter((path) => body.includes(path));
+const inspectedSourcePaths = unique([...inspection.localSourcePaths, ...inspection.resolvedAdrPaths]);
+const unusedPublicationRefSources = options.publicationRefSources.filter(
+  (entry) => !inspectedSourcePaths.includes(entry.path),
+);
 const trimmedBody = body.trimStart();
 
 const checks = {
@@ -218,6 +267,7 @@ const checks = {
   hasStoriesConforming: storyLines.length > 0 && badStories.length === 0,
   hasOnlyApprovedLocalSources: unexpectedLocalSourcePaths.length === 0,
   hasNoDisallowedLocalSources: leakedDisallowedLocalSources.length === 0,
+  hasNoUnusedPublicationRefSources: unusedPublicationRefSources.length === 0,
   hasResolvedAdrShorthands: inspection.unresolvedAdrShorthands.length === 0,
 };
 const failures = Object.entries(checks)
@@ -233,6 +283,8 @@ const report = {
   badStories,
   checklistMissing,
   approvedDurableSourcePaths: unique(options.approvedSources),
+  publicationRefSources: options.publicationRefSources,
+  unusedPublicationRefSources,
   disallowedLocalSources: unique(options.disallowedSources),
   unexpectedLocalSourcePaths,
   leakedDisallowedLocalSources,

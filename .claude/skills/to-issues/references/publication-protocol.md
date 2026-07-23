@@ -121,11 +121,11 @@ For each fully specified affected slice, the local run sheet must contain exactl
 | read-side audit or provenance link | `AC N - "verbatim excerpt"` or specific N/A |
 | cognitive walkthrough scenario | `AC N - "verbatim excerpt"` or specific N/A |
 
-Use columns `Slice | Checklist item | Covered by final AC mapping | N/A reason`. Every applicable row uses one or more exact mappings in the form `AC <n> - "<verbatim excerpt from that AC>"`; separate multiple mappings with semicolons. The validator resolves the cited ordinal, proves each excerpt belongs to that exact acceptance criterion, and prints the resolved AC text in its report. A bare ordinal, an excerpt without its ordinal, or an excerpt copied from a different AC fails validation.
+Use columns `Slice | Checklist item | Covered by final AC mapping | N/A reason`. Every applicable row uses one or more exact mappings in the form `AC <n> - "<verbatim excerpt from that AC>"`; separate multiple mappings with semicolons. When the excerpt itself contains a double quote, encode that quote as `\"` inside the mapping; the validator unescapes it before comparing the excerpt with the cited criterion. The validator resolves the cited ordinal, proves each excerpt belongs to that exact acceptance criterion, and prints the resolved AC text in its report. A bare ordinal, an excerpt without its ordinal, or an excerpt copied from a different AC fails validation.
 
 For a composite checklist item, the resolved AC text must cover every named component. One AC may cover multiple components, multiple exact mappings may divide them, or an AC may encode an explicit cross-slice handoff that names the component and the slice that closes it. Do not map a row such as `prompt packet preview, source manifest, and cold external LLM test` to criteria that cover only preview and manifest. Every inapplicable row uses `N/A - <specific reason>`. An unaffected slice gets one `browser-visible guidance checklist` row with a specific N/A reason. A generic body criterion or final-ledger `yes` never substitutes for this run sheet.
 
-Composite coverage is semantic, not a demand to copy checklist labels into issue prose. Use the repository's governed terms when they prove the same behavior: a governed deferral or decline can satisfy the skip-path component; a recorded, retained, or persisted reason/rationale can satisfy reason storage; and an explicit refusal of incomplete work, material, evidence, or completion can satisfy substance validation. The validator keeps negative controls for each alternative. Do not add phrases such as `skip path and reason storage` or `substance validation` solely to make the checker pass.
+Composite coverage is semantic, not a demand to copy checklist labels into issue prose. Use the repository's governed terms when they prove the same behavior: a governed deferral, decline, or skip can satisfy the skip-path component; a recorded, retained, or persisted reason/rationale can satisfy reason storage; and an explicit refusal of incomplete work, material, evidence, or completion can satisfy substance validation. Concrete domain-invalidity behavior also satisfies substance validation when it names conditions such as a missing, incompatible, unavailable, stale, mismatched, wrong-type, discontinuous, or otherwise invalid input and ties them to validation, refusal, disabled action, blockers, or remediation. The validator keeps negative controls for each alternative. Do not add phrases such as `skip path and reason storage` or `substance validation` solely to make the checker pass; a label-only sentence such as `Each state names the applicable substance validation` must fail.
 
 ## 3. Validate staged artifacts
 
@@ -174,6 +174,8 @@ node .claude/skills/to-issues/scripts/validate-publication.mjs run-sheet "$RUN_S
 ```
 
 The `--only-slice` value must also be configured by `--slice-body` or `--unaffected-slice`. Both forms apply placeholder, patch-marker, and machine-local path checks to every configured affected child body. Use the current-slice form during serial substitution; a configured body that still contains a staging placeholder must fail. Run the full all-slice form only after every substitution is complete and again before final family verification.
+
+Append `--summary` to any validator invocation when compact interactive output is needed. Summary mode preserves the same exit status and prints aggregate checks, counts, and failing-slice details; omit it when the complete JSON evidence report is required.
 
 Validate the staged parent ledger with every expected child:
 
@@ -237,11 +239,37 @@ node .claude/skills/to-issues/scripts/verify-published-family.mjs child "$ISSUE_
   --placeholder-re '#SLICE|PLACEHOLDER'
 ```
 
+This verifier invokes read-only `gh` commands internally. If it reports a nested connectivity or permission-shaped failure, apply Step 1's sandbox-escalation classification before consuming an API retry. Append `--summary` for compact pass/fail output; omit it when the complete JSON evidence report is required.
+
 For standalone-source mode, replace `--parent` with `--source` and `--source-relationship` using the exact approved strings.
 
 Repeat label and blocker options exactly as approved. Use `--expect-no-blocker` instead of blocker options only when neither tracker nor external blockers exists. The verifier fetches the issue once, normalizes Markdown before comparing the full staged body, requires the exact label set and state, and checks the parent, required sections, story posture, blockers, placeholders, and machine-local paths. Correct defects with the tracker edit command and rerun this verifier before continuing.
 
 After the single-child verifier passes, immediately update that slice's working-publication-ledger entry with the actual issue number, returned URL, exact resolved tracker and external blockers, and `"verifierStatus": "verified"`. Update no other entry speculatively. If the create or verification fails, leave the entry unpublished or record `"verifierStatus": "failed"`, then stop.
+
+For a dependent slice, replace approved title or placeholder blockers with the exact published references; do not only add the new number, URL, and status. The current entry must transition like this:
+
+```json
+{
+  "number": null,
+  "url": null,
+  "blockers": ["Contract slice"],
+  "externalBlockers": [],
+  "verifierStatus": null
+}
+```
+
+```json
+{
+  "number": 403,
+  "url": "https://github.com/owner/repo/issues/403",
+  "blockers": ["#402"],
+  "externalBlockers": [],
+  "verifierStatus": "verified"
+}
+```
+
+Immediately read back that one entry and confirm its number, URL, exact resolved blocker arrays, and verified status before substituting the new issue number into another slice.
 
 On resume, read the working publication ledger before any duplicate guard or create call. Re-fetch each entry marked `verified`, rerun its single-child verifier against the staged body, and retain it only if number, URL, blockers, labels, and body still pass. Reconcile any entry with a number or URL but no verified status using the ambiguous-mutation rule in Step 1. Resume at the first unpublished slice in dependency order; never recreate an already verified slice.
 
@@ -348,6 +376,8 @@ Run:
 node .claude/skills/to-issues/scripts/verify-published-family.mjs "$FAMILY_MANIFEST"
 ```
 
+This verifier also invokes read-only `gh` commands internally. If it reports a nested connectivity or permission-shaped failure, apply Step 1's sandbox-escalation classification before consuming an API retry. Append `--summary` for compact family counts and failing details; omit it when the complete JSON evidence report is required.
+
 The verifier validates the working publication ledger, reruns the complete checklist sheet, and fetches every published issue live through `gh`. In child mode it also fetches the parent and verifies the parent token plus posted ledger or skipped-ledger reason. In standalone-source mode it fetches the source and verifies the exact source token and relationship in every staged and published body. It also verifies exact blockers, labels, state, title, body equality, live URL, and every custom forbidden pattern. A nonzero exit blocks final reporting.
 
 ## 8. Cleanup and final response
@@ -366,5 +396,20 @@ Final Response Blocker: do not report publication complete unless the final answ
 - working publication ledger consumed by final verification and removed;
 - temporary-file cleanup result; and
 - final worktree status with unrelated or intentional dirty files called out.
+
+Use this minimum closeout shape. Include one table row per approved slice; do not collapse sweep or checklist proof into a family-wide sentence.
+
+```markdown
+Approved-created: <N>/<N>.
+
+| Issue | State / labels | Relationship / prerequisites | Placeholder/path sweep | Checklist |
+|---|---|---|---|---|
+| [#<number>](<URL>) | `<STATE>`; `<label-1>`, `<label-2>` | <parent/source relationship>; <exact blockers, external blockers, or no blocker> | passed | `yes` or `N/A - <reason>` |
+
+- Parent ledger or standalone source: <posted/skipped/verified result and URL or approved reason>.
+- Working publication ledger: consumed by final family verification and removed.
+- Temporary cleanup: <absence proof result>.
+- Worktree: <final status and unrelated or intentional dirt>.
+```
 
 If interrupted or compacted after publication begins, rerun any family, ledger, cleanup, or final-response proof whose output is not still present in current context.

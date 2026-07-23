@@ -4,13 +4,24 @@ Read this file in full during Step 1 of [`to-prd`](../SKILL.md).
 
 ## Repo and authority intake
 
-Explore the repo to understand the current state of the codebase, if you haven't already. Run `git status --short` during intake and preserve its exact path/status output as the intake worktree baseline, including an explicit `clean` baseline when it emits no rows. If dirty files are unrelated to the PRD and are not cited by it, continue and mention them in final reporting; if a dirty or untracked file is cited by the PRD, apply the source-durability gate before publishing.
+Explore the repo to understand the current state of the codebase, if you haven't already. Before creating any temporary body, policy, or other run-owned file, capture the branch, HEAD, and exact NUL-delimited porcelain rows with the skill helper. Persist its JSON output, without editing it, at a cleanup-owned path such as `reports/.tmp-prd-<slug>.worktree-baseline.json` using the environment-approved editing mechanism. Do not recapture or overwrite this artifact after the run starts, including after the Step 2 pause or another resume.
+
+```sh
+git branch --show-current # record DETACHED when this emits an empty line
+git rev-parse HEAD
+git status --porcelain=v1 -z --untracked-files=all \
+  | node .claude/skills/to-prd/scripts/worktree-baseline.mjs capture \
+      --branch <exact-branch-or-DETACHED> \
+      --head <exact-sha-from-command-above>
+```
+
+The helper output is the intake worktree baseline; an empty `rows` array is the explicit clean baseline. If dirty files are unrelated to the PRD and are not cited by it, continue and mention them in final reporting; if a dirty or untracked file is cited by the PRD, apply the source-durability gate before publishing.
 
 If repo entrypoint guidance (`CLAUDE.md` or `AGENTS.md`) is not already loaded this session, read it and follow it to the domain vocabulary source, relevant ADRs, principles authority, issue tracker docs, and triage-label docs before drafting. When a source artifact, exemplar, or entrypoint names an ADR by number, resolve the exact `docs/adr/<number>-*.md` path with the uniqueness rule in the source-durability reference before opening it; do not guess ADR filenames.
 
 Before drafting, make the intake state explicit in your working notes:
 
-- `git status` checked and its exact path/status baseline preserved;
+- worktree-baseline JSON captured before temporary files and its cleanup-owned path preserved;
 - entrypoint guidance read or still in context;
 - domain vocabulary source read or intentionally N/A;
 - domain workflow doc named by the entrypoint read or N/A;
@@ -39,6 +50,8 @@ If a candidate body is still too large or the house style remains unclear, fetch
 ## PRD-ready determination artifacts
 
 If the conversation or user references a PRD-ready determination artifact such as `reports/*-prd-prep.md`, read it before drafting. Refresh its source durability, tracker freshness, and any cited authority that could have drifted. Treat its selected first PRD as the intended publication scope unless the user revises it, asks only for a draft, or keeps decisions open. Preserve its deferred follow-on candidates in Out of Scope or Further Notes unless the user explicitly asks to publish a multi-PRD program or bundle them into the current PRD.
+
+When the determination artifact names a canonical validator or self-check command, run it against the live source and determination artifact before treating the artifact as trusted, and preserve its exact counts, warnings, and outcome in the working notes. If the named validator is dirty or changed after the artifact was authored, also run its focused tests and any artifact-named read-only compatibility probe. When those checks cannot establish validator trust, record the limitation and do not treat validator-dependent coverage as trusted.
 
 Before the seam checkpoint, extract every named provisional decision, label-downgrade condition, open mechanism, and open-to-veto note into a decision-closure ledger:
 

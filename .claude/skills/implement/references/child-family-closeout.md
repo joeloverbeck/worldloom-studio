@@ -19,9 +19,23 @@ For a single child or 2-3 child issues using a parent rollup plus fixed-template
 7. Close the parent only after that durable post-child verification names the exact child issue numbers and CLOSED states.
 8. Exact-read the parent and children again before the final response.
 
-Closeout execution order for 4+ in-scope child issues defaults to: post the parent PRD rollup/audit comment first, capture its URL or exact comment reference, verify the exact stored body, cite that rollup from each child closeout comment, close child issues, verify child states by exact issue number, then close the parent. Use per-child full audit comments instead only when no parent rollup is used.
+### Oversized split-audit exception
 
-For 4+ in-scope child issues, follow this command sequence unless you explicitly choose and state a different durable audit sink:
+When a 4+ child family needs supplemental audit chunks because the compact parent body cannot contain the full audit, the chunk-first workflow in [closeout-templates.md](closeout-templates.md) overrides the parent-first default below. Use this order:
+
+1. Generate the full manifest and disjoint subset manifests. Designate the lowest-numbered supplemental issue as the first-mutation carrier.
+2. Complete the carrier with its subset audit plus the family's shared final-SHA, verification, TDD, review, browser/manual, evidence-identity, Principles/ADR, and closeout-preflight evidence. Run every applicable closing validator against the carrier and its subset manifest; the final implement validation includes `--emit-preflight`.
+3. Copy the carrier's emitted preflight verbatim, then post and exact-read the carrier before any other tracker mutation. The carrier is closing-validated rather than audit-only.
+4. Complete every remaining supplemental body, validate it with `--audit-only --review-entry` against its own subset, then post and exact-read it.
+5. Fill the compact parent body with every chunk URL, then run `verify-split-closeout-family.mjs` against the full manifest, the compact body's own audit rows, and every supplemental subset manifest/body/URL tuple.
+6. Rerun the compact body's applicable validators against only the rows it contains, post it, and exact-read the stored parent body.
+7. Continue with the fixed-child or full-child closeout sequence, exact child-state verification, and parent closure.
+
+Do not post the compact parent first and patch chunk URLs into it later when the chunks are already required by the size plan; the chunk-first branch exists so the exact inspected parent body contains stable URLs before its first publication. Do not post an audit-only supplemental chunk before the carrier, because audit-only validation cannot emit the global first-mutation preflight.
+
+When no supplemental audit chunks are required, closeout execution order for 4+ in-scope child issues defaults to: post the parent PRD rollup/audit comment first, capture its URL or exact comment reference, verify the exact stored body, cite that rollup from each child closeout comment, close child issues, verify child states by exact issue number, then close the parent. Use per-child full audit comments instead only when no parent rollup is used.
+
+For 4+ in-scope child issues whose parent body contains the complete audit without supplemental chunks, follow this command sequence unless you explicitly choose and state a different durable audit sink:
 
 1. Draft the parent rollup/audit body under `/tmp`.
 2. Inspect that exact parent body and confirm it contains the audit table, final SHA, verification evidence, TDD evidence or N/A, review evidence, `Principles/ADR conformance:`, the full `Local-only SHA: <sha> is not remote-reachable because <reason>; local-only closeout is acceptable because <reason>.` sentence when applicable, browser evidence or N/A/blocked wording with browser console state and the final post-commit freshness delta, and a child state snapshot before child closeout.

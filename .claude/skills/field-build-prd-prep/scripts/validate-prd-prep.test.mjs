@@ -170,6 +170,62 @@ test("recognizes and deduplicates bullet and table regression identities", () =>
   assert.equal(result.summary.regressions, 2);
 });
 
+test("recognizes compact and grouped table regression identities", () => {
+  const source = `
+## Regression of prior findings
+
+| Prior finding | This run |
+|---|---|
+| FB19 P-01 | fixed |
+| FB17 F-01/F-02 | fixed |
+| FB11 P-01/F-02 | fixed |
+`;
+  const result = validatePrdPrep({
+    source,
+    artifact: artifactWithRows([
+      "Field Build 19 P-01",
+      "Field Build 17 F-01",
+      "Field Build 17 F-02",
+      "Field Build 11 P-01",
+      "Field Build 11 F-02"
+    ])
+  });
+
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.summary.regressions, 5);
+});
+
+test("requires every identity expanded from a grouped regression cell", () => {
+  const source = `
+## Regression of prior findings
+
+| Prior finding | This run |
+|---|---|
+| FB17 F-01/F-02 | fixed |
+`;
+  const result = validatePrdPrep({
+    source,
+    artifact: artifactWithRows(["Field Build 17 F-01"])
+  });
+
+  assert.match(result.errors.join("\n"), /regression Field Build 17 F-02 must map to exactly one Evidence Checked row; found 0/);
+  assert.equal(result.summary.regressions, 2);
+});
+
+test("fails closed on a finding-like regression entry with no run identity", () => {
+  const source = `
+## Regression of prior findings
+
+| Prior finding | This run |
+|---|---|
+| Prior run P-01 | fixed |
+`;
+  const result = validatePrdPrep({ source, artifact: artifactWithRows([]) });
+
+  assert.match(result.errors.join("\n"), /unparsed regression identity: Prior run P-01/);
+  assert.equal(result.summary.regressions, 0);
+});
+
 test("accepts coverage follow-up as a classified evidence status", () => {
   const result = validatePrdPrep({
     source: "",

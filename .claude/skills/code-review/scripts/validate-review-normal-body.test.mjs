@@ -746,7 +746,7 @@ Existing-test contract-change rows: none
 TDD review-fix addendum:
 - Finding: typed public contract ownership
 - Intended red command/failure: red-first skipped because Standards-only/conformance-only fix did not change behavior
-- Green command/evidence: pnpm typecheck passed
+- Green command/evidence: \`pnpm typecheck\` passed: 1 check; exit 0
 - Updated TDD table row: #355 typed public contract
 - Regression durability: N/A because the intended red was not a transient browser/manual probe
 - Browser/manual evidence freshness: N/A because no UI/routes/browser-consumed API/fixtures/action path changed
@@ -766,6 +766,7 @@ TDD closeout preflight:
 - Evidence-only rows freshness: none
 - Evidence-only proof server preflight: N/A because no browser/manual evidence-only rows
 - Evidence-only backend process currentness: N/A because no browser/manual evidence-only rows
+- Proof-process finalization: N/A because no proof-owned process or session was started
 - Evidence identity refresh: same-sink identity block inspected
 - Existing-test contract-change rows: none
 
@@ -775,7 +776,7 @@ Evidence identity refresh:
 - Superseded evidence identities: fixture paths none; browser sessions none; packet paths/hashes none; active revisions none; artifacts none
 - Superseded-token sweep: N/A because every superseded category is none
 
-TDD evidence gate passed: durable sink issue #355 closeout comment; compact table/header present after structural check; seams accounted for all listed; CONTEXT.md status present; ADRs/principles/docs status present; sequence evidence N/A; evidence identities present; partial-red / red-first skip reasons listed; evidence-only rows none; proof server preflight N/A; existing-test contract-change rows none.
+TDD evidence gate passed: durable sink issue #355 closeout comment; compact table/header present after structural check; seams accounted for all listed; CONTEXT.md status present; ADRs/principles/docs status present; sequence evidence N/A; evidence identities present; partial-red / red-first skip reasons listed; evidence-only rows none; proof server preflight N/A; proof-process finalization N/A; existing-test contract-change rows none.
 `;
 
   assert.deepEqual(validateReviewNormalBody(body, { flags: ["--immediate-fix", "--tdd"] }), []);

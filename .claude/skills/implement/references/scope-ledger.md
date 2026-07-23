@@ -7,7 +7,7 @@ issue, issue range, or related tracker family.
 
 Before editing code, identify the authoritative work items.
 
-- Run `git status --short` before the first edit. Record unrelated dirty files in the ledger or progress note, leave them untouched, and do not edit or stage them unless they become in-scope.
+- Run `git status --short` before the first edit. Classify every dirty path as implementation-owned, unrelated untouched work, or a **workflow dependency** that the run will read or execute without editing or staging. For each workflow dependency, record its exact path, whether it is tracked or untracked, whether the working copy differs from `HEAD`, the evidence or closeout claim that depends on it, and its intended retained/removed disposition. Leave unrelated paths untouched unless they become in-scope.
 - If the user names a PRD issue, fetch the PRD and also list related open child issues, blockers, and linked implementation tickets from the issue tracker.
 - Treat the child issues as the implementation checklist unless the user explicitly says to implement only the parent PRD text.
 - If the user names a set of issues, fetch each issue body and comments.
@@ -33,6 +33,10 @@ If related tracker items exist outside the requested scope, include this line im
 
 `Related tracker items outside requested scope: #N closed / #N enabling prerequisite / #N blocking / #N contextual non-blocking backlog / #N intentionally excluded / #N not actually related because ...`
 
+When the run reads or executes a dirty helper, validator, skill file, or other workflow surface without editing it, include this line immediately before the table:
+
+`Workflow dependencies: <exact path> — <tracked/untracked>; working-copy behavior <matches/differs from HEAD>; dependent evidence <commands, validation, review, or closeout claim>; disposition <retain/remove after safe closeout>.`
+
 | Issue | Blockers | Acceptance | Principles | Evidence | Test seam | Status | Closeout comment |
 |---|---|---|---|---|---|---|---|
 | #N | ... | ... | touched docs/ADRs or N/A | ... | ... | planned / in progress / satisfied / blocked / not done | ... |
@@ -43,6 +47,6 @@ Post the ledger to the conversation before the first edit. Update it when depend
 
 Do not edit until a visible ledger or progress note includes this line:
 
-`Scope ledger posted: yes; no edits started; unrelated dirty files <listed/N/A>; in-scope issues <#...>; related tracker classification <done/N/A>; ownership/placement decisions <listed/N/A>.`
+`Scope ledger posted: yes; no edits started; unrelated dirty files <listed/N/A>; workflow dependencies <exact paths and provenance/N/A>; in-scope issues <#...>; related tracker classification <done/N/A>; ownership/placement decisions <listed/N/A>.`
 
-If the first useful user update is shorter than the full table, it must still name the in-scope issues, unrelated dirty files, whether related tracker classification is complete or N/A, and any ownership/placement decisions that are already known. Post or expand the full ledger before making the first code or docs edit.
+If the first useful user update is shorter than the full table, it must still name the in-scope issues, unrelated dirty files, workflow dependencies and their provenance, whether related tracker classification is complete or N/A, and any ownership/placement decisions that are already known. Post or expand the full ledger before making the first code or docs edit.

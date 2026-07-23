@@ -40,6 +40,8 @@ Done when the exact testing seams and publication package are either ratified in
 
 ### 3. Draft, validate, publish, and verify
 
+Returning from a Step 2 wait counts as a pre-create resume. Refresh the live worktree and tracker inputs immediately, then complete the body-dependent checks after staging; the entire pre-create refresh bundle in [validation and closeout](references/validation-and-closeout.md#interruption-recovery-and-cleanup) must pass before issue creation.
+
 For every intended PRD in the package:
 
 1. Read the [PRD body contract](references/prd-body.md) in full before drafting.
@@ -52,7 +54,7 @@ After those reads, execute each issue in this order:
 1. Finalize the title and run the exact-title duplicate guard before creating the staged body.
 2. Draft the staged body and complete source extraction, ADR resolution, decision closure, the durability ledger, the label decision, and the browser-visible checklist gate.
 3. Create the reusable validator-policy manifest, validate the staged body, and run the final status-language pass.
-4. Create the issue, verify its metadata and published body with the same policy manifest, rerun durability, and remove every temporary body and policy file.
+4. Create the issue, verify its metadata and published body with the same policy manifest, rerun durability, and remove every temporary body, policy, and worktree-baseline file.
 5. Complete the [final closeout ledger](references/validation-and-closeout.md#final-closeout-ledger).
 
 Apply all four references separately to every issue in a ratified program. Do not publish until the staged body, source-durability gate, exact-title duplicate guard, label decision, and applicable browser-visible checklist gate all pass.
@@ -61,6 +63,6 @@ Apply all four references separately to every issue in a ratified program. Do no
 
 This blocker governs the completion response after Step 3 publication work begins. It does not forbid the interim Step 2 turn that asks the seam-confirmation question and waits, nor the Step 2 stop that leaves an unratified new-seam sketch as the turn's deliverable. In either interim response, state that publication has not begun and do not claim closeout.
 
-Do not send the final answer until the [final closeout ledger](references/validation-and-closeout.md#final-closeout-ledger) reconciles the verified tracker readbacks and local cleanup evidence. Include the issue number, URL, exact title, state, and labels; staged- and published-body identity and validator results; cited-source and ADR durability results with the publication ref; seam and browser-checklist outcome; deferred follow-ons or program sequencing; temporary-body and policy-file cleanup proof; and final branch plus `git status --short`. List and classify every remaining dirty path individually; grouped counts or unnamed path families do not satisfy the blocker. Do not claim any gate that lacks current evidence. If interrupted, resumed, or compacted after publication begins, rerun every blocker check whose output is no longer in context before reporting completion.
+Do not send the final answer until the [final closeout ledger](references/validation-and-closeout.md#final-closeout-ledger) reconciles the verified tracker readbacks and local cleanup evidence. Include the issue number, URL, exact title, state, and labels; staged- and published-body identity and validator results; cited-source and ADR durability results with the publication ref; seam and browser-checklist outcome; deferred follow-ons or program sequencing; temporary-body, policy-file, and worktree-baseline cleanup proof; and final branch plus `git status --short`. List and classify every remaining dirty path individually from the mechanical comparison; grouped counts or unnamed path families do not satisfy the blocker. Do not claim any gate that lacks current evidence. If interrupted, resumed, or compacted after publication begins, rerun every blocker check whose output is no longer in context before reporting completion.
 
-Done only when every intended issue satisfies this blocker and every temporary body is absent.
+Done only when every intended issue satisfies this blocker and every temporary body, policy, and worktree-baseline artifact is absent.

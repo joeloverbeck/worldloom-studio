@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   checklistValidationArgs,
+  summarizePublishedReport,
   validateManifest,
   verifyPublishedChild,
   verifyPublishedFamily,
@@ -238,6 +239,57 @@ test("fails the family when a published child has an unexpected label", () => {
   assert.equal(report.children[0].checks.labelsMatch, false);
   assert.equal(report.checks.childrenPass, false);
   assert.deepEqual(report.failedChecks, ["childrenPass"]);
+});
+
+test("summary output keeps a successful family report compact", () => {
+  const report = verifyPublishedFamily({
+    manifest,
+    childPayloads,
+    stagedBodies,
+    parentPayload,
+    ledgerBody,
+    checklistVerified: true,
+    workingLedger: workingLedgerFor(manifest),
+  });
+
+  assert.deepEqual(summarizePublishedReport(report), {
+    approvedCount: 2,
+    childCount: 2,
+    failedChecks: [],
+    failedChildren: [],
+    mode: "published-family",
+    passed: true,
+  });
+});
+
+test("summary output retains failing family details", () => {
+  const wrongPayloads = new Map(childPayloads);
+  wrongPayloads.set(354, {
+    ...wrongPayloads.get(354),
+    labels: [...wrongPayloads.get(354).labels, { name: "needs-info" }],
+  });
+  const report = verifyPublishedFamily({
+    manifest,
+    childPayloads: wrongPayloads,
+    stagedBodies,
+    parentPayload,
+    ledgerBody,
+    checklistVerified: true,
+    workingLedger: workingLedgerFor(manifest),
+  });
+
+  assert.deepEqual(summarizePublishedReport(report), {
+    approvedCount: 2,
+    childCount: 2,
+    failedChecks: ["childrenPass"],
+    failedChildren: [{
+      failedChecks: ["labelsMatch"],
+      number: 354,
+      title: "Contract",
+    }],
+    mode: "published-family",
+    passed: false,
+  });
 });
 
 test("single-child verification normalizes markdown and checks the exact contract", () => {

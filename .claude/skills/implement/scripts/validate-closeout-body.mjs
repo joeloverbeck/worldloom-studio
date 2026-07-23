@@ -23,7 +23,7 @@ const reviewEntry = flags.has("--review-entry");
 const emitPreflight = flags.has("--emit-preflight");
 
 const DEFAULT_CLOSEOUT_BODY_MAX_BYTES = 65_536;
-const usage = `Usage: node .claude/skills/implement/scripts/validate-closeout-body.mjs <body.md> [--audit-only [--review-entry] | --closing --expected-final-sha <sha> [--emit-preflight]] [--principles] [--local-only] [--fixed-child | --fixed-child-pending] [--review-fallback] [--acceptance-manifest <manifest.json>] [--max-bytes <positive integer>]`;
+const usage = `Usage: node .claude/skills/implement/scripts/validate-closeout-body.mjs <body.md> [--audit-only [--review-entry] | --closing --expected-final-sha <sha> [--emit-preflight]] [--browser] [--principles] [--local-only] [--fixed-child | --fixed-child-pending] [--review-fallback] [--acceptance-manifest <manifest.json>] [--max-bytes <positive integer>]`;
 
 if (flags.has("--help")) {
   console.error(usage);
@@ -92,6 +92,7 @@ if (reviewEntry && !auditOnly) {
 
 const auditOnlyIncompatibleFlags = [
   "--closing",
+  "--browser",
   "--principles",
   "--local-only",
   "--fixed-child",
@@ -305,6 +306,93 @@ if (!auditOnly) {
   }
   requireText("Closeout body check passed:", "closeout body check line");
   requireText("Closeout gate passed: audit sink", "closeout gate line");
+}
+
+if (!auditOnly && !flags.has("--review-fallback")) {
+  const standardsIndex = lines.findIndex((line) => line.trim() === "## Standards");
+  const specIndex = lines.findIndex((line) => line.trim() === "## Spec");
+  if (standardsIndex >= 0 || specIndex >= 0) {
+    if (standardsIndex < 0 || specIndex < 0 || specIndex <= standardsIndex) {
+      errors.push("normal review body must contain ordered ## Standards and ## Spec sections");
+    } else {
+      const axisSummaryIndex = lines.findIndex(
+        (line, index) => index > specIndex && /^Axis summary:\s*/i.test(line.trim())
+      );
+      const axisSummary = axisSummaryIndex >= 0 ? lines[axisSummaryIndex].trim() : "";
+      const counts = axisSummary.match(/Axis summary:\s*Standards\s+(\d+)[^,\n]*,\s*Spec\s+(\d+)/i);
+      if (!counts) {
+        errors.push("normal review body is missing a parseable Standards/Spec Axis summary");
+      } else {
+        const sections = [
+          { name: "Standards", count: Number(counts[1]), start: standardsIndex + 1, end: specIndex },
+          {
+            name: "Spec",
+            count: Number(counts[2]),
+            start: specIndex + 1,
+            end: axisSummaryIndex >= 0 ? axisSummaryIndex : lines.length
+          }
+        ];
+        for (const section of sections) {
+          const findings = lines
+            .slice(section.start, section.end)
+            .map((line) => line.trim())
+            .filter((line) => /^Findings:\s*/i.test(line));
+          if (findings.length !== 1) {
+            errors.push(`${section.name} section requires exactly one axis-local Findings line; found ${findings.length}`);
+            continue;
+          }
+          const value = findings[0].replace(/^Findings:\s*/i, "").trim();
+          if (section.count === 0 && value !== "none") {
+            errors.push(`${section.name} Findings must be exactly \"none\" when Axis summary reports zero`);
+          }
+          if (section.count > 0 && /^none\b/i.test(value)) {
+            errors.push(`${section.name} Findings cannot be none when Axis summary reports ${section.count}`);
+          }
+        }
+      }
+      requireText("review Findings lines axis-local", "axis-local review Findings body-check result");
+    }
+  }
+}
+
+if (flags.has("--browser")) {
+  const finalizations = valuesForField("Proof-process finalization");
+  if (!finalizations.length) {
+    errors.push("missing Proof-process finalization");
+  }
+  for (const value of finalizations) {
+    if (/^N\/A\b/i.test(value)) {
+      if (!/because/i.test(value)) {
+        errors.push("Proof-process finalization N/A must include 'because'");
+      }
+      continue;
+    }
+    if (/^blocked\b/i.test(value)) {
+      errors.push("Proof-process finalization is blocked");
+      continue;
+    }
+    for (const [pattern, label] of [
+      [/stdout\/stderr/i, "stdout/stderr drain"],
+      [/browser[- ]console/i, "browser console drain"],
+      [/\b(?:stopped|intentionally retained)\b/i, "proof-owned stop or intentional-retention disposition"],
+      [/no HMR errors/i, "no HMR errors result"],
+      [/no stale-process errors/i, "no stale-process errors result"],
+      [/no unexplained errors/i, "no unexplained errors result"]
+    ]) {
+      if (!pattern.test(value)) errors.push(`Proof-process finalization is missing ${label}`);
+    }
+    if (/intentionally retained/i.test(value) && !/because/i.test(value)) {
+      errors.push("intentionally retained proof process requires a reason introduced by 'because'");
+    }
+  }
+  const preflightBlock = closeoutPreflightBlock();
+  if (!preflightBlock.includes("Proof-process finalization:")) {
+    errors.push("Closeout preflight is missing Proof-process finalization");
+  }
+  requireText(
+    "proof-process finalization present/N/A/blocked",
+    "proof-process finalization body-check result"
+  );
 }
 
 if (flags.has("--principles")) {

@@ -25,7 +25,7 @@ Before editing code, identify the authoritative work items and build a progress 
 
 Hard stops:
 
-- Run `git status --short` before the first edit. Record unrelated dirty files and leave them untouched unless they become in-scope.
+- Run `git status --short` before the first edit. Classify every dirty path as implementation-owned, unrelated untouched work, or a **workflow dependency** that this run will read or execute without editing or staging. For each workflow dependency, record its exact path, tracked/untracked provenance, whether its behavior differs from `HEAD`, and what evidence or closeout claim depends on it.
 - Fetch exact PRD/issue bodies and comments for the requested work items. For GitHub, use exact issue lookups with comments and structured fields.
 - If a PRD issue is named, discover and verify related child issues, blockers, and linked implementation tickets before treating the parent as closable.
 - If any fetched PRD or issue has a `## Principles` section, read `docs/principles/README.md`, then read named principle and ADR docs before coding.
@@ -34,7 +34,7 @@ Hard stops:
 
 Post the ledger to the conversation before the first edit and update it when dependencies, blockers, evidence, or closeout state changes materially. Use the compact table and related-tracker classification rules in [references/scope-ledger.md](references/scope-ledger.md).
 
-First-edit gate: do not edit until the visible ledger or progress note includes `Scope ledger posted: yes; no edits started; unrelated dirty files <listed/N/A>; in-scope issues <#...>; related tracker classification <done/N/A>; ownership/placement decisions <listed/N/A>.`
+First-edit gate: do not edit until the visible ledger or progress note includes `Scope ledger posted: yes; no edits started; unrelated dirty files <listed/N/A>; workflow dependencies <exact paths and provenance/N/A>; in-scope issues <#...>; related tracker classification <done/N/A>; ownership/placement decisions <listed/N/A>.`
 
 ## 2. Work Issue-by-Issue
 
@@ -56,7 +56,7 @@ Finalize or refresh that publishable closeout sink after review fixes, final SHA
 
 Before staging, make this implementation pre-stage gate visible in the conversation or ledger:
 
-`Implementation pre-stage gate passed: working pre-close audit drafted <sink/reference>; blocked/not done rows <none/listed>; ownership/placement decisions <recorded/N/A>; unrelated dirty files <listed/N/A>.`
+`Implementation pre-stage gate passed: working pre-close audit drafted <sink/reference>; blocked/not done rows <none/listed>; ownership/placement decisions <recorded/N/A>; unrelated dirty files <listed/N/A>; workflow dependencies <exact paths, provenance, and dependent evidence/N/A>.`
 
 After staging and before committing, inspect the staged file list and make this second gate visible:
 
@@ -89,14 +89,17 @@ Tracker mutation is blocked until all of these are true:
 
 - A pre-close audit exists in an allowed durable sink with exact `Acceptance criterion or conformance check` and `Status` columns.
 - Every acceptance checkbox or conformance check is named explicitly, every row for the issue being closed is `satisfied`, and each satisfied row's Evidence cell contains `atoms:`, `proof surfaces:`, and `sequence:` (use a justified `sequence: N/A because ...` for criteria that are not sequence-sensitive).
-- For issue-family closeout, a manifest generated from saved exact issue JSON has been checked with `--acceptance-manifest`, so every acceptance criterion and Principles check has exactly one audit row.
+- For issue-family closeout, a manifest generated from saved exact issue JSON has been checked with `--acceptance-manifest`, so every acceptance criterion and Principles check has exactly one audit row. When the audit is split across supplemental bodies, the compact parent's own audit rows plus every supplemental subset manifest/body/URL tuple have also passed `verify-split-closeout-family.mjs` against the full manifest.
 - The final SHA is known, matches the tree that passed verification, and is either remote-reachable or covered by the full `Local-only SHA:` sentence.
 - Verification evidence, TDD evidence or explicit N/A, review evidence, Principles/ADR conformance or explicit N/A, browser evidence/freshness or explicit N/A/blocked, and a post-review evidence-identity refresh with a superseded-token sweep are present.
 - Applicable closeout validators have run against the exact inspected body when available, and visual inspection still confirms grouped criteria and literal statuses.
+- Every large-body excerpt, token sweep, and validator was run as its own output-bounded tool call. Parallel or combined output that truncates does not count as inspection; rerun the affected checks separately before mutation.
 - For parent PRD closure, related child states have been verified by exact issue number.
 
 Immediately before the first tracker mutation, make the exact `Closeout preflight:` block and literal `Closeout gate passed: audit sink ...` line visible in the conversation or durable audit sink. Do not run `gh issue close`, `glab issue close`, or equivalent until the closeout command gate in [references/tracker-closeout-gates.md](references/tracker-closeout-gates.md) passes.
 
-If browser/manual proof started a dev server, browser session, or long-running proof process, stop it before the final response or explicitly report why it remains running.
+If browser/manual proof started a dev server, browser session, or long-running proof process, finalize it before the first tracker mutation: after the final assertion, drain its stdout/stderr and browser console, then stop every proof-owned process/session or record why it must remain running. Any HMR, stale-process, or unexplained error blocks mutation and forces a clean final-tree rerun plus refreshed closeout evidence. Stop any intentionally retained proof-owned process before the final response or explicitly report why it remains running.
 
 Run a final `git status --short`. For untracked verification artifacts, either remove them if safe, stage them if they are intended evidence, or explicitly report them in the final response. An artifact named in a published `Current evidence identities:` inventory is not safe to remove until closeout is complete and its retained-or-removed disposition is recorded without implying that a removed local artifact remains inspectable.
+
+Before the final response, make this exact reconciliation visible: `Final worktree reconciliation: implementation-owned paths <exact paths and state>; workflow dependencies <exact paths, tracked/untracked provenance, working-copy-only behavior, dependent evidence, and retained/removed disposition/N/A>; unrelated dirty files <exact paths or bounded path groups and untouched status/N/A>; untracked verification artifacts <exact paths and retained/removed/staged disposition/N/A>.`

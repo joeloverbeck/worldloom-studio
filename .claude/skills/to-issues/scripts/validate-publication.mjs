@@ -18,6 +18,8 @@ export const CHECKLIST_ITEMS = [
   "cognitive walkthrough scenario",
 ];
 
+const SUBSTANCE_VALIDATION_PATTERN = /\bincomplete(?:\s+\w+){0,2}\s+(?:work|completion|step|material|evidence)\b|(?:\b(?:missing|incompatible|unavailable|stale|mismatch\w*|wrong[- ]type|discontinu\w*|invalid)\b[\s\S]{0,320}\b(?:blockers?|remediat\w*|refus\w*|reject\w*|disable\w*|validat\w*)\b)|(?:\b(?:blockers?|remediat\w*|refus\w*|reject\w*|disable\w*|validat\w*)\b[\s\S]{0,320}\b(?:missing|incompatible|unavailable|stale|mismatch\w*|wrong[- ]type|discontinu\w*|invalid)\b)/i;
+
 const COMPOSITE_CHECKLIST_COMPONENTS = new Map([
   ["required, optional, skippable, and severity-dependent fields visible where relevant", [
     ["required", /\brequired\b/i],
@@ -28,19 +30,19 @@ const COMPOSITE_CHECKLIST_COMPONENTS = new Map([
   ["prompt packet preview, source manifest, and cold external LLM test", [
     ["prompt packet preview", /\bprompt packet preview\b/i],
     ["source manifest", /\bsource manifest\b/i],
-    ["cold external LLM test", /\bcold external LLM test\b/i],
+    ["cold external LLM test", /\bcold external LLM tests?\b/i],
   ]],
   ["advisory/canon separation visible", [
     ["advisory", /\badvisory\b/i],
     ["canon", /\bcanon\b/i],
   ]],
   ["skip path and reason storage", [
-    ["skip path", /\b(?:skip path|defer(?:ral|red|ring)?|governed decline)\b/i],
+    ["skip path", /\b(?:skip path|defer(?:ral|red|ring)?|governed (?:decline|skip))\b/i],
     ["reason storage", /\breason storage\b|(?:\b(?:reason|rationale)\b[\s\S]{0,240}\b(?:persist\w*|record\w*|retain\w*|history|provenance)\b)|(?:\b(?:persist\w*|record\w*|retain\w*|history|provenance)\b[\s\S]{0,240}\b(?:reason|rationale)\b)/i],
   ]],
   ["blockers/substance validation", [
     ["blockers", /\bblockers?\b/i],
-    ["substance validation", /\bsubstance validation\b|\bincomplete(?:\s+\w+){0,2}\s+(?:work|completion|step|material|evidence)\b/i],
+    ["substance validation", SUBSTANCE_VALIDATION_PATTERN],
   ]],
   ["current, next, and resume state", [
     ["current", /\bcurrent\b/i],
@@ -76,6 +78,7 @@ Run-sheet options:
 Shared options:
   --placeholder-re <pattern>   Placeholder regex; defaults to #SLICE|PLACEHOLDER.
   --forbid-pattern <pattern>   Reject a run-specific regex; repeat as needed.
+  --summary                    Print compact pass/fail output instead of the full report.
   --help                       Show this help.`;
 
 function failUsage(message) {
@@ -121,6 +124,7 @@ function parseArgs(argv) {
     sliceBodies: [],
     source: null,
     sourceRelationship: null,
+    summary: false,
     unaffectedSlices: [],
   };
 
@@ -129,6 +133,7 @@ function parseArgs(argv) {
     if (argument === "--expect-no-blocker") options.expectNoBlocker = true;
     else if (argument === "--expect-stories") options.expectStories = true;
     else if (argument === "--expect-checklist-na") options.expectChecklistNa = true;
+    else if (argument === "--summary") options.summary = true;
     else if (["--parent", "--source", "--source-relationship", "--blocker", "--external-blocker", "--child", "--expect-ac-count", "--placeholder-re", "--forbid-pattern", "--slice-body", "--unaffected-slice", "--only-slice"].includes(argument)) {
       const value = requireValue(args, index, argument);
       if (argument === "--parent") options.parent = value;
@@ -323,11 +328,11 @@ function parseChecklistRows(body) {
 }
 
 function resolveCoverageMappings(coverage, criteria) {
-  const mappingPattern = /\bAC\s+(\d+)\s+-\s+"([^"]+)"/g;
+  const mappingPattern = /\bAC\s+(\d+)\s+-\s+"((?:\\"|[^"])+)"/g;
   const mappings = [...coverage.matchAll(mappingPattern)].map((match) => {
     const ordinal = Number(match[1]);
     const acceptanceText = criteria[ordinal - 1]?.text ?? null;
-    const excerpt = match[2];
+    const excerpt = match[2].replace(/\\"/g, '"');
     return {
       acceptanceText,
       excerpt,
@@ -472,6 +477,39 @@ export function validateRunSheet(body, options) {
   };
 }
 
+const failedCheckNames = (checks) => Object.entries(checks ?? {})
+  .filter(([, passed]) => !passed)
+  .map(([name]) => name);
+
+const summarizeSliceFailure = (report) => ({
+  failedChecks: failedCheckNames(report.checks),
+  invalidCoverage: report.invalidCoverage ?? [],
+  invalidExcerpts: report.invalidExcerpts ?? [],
+  invalidOrdinals: report.invalidOrdinals ?? [],
+  missingCompositeComponents: report.missingCompositeComponents ?? [],
+  missingItems: report.missingItems ?? [],
+  slice: report.slice,
+  unexpectedItems: report.unexpectedItems ?? [],
+});
+
+export function summarizeValidationReport(report) {
+  const summary = {
+    failedChecks: report.failedChecks,
+    inputFile: report.inputFile,
+    mode: report.mode,
+    passed: report.failedChecks.length === 0,
+  };
+  if (report.acceptanceCount != null) summary.acceptanceCount = report.acceptanceCount;
+  if (report.mode === "run-sheet") {
+    summary.rowCount = report.rowCount;
+    summary.selectedRowCount = report.selectedRowCount;
+    summary.failedSlices = [...(report.affected ?? []), ...(report.unaffected ?? [])]
+      .filter((slice) => failedCheckNames(slice.checks).length > 0)
+      .map(summarizeSliceFailure);
+  }
+  return summary;
+}
+
 const main = () => {
   const { inputFile, mode, options } = parseArgs(process.argv.slice(2));
   const body = readText(inputFile);
@@ -486,7 +524,7 @@ const main = () => {
     .map(([name]) => name);
   const report = { mode, inputFile, ...details, failedChecks };
 
-  console.log(JSON.stringify(report, null, 2));
+  console.log(JSON.stringify(options.summary ? summarizeValidationReport(report) : report, null, 2));
   if (failedChecks.length > 0) process.exit(1);
 };
 
